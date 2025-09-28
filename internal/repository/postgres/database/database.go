@@ -13,13 +13,22 @@ import (
 	"gorm.io/gorm/logger"
 
 	"github.com/denisakp/pulseguard/internal/config"
+	domain "github.com/denisakp/pulseguard/internal/domain"
 )
 
 var (
 	once sync.Once
 	db   *gorm.DB
 	// modelsToMigrate holds domain models for auto-migration
-	modelsToMigrate []any
+	modelsToMigrate = []any{
+		// Core domain models introduced by feature 002
+		&domain.Resource{},
+		&domain.Incident{},
+		&domain.IncidentEventStep{},
+		&domain.Integration{},
+		&domain.NotificationEvent{},
+		&domain.Tags{},
+	}
 )
 
 // Init initializes the database connection with the provided configuration.
