@@ -31,6 +31,7 @@ Keep responses practical, incremental, and aligned with the asynchronous API+Wor
 - Configuration: centralize future env parsing in `internal/config/config.go` (expand instead of scattering `os.Getenv`).
 - Jobs: model as small structs (e.g., `CheckJob{MonitorID, Type, ScheduledAt}`) serialized for Redis (JSON unless a better encoding is added). Keep stable for backward compatibility.
 - Templates: prefer small partials that map to route handlers (e.g., `/monitors/list` -> `monitors/list.html`). HTMX responses should return only the fragment required.
+- **Database**: Use `internal/repository/postgres/database` package for all DB access. Call `database.Init()` once at startup, use `database.Instance()` in repositories. GORM auto-migration handles schema changes. Pool settings: MaxOpen=25, MaxIdle=5, 30m lifetime.
 
 ## Testing (Establish Early)
 
