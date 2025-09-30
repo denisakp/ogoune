@@ -2,18 +2,10 @@ package fake
 
 import (
 	"context"
-	"errors"
 	"sort"
 	"sync"
 
 	"github.com/denisakp/pulseguard/internal/domain"
-)
-
-// Common errors for fake repositories
-var (
-	ErrNotFound     = errors.New("repository: not found")
-	ErrDuplicate    = errors.New("repository: duplicate")
-	ErrInvalidInput = errors.New("repository: invalid input")
 )
 
 // ResourceFake provides an in-memory implementation of ResourceRepository for testing.

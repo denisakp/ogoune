@@ -141,5 +141,3 @@ func (r *TagsFake) Delete(ctx context.Context, id string) error { //nolint:reviv
 	}
 	return nil
 }
-
-

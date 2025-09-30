@@ -2,8 +2,16 @@ package repository
 
 import (
 	"context"
+	"errors"
 
 	"github.com/denisakp/pulseguard/internal/domain"
+)
+
+// Common repository errors
+var (
+	ErrNotFound     = errors.New("repository: not found")
+	ErrDuplicate    = errors.New("repository: duplicate")
+	ErrInvalidInput = errors.New("repository: invalid input")
 )
 
 // PaginationParams holds common pagination parameters
