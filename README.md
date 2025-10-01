@@ -108,22 +108,75 @@ pulseguard/
 
 Prerequisites:
 - Go 1.22+
-- PostgreSQL (optional for local build; required to run DB-backed features)
+- PostgreSQL
+- Redis
+
+### Quick Start
+
+```bash
+# 1. Clone and install dependencies
+git clone https://github.com/denisakp/pulseguard.git
+cd pulseguard
+make install
+
+# 2. Start services (Postgres & Redis)
+make docker-up
+
+# 3. Configure environment (copy and edit .env)
+cp .env.example .env
+
+# 4. Run API and Worker (in separate terminals)
+make api      # Terminal 1
+make worker   # Terminal 2
+```
+
+For detailed setup instructions, see [GETTING_STARTED.md](./GETTING_STARTED.md).
+
+### Manual Build
 
 Install dependencies:
-- Clone this repo, then run:
 
-  go mod download
+```bash
+go mod download
+```
 
 Build:
 
-  go build ./...
+```bash
+go build ./...
+# or
+make build
+```
 
 Run unit tests:
 
-  go test ./...
+```bash
+go test ./...
+# or
+make test
+```
 
-Container users can also rely on `go mod download` during image build.
+## 🎯 API Endpoints
+
+Once running, the API is available at `http://localhost:8080`:
+
+- `GET /health` - Health check
+- `GET /monitor-types` - List available monitor types (http, tcp)
+- `GET /resources` - List all monitoring resources
+- `POST /resources` - Create a new monitoring resource
+
+Example: Create an HTTP monitor
+```bash
+curl -X POST http://localhost:8080/resources \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Google",
+    "type": "http",
+    "target": "https://google.com",
+    "interval": 60,
+    "timeout": 30
+  }'
+```
 
 ## 📅 Roadmap
 
