@@ -26,8 +26,8 @@ func TestSingletonReturnsSameInstance(t *testing.T) {
 	}
 
 	// Initialize with valid config (will use env var fallback in test)
-	cfg := &config.DBConfig{DSN: "postgres://user:pass@localhost/testdb?sslmode=disable"}
-	if err := Init(context.Background(), cfg); err != nil {
+	cfg := &config.Config{DatabaseUrl: "postgres://user:pass@localhost/testdb?sslmode=disable"}
+	if err := Init(context.Background(), &cfg.DatabaseUrl); err != nil {
 		t.Skipf("Skipping test due to DB connection error: %v", err)
 	}
 
@@ -57,8 +57,8 @@ func TestInitWithInvalidDSNReturnsError(t *testing.T) {
 	db = nil
 
 	// Use clearly invalid DSN
-	cfg := &config.DBConfig{DSN: "invalid-dsn-format"}
-	err := Init(context.Background(), cfg)
+	cfg := &config.Config{DatabaseUrl: "invalid-dsn-format"}
+	err := Init(context.Background(), &cfg.DatabaseUrl)
 	if err == nil {
 		t.Error("Expected error with invalid DSN, got nil")
 	}
@@ -80,13 +80,10 @@ func TestPingSkippedWithoutRealDB(t *testing.T) {
 	}
 
 	// Load config from environment
-	cfg, err := config.LoadDBConfig()
-	if err != nil {
-		t.Skipf("Cannot load DB config: %v", err)
-	}
+	cfg := config.MustInit()
 
 	// Initialize
-	if err := Init(context.Background(), cfg); err != nil {
+	if err := Init(context.Background(), &cfg.DatabaseUrl); err != nil {
 		t.Skipf("Cannot initialize database: %v", err)
 	}
 
@@ -94,7 +91,7 @@ func TestPingSkippedWithoutRealDB(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 
-	err = Ping(ctx)
+	err := Ping(ctx)
 	if err != nil {
 		t.Errorf("Ping failed: %v", err)
 	}

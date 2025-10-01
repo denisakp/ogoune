@@ -34,10 +34,10 @@ var (
 // Init initializes the database connection with the provided configuration.
 // It configures connection pooling, logging, and runs auto-migration for registered models.
 // This function should be called exactly once during application startup.
-func Init(ctx context.Context, cfg *config.DBConfig) error {
+func Init(ctx context.Context, dsn *string) error {
 	var initErr error
 	once.Do(func() {
-		if cfg == nil || cfg.DSN == "" {
+		if dsn == nil || *dsn == "" {
 			initErr = fmt.Errorf("db init: configuration is required")
 			return
 		}
@@ -57,7 +57,7 @@ func Init(ctx context.Context, cfg *config.DBConfig) error {
 		}
 
 		// Open connection with postgres driver
-		database, err := gorm.Open(postgres.Open(cfg.DSN), gormConfig)
+		database, err := gorm.Open(postgres.Open(*dsn), gormConfig)
 		if err != nil {
 			initErr = fmt.Errorf("db init: failed to connect: %w", err)
 			return
@@ -98,13 +98,8 @@ func Init(ctx context.Context, cfg *config.DBConfig) error {
 // If Init has not been called, it attempts lazy initialization using environment variables.
 func Instance() (*gorm.DB, error) {
 	if db == nil {
-		// Attempt lazy initialization
-		log.Printf("db_instance=lazy_init action=loading_config")
-		cfg, err := config.LoadDBConfig()
-		if err != nil {
-			return nil, fmt.Errorf("db instance: failed to load config: %w", err)
-		}
-		if err := Init(context.Background(), cfg); err != nil {
+		dsn := config.GetEnv("DATABASE_URL", "")
+		if err := Init(context.Background(), &dsn); err != nil {
 			return nil, fmt.Errorf("db instance: initialization failed: %w", err)
 		}
 		log.Printf("db_instance=lazy_init action=completed")

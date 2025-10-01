@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/denisakp/pulseguard/internal/domain"
-	"github.com/denisakp/pulseguard/internal/domain/monitoring"
+	"github.com/denisakp/pulseguard/internal/monitoring"
 )
 
 type TCPStrategy struct {
@@ -18,7 +18,7 @@ func NewTCPStrategy(timeout time.Duration) *TCPStrategy {
 	return &TCPStrategy{timeout: timeout}
 }
 
-func (s *TCPStrategy) Execute(ctx context.Context, resource domain.Resource) monitoring.Result {
+func (s *TCPStrategy) Execute(ctx context.Context, resource *domain.Resource) (monitoring.Result, error) {
 	start := time.Now()
 
 	timeoutVal := resource.Timeout
@@ -33,7 +33,7 @@ func (s *TCPStrategy) Execute(ctx context.Context, resource domain.Resource) mon
 			Status:       string(domain.StatusDown),
 			ResponseTime: time.Since(start),
 			ResponseData: fmt.Sprintf("failed to connect: %v", err),
-		}
+		}, nil
 	}
 	defer conn.Close()
 
@@ -41,5 +41,5 @@ func (s *TCPStrategy) Execute(ctx context.Context, resource domain.Resource) mon
 		Status:       string(domain.StatusUp),
 		ResponseTime: time.Since(start),
 		ResponseData: "TCP connection successful",
-	}
+	}, nil
 }

@@ -14,7 +14,8 @@ import (
 func TestResourceService_CreateResource(t *testing.T) {
 	resourceRepo := fake.NewResourceFake()
 	incidentRepo := fake.NewIncidentFake()
-	service := NewResourceService(resourceRepo, incidentRepo)
+	schedulerFake := fake.NewSchedulerFake()
+	service := NewResourceService(resourceRepo, incidentRepo, schedulerFake)
 
 	resource := &domain.Resource{
 		Base: domain.Base{
@@ -34,4 +35,7 @@ func TestResourceService_CreateResource(t *testing.T) {
 	found, err := resourceRepo.FindByID(context.Background(), "test-resource")
 	require.NoError(t, err)
 	assert.Equal(t, "Test Resource", found.Name)
+
+	// Verify resource was scheduled
+	assert.True(t, schedulerFake.IsScheduled("test-resource"))
 }

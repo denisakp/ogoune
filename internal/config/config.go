@@ -1,25 +1,38 @@
 package config
 
 import (
-	"fmt"
+	"log"
 	"os"
 )
 
-// DBConfig holds database configuration options
-type DBConfig struct {
-	// DSN is the database connection string
-	DSN string
-	// TODO: Add structured config fields (host, port, db, user, pass, etc.)
-	// TODO: Add LogLevel field for configurable GORM logging
-	// TODO: Add connection pool configuration
+type Config struct {
+	RedisUrl    string
+	DatabaseUrl string
 }
 
-// LoadDBConfig loads database configuration from environment
-// TODO: Replace with proper structured config loading
-func LoadDBConfig() (*DBConfig, error) {
-	dsn := os.Getenv("DATABASE_URL")
-	if dsn == "" {
-		return nil, fmt.Errorf("DATABASE_URL environment variable is required")
+func Load() Config {
+	cfg := Config{
+		RedisUrl:    GetEnv("REDIS_URL", "localhost:6379"),
+		DatabaseUrl: GetEnv("DATABASE_URL", "postgres://denis:password@localhost:5432/pulse?sslmode=disable"),
 	}
-	return &DBConfig{DSN: dsn}, nil
+	return cfg
+}
+
+func GetEnv(key, defaultValue string) string {
+	value := os.Getenv(key)
+	if value == "" {
+		return defaultValue
+	}
+	return value
+}
+
+func MustInit() Config {
+	cfg := Load()
+
+	dsn := cfg.DatabaseUrl
+	if dsn == "" {
+		log.Fatalf("DATABASE_URL environment variable is required")
+	}
+
+	return cfg
 }

@@ -8,14 +8,14 @@ import (
 	"gorm.io/gorm"
 )
 
-// / define a base model with common fields
+// Base define a base model with common fields
 type Base struct {
 	ID        string    `gorm:"primaryKey"`
 	CreatedAt time.Time `gorm:"index"`
 	UpdatedAt time.Time
 }
 
-// / hook to set timestamps before creating a record
+// BeforeCreate hook to set timestamps before creating a record
 func (base *Base) BeforeCreate(tx *gorm.DB) (err error) {
 	if base.ID == "" {
 		// generate a new ULID for the ID field
@@ -71,7 +71,7 @@ type Resource struct {
 
 func (Resource) TableName() string { return "resources" }
 
-// An Incident represents an event where a Resource is down or experiencing issues.
+// Incident represents an event where a Resource is down or experiencing issues.
 type Incident struct {
 	Base
 	ResourceID string   `gorm:"index"`

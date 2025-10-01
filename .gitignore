@@ -2,3 +2,7 @@
 .DS_Store
 .specify
 specs
+.idea/
+.env
+api
+worker

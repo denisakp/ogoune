@@ -104,9 +104,26 @@ pulseguard/
 
 ```
 
-## 📦 Installation (soon)
+## 📦 Installation
 
-Self-hosted setup via Docker Compose and Kubernetes Helm chart will be available soon.
+Prerequisites:
+- Go 1.22+
+- PostgreSQL (optional for local build; required to run DB-backed features)
+
+Install dependencies:
+- Clone this repo, then run:
+
+  go mod download
+
+Build:
+
+  go build ./...
+
+Run unit tests:
+
+  go test ./...
+
+Container users can also rely on `go mod download` during image build.
 
 ## 📅 Roadmap
 

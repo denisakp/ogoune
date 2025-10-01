@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/denisakp/pulseguard/internal/domain"
-	"github.com/denisakp/pulseguard/internal/domain/monitoring"
+	"github.com/denisakp/pulseguard/internal/monitoring"
 )
 
 type HTTPStrategy struct {
@@ -20,7 +20,7 @@ func NewHTTPStrategy(timeout time.Duration) *HTTPStrategy {
 	return &HTTPStrategy{client: &http.Client{Timeout: timeout}}
 }
 
-func (s *HTTPStrategy) Execute(ctx context.Context, resource domain.Resource) monitoring.Result {
+func (s *HTTPStrategy) Execute(ctx context.Context, resource *domain.Resource) (monitoring.Result, error) {
 	start := time.Now()
 
 	timeoutVal := resource.Timeout
@@ -37,7 +37,7 @@ func (s *HTTPStrategy) Execute(ctx context.Context, resource domain.Resource) mo
 			Status:       string(domain.StatusDown),
 			ResponseTime: time.Since(start),
 			ResponseData: fmt.Sprintf("failed to create request: %v", err),
-		}
+		}, nil
 	}
 
 	resp, err := s.client.Do(req)
@@ -46,7 +46,7 @@ func (s *HTTPStrategy) Execute(ctx context.Context, resource domain.Resource) mo
 			Status:       string(domain.StatusDown),
 			ResponseTime: time.Since(start),
 			ResponseData: fmt.Sprintf("request error: %v", err),
-		}
+		}, nil
 	}
 	defer resp.Body.Close()
 	io.Copy(io.Discard, resp.Body) // there is no need to read the body for HEAD requests but we should close it properly
@@ -67,5 +67,5 @@ func (s *HTTPStrategy) Execute(ctx context.Context, resource domain.Resource) mo
 		}(),
 		ResponseTime: time.Since(start),
 		ResponseData: strings.Join(headers, "\n"),
-	}
+	}, nil
 }
