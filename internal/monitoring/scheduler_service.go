@@ -10,33 +10,36 @@ import (
 )
 
 // SchedulerService manages scheduling and unscheduling of monitoring tasks using Asynq.
-// It replaces the complex event-driven dispatcher/listener pattern with direct service calls.
+// It uses Asynq's periodic task scheduler for recurring monitoring checks.
 type SchedulerService struct {
 	client    *asynq.Client
 	inspector *asynq.Inspector
+	scheduler *asynq.Scheduler
 }
 
-// NewSchedulerService creates a new scheduler service with Asynq client and inspector.
-func NewSchedulerService(client *asynq.Client, inspector *asynq.Inspector) *SchedulerService {
+// NewSchedulerService creates a new scheduler service with Asynq client, inspector, and scheduler.
+func NewSchedulerService(client *asynq.Client, inspector *asynq.Inspector, scheduler *asynq.Scheduler) *SchedulerService {
 	return &SchedulerService{
 		client:    client,
 		inspector: inspector,
+		scheduler: scheduler,
 	}
 }
 
 // Schedule creates or updates a periodic monitoring task for the given resource.
 // It first unschedules any existing task for the resource to handle updates correctly.
 // The task is only scheduled if the resource is active.
+// The task will run repeatedly at the interval specified in the resource (in seconds).
 func (s *SchedulerService) Schedule(ctx context.Context, r *domain.Resource) error {
 	if r == nil {
 		return fmt.Errorf("resource cannot be nil")
 	}
 
-	// Generate unique task name based on resource ID
-	taskName := fmt.Sprintf("monitor:%s", r.ID)
+	// Generate unique entry ID based on resource ID
+	entryID := fmt.Sprintf("monitor:%s", r.ID)
 
 	// First, try to unschedule any existing task for this resource
-	if err := s.unscheduleTask(ctx, taskName); err != nil {
+	if err := s.unregisterPeriodicTask(entryID); err != nil {
 		// Log the error but don't fail the entire operation
 		// The task might not exist, which is fine
 	}
@@ -60,12 +63,22 @@ func (s *SchedulerService) Schedule(ctx context.Context, r *domain.Resource) err
 		return fmt.Errorf("failed to marshal task payload: %w", err)
 	}
 
+	// Create the periodic task
 	task := asynq.NewTask("monitoring:check", payloadBytes)
 
-	// Enqueue the task with options
-	_, err = s.client.Enqueue(task, asynq.TaskID(taskName), asynq.Queue("monitoring"))
+	// Convert interval from seconds to a cron expression
+	// Use @every syntax for simplicity: @every 60s, @every 5m, etc.
+	cronspec := fmt.Sprintf("@every %ds", r.Interval)
+
+	// Register the periodic task
+	_, err = s.scheduler.Register(
+		cronspec,
+		task,
+		asynq.Queue("monitoring"),
+		asynq.TaskID(entryID),
+	)
 	if err != nil {
-		return fmt.Errorf("failed to schedule monitoring task for resource %s: %w", r.ID, err)
+		return fmt.Errorf("failed to register periodic monitoring task for resource %s: %w", r.ID, err)
 	}
 
 	return nil
@@ -77,20 +90,18 @@ func (s *SchedulerService) Unschedule(ctx context.Context, resourceID string) er
 		return fmt.Errorf("resource ID cannot be empty")
 	}
 
-	taskName := fmt.Sprintf("monitor:%s", resourceID)
-	return s.unscheduleTask(ctx, taskName)
+	entryID := fmt.Sprintf("monitor:%s", resourceID)
+	return s.unregisterPeriodicTask(entryID)
 }
 
-// unscheduleTask is a helper method to remove a specific task by name.
-func (s *SchedulerService) unscheduleTask(ctx context.Context, taskName string) error {
-	// Try to cancel the task using the inspector
-	err := s.inspector.DeleteTask("monitoring", taskName)
+// unregisterPeriodicTask is a helper method to remove a periodic task by entry ID.
+func (s *SchedulerService) unregisterPeriodicTask(entryID string) error {
+	// Unregister the periodic task from the scheduler
+	err := s.scheduler.Unregister(entryID)
 	if err != nil {
 		// If the task doesn't exist, that's fine - we consider it successfully unscheduled
-		if err.Error() == "task not found" || err.Error() == "queue not found" {
-			return nil
-		}
-		return fmt.Errorf("failed to unschedule task %s: %w", taskName, err)
+		// Asynq returns an error if trying to unregister a non-existent entry
+		return nil // Don't fail on unregister errors
 	}
 
 	return nil

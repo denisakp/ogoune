@@ -10,9 +10,9 @@ import (
 
 // Base define a base model with common fields
 type Base struct {
-	ID        string    `gorm:"primaryKey"`
-	CreatedAt time.Time `gorm:"index"`
-	UpdatedAt time.Time
+	ID        string    `json:"id" gorm:"primaryKey"`
+	CreatedAt time.Time `json:"created_at" gorm:"index"`
+	UpdatedAt time.Time `json:"updated_at"`
 }
 
 // BeforeCreate hook to set timestamps before creating a record
@@ -29,8 +29,8 @@ func (base *Base) BeforeCreate(tx *gorm.DB) (err error) {
 // Tags represents a tag that can be associated with multiple resources
 type Tags struct {
 	Base
-	Name      string      `gorm:"uniqueIndex"`
-	Resources []*Resource `gorm:"many2many:resource_tags;"`
+	Name      string      `json:"name" gorm:"uniqueIndex"`
+	Resources []*Resource `json:"resources" gorm:"many2many:resource_tags;"`
 }
 
 func (Tags) TableName() string { return "tags" }
@@ -56,17 +56,17 @@ const (
 // A Resource is something that can be monitored, such as a website or server.
 type Resource struct {
 	Base
-	Name         string
-	Type         ResourceType `gorm:"index"`
-	Interval     int
-	Timeout      int
-	Target       string
-	LastChecked  *time.Time
-	Status       ResourceStatus `gorm:"default:pending"`
-	IsActive     bool           `gorm:"default:true"`
-	FailureCount int            `gorm:"default:0"`
+	Name         string         `json:"name"`
+	Type         ResourceType   `json:"type"  gorm:"index"`
+	Interval     int            `json:"interval" gorm:"default:300"` // in seconds
+	Timeout      int            `json:"timeout" gorm:"default:60"`   // in seconds
+	Target       string         `json:"target"`
+	LastChecked  *time.Time     `json:"last_checked"`
+	Status       ResourceStatus `json:"status" gorm:"default:pending"`
+	IsActive     bool           `json:"is_active" gorm:"default:true"`
+	FailureCount int            `json:"failure_count" gorm:"default:0"`
 	Incidents    []Incident     `json:"-"`
-	Tags         []*Tags        `gorm:"many2many:resource_tags;"`
+	Tags         []*Tags        `json:"tags" gorm:"many2many:resource_tags;"`
 }
 
 func (Resource) TableName() string { return "resources" }
@@ -100,9 +100,9 @@ const (
 type IncidentEventStep struct {
 	Base
 	IncidentID string                `gorm:"index"`
-	Incident   Incident              `gorm:"foreignKey:IncidentID"`
-	Step       IncidentEventStepType `gorm:"index"`
-	Message    *string
+	Incident   Incident              `json:"incident" gorm:"foreignKey:IncidentID"`
+	Step       IncidentEventStepType `json:"step" gorm:"index"`
+	Message    *string               `json:"message"`
 }
 
 func (IncidentEventStep) TableName() string { return "incident_event_steps" }
@@ -117,10 +117,10 @@ const (
 
 type Integration struct {
 	Base
-	Name     string
-	Target   string
-	Type     IntegrationType `gorm:"index"`
-	IsActive bool            `gorm:"default:true"`
+	Name     string          `json:"name"`
+	Target   string          `json:"target"`
+	Type     IntegrationType `json:"type" gorm:"index"`
+	IsActive bool            `json:"is_active" gorm:"default:true"`
 }
 
 func (Integration) TableName() string { return "integrations" }
@@ -149,3 +149,17 @@ type NotificationEvent struct {
 	Incident   Incident              `gorm:"foreignKey:IncidentID"`
 	Type       NotificationEventType `gorm:"index"`
 }
+
+func (NotificationEvent) TableName() string { return "notification_events" }
+
+type MonitoringActivity struct {
+	Base
+	ResourceID   string   `json:"resource_id" gorm:"index"`
+	Resource     Resource `json:"resource" gorm:"foreignKey:ResourceID"`
+	Message      string   `json:"message"`
+	Success      bool     `json:"success"`
+	ResponseTime int      `json:"response_time"`
+	ResponseData []byte   `json:"response_data"`
+}
+
+func (MonitoringActivity) TableName() string { return "monitoring_activities" }

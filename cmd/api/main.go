@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/denisakp/pulseguard/internal/api"
+	"github.com/denisakp/pulseguard/internal/api/handler"
 	"github.com/denisakp/pulseguard/internal/config"
 	"github.com/denisakp/pulseguard/internal/monitoring"
 	"github.com/denisakp/pulseguard/internal/repository/postgres"
@@ -42,30 +43,46 @@ func main() {
 	// Initialize repositories
 	resourceRepo := postgres.NewResourceRepository(db)
 	incidentRepo := postgres.NewIncidentRepository(db)
+	monitoringActivityRepo := postgres.NewMonitoringActivityRepository(db)
 
 	// Initialize Redis connection for Asynq
 	redisOpt := asynq.RedisClientOpt{
 		Addr: config.GetEnv("REDIS_URL", "localhost:6379"),
 	}
 
-	// Initialize Asynq client and inspector for scheduling
+	// Initialize Asynq client, inspector, and scheduler for periodic tasks
 	asynqClient := asynq.NewClient(redisOpt)
 	defer asynqClient.Close()
 
 	asynqInspector := asynq.NewInspector(redisOpt)
 	defer asynqInspector.Close()
 
+	// Create scheduler for periodic monitoring tasks
+	asynqScheduler := asynq.NewScheduler(redisOpt, nil)
+
+	// Start the scheduler in a goroutine
+	go func() {
+		if err := asynqScheduler.Run(); err != nil {
+			log.Fatalf("Failed to start Asynq scheduler: %v", err)
+		}
+	}()
+	defer asynqScheduler.Shutdown()
+
 	// Initialize services
-	schedulerService := monitoring.NewSchedulerService(asynqClient, asynqInspector)
+	schedulerService := monitoring.NewSchedulerService(asynqClient, asynqInspector, asynqScheduler)
 	resourceService := service.NewResourceService(resourceRepo, incidentRepo, schedulerService)
+	activityService := service.NewMonitoringActivityService(monitoringActivityRepo)
 
-	// Placeholder to use resourceService - remove when implementing actual routes
-	_ = resourceService
+	// Initialize handlers with dependency injection
+	resourceHandler := handler.NewResourceHandler(resourceService)
+	activityHandler := handler.NewMonitoringActivityHandler(activityService)
 
-	port := config.GetEnv("PORT", "8080")
-	router := api.NewRouter()
-	log.Printf("API server listening on port %s", port)
-	if err := http.ListenAndServe(":"+port, router); err != nil {
+	// Create router with injected handlers
+	router := api.NewRouter(resourceHandler, activityHandler)
+
+	addr := ":" + cfg.Port
+	log.Printf("API server listening on %s", addr)
+	if err := http.ListenAndServe(addr, router); err != nil {
 		log.Fatalf("Failed to start HTTP server: %v", err)
 	}
 }

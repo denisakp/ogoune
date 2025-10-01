@@ -15,21 +15,24 @@ import (
 // MonitoringTaskHandler processes monitoring tasks from the Asynq queue.
 // It executes health checks and handles status changes with direct service calls.
 type MonitoringTaskHandler struct {
-	resources repository.ResourceRepository
-	executor  *monitoring.Executor
-	incidents *monitoring.IncidentService
+	resources  repository.ResourceRepository
+	activities repository.MonitoringActivityRepository
+	executor   *monitoring.Executor
+	incidents  *monitoring.IncidentService
 }
 
 // NewMonitoringTaskHandler creates a new monitoring task handler.
 func NewMonitoringTaskHandler(
 	resources repository.ResourceRepository,
+	activities repository.MonitoringActivityRepository,
 	executor *monitoring.Executor,
 	incidents *monitoring.IncidentService,
 ) *MonitoringTaskHandler {
 	return &MonitoringTaskHandler{
-		resources: resources,
-		executor:  executor,
-		incidents: incidents,
+		resources:  resources,
+		activities: activities,
+		executor:   executor,
+		incidents:  incidents,
 	}
 }
 
@@ -81,6 +84,20 @@ func (h *MonitoringTaskHandler) ProcessTask(ctx context.Context, task *asynq.Tas
 	// Save the updated resource
 	if err := h.resources.Update(ctx, resource); err != nil {
 		return fmt.Errorf("failed to update resource %s: %w", resource.ID, err)
+	}
+
+	// Persist monitoring activity for traceability
+	message := fmt.Sprintf("Check %s - Status: %s", resource.Type, result.Status)
+	activity := &domain.MonitoringActivity{
+		ResourceID:   resource.ID,
+		Message:      message,
+		Success:      result.Status == string(domain.StatusUp),
+		ResponseTime: int(result.ResponseTime.Milliseconds()),
+		ResponseData: []byte(result.ResponseData),
+	}
+	if err := h.activities.Create(ctx, activity); err != nil {
+		// Log error but don't fail the monitoring task
+		return fmt.Errorf("monitoring completed but failed to persist activity: %w", err)
 	}
 
 	// Handle status changes by calling the incident service directly

@@ -49,6 +49,7 @@ func main() {
 	incidentRepo := postgres.NewIncidentRepository(db)
 	integrationRepo := postgres.NewIntegrationRepository(db)
 	notificationRepo := postgres.NewNotificationRepository(db)
+	monitoringActivityRepo := postgres.NewMonitoringActivityRepository(db)
 
 	// Initialize Redis connection for Asynq
 	redisOpt := asynq.RedisClientOpt{
@@ -68,7 +69,7 @@ func main() {
 	incidentService := monitoring.NewIncidentService(incidentRepo, asynqClient)
 
 	// Initialize task handlers
-	monitoringHandler := worker.NewMonitoringTaskHandler(resourceRepo, executor, incidentService)
+	monitoringHandler := worker.NewMonitoringTaskHandler(resourceRepo, monitoringActivityRepo, executor, incidentService)
 	notificationHandler := worker.NewNotificationTaskHandler(incidentRepo, integrationRepo, notificationRepo)
 
 	// Initialize and start the worker processor

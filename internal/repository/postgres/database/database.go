@@ -28,6 +28,7 @@ var (
 		&domain.Integration{},
 		&domain.NotificationEvent{},
 		&domain.Tags{},
+		&domain.MonitoringActivity{},
 	}
 )
 
