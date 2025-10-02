@@ -2,6 +2,7 @@ package postgres
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	domain "github.com/denisakp/pulseguard/internal/domain"
@@ -18,6 +19,7 @@ func NewIntegrationRepository(db *gorm.DB) repository.IntegrationRepository {
 	return &IntegrationRepositoryImpl{db: db}
 }
 
+// Create persists a new integration record to the database.
 func (r *IntegrationRepositoryImpl) Create(ctx context.Context, i *domain.Integration) error {
 	if err := r.db.WithContext(ctx).Create(i).Error; err != nil {
 		return fmt.Errorf("failed to create integration: %w", err)
@@ -25,11 +27,12 @@ func (r *IntegrationRepositoryImpl) Create(ctx context.Context, i *domain.Integr
 	return nil
 }
 
+// FindByID retrieves an integration by its ID.
 func (r *IntegrationRepositoryImpl) FindByID(ctx context.Context, id string) (*domain.Integration, error) {
 	var integration domain.Integration
 	err := r.db.WithContext(ctx).First(&integration, "id = ?", id).Error
 	if err != nil {
-		if err == gorm.ErrRecordNotFound {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, repository.ErrNotFound
 		}
 		return nil, fmt.Errorf("failed to find integration by ID: %w", err)
@@ -37,6 +40,7 @@ func (r *IntegrationRepositoryImpl) FindByID(ctx context.Context, id string) (*d
 	return &integration, nil
 }
 
+// List retrieves all integrations with pagination, ordered by creation time descending.
 func (r *IntegrationRepositoryImpl) List(ctx context.Context, limit, offset int) ([]*domain.Integration, error) {
 	var integrations []*domain.Integration
 	err := r.db.WithContext(ctx).
@@ -51,6 +55,7 @@ func (r *IntegrationRepositoryImpl) List(ctx context.Context, limit, offset int)
 	return integrations, nil
 }
 
+// Update modifies an existing integration record in the database.
 func (r *IntegrationRepositoryImpl) Update(ctx context.Context, i *domain.Integration) error {
 	result := r.db.WithContext(ctx).Save(i)
 	if result.Error != nil {
@@ -62,6 +67,7 @@ func (r *IntegrationRepositoryImpl) Update(ctx context.Context, i *domain.Integr
 	return nil
 }
 
+// Delete removes an integration by its ID.
 func (r *IntegrationRepositoryImpl) Delete(ctx context.Context, id string) error {
 	result := r.db.WithContext(ctx).Delete(&domain.Integration{}, "id = ?", id)
 	if result.Error != nil {
@@ -73,6 +79,7 @@ func (r *IntegrationRepositoryImpl) Delete(ctx context.Context, id string) error
 	return nil
 }
 
+// FindActiveByType retrieves all active integrations of a specific type with pagination.
 func (r *IntegrationRepositoryImpl) FindActiveByType(ctx context.Context, t domain.IntegrationType, limit, offset int) ([]*domain.Integration, error) {
 	var integrations []*domain.Integration
 	err := r.db.WithContext(ctx).

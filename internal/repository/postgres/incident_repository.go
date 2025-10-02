@@ -20,6 +20,7 @@ func NewIncidentRepository(db *gorm.DB) repository.IncidentRepository {
 	return &IncidentRepositoryImpl{db: db}
 }
 
+// Create persists a new incident record to the database.
 func (r *IncidentRepositoryImpl) Create(ctx context.Context, incident *domain.Incident) error {
 	if err := r.db.WithContext(ctx).Create(incident).Error; err != nil {
 		return fmt.Errorf("failed to create incident: %w", err)
@@ -27,6 +28,7 @@ func (r *IncidentRepositoryImpl) Create(ctx context.Context, incident *domain.In
 	return nil
 }
 
+// FindByID retrieves an incident by its ID.
 func (r *IncidentRepositoryImpl) FindByID(ctx context.Context, id string) (*domain.Incident, error) {
 	var incident domain.Incident
 	err := r.db.WithContext(ctx).Preload("Resource").First(&incident, "id = ?", id).Error
@@ -39,6 +41,7 @@ func (r *IncidentRepositoryImpl) FindByID(ctx context.Context, id string) (*doma
 	return &incident, nil
 }
 
+// List retrieves all incidents with pagination, ordered by creation time descending.
 func (r *IncidentRepositoryImpl) List(ctx context.Context, limit, offset int) ([]*domain.Incident, error) {
 	var incidents []*domain.Incident
 	err := r.db.WithContext(ctx).
@@ -54,6 +57,7 @@ func (r *IncidentRepositoryImpl) List(ctx context.Context, limit, offset int) ([
 	return incidents, nil
 }
 
+// Update modifies an existing incident record in the database.
 func (r *IncidentRepositoryImpl) Update(ctx context.Context, incident *domain.Incident) error {
 	result := r.db.WithContext(ctx).Save(incident)
 	if result.Error != nil {
@@ -65,6 +69,7 @@ func (r *IncidentRepositoryImpl) Update(ctx context.Context, incident *domain.In
 	return nil
 }
 
+// Delete removes an incident record from the database by its ID.
 func (r *IncidentRepositoryImpl) Delete(ctx context.Context, id string) error {
 	result := r.db.WithContext(ctx).Delete(&domain.Incident{}, "id = ?", id)
 	if result.Error != nil {
@@ -76,6 +81,7 @@ func (r *IncidentRepositoryImpl) Delete(ctx context.Context, id string) error {
 	return nil
 }
 
+// FindUnresolved retrieves all unresolved incidents with pagination, ordered by start time descending.
 func (r *IncidentRepositoryImpl) FindUnresolved(ctx context.Context, limit, offset int) ([]*domain.Incident, error) {
 	var incidents []*domain.Incident
 	err := r.db.WithContext(ctx).
@@ -92,6 +98,7 @@ func (r *IncidentRepositoryImpl) FindUnresolved(ctx context.Context, limit, offs
 	return incidents, nil
 }
 
+// FindByResource retrieves all incidents for a specific resource with pagination, ordered by start time descending.
 func (r *IncidentRepositoryImpl) FindByResource(ctx context.Context, resourceID string, limit, offset int) ([]*domain.Incident, error) {
 	var incidents []*domain.Incident
 	err := r.db.WithContext(ctx).

@@ -20,6 +20,7 @@ func NewResourceRepository(db *gorm.DB) repository.ResourceRepository {
 	return &ResourceRepositoryImpl{db: db}
 }
 
+// Create persists a new resource record to the database.
 func (r *ResourceRepositoryImpl) Create(ctx context.Context, resource *domain.Resource) error {
 	if err := r.db.WithContext(ctx).Create(resource).Error; err != nil {
 		return fmt.Errorf("failed to create resource: %w", err)
@@ -27,6 +28,7 @@ func (r *ResourceRepositoryImpl) Create(ctx context.Context, resource *domain.Re
 	return nil
 }
 
+// FindByID retrieves a resource by its ID.
 func (r *ResourceRepositoryImpl) FindByID(ctx context.Context, id string) (*domain.Resource, error) {
 	var resource domain.Resource
 	err := r.db.WithContext(ctx).Preload("Tags").First(&resource, "id = ?", id).Error
@@ -39,6 +41,7 @@ func (r *ResourceRepositoryImpl) FindByID(ctx context.Context, id string) (*doma
 	return &resource, nil
 }
 
+// List retrieves all resources with pagination, ordered by creation time descending.
 func (r *ResourceRepositoryImpl) List(ctx context.Context, limit, offset int) ([]*domain.Resource, error) {
 	var resources []*domain.Resource
 	err := r.db.WithContext(ctx).
@@ -54,6 +57,7 @@ func (r *ResourceRepositoryImpl) List(ctx context.Context, limit, offset int) ([
 	return resources, nil
 }
 
+// Update modifies an existing resource record in the database.
 func (r *ResourceRepositoryImpl) Update(ctx context.Context, resource *domain.Resource) error {
 	result := r.db.WithContext(ctx).Save(resource)
 	if result.Error != nil {
@@ -65,6 +69,7 @@ func (r *ResourceRepositoryImpl) Update(ctx context.Context, resource *domain.Re
 	return nil
 }
 
+// Delete performs a soft delete by setting IsActive to false.
 func (r *ResourceRepositoryImpl) Delete(ctx context.Context, id string) error {
 	// Soft delete: set IsActive to false
 	result := r.db.WithContext(ctx).
@@ -81,6 +86,7 @@ func (r *ResourceRepositoryImpl) Delete(ctx context.Context, id string) error {
 	return nil
 }
 
+// FindActive retrieves all active resources with pagination, ordered by creation time descending.
 func (r *ResourceRepositoryImpl) FindActive(ctx context.Context, limit, offset int) ([]*domain.Resource, error) {
 	var resources []*domain.Resource
 	err := r.db.WithContext(ctx).
@@ -97,6 +103,7 @@ func (r *ResourceRepositoryImpl) FindActive(ctx context.Context, limit, offset i
 	return resources, nil
 }
 
+// FindByTag retrieves all resources associated with a specific tag name with pagination.
 func (r *ResourceRepositoryImpl) FindByTag(ctx context.Context, tagName string, limit, offset int) ([]*domain.Resource, error) {
 	var resources []*domain.Resource
 	err := r.db.WithContext(ctx).

@@ -59,7 +59,7 @@ type Resource struct {
 	Name         string         `json:"name"`
 	Type         ResourceType   `json:"type"  gorm:"index"`
 	Interval     int            `json:"interval" gorm:"default:300"` // in seconds
-	Timeout      int            `json:"timeout" gorm:"default:60"`   // in seconds
+	Timeout      int            `json:"timeout" gorm:"default:10"`   // in seconds
 	Target       string         `json:"target"`
 	LastChecked  *time.Time     `json:"last_checked"`
 	Status       ResourceStatus `json:"status" gorm:"default:pending"`
@@ -74,13 +74,13 @@ func (Resource) TableName() string { return "resources" }
 // Incident represents an event where a Resource is down or experiencing issues.
 type Incident struct {
 	Base
-	ResourceID string   `gorm:"index"`
-	Resource   Resource `gorm:"foreignKey:ResourceID"`
-	Reason     string
-	IsResolved bool       `gorm:"default:false"`
-	ResolvedAt *time.Time `gorm:"index"`
-	StartedAt  time.Time
-	Details    []byte
+	ResourceID string              `json:"resource_id" gorm:"index"`
+	Resource   Resource            `json:"resource" gorm:"foreignKey:ResourceID"`
+	Reason     string              `json:"reason"`
+	IsResolved bool                `json:"is_resolved" gorm:"default:false"`
+	ResolvedAt *time.Time          `json:"resolved_at" gorm:"index"`
+	StartedAt  time.Time           `json:"started_at" gorm:"index"`
+	Details    []byte              `json:"details"`
 	EventStep  []IncidentEventStep `json:"-"`
 }
 
@@ -99,7 +99,7 @@ const (
 // IncidentEventStep represents a step in the lifecycle of an incident, such as detection or resolution.
 type IncidentEventStep struct {
 	Base
-	IncidentID string                `gorm:"index"`
+	IncidentID string                `json:"incident_id" gorm:"index"`
 	Incident   Incident              `json:"incident" gorm:"foreignKey:IncidentID"`
 	Step       IncidentEventStepType `json:"step" gorm:"index"`
 	Message    *string               `json:"message"`
@@ -145,9 +145,9 @@ const (
 
 type NotificationEvent struct {
 	Base
-	IncidentID string                `gorm:"index"`
-	Incident   Incident              `gorm:"foreignKey:IncidentID"`
-	Type       NotificationEventType `gorm:"index"`
+	IncidentID string                `json:"incident_id" gorm:"index"`
+	Incident   Incident              `json:"incident" gorm:"foreignKey:IncidentID"`
+	Type       NotificationEventType `json:"type" gorm:"index"`
 }
 
 func (NotificationEvent) TableName() string { return "notification_events" }

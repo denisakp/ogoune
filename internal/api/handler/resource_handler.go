@@ -71,10 +71,10 @@ func (h *ResourceHandler) CreateResource(w http.ResponseWriter, r *http.Request)
 
 	// Set default values if not provided
 	if resource.Interval == 0 {
-		resource.Interval = 60 // Default to 60 seconds
+		resource.Interval = 300 // Default to 300 seconds
 	}
 	if resource.Timeout == 0 {
-		resource.Timeout = 30 // Default to 30 seconds
+		resource.Timeout = 10 // Default to 10 seconds
 	}
 
 	// Call service layer to create resource (which will also schedule monitoring)

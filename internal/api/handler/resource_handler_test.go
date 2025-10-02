@@ -435,10 +435,6 @@ func TestResumeResourceMonitoring_ServiceError(t *testing.T) {
 	assert.Contains(t, errorResp["error"], "Failed to resume monitoring")
 }
 
-// =============================================================================
-// UPDATE RESOURCE TESTS
-// =============================================================================
-
 func TestUpdateResource_Success(t *testing.T) {
 	name := "Updated Monitor"
 	interval := 120
@@ -748,7 +744,7 @@ func TestUpdateResource_PauseViaIsActive(t *testing.T) {
 	handler := NewResourceHandler(mockService)
 
 	payload := map[string]interface{}{
-		"is_active": isActive,
+		"is_active": false,
 	}
 	body, _ := json.Marshal(payload)
 
@@ -769,10 +765,6 @@ func TestUpdateResource_PauseViaIsActive(t *testing.T) {
 
 	assert.False(t, result.IsActive)
 }
-
-// =============================================================================
-// DELETE RESOURCE TESTS
-// =============================================================================
 
 func TestDeleteResource_Success(t *testing.T) {
 	mockService := &mockResourceService{

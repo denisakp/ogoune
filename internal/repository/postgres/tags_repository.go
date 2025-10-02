@@ -2,6 +2,7 @@ package postgres
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	domain "github.com/denisakp/pulseguard/internal/domain"
@@ -18,6 +19,7 @@ func NewTagsRepository(db *gorm.DB) repository.TagsRepository {
 	return &TagsRepositoryImpl{db: db}
 }
 
+// Create persists a new tag record to the database.
 func (r *TagsRepositoryImpl) Create(ctx context.Context, t *domain.Tags) error {
 	if err := r.db.WithContext(ctx).Create(t).Error; err != nil {
 		return fmt.Errorf("failed to create tag: %w", err)
@@ -25,11 +27,12 @@ func (r *TagsRepositoryImpl) Create(ctx context.Context, t *domain.Tags) error {
 	return nil
 }
 
+// FindByID retrieves a tag by its ID.
 func (r *TagsRepositoryImpl) FindByID(ctx context.Context, id string) (*domain.Tags, error) {
 	var tag domain.Tags
 	err := r.db.WithContext(ctx).First(&tag, "id = ?", id).Error
 	if err != nil {
-		if err == gorm.ErrRecordNotFound {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, repository.ErrNotFound
 		}
 		return nil, fmt.Errorf("failed to find tag by ID: %w", err)
@@ -37,11 +40,12 @@ func (r *TagsRepositoryImpl) FindByID(ctx context.Context, id string) (*domain.T
 	return &tag, nil
 }
 
+// FindByName retrieves a tag by its name.
 func (r *TagsRepositoryImpl) FindByName(ctx context.Context, name string) (*domain.Tags, error) {
 	var tag domain.Tags
 	err := r.db.WithContext(ctx).First(&tag, "name = ?", name).Error
 	if err != nil {
-		if err == gorm.ErrRecordNotFound {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, repository.ErrNotFound
 		}
 		return nil, fmt.Errorf("failed to find tag by name: %w", err)
@@ -49,6 +53,7 @@ func (r *TagsRepositoryImpl) FindByName(ctx context.Context, name string) (*doma
 	return &tag, nil
 }
 
+// List retrieves all tags with pagination, ordered by creation time descending.
 func (r *TagsRepositoryImpl) List(ctx context.Context, limit, offset int) ([]*domain.Tags, error) {
 	var tags []*domain.Tags
 	err := r.db.WithContext(ctx).
@@ -63,6 +68,7 @@ func (r *TagsRepositoryImpl) List(ctx context.Context, limit, offset int) ([]*do
 	return tags, nil
 }
 
+// Update modifies an existing tag record in the database.
 func (r *TagsRepositoryImpl) Update(ctx context.Context, t *domain.Tags) error {
 	result := r.db.WithContext(ctx).Save(t)
 	if result.Error != nil {
@@ -74,6 +80,7 @@ func (r *TagsRepositoryImpl) Update(ctx context.Context, t *domain.Tags) error {
 	return nil
 }
 
+// Delete removes a tag record from the database by its ID.
 func (r *TagsRepositoryImpl) Delete(ctx context.Context, id string) error {
 	result := r.db.WithContext(ctx).Delete(&domain.Tags{}, "id = ?", id)
 	if result.Error != nil {

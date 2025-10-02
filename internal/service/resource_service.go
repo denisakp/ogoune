@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/denisakp/pulseguard/internal/domain"
@@ -70,7 +71,7 @@ func (s *ResourceService) UpdateResource(ctx context.Context, id string, payload
 	// Fetch existing resource
 	resource, err := s.resources.FindByID(ctx, id)
 	if err != nil {
-		if err == repository.ErrNotFound {
+		if errors.Is(repository.ErrNotFound, err) {
 			return nil, ErrResourceNotFound
 		}
 		return nil, err

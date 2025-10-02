@@ -2,6 +2,7 @@ package postgres
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	domain "github.com/denisakp/pulseguard/internal/domain"
@@ -18,6 +19,7 @@ func NewIncidentEventStepRepository(db *gorm.DB) repository.IncidentEventStepRep
 	return &IncidentEventStepRepositoryImpl{db: db}
 }
 
+// Create persists a new incident event step record to the database.
 func (r *IncidentEventStepRepositoryImpl) Create(ctx context.Context, s *domain.IncidentEventStep) error {
 	if err := r.db.WithContext(ctx).Create(s).Error; err != nil {
 		return fmt.Errorf("failed to create incident event step: %w", err)
@@ -25,11 +27,12 @@ func (r *IncidentEventStepRepositoryImpl) Create(ctx context.Context, s *domain.
 	return nil
 }
 
+// FindByID retrieves an incident event step by its ID.
 func (r *IncidentEventStepRepositoryImpl) FindByID(ctx context.Context, id string) (*domain.IncidentEventStep, error) {
 	var step domain.IncidentEventStep
 	err := r.db.WithContext(ctx).Preload("Incident").First(&step, "id = ?", id).Error
 	if err != nil {
-		if err == gorm.ErrRecordNotFound {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, repository.ErrNotFound
 		}
 		return nil, fmt.Errorf("failed to find incident event step by ID: %w", err)
@@ -37,6 +40,7 @@ func (r *IncidentEventStepRepositoryImpl) FindByID(ctx context.Context, id strin
 	return &step, nil
 }
 
+// List retrieves all incident event steps with pagination, ordered by creation time descending.
 func (r *IncidentEventStepRepositoryImpl) List(ctx context.Context, limit, offset int) ([]*domain.IncidentEventStep, error) {
 	var steps []*domain.IncidentEventStep
 	err := r.db.WithContext(ctx).
@@ -52,6 +56,7 @@ func (r *IncidentEventStepRepositoryImpl) List(ctx context.Context, limit, offse
 	return steps, nil
 }
 
+// Update modifies an existing incident event step record in the database.
 func (r *IncidentEventStepRepositoryImpl) Update(ctx context.Context, s *domain.IncidentEventStep) error {
 	result := r.db.WithContext(ctx).Save(s)
 	if result.Error != nil {
@@ -63,6 +68,7 @@ func (r *IncidentEventStepRepositoryImpl) Update(ctx context.Context, s *domain.
 	return nil
 }
 
+// Delete removes an incident event step record from the database by its ID.
 func (r *IncidentEventStepRepositoryImpl) Delete(ctx context.Context, id string) error {
 	result := r.db.WithContext(ctx).Delete(&domain.IncidentEventStep{}, "id = ?", id)
 	if result.Error != nil {
