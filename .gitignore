@@ -4,5 +4,3 @@
 specs
 .idea/
 .env
-api
-worker

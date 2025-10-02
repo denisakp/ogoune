@@ -1,4 +1,4 @@
-.PHONY: help dev api worker test build clean docker-up docker-down install
+.PHONY: help dev api worker bootstrap test build clean docker-up docker-down install
 
 # Default target
 help:
@@ -8,6 +8,7 @@ help:
 	@echo "  make dev         - Start all services (Postgres, Redis, API, Worker)"
 	@echo "  make api         - Run API server only"
 	@echo "  make worker      - Run worker only"
+	@echo "  make bootstrap   - Sync scheduler with database (run after Redis restart)"
 	@echo ""
 	@echo "Database & Redis:"
 	@echo "  make docker-up   - Start Postgres and Redis containers"
@@ -16,7 +17,7 @@ help:
 	@echo "Build & Test:"
 	@echo "  make install     - Install dependencies"
 	@echo "  make test        - Run all tests"
-	@echo "  make build       - Build binaries"
+	@echo "  make build       - Build binaries (api, worker, bootstrap)"
 	@echo "  make clean       - Remove built binaries"
 
 # Install dependencies
@@ -51,6 +52,11 @@ worker:
 	@echo "Starting worker..."
 	go run ./cmd/worker
 
+# Run bootstrap (sync scheduler with database)
+bootstrap:
+	@echo "Running scheduler bootstrap..."
+	go run ./cmd/bootstrap
+
 # Run all tests
 test:
 	@echo "Running tests..."
@@ -67,7 +73,11 @@ build:
 	@mkdir -p bin
 	go build -o bin/pulseguard-api ./cmd/api
 	go build -o bin/pulseguard-worker ./cmd/worker
+	go build -o bin/pulseguard-bootstrap ./cmd/bootstrap
 	@echo "✓ Binaries built in ./bin/"
+	@echo "  - pulseguard-api"
+	@echo "  - pulseguard-worker"
+	@echo "  - pulseguard-bootstrap"
 
 # Clean built binaries
 clean:

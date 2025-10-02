@@ -53,7 +53,7 @@ func main() {
 
 	// Initialize Redis connection for Asynq
 	redisOpt := asynq.RedisClientOpt{
-		Addr: getEnv("REDIS_URL", "localhost:6379"),
+		Addr: config.GetEnv("REDIS_URL", "localhost:6379"),
 	}
 
 	// Initialize Asynq client for the incident service
@@ -94,12 +94,4 @@ func main() {
 	log.Println("Shutting down worker...")
 	processor.Stop()
 	log.Println("Worker stopped")
-}
-
-// getEnv gets an environment variable with a default value
-func getEnv(key, defaultValue string) string {
-	if value := os.Getenv(key); value != "" {
-		return value
-	}
-	return defaultValue
 }

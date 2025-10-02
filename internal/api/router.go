@@ -32,6 +32,8 @@ func NewRouter(
 	r.Route("/resources", func(r chi.Router) {
 		r.Post("/", resourceHandler.CreateResource)                      // Create new monitoring resource
 		r.Get("/", resourceHandler.ListResources)                        // List all resources
+		r.Patch("/{id}", resourceHandler.UpdateResource)                 // Update resource
+		r.Delete("/{id}", resourceHandler.DeleteResource)                // Delete resource
 		r.Post("/{id}/pause", resourceHandler.PauseResourceMonitoring)   // Pause monitoring
 		r.Post("/{id}/resume", resourceHandler.ResumeResourceMonitoring) // Resume monitoring
 	})

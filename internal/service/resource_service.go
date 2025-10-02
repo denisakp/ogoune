@@ -2,11 +2,22 @@ package service
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/denisakp/pulseguard/internal/domain"
 	"github.com/denisakp/pulseguard/internal/monitoring"
 	"github.com/denisakp/pulseguard/internal/repository"
 )
+
+// UpdateResourcePayload contains the fields that can be updated for a resource
+type UpdateResourcePayload struct {
+	Name     *string              `json:"name,omitempty"`
+	Type     *domain.ResourceType `json:"type,omitempty"`
+	Target   *string              `json:"target,omitempty"`
+	Interval *int                 `json:"interval,omitempty"`
+	Timeout  *int                 `json:"timeout,omitempty"`
+	IsActive *bool                `json:"is_active,omitempty"`
+}
 
 // ResourceService orchestrates resource-related operations using repository interfaces.
 // This service demonstrates the dependency injection pattern and serves as an example
@@ -33,7 +44,12 @@ func NewResourceService(
 // CreateResource creates a new resource using domain validation and persistence.
 // After successful creation, it schedules monitoring for the resource.
 func (s *ResourceService) CreateResource(ctx context.Context, resource *domain.Resource) error {
-	// Domain validation can be added here if needed
+	// Validate target format
+	if err := domain.ValidateResourceTarget(resource.Target, resource.Type); err != nil {
+		return fmt.Errorf("%w: %v", ErrValidationFailed, err)
+	}
+
+	// Create resource in database
 	if err := s.resources.Create(ctx, resource); err != nil {
 		return err
 	}
@@ -42,26 +58,61 @@ func (s *ResourceService) CreateResource(ctx context.Context, resource *domain.R
 	if err := s.scheduler.Schedule(ctx, resource); err != nil {
 		// Log the error but don't fail the entire operation
 		// The resource was created successfully, monitoring scheduling failed
-		return err
+		return fmt.Errorf("%w: %v", ErrSchedulerSync, err)
 	}
 
 	return nil
 }
 
-// UpdateResource updates an existing resource and reschedules monitoring if needed.
-func (s *ResourceService) UpdateResource(ctx context.Context, resource *domain.Resource) error {
+// UpdateResource updates an existing resource by ID with the provided payload.
+// It fetches the resource, applies changes, validates, updates, and reschedules monitoring.
+func (s *ResourceService) UpdateResource(ctx context.Context, id string, payload *UpdateResourcePayload) (*domain.Resource, error) {
+	// Fetch existing resource
+	resource, err := s.resources.FindByID(ctx, id)
+	if err != nil {
+		if err == repository.ErrNotFound {
+			return nil, ErrResourceNotFound
+		}
+		return nil, err
+	}
+
+	// Apply updates from payload
+	if payload.Name != nil {
+		resource.Name = *payload.Name
+	}
+	if payload.Type != nil {
+		resource.Type = *payload.Type
+	}
+	if payload.Target != nil {
+		resource.Target = *payload.Target
+	}
+	if payload.Interval != nil {
+		resource.Interval = *payload.Interval
+	}
+	if payload.Timeout != nil {
+		resource.Timeout = *payload.Timeout
+	}
+	if payload.IsActive != nil {
+		resource.IsActive = *payload.IsActive
+	}
+
+	// Validate target format after updates
+	if err := domain.ValidateResourceTarget(resource.Target, resource.Type); err != nil {
+		return nil, fmt.Errorf("%w: %v", ErrValidationFailed, err)
+	}
+
+	// Update resource in database
 	if err := s.resources.Update(ctx, resource); err != nil {
-		return err
+		return nil, err
 	}
 
 	// Reschedule monitoring for the updated resource
 	// This will unschedule the old task and create a new one with updated parameters
 	if err := s.scheduler.Schedule(ctx, resource); err != nil {
-		// Log the error but don't fail the entire operation
-		return err
+		return nil, fmt.Errorf("%w: %v", ErrSchedulerSync, err)
 	}
 
-	return nil
+	return resource, nil
 }
 
 // DeleteResource soft deletes a resource and unschedules its monitoring.
