@@ -4,6 +4,9 @@ import (
 	"context"
 	"log"
 	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/denisakp/pulseguard/internal/api"
@@ -80,9 +83,40 @@ func main() {
 	// Create router with injected handlers
 	router := api.NewRouter(resourceHandler, activityHandler)
 
+	// Create HTTP server with explicit configuration
 	addr := ":" + cfg.Port
-	log.Printf("API server listening on %s", addr)
-	if err := http.ListenAndServe(addr, router); err != nil {
-		log.Fatalf("Failed to start HTTP server: %v", err)
+	srv := &http.Server{
+		Addr:         addr,
+		Handler:      router,
+		ReadTimeout:  15 * time.Second,
+		WriteTimeout: 15 * time.Second,
+		IdleTimeout:  60 * time.Second,
 	}
+
+	// Channel to listen for interrupt signals
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+
+	// Start server in a goroutine
+	go func() {
+		log.Printf("API server listening on %s", addr)
+		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			log.Fatalf("Failed to start HTTP server: %v", err)
+		}
+	}()
+
+	// Block until we receive a signal
+	<-quit
+	log.Println("Received shutdown signal, gracefully shutting down...")
+
+	// Create a context with timeout for shutdown
+	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer shutdownCancel()
+
+	// Shutdown the HTTP server gracefully
+	if err := srv.Shutdown(shutdownCtx); err != nil {
+		log.Printf("HTTP server forced to shutdown: %v", err)
+	}
+
+	log.Println("API server stopped gracefully")
 }
