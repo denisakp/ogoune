@@ -18,12 +18,14 @@ import (
 
 // mockResourceService is a test double for ResourceService
 type mockResourceService struct {
-	createResourceFunc   func(ctx context.Context, r *domain.Resource) error
-	updateResourceFunc   func(ctx context.Context, id string, payload *service.UpdateResourcePayload) (*domain.Resource, error)
-	listAllFunc          func(ctx context.Context) ([]*domain.Resource, error)
-	deleteResourceFunc   func(ctx context.Context, id string) error
-	pauseMonitoringFunc  func(ctx context.Context, resourceID string) error
-	resumeMonitoringFunc func(ctx context.Context, resourceID string) error
+	createResourceFunc        func(ctx context.Context, r *domain.Resource) error
+	updateResourceFunc        func(ctx context.Context, id string, payload *service.UpdateResourcePayload) (*domain.Resource, error)
+	listAllFunc               func(ctx context.Context) ([]*domain.Resource, error)
+	deleteResourceFunc        func(ctx context.Context, id string) error
+	pauseMonitoringFunc       func(ctx context.Context, resourceID string) error
+	resumeMonitoringFunc      func(ctx context.Context, resourceID string) error
+	addTagsToResourceFunc     func(ctx context.Context, resourceID string, tagIDs []string) error
+	removeTagFromResourceFunc func(ctx context.Context, resourceID, tagID string) error
 }
 
 func (m *mockResourceService) CreateResource(ctx context.Context, r *domain.Resource) error {
@@ -81,6 +83,20 @@ func (m *mockResourceService) ListResourcesByTag(ctx context.Context, tagName st
 
 func (m *mockResourceService) ListUnresolvedIncidents(ctx context.Context, resourceID string) ([]*domain.Incident, error) {
 	return []*domain.Incident{}, nil
+}
+
+func (m *mockResourceService) AddTagsToResource(ctx context.Context, resourceID string, tagIDs []string) error {
+	if m.addTagsToResourceFunc != nil {
+		return m.addTagsToResourceFunc(ctx, resourceID, tagIDs)
+	}
+	return nil
+}
+
+func (m *mockResourceService) RemoveTagFromResource(ctx context.Context, resourceID, tagID string) error {
+	if m.removeTagFromResourceFunc != nil {
+		return m.removeTagFromResourceFunc(ctx, resourceID, tagID)
+	}
+	return nil
 }
 
 func TestCreateResource_Success(t *testing.T) {

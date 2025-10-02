@@ -47,6 +47,7 @@ func main() {
 	// Initialize repositories
 	resourceRepo := postgres.NewResourceRepository(db)
 	incidentRepo := postgres.NewIncidentRepository(db)
+	incidentEventStepRepo := postgres.NewIncidentEventStepRepository(db)
 	integrationRepo := postgres.NewIntegrationRepository(db)
 	notificationRepo := postgres.NewNotificationRepository(db)
 	monitoringActivityRepo := postgres.NewMonitoringActivityRepository(db)
@@ -66,7 +67,12 @@ func main() {
 		domain.ResourceTCP:  strategy.NewTCPStrategy(30 * time.Second),
 	}
 	executor := monitoring.NewExecutor(strategies)
-	incidentService := monitoring.NewIncidentService(incidentRepo, asynqClient)
+	incidentService := monitoring.NewIncidentService(
+		incidentRepo,
+		incidentEventStepRepo,
+		integrationRepo,
+		asynqClient,
+	)
 
 	// Initialize task handlers
 	monitoringHandler := worker.NewMonitoringTaskHandler(resourceRepo, monitoringActivityRepo, executor, incidentService)

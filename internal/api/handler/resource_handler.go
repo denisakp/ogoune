@@ -20,6 +20,8 @@ type ResourceServiceInterface interface {
 	DeleteResource(ctx context.Context, resourceID string) error
 	PauseMonitoring(ctx context.Context, resourceID string) error
 	ResumeMonitoring(ctx context.Context, resourceID string) error
+	AddTagsToResource(ctx context.Context, resourceID string, tagIDs []string) error
+	RemoveTagFromResource(ctx context.Context, resourceID string, tagID string) error
 }
 
 // ResourceHandler handles HTTP requests for monitoring resource management.
@@ -214,6 +216,81 @@ func (h *ResourceHandler) ResumeResourceMonitoring(w http.ResponseWriter, r *htt
 	respondJSON(w, http.StatusOK, map[string]string{
 		"message": "Monitoring resumed successfully",
 	})
+}
+
+// AddTagsToResource handles POST /resources/{resourceID}/tags - adds tags to a resource.
+// Request body: JSON array of tag IDs
+// Response: 200 OK with success message
+func (h *ResourceHandler) AddTagsToResource(w http.ResponseWriter, r *http.Request) {
+	resourceID := chi.URLParam(r, "resourceID")
+	if resourceID == "" {
+		respondError(w, http.StatusBadRequest, "Resource ID is required")
+		return
+	}
+
+	var payload struct {
+		TagIDs []string `json:"tag_ids"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+		respondError(w, http.StatusBadRequest, "Invalid request payload: "+err.Error())
+		return
+	}
+
+	if len(payload.TagIDs) == 0 {
+		respondError(w, http.StatusBadRequest, "At least one tag ID is required")
+		return
+	}
+
+	if err := h.resourceService.AddTagsToResource(r.Context(), resourceID, payload.TagIDs); err != nil {
+		if errors.Is(err, service.ErrResourceNotFound) {
+			respondError(w, http.StatusNotFound, err.Error())
+			return
+		}
+		if errors.Is(err, service.ErrValidationFailed) {
+			respondError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		respondError(w, http.StatusInternalServerError, "Failed to add tags to resource: "+err.Error())
+		return
+	}
+
+	respondJSON(w, http.StatusOK, map[string]string{
+		"message": "Tags added successfully",
+	})
+}
+
+// RemoveTagFromResource handles DELETE /resources/{resourceID}/tags/{tagID} - removes a tag from a resource.
+// URL parameters: resourceID, tagID
+// Response: 204 No Content on success
+func (h *ResourceHandler) RemoveTagFromResource(w http.ResponseWriter, r *http.Request) {
+	resourceID := chi.URLParam(r, "resourceID")
+	tagID := chi.URLParam(r, "tagID")
+
+	if resourceID == "" {
+		respondError(w, http.StatusBadRequest, "Resource ID is required")
+		return
+	}
+
+	if tagID == "" {
+		respondError(w, http.StatusBadRequest, "Tag ID is required")
+		return
+	}
+
+	if err := h.resourceService.RemoveTagFromResource(r.Context(), resourceID, tagID); err != nil {
+		if errors.Is(err, service.ErrResourceNotFound) {
+			respondError(w, http.StatusNotFound, err.Error())
+			return
+		}
+		if errors.Is(err, service.ErrValidationFailed) {
+			respondError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		respondError(w, http.StatusInternalServerError, "Failed to remove tag from resource: "+err.Error())
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
 }
 
 // respondJSON writes a JSON response with the given status code and payload.

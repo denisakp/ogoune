@@ -47,6 +47,8 @@ func main() {
 	resourceRepo := postgres.NewResourceRepository(db)
 	incidentRepo := postgres.NewIncidentRepository(db)
 	monitoringActivityRepo := postgres.NewMonitoringActivityRepository(db)
+	tagsRepo := postgres.NewTagsRepository(db)
+	integrationRepo := postgres.NewIntegrationRepository(db)
 
 	// Initialize Redis connection for Asynq
 	redisOpt := asynq.RedisClientOpt{
@@ -73,15 +75,19 @@ func main() {
 
 	// Initialize services
 	schedulerService := monitoring.NewSchedulerService(asynqClient, asynqInspector, asynqScheduler)
-	resourceService := service.NewResourceService(resourceRepo, incidentRepo, schedulerService)
+	resourceService := service.NewResourceService(resourceRepo, incidentRepo, tagsRepo, schedulerService)
 	activityService := service.NewMonitoringActivityService(monitoringActivityRepo)
+	tagService := service.NewTagService(tagsRepo)
+	integrationService := service.NewIntegrationService(integrationRepo)
 
 	// Initialize handlers with dependency injection
 	resourceHandler := handler.NewResourceHandler(resourceService)
 	activityHandler := handler.NewMonitoringActivityHandler(activityService)
+	tagHandler := handler.NewTagHandler(tagService)
+	integrationHandler := handler.NewIntegrationHandler(integrationService)
 
 	// Create router with injected handlers
-	router := api.NewRouter(resourceHandler, activityHandler)
+	router := api.NewRouter(resourceHandler, activityHandler, tagHandler, integrationHandler)
 
 	// Create HTTP server with explicit configuration
 	addr := ":" + cfg.Port

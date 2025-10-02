@@ -26,6 +26,7 @@ type UpdateResourcePayload struct {
 type ResourceService struct {
 	resources repository.ResourceRepository
 	incidents repository.IncidentRepository
+	tags      repository.TagsRepository
 	scheduler monitoring.Scheduler
 }
 
@@ -33,11 +34,13 @@ type ResourceService struct {
 func NewResourceService(
 	resources repository.ResourceRepository,
 	incidents repository.IncidentRepository,
+	tags repository.TagsRepository,
 	scheduler monitoring.Scheduler,
 ) *ResourceService {
 	return &ResourceService{
 		resources: resources,
 		incidents: incidents,
+		tags:      tags,
 		scheduler: scheduler,
 	}
 }
@@ -219,6 +222,86 @@ func (s *ResourceService) ResumeMonitoring(ctx context.Context, resourceID strin
 		// Log the error but consider the resume operation successful
 		// since the database state has been updated
 		return err
+	}
+
+	return nil
+}
+
+// AddTagsToResource adds multiple tags to a resource using GORM's Association mode.
+func (s *ResourceService) AddTagsToResource(ctx context.Context, resourceID string, tagIDs []string) error {
+	// Fetch the resource
+	resource, err := s.resources.FindByID(ctx, resourceID)
+	if err != nil {
+		if errors.Is(err, repository.ErrNotFound) {
+			return fmt.Errorf("%w: resource not found", ErrResourceNotFound)
+		}
+		return err
+	}
+
+	// Fetch all tags
+	var tags []*domain.Tags
+	for _, tagID := range tagIDs {
+		tag, err := s.tags.FindByID(ctx, tagID)
+		if err != nil {
+			if errors.Is(err, repository.ErrNotFound) {
+				return fmt.Errorf("%w: tag with ID '%s' not found", ErrValidationFailed, tagID)
+			}
+			return err
+		}
+		tags = append(tags, tag)
+	}
+
+	// Use GORM association to append tags
+	// This requires database access, so we need to get the DB instance
+	// For now, we'll append tags to the resource and update
+	resource.Tags = append(resource.Tags, tags...)
+
+	if err := s.resources.Update(ctx, resource); err != nil {
+		return fmt.Errorf("failed to add tags to resource: %w", err)
+	}
+
+	return nil
+}
+
+// RemoveTagFromResource removes a specific tag from a resource.
+func (s *ResourceService) RemoveTagFromResource(ctx context.Context, resourceID string, tagID string) error {
+	// Fetch the resource with its tags
+	resource, err := s.resources.FindByID(ctx, resourceID)
+	if err != nil {
+		if errors.Is(err, repository.ErrNotFound) {
+			return fmt.Errorf("%w: resource not found", ErrResourceNotFound)
+		}
+		return err
+	}
+
+	// Verify tag exists
+	_, err = s.tags.FindByID(ctx, tagID)
+	if err != nil {
+		if errors.Is(err, repository.ErrNotFound) {
+			return fmt.Errorf("%w: tag not found", ErrResourceNotFound)
+		}
+		return err
+	}
+
+	// Filter out the tag to be removed
+	var filteredTags []*domain.Tags
+	tagFound := false
+	for _, tag := range resource.Tags {
+		if tag.ID != tagID {
+			filteredTags = append(filteredTags, tag)
+		} else {
+			tagFound = true
+		}
+	}
+
+	if !tagFound {
+		return fmt.Errorf("%w: tag not associated with resource", ErrValidationFailed)
+	}
+
+	resource.Tags = filteredTags
+
+	if err := s.resources.Update(ctx, resource); err != nil {
+		return fmt.Errorf("failed to remove tag from resource: %w", err)
 	}
 
 	return nil

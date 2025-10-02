@@ -13,6 +13,8 @@ import (
 func NewRouter(
 	resourceHandler *handler.ResourceHandler,
 	activityHandler *handler.MonitoringActivityHandler,
+	tagHandler *handler.TagHandler,
+	integrationHandler *handler.IntegrationHandler,
 ) http.Handler {
 	r := chi.NewRouter()
 
@@ -30,12 +32,29 @@ func NewRouter(
 
 	// API routes for resource management
 	r.Route("/resources", func(r chi.Router) {
-		r.Post("/", resourceHandler.CreateResource)                      // Create new monitoring resource
-		r.Get("/", resourceHandler.ListResources)                        // List all resources
-		r.Patch("/{id}", resourceHandler.UpdateResource)                 // Update resource
-		r.Delete("/{id}", resourceHandler.DeleteResource)                // Delete resource
-		r.Post("/{id}/pause", resourceHandler.PauseResourceMonitoring)   // Pause monitoring
-		r.Post("/{id}/resume", resourceHandler.ResumeResourceMonitoring) // Resume monitoring
+		r.Post("/", resourceHandler.CreateResource)                                   // Create new monitoring resource
+		r.Get("/", resourceHandler.ListResources)                                     // List all resources
+		r.Patch("/{id}", resourceHandler.UpdateResource)                              // Update resource
+		r.Delete("/{id}", resourceHandler.DeleteResource)                             // Delete resource
+		r.Post("/{id}/pause", resourceHandler.PauseResourceMonitoring)                // Pause monitoring
+		r.Post("/{id}/resume", resourceHandler.ResumeResourceMonitoring)              // Resume monitoring
+		r.Post("/{resourceID}/tags", resourceHandler.AddTagsToResource)               // Add tags to resource
+		r.Delete("/{resourceID}/tags/{tagID}", resourceHandler.RemoveTagFromResource) // Remove tag from resource
+	})
+
+	// API routes for tag management
+	r.Route("/tags", func(r chi.Router) {
+		r.Post("/", tagHandler.CreateTag)       // Create new tag
+		r.Get("/", tagHandler.ListTags)         // List all tags
+		r.Patch("/{id}", tagHandler.UpdateTag)  // Update tag
+		r.Delete("/{id}", tagHandler.DeleteTag) // Delete tag
+	})
+
+	// API routes for integration management
+	r.Route("/integrations", func(r chi.Router) {
+		r.Post("/", integrationHandler.CreateIntegration)      // Create new integration
+		r.Get("/", integrationHandler.ListIntegrations)        // List all integrations
+		r.Patch("/{id}", integrationHandler.UpdateIntegration) // Update integration
 	})
 
 	// Monitoring activities endpoint

@@ -14,8 +14,9 @@ import (
 func TestResourceService_CreateResource(t *testing.T) {
 	resourceRepo := fake.NewResourceFake()
 	incidentRepo := fake.NewIncidentFake()
+	tagsRepo := fake.NewTagsFake()
 	schedulerFake := fake.NewSchedulerFake()
-	service := NewResourceService(resourceRepo, incidentRepo, schedulerFake)
+	service := NewResourceService(resourceRepo, incidentRepo, tagsRepo, schedulerFake)
 
 	resource := &domain.Resource{
 		Base: domain.Base{
@@ -43,8 +44,9 @@ func TestResourceService_CreateResource(t *testing.T) {
 func TestResourceService_ListAll(t *testing.T) {
 	resourceRepo := fake.NewResourceFake()
 	incidentRepo := fake.NewIncidentFake()
+	tagsRepo := fake.NewTagsFake()
 	schedulerFake := fake.NewSchedulerFake()
-	service := NewResourceService(resourceRepo, incidentRepo, schedulerFake)
+	service := NewResourceService(resourceRepo, incidentRepo, tagsRepo, schedulerFake)
 
 	// Create some test resources
 	resource1 := &domain.Resource{
@@ -95,8 +97,9 @@ func TestResourceService_ListAll(t *testing.T) {
 func TestResourceService_ListAll_EmptyRepository(t *testing.T) {
 	resourceRepo := fake.NewResourceFake()
 	incidentRepo := fake.NewIncidentFake()
+	tagsRepo := fake.NewTagsFake()
 	schedulerFake := fake.NewSchedulerFake()
-	service := NewResourceService(resourceRepo, incidentRepo, schedulerFake)
+	service := NewResourceService(resourceRepo, incidentRepo, tagsRepo, schedulerFake)
 
 	// List all resources from empty repository
 	resources, err := service.ListAll(context.Background())
