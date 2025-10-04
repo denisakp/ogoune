@@ -21,9 +21,9 @@ func TestIncidentRepository_Contract(t *testing.T) {
 				CreatedAt: time.Now(),
 			},
 			ResourceID: "resource-1",
-			Reason:     "Server timeout",
+			Cause:      "Server timeout",
 			StartedAt:  time.Now(),
-			IsResolved: false,
+			ResolvedAt: nil, // Active incident
 		}
 
 		err := repo.Create(context.Background(), incident)
@@ -48,9 +48,9 @@ func TestIncidentRepository_Contract(t *testing.T) {
 				CreatedAt: time.Now(),
 			},
 			ResourceID: "resource-2",
-			Reason:     "Network error",
+			Cause:      "Network error",
 			StartedAt:  time.Now(),
-			IsResolved: false,
+			ResolvedAt: nil, // Active incident
 		}
 
 		err := repo.Create(context.Background(), incident)
@@ -59,7 +59,7 @@ func TestIncidentRepository_Contract(t *testing.T) {
 		found, err := repo.FindByID(context.Background(), "test-incident-2")
 		require.NoError(t, err)
 		assert.Equal(t, incident.ResourceID, found.ResourceID)
-		assert.Equal(t, incident.Reason, found.Reason)
+		assert.Equal(t, incident.Cause, found.Cause)
 
 		// Test not found
 		_, err = repo.FindByID(context.Background(), "nonexistent")
@@ -75,17 +75,16 @@ func TestIncidentRepository_Contract(t *testing.T) {
 				CreatedAt: time.Now(),
 			},
 			ResourceID: "resource-1",
-			Reason:     "Original reason",
+			Cause:      "connection_timeout",
 			StartedAt:  time.Now(),
-			IsResolved: false,
+			ResolvedAt: nil, // Active incident
 		}
 
 		err := repo.Create(context.Background(), incident)
 		require.NoError(t, err)
 
-		// Update the incident
-		incident.Reason = "Updated reason"
-		incident.IsResolved = true
+		// Update the incident (resolve it)
+		incident.Cause = "connection_timeout" // Keep cause as is
 		resolvedAt := time.Now()
 		incident.ResolvedAt = &resolvedAt
 
@@ -95,9 +94,8 @@ func TestIncidentRepository_Contract(t *testing.T) {
 		// Verify update
 		found, err := repo.FindByID(context.Background(), "test-update-incident")
 		require.NoError(t, err)
-		assert.Equal(t, "Updated reason", found.Reason)
-		assert.True(t, found.IsResolved)
-		assert.NotNil(t, found.ResolvedAt)
+		assert.Equal(t, "connection_timeout", found.Cause)
+		assert.NotNil(t, found.ResolvedAt, "Incident should be resolved")
 	})
 
 	t.Run("Delete", func(t *testing.T) {
@@ -128,6 +126,7 @@ func TestIncidentRepository_Contract(t *testing.T) {
 		repo := fake.NewIncidentFake()
 
 		now := time.Now()
+		resolvedTime := now.Add(-1 * time.Minute)
 
 		// Create resolved and unresolved incidents
 		resolvedIncident := &domain.Incident{
@@ -137,7 +136,7 @@ func TestIncidentRepository_Contract(t *testing.T) {
 			},
 			ResourceID: "resource-1",
 			StartedAt:  now.Add(-2 * time.Minute),
-			IsResolved: true,
+			ResolvedAt: &resolvedTime, // Resolved incident
 		}
 
 		unresolvedIncident := &domain.Incident{
@@ -147,7 +146,7 @@ func TestIncidentRepository_Contract(t *testing.T) {
 			},
 			ResourceID: "resource-1",
 			StartedAt:  now.Add(-1 * time.Minute),
-			IsResolved: false,
+			ResolvedAt: nil, // Active incident
 		}
 
 		err := repo.Create(context.Background(), resolvedIncident)
@@ -162,7 +161,7 @@ func TestIncidentRepository_Contract(t *testing.T) {
 		// Should only return unresolved incidents
 		found := false
 		for _, inc := range unresolved {
-			assert.False(t, inc.IsResolved, "Should only return unresolved incidents")
+			assert.Nil(t, inc.ResolvedAt, "Should only return unresolved incidents (ResolvedAt must be nil)")
 			if inc.ID == "unresolved-incident" {
 				found = true
 			}

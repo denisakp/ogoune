@@ -113,10 +113,10 @@ func (r *IncidentFake) FindUnresolved(ctx context.Context, limit, offset int) ([
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
-	// Filter unresolved incidents
+	// Filter unresolved incidents (where ResolvedAt is nil)
 	var unresolved []*domain.Incident
 	for _, inc := range r.incidents {
-		if !inc.IsResolved {
+		if inc.ResolvedAt == nil {
 			copy := *inc
 			unresolved = append(unresolved, &copy)
 		}

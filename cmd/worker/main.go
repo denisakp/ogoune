@@ -71,6 +71,7 @@ func main() {
 		incidentRepo,
 		incidentEventStepRepo,
 		integrationRepo,
+		notificationRepo, // Added NotificationRepository for tracking notification attempts
 		asynqClient,
 	)
 

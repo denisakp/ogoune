@@ -61,32 +61,15 @@ func (h *MonitoringTaskHandler) ProcessTask(ctx context.Context, task *asynq.Tas
 		return nil
 	}
 
-	// Store the old status for comparison
-	oldStatus := resource.Status
+	// Store the previous status for state transitions
+	previousStatus := resource.Status
 
 	// Execute the health check
 	result, err := h.executor.ExecuteCheck(resource)
 	if err != nil {
 		return fmt.Errorf("failed to execute check for resource %s: %w", resource.ID, err)
 	}
-
-	// Update resource status and metadata
-	resource.Status = domain.ResourceStatus(result.Status)
-	resource.LastChecked = &[]time.Time{time.Now()}[0]
-
-	// Update failure count based on status
-	if resource.Status == domain.StatusDown {
-		resource.FailureCount++
-	} else if resource.Status == domain.StatusUp {
-		resource.FailureCount = 0 // Reset failure count on successful check
-	}
-
-	// Save the updated resource
-	if err := h.resources.Update(ctx, resource); err != nil {
-		return fmt.Errorf("failed to update resource %s: %w", resource.ID, err)
-	}
-
-	// Persist monitoring activity for traceability
+	
 	message := fmt.Sprintf("Check %s - Status: %s", resource.Type, result.Status)
 	activity := &domain.MonitoringActivity{
 		ResourceID:   resource.ID,
@@ -96,15 +79,53 @@ func (h *MonitoringTaskHandler) ProcessTask(ctx context.Context, task *asynq.Tas
 		ResponseData: []byte(result.ResponseData),
 	}
 	if err := h.activities.Create(ctx, activity); err != nil {
-		// Log error but don't fail the monitoring task
-		return fmt.Errorf("monitoring completed but failed to persist activity: %w", err)
+		// Log error but continue processing - we don't want to block incident logic
+		fmt.Printf("Warning: failed to persist monitoring activity: %v\n", err)
 	}
 
-	// Handle status changes by calling the incident service directly
-	if oldStatus != resource.Status {
-		if err := h.incidents.HandleStatusChange(ctx, resource, oldStatus, result); err != nil {
-			// Log the error but don't fail the monitoring task
-			return fmt.Errorf("monitoring completed but incident handling failed: %w", err)
+	currentResultStatus := domain.ResourceStatus(result.Status)
+
+	if currentResultStatus == domain.StatusUp {
+		// Resource is UP
+		if previousStatus == domain.StatusDown {
+			// This is a RECOVERY - resource was down, now it's up
+			if err := h.incidents.ResolveIncident(ctx, resource, result); err != nil {
+				fmt.Printf("Warning: failed to resolve incident: %v\n", err)
+			}
+		}
+
+		// Reset failure count and update status to UP
+		resource.FailureCount = 0
+		resource.Status = domain.StatusUp
+		resource.LastChecked = &[]time.Time{time.Now()}[0]
+
+		if err := h.resources.Update(ctx, resource); err != nil {
+			return fmt.Errorf("failed to update resource status: %w", err)
+		}
+
+	} else if currentResultStatus == domain.StatusDown {
+		// Resource is DOWN - increment failure count
+		resource.FailureCount++
+		resource.Status = domain.StatusDown
+		resource.LastChecked = &[]time.Time{time.Now()}[0]
+
+		if err := h.resources.Update(ctx, resource); err != nil {
+			return fmt.Errorf("failed to update resource after failure: %w", err)
+		}
+
+		// Only create incident on the 3rd consecutive failure
+		if resource.FailureCount == 3 {
+			if err := h.incidents.CreateIncident(ctx, resource, result); err != nil {
+				fmt.Printf("Warning: failed to create incident on 3rd failure: %v\n", err)
+			}
+		}
+	} else {
+		// Handle other statuses (error, unknown, etc.)
+		resource.Status = currentResultStatus
+		resource.LastChecked = &[]time.Time{time.Now()}[0]
+
+		if err := h.resources.Update(ctx, resource); err != nil {
+			return fmt.Errorf("failed to update resource status: %w", err)
 		}
 	}
 

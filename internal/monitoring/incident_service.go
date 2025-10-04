@@ -2,7 +2,6 @@ package monitoring
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"log"
 	"time"
@@ -13,13 +12,14 @@ import (
 	"github.com/hibiken/asynq"
 )
 
-// IncidentService manages incident creation and resolution based on resource status changes.
-// It replaces the event-driven listener pattern with direct service calls.
+// IncidentService manages incident creation and resolution with refined stateful logic.
+// It creates incidents only after 3 consecutive failures and tracks the full lifecycle.
 type IncidentService struct {
-	incidents    repository.IncidentRepository
-	eventSteps   repository.IncidentEventStepRepository
-	integrations repository.IntegrationRepository
-	client       *asynq.Client
+	incidents     repository.IncidentRepository
+	eventSteps    repository.IncidentEventStepRepository
+	integrations  repository.IntegrationRepository
+	notifications repository.NotificationRepository
+	client        *asynq.Client
 }
 
 // NewIncidentService creates a new incident service with the given dependencies.
@@ -27,70 +27,49 @@ func NewIncidentService(
 	incidents repository.IncidentRepository,
 	eventSteps repository.IncidentEventStepRepository,
 	integrations repository.IntegrationRepository,
+	notifications repository.NotificationRepository,
 	client *asynq.Client,
 ) *IncidentService {
 	return &IncidentService{
-		incidents:    incidents,
-		eventSteps:   eventSteps,
-		integrations: integrations,
-		client:       client,
+		incidents:     incidents,
+		eventSteps:    eventSteps,
+		integrations:  integrations,
+		notifications: notifications,
+		client:        client,
 	}
 }
 
-// HandleStatusChange processes resource status changes and manages incidents accordingly.
-// This method consolidates the logic that was previously spread across event listeners.
-func (s *IncidentService) HandleStatusChange(ctx context.Context, r *domain.Resource, oldStatus domain.ResourceStatus, result Result) error {
+// CreateIncident creates a new incident when a resource reaches 3 consecutive failures.
+// It checks for existing active incidents, creates event steps, and triggers notifications.
+func (s *IncidentService) CreateIncident(ctx context.Context, r *domain.Resource, result Result) error {
 	if r == nil {
 		return fmt.Errorf("resource cannot be nil")
 	}
 
-	// Convert result status to domain status
-	newStatus := domain.ResourceStatus(result.Status)
-
-	// Only process actual status changes
-	if oldStatus == newStatus {
-		return nil
-	}
-
-	switch {
-	case oldStatus == domain.StatusUp && newStatus == domain.StatusDown:
-		return s.handleDownStatusChange(ctx, r, result)
-	case oldStatus == domain.StatusDown && newStatus == domain.StatusUp:
-		return s.handleUpStatusChange(ctx, r, result)
-	default:
-		// For other status changes, we might want to log them but not create incidents
-		return nil
-	}
-}
-
-// handleDownStatusChange creates a new incident when a resource goes down.
-func (s *IncidentService) handleDownStatusChange(ctx context.Context, r *domain.Resource, result Result) error {
-	// Check if there's already an active incident for this resource
+	// Check if there's already an active incident for this resource (ResolvedAt is nil)
 	incidents, err := s.incidents.FindByResource(ctx, r.ID, 1, 0)
 	if err != nil {
 		return fmt.Errorf("failed to check for existing incidents: %w", err)
 	}
 
-	// Look for unresolved incidents
-	hasActiveIncident := false
+	// Look for unresolved incidents (where ResolvedAt is nil)
 	for _, incident := range incidents {
-		if !incident.IsResolved {
-			hasActiveIncident = true
-			break
+		if incident.ResolvedAt == nil {
+			log.Printf("Active incident already exists for resource %s, skipping creation", r.ID)
+			return nil // Active incident already exists, avoid duplicates
 		}
 	}
 
-	// Only create a new incident if there isn't an active one
-	if hasActiveIncident {
-		return nil // Active incident already exists, no need to create another
-	}
+	// Extract cause from result - this is the structured failure reason
+	cause := extractCause(result)
 
 	// Create new incident
 	incident := &domain.Incident{
 		ResourceID: r.ID,
 		Resource:   *r,
-		Reason:     "Resource status changed from UP to DOWN",
-		IsResolved: false,
+		Reason:     "Resource failed health check 3 consecutive times",
+		Cause:      cause,
+		ResolvedAt: nil, // nil means active
 		StartedAt:  time.Now(),
 		Details:    []byte(result.ResponseData),
 	}
@@ -99,39 +78,46 @@ func (s *IncidentService) handleDownStatusChange(ctx context.Context, r *domain.
 		return fmt.Errorf("failed to create incident: %w", err)
 	}
 
-	// Create first event step: detected
+	log.Printf("Created incident %s for resource %s (cause: %s)", incident.ID, r.ID, cause)
+
+	// Step 1: Create "detected" event step
 	detectedStep := &domain.IncidentEventStep{
 		IncidentID: incident.ID,
 		Step:       domain.IncidentEventStepDetected,
-		Message:    stringPtr("Incident detected: resource is down"),
+		Message:    stringPtr(fmt.Sprintf("Incident detected: %s", cause)),
 	}
 
 	if err := s.eventSteps.Create(ctx, detectedStep); err != nil {
-		log.Printf("Failed to create detected event step: %v", err)
+		log.Printf("Warning: Failed to create detected event step: %v", err)
 	}
 
-	// Trigger notifications
-	if err := s.sendNotifications(ctx, incident, "down"); err != nil {
-		log.Printf("Failed to send notifications for incident %s: %v", incident.ID, err)
+	// Step 2: Send DOWN notification via SMTP
+	if err := s.sendDownNotification(ctx, incident); err != nil {
+		log.Printf("Warning: Failed to send down notification: %v", err)
 	}
 
-	// Create second event step: alert_sent
-	alertStep := &domain.IncidentEventStep{
+	// Step 3: Create "resource_down_alert" event step
+	downAlertStep := &domain.IncidentEventStep{
 		IncidentID: incident.ID,
-		Step:       domain.IncidentEventStepAlert,
-		Message:    stringPtr("Alert notifications sent"),
+		Step:       domain.IncidentEventStepDownAlert,
+		Message:    stringPtr("Resource down alert sent"),
 	}
 
-	if err := s.eventSteps.Create(ctx, alertStep); err != nil {
-		log.Printf("Failed to create alert_sent event step: %v", err)
+	if err := s.eventSteps.Create(ctx, downAlertStep); err != nil {
+		log.Printf("Warning: Failed to create resource_down_alert event step: %v", err)
 	}
 
 	return nil
 }
 
-// handleUpStatusChange resolves an active incident when a resource comes back up.
-func (s *IncidentService) handleUpStatusChange(ctx context.Context, r *domain.Resource, result Result) error {
-	// Find the active incident for this resource
+// ResolveIncident resolves an active incident when a resource recovers.
+// It updates the incident, creates event steps, and triggers recovery notifications.
+func (s *IncidentService) ResolveIncident(ctx context.Context, r *domain.Resource, result Result) error {
+	if r == nil {
+		return fmt.Errorf("resource cannot be nil")
+	}
+
+	// Find the active incident for this resource (ResolvedAt is nil)
 	incidents, err := s.incidents.FindByResource(ctx, r.ID, 10, 0)
 	if err != nil {
 		return fmt.Errorf("failed to find incidents: %w", err)
@@ -140,7 +126,7 @@ func (s *IncidentService) handleUpStatusChange(ctx context.Context, r *domain.Re
 	// Look for the most recent unresolved incident
 	var activeIncident *domain.Incident
 	for _, incident := range incidents {
-		if !incident.IsResolved {
+		if incident.ResolvedAt == nil {
 			if activeIncident == nil || incident.StartedAt.After(activeIncident.StartedAt) {
 				activeIncident = incident
 			}
@@ -149,19 +135,21 @@ func (s *IncidentService) handleUpStatusChange(ctx context.Context, r *domain.Re
 
 	// No active incident to resolve
 	if activeIncident == nil {
+		log.Printf("No active incident found for resource %s", r.ID)
 		return nil
 	}
 
-	// Resolve the incident
+	// Resolve the incident by setting ResolvedAt timestamp
 	now := time.Now()
-	activeIncident.IsResolved = true
 	activeIncident.ResolvedAt = &now
 
 	if err := s.incidents.Update(ctx, activeIncident); err != nil {
 		return fmt.Errorf("failed to resolve incident: %w", err)
 	}
 
-	// Create resolved event step
+	log.Printf("Resolved incident %s for resource %s", activeIncident.ID, r.ID)
+
+	// Step 1: Create "resolved" event step
 	resolvedStep := &domain.IncidentEventStep{
 		IncidentID: activeIncident.ID,
 		Step:       domain.IncidentEventStepResolved,
@@ -169,102 +157,153 @@ func (s *IncidentService) handleUpStatusChange(ctx context.Context, r *domain.Re
 	}
 
 	if err := s.eventSteps.Create(ctx, resolvedStep); err != nil {
-		log.Printf("Failed to create resolved event step: %v", err)
+		log.Printf("Warning: Failed to create resolved event step: %v", err)
 	}
 
-	// Trigger "resource up" notifications
-	if err := s.sendNotifications(ctx, activeIncident, "up"); err != nil {
-		log.Printf("Failed to send up notifications for incident %s: %v", activeIncident.ID, err)
+	// Step 2: Send UP notification via SMTP
+	if err := s.sendUpNotification(ctx, activeIncident); err != nil {
+		log.Printf("Warning: Failed to send up notification: %v", err)
 	}
 
-	// Create alert sent event step for resolution
-	alertStep := &domain.IncidentEventStep{
+	// Step 3: Create "resource_up_alert" event step
+	upAlertStep := &domain.IncidentEventStep{
 		IncidentID: activeIncident.ID,
-		Step:       domain.IncidentEventStepAlert,
-		Message:    stringPtr("Resolution notifications sent"),
+		Step:       domain.IncidentEventStepUpAlert,
+		Message:    stringPtr("Resource up alert sent"),
 	}
 
-	if err := s.eventSteps.Create(ctx, alertStep); err != nil {
-		log.Printf("Failed to create alert_sent event step for resolution: %v", err)
+	if err := s.eventSteps.Create(ctx, upAlertStep); err != nil {
+		log.Printf("Warning: Failed to create resource_up_alert event step: %v", err)
 	}
 
 	return nil
 }
 
-// sendNotifications sends notifications through all configured integrations.
-func (s *IncidentService) sendNotifications(ctx context.Context, incident *domain.Incident, eventType string) error {
-	// Create default in-app integration
-	inAppIntegration := domain.Integration{
-		Base:     domain.Base{ID: "inapp-default"},
-		Name:     "In-App Notifications",
-		Target:   "internal",
-		Type:     "inapp",
+// sendDownNotification sends a "Resource Down" email notification and logs it.
+func (s *IncidentService) sendDownNotification(ctx context.Context, incident *domain.Incident) error {
+	// Use default SMTP notifier
+	smtpNotifier := notifier.NewSMTPNotifier()
+
+	// Create a default SMTP integration for sending
+	smtpIntegration := domain.Integration{
+		Base:     domain.Base{ID: "smtp-default"},
+		Name:     "Default SMTP",
+		Target:   "alerts@pulseguard.local", // This should come from config
+		Type:     domain.IntegrationSMTP,
 		IsActive: true,
 	}
 
-	// Fetch all active integrations from database
-	activeIntegrations, err := s.integrations.List(ctx, 100, 0)
+	// Send the notification
+	err := smtpNotifier.Send(ctx, smtpIntegration, *incident)
+
+	// Create notification record to log the attempt
+	notificationEvent := &domain.NotificationEvent{
+		IncidentID: incident.ID,
+		Type:       domain.NotificationEventTypeDown,
+	}
+
 	if err != nil {
-		log.Printf("Failed to fetch integrations: %v", err)
-		activeIntegrations = []*domain.Integration{}
+		log.Printf("Failed to send down notification via SMTP: %v", err)
+		// Even if sending failed, we log the attempt
+	} else {
+		log.Printf("Successfully sent down notification for incident %s", incident.ID)
 	}
 
-	// Filter for active integrations only
-	var integrationsList []domain.Integration
-	integrationsList = append(integrationsList, inAppIntegration) // Always include in-app
-
-	for _, integration := range activeIntegrations {
-		if integration.IsActive {
-			integrationsList = append(integrationsList, *integration)
-		}
+	// Persist the notification event
+	if err := s.notifications.Create(ctx, notificationEvent); err != nil {
+		log.Printf("Warning: Failed to persist notification event: %v", err)
 	}
 
-	// Send notification through each integration
-	for _, integration := range integrationsList {
-		// Get the appropriate notifier
-		sender, err := notifier.NewNotifier(integration.Type)
-		if err != nil {
-			log.Printf("Failed to create notifier for type %s: %v", integration.Type, err)
-			continue
-		}
+	return err
+}
 
-		// Send the notification
-		if err := sender.Send(ctx, integration, *incident); err != nil {
-			log.Printf("Failed to send notification via %s (%s): %v",
-				integration.Name, integration.Type, err)
-			continue
-		}
+// sendUpNotification sends a "Resource Up" email notification and logs it.
+func (s *IncidentService) sendUpNotification(ctx context.Context, incident *domain.Incident) error {
+	// Use default SMTP notifier
+	smtpNotifier := notifier.NewSMTPNotifier()
 
-		log.Printf("Successfully sent %s notification via %s", eventType, integration.Name)
+	// Create a default SMTP integration for sending
+	smtpIntegration := domain.Integration{
+		Base:     domain.Base{ID: "smtp-default"},
+		Name:     "Default SMTP",
+		Target:   "alerts@pulseguard.local", // This should come from config
+		Type:     domain.IntegrationSMTP,
+		IsActive: true,
 	}
 
-	return nil
+	// Send the notification
+	err := smtpNotifier.Send(ctx, smtpIntegration, *incident)
+
+	// Create notification record to log the attempt
+	notificationEvent := &domain.NotificationEvent{
+		IncidentID: incident.ID,
+		Type:       domain.NotificationEventTypeUp,
+	}
+
+	if err != nil {
+		log.Printf("Failed to send up notification via SMTP: %v", err)
+	} else {
+		log.Printf("Successfully sent up notification for incident %s", incident.ID)
+	}
+
+	// Persist the notification event
+	if err := s.notifications.Create(ctx, notificationEvent); err != nil {
+		log.Printf("Warning: Failed to persist notification event: %v", err)
+	}
+
+	return err
+}
+
+// extractCause extracts a structured cause from the monitoring result.
+// This provides consistent failure categorization.
+func extractCause(result Result) string {
+	// Map status to structured causes
+	switch result.Status {
+	case "down":
+		// Check the response data for more specific causes
+		if len(result.ResponseData) > 0 {
+			data := result.ResponseData
+			if contains(data, "timeout") {
+				return "connection_timeout"
+			}
+			if contains(data, "refused") {
+				return "connection_refused"
+			}
+			if contains(data, "status") || contains(data, "code") {
+				return "invalid_status_code"
+			}
+			if contains(data, "dns") || contains(data, "resolve") {
+				return "dns_resolution_failure"
+			}
+			if contains(data, "ssl") || contains(data, "tls") || contains(data, "certificate") {
+				return "ssl_certificate_error"
+			}
+		}
+		return "health_check_failed"
+	case "error":
+		return "check_execution_error"
+	default:
+		return "unknown_failure"
+	}
+}
+
+// contains checks if a string contains a substring (case-insensitive)
+func contains(s, substr string) bool {
+	return len(s) >= len(substr) && (s == substr ||
+		len(s) > len(substr) &&
+			(findSubstring(s, substr)))
+}
+
+func findSubstring(s, substr string) bool {
+	for i := 0; i <= len(s)-len(substr); i++ {
+		if s[i:i+len(substr)] == substr {
+			return true
+		}
+	}
+	return false
 }
 
 // stringPtr is a helper to create string pointers.
 func stringPtr(s string) *string {
 	return &s
-}
-
-// enqueueNotification queues a notification task for the incident.
-func (s *IncidentService) enqueueNotification(ctx context.Context, incident *domain.Incident, eventType string) error {
-	payload := map[string]interface{}{
-		"incident_id": incident.ID,
-		"event_type":  eventType,
-		"resource_id": incident.ResourceID,
-		"timestamp":   time.Now().Unix(),
-	}
-
-	payloadBytes, err := json.Marshal(payload)
-	if err != nil {
-		return fmt.Errorf("failed to marshal notification payload: %w", err)
-	}
-
-	task := asynq.NewTask("notification:send", payloadBytes)
-	_, err = s.client.Enqueue(task, asynq.Queue("notifications"))
-	if err != nil {
-		return fmt.Errorf("failed to enqueue notification task: %w", err)
-	}
-
-	return nil
 }

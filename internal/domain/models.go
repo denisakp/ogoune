@@ -77,8 +77,8 @@ type Incident struct {
 	ResourceID string              `json:"resource_id" gorm:"index"`
 	Resource   Resource            `json:"resource" gorm:"foreignKey:ResourceID"`
 	Reason     string              `json:"reason"`
-	IsResolved bool                `json:"is_resolved" gorm:"default:false"`
-	ResolvedAt *time.Time          `json:"resolved_at" gorm:"index"`
+	Cause      string              `json:"cause" gorm:"index"`       // Structured failure reason (e.g., "connection_timeout", "invalid_status_code")
+	ResolvedAt *time.Time          `json:"resolved_at" gorm:"index"` // nil = active, timestamp = resolved
 	StartedAt  time.Time           `json:"started_at" gorm:"index"`
 	Details    []byte              `json:"details"`
 	EventStep  []IncidentEventStep `json:"-"`
