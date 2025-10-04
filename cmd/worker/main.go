@@ -15,6 +15,7 @@ import (
 	"github.com/denisakp/pulseguard/internal/repository/postgres"
 	"github.com/denisakp/pulseguard/internal/repository/postgres/database"
 	"github.com/denisakp/pulseguard/internal/worker"
+	"github.com/denisakp/pulseguard/pkg/notifier"
 	"github.com/hibiken/asynq"
 )
 
@@ -48,8 +49,8 @@ func main() {
 	resourceRepo := postgres.NewResourceRepository(db)
 	incidentRepo := postgres.NewIncidentRepository(db)
 	incidentEventStepRepo := postgres.NewIncidentEventStepRepository(db)
-	integrationRepo := postgres.NewIntegrationRepository(db)
 	notificationRepo := postgres.NewNotificationRepository(db)
+	integrationRepo := postgres.NewIntegrationRepository(db)
 	monitoringActivityRepo := postgres.NewMonitoringActivityRepository(db)
 
 	// Initialize Redis connection for Asynq
@@ -62,25 +63,33 @@ func main() {
 	defer asynqClient.Close()
 
 	// Initialize monitoring services
-	strategies := map[domain.ResourceType]monitoring.Strategy{
+	strategies := map[domain.ResourceType]domain.CheckStrategy{
 		domain.ResourceHTTP: strategy.NewHTTPStrategy(30 * time.Second),
 		domain.ResourceTCP:  strategy.NewTCPStrategy(30 * time.Second),
 	}
-	executor := monitoring.NewExecutor(strategies)
+	executor := domain.NewCheckExecutor(strategies)
+
+	// Initialize notifier factory for user-configured integrations
+	notifierFactory := notifier.NewNotifierFactory()
+
+	// Initialize incident service with two-layered notification support
 	incidentService := monitoring.NewIncidentService(
 		incidentRepo,
 		incidentEventStepRepo,
-		integrationRepo,
-		notificationRepo, // Added NotificationRepository for tracking notification attempts
+		notificationRepo,
+		integrationRepo, // For fetching user-configured integrations
 		asynqClient,
+		notifierFactory,           // For creating notifier instances
+		cfg.SMTPIsEnabled,         // Pass SMTP enabled flag
+		cfg.DefaultRecipientEmail, // Pass default recipient
+		cfg.SMTPSender,            // Pass SMTP sender
 	)
 
 	// Initialize task handlers
 	monitoringHandler := worker.NewMonitoringTaskHandler(resourceRepo, monitoringActivityRepo, executor, incidentService)
-	notificationHandler := worker.NewNotificationTaskHandler(incidentRepo, integrationRepo, notificationRepo)
 
-	// Initialize and start the worker processor
-	processor := worker.NewProcessor(redisOpt, monitoringHandler, notificationHandler)
+	// Initialize and start the worker processor (notification handler removed - handled directly in IncidentService)
+	processor := worker.NewProcessor(redisOpt, monitoringHandler)
 
 	// Handle graceful shutdown
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
