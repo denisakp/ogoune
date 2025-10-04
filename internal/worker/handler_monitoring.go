@@ -17,7 +17,7 @@ import (
 type MonitoringTaskHandler struct {
 	resources  repository.ResourceRepository
 	activities repository.MonitoringActivityRepository
-	executor   *monitoring.Executor
+	executor   *domain.CheckExecutor
 	incidents  *monitoring.IncidentService
 }
 
@@ -25,7 +25,7 @@ type MonitoringTaskHandler struct {
 func NewMonitoringTaskHandler(
 	resources repository.ResourceRepository,
 	activities repository.MonitoringActivityRepository,
-	executor *monitoring.Executor,
+	executor *domain.CheckExecutor,
 	incidents *monitoring.IncidentService,
 ) *MonitoringTaskHandler {
 	return &MonitoringTaskHandler{
@@ -69,7 +69,7 @@ func (h *MonitoringTaskHandler) ProcessTask(ctx context.Context, task *asynq.Tas
 	if err != nil {
 		return fmt.Errorf("failed to execute check for resource %s: %w", resource.ID, err)
 	}
-	
+
 	message := fmt.Sprintf("Check %s - Status: %s", resource.Type, result.Status)
 	activity := &domain.MonitoringActivity{
 		ResourceID:   resource.ID,

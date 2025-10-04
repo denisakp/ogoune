@@ -2,6 +2,7 @@ package postgres
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"testing"
 	"time"
@@ -17,15 +18,19 @@ func TestIntegrationRepository_Contract(t *testing.T) {
 	repo := fake.NewIntegrationFake()
 
 	t.Run("Create", func(t *testing.T) {
+		slackConfig, _ := json.Marshal(map[string]string{
+			"type":        "slack",
+			"webhook_url": "https://hooks.slack.com/test",
+		})
+
 		integration := &domain.Integration{
 			Base: domain.Base{
 				ID:        "test-integration-1",
 				CreatedAt: time.Now(),
 			},
 			Name:     "Test Slack Integration",
-			Target:   "https://hooks.slack.com/test",
-			Type:     domain.IntegrationSlack,
 			IsActive: true,
+			Config:   slackConfig,
 		}
 
 		err := repo.Create(context.Background(), integration)
@@ -42,15 +47,20 @@ func TestIntegrationRepository_Contract(t *testing.T) {
 	})
 
 	t.Run("FindByID", func(t *testing.T) {
+		smtpConfig, _ := json.Marshal(map[string]string{
+			"type":      "smtp",
+			"recipient": "test@example.com",
+			"sender":    "alerts@example.com",
+		})
+
 		integration := &domain.Integration{
 			Base: domain.Base{
 				ID:        "test-integration-2",
 				CreatedAt: time.Now(),
 			},
 			Name:     "Test SMTP Integration",
-			Target:   "smtp://mail.example.com:587",
-			Type:     domain.IntegrationSMTP,
 			IsActive: true,
+			Config:   smtpConfig,
 		}
 
 		err := repo.Create(context.Background(), integration)
@@ -60,7 +70,7 @@ func TestIntegrationRepository_Contract(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, integration.ID, found.ID)
 		assert.Equal(t, integration.Name, found.Name)
-		assert.Equal(t, integration.Type, found.Type)
+		assert.Equal(t, domain.IntegrationSMTP, found.GetType())
 
 		// Test not found
 		_, err = repo.FindByID(context.Background(), "non-existent-id")
@@ -68,15 +78,19 @@ func TestIntegrationRepository_Contract(t *testing.T) {
 	})
 
 	t.Run("Update", func(t *testing.T) {
+		slackConfig, _ := json.Marshal(map[string]string{
+			"type":        "slack",
+			"webhook_url": "https://hooks.slack.com/initial",
+		})
+
 		integration := &domain.Integration{
 			Base: domain.Base{
 				ID:        "test-update",
 				CreatedAt: time.Now(),
 			},
 			Name:     "Initial Name",
-			Target:   "initial-target",
-			Type:     domain.IntegrationSlack,
 			IsActive: true,
+			Config:   slackConfig,
 		}
 
 		err := repo.Create(context.Background(), integration)
@@ -102,15 +116,19 @@ func TestIntegrationRepository_Contract(t *testing.T) {
 	})
 
 	t.Run("Delete", func(t *testing.T) {
+		googleChatConfig, _ := json.Marshal(map[string]string{
+			"type":        "google_chat",
+			"webhook_url": "https://chat.googleapis.com/test",
+		})
+
 		integration := &domain.Integration{
 			Base: domain.Base{
 				ID:        "test-delete",
 				CreatedAt: time.Now(),
 			},
 			Name:     "To Be Deleted",
-			Target:   "delete-target",
-			Type:     domain.IntegrationGoogleChat,
 			IsActive: true,
+			Config:   googleChatConfig,
 		}
 
 		err := repo.Create(context.Background(), integration)
@@ -131,6 +149,11 @@ func TestIntegrationRepository_Contract(t *testing.T) {
 		// Clear existing integrations by creating a new fake
 		repo = fake.NewIntegrationFake()
 
+		slackConfig, _ := json.Marshal(map[string]string{
+			"type":        "slack",
+			"webhook_url": "https://hooks.slack.com/test",
+		})
+
 		// Create multiple integrations
 		for i := 1; i <= 5; i++ {
 			integration := &domain.Integration{
@@ -139,9 +162,8 @@ func TestIntegrationRepository_Contract(t *testing.T) {
 					CreatedAt: time.Now(),
 				},
 				Name:     fmt.Sprintf("Integration %d", i),
-				Target:   fmt.Sprintf("target-%d", i),
-				Type:     domain.IntegrationSlack,
 				IsActive: i%2 == 1, // Alternate active/inactive
+				Config:   slackConfig,
 			}
 			err := repo.Create(context.Background(), integration)
 			require.NoError(t, err)
@@ -160,31 +182,41 @@ func TestIntegrationRepository_Contract(t *testing.T) {
 		// Clear existing integrations by creating a new fake
 		repo = fake.NewIntegrationFake()
 
+		slackConfig, _ := json.Marshal(map[string]string{
+			"type":        "slack",
+			"webhook_url": "https://hooks.slack.com/test",
+		})
+
+		smtpConfig, _ := json.Marshal(map[string]string{
+			"type":      "smtp",
+			"recipient": "test@example.com",
+		})
+
 		// Create integrations of different types and active states
 		integrations := []*domain.Integration{
 			{
 				Base:     domain.Base{ID: "slack-1", CreatedAt: time.Now()},
 				Name:     "Active Slack 1",
-				Type:     domain.IntegrationSlack,
 				IsActive: true,
+				Config:   slackConfig,
 			},
 			{
 				Base:     domain.Base{ID: "slack-2", CreatedAt: time.Now()},
 				Name:     "Inactive Slack",
-				Type:     domain.IntegrationSlack,
 				IsActive: false,
+				Config:   slackConfig,
 			},
 			{
 				Base:     domain.Base{ID: "slack-3", CreatedAt: time.Now()},
 				Name:     "Active Slack 2",
-				Type:     domain.IntegrationSlack,
 				IsActive: true,
+				Config:   slackConfig,
 			},
 			{
 				Base:     domain.Base{ID: "smtp-1", CreatedAt: time.Now()},
 				Name:     "Active SMTP",
-				Type:     domain.IntegrationSMTP,
 				IsActive: true,
+				Config:   smtpConfig,
 			},
 		}
 
@@ -194,11 +226,12 @@ func TestIntegrationRepository_Contract(t *testing.T) {
 		}
 
 		// Find active Slack integrations
-		activeSlack, err := repo.FindActiveByType(context.Background(), domain.IntegrationSlack, 10, 0)
+		slackIntegrations, err := repo.FindActiveByType(context.Background(), domain.IntegrationSlack, 10, 0)
 		require.NoError(t, err)
-		assert.Len(t, activeSlack, 2)
-		for _, integration := range activeSlack {
-			assert.Equal(t, domain.IntegrationSlack, integration.Type)
+		assert.Len(t, slackIntegrations, 2) // Should only return active ones
+
+		for _, integration := range slackIntegrations {
+			assert.Equal(t, domain.IntegrationSlack, integration.GetType())
 			assert.True(t, integration.IsActive)
 		}
 

@@ -31,23 +31,27 @@ func (s *IntegrationService) CreateIntegration(ctx context.Context, integration 
 		return fmt.Errorf("%w: integration name is required", ErrValidationFailed)
 	}
 
-	if integration.Target == "" {
-		return fmt.Errorf("%w: integration target is required", ErrValidationFailed)
+	// Validate Config is present and contains type
+	config, err := integration.GetConfig()
+	if err != nil {
+		return fmt.Errorf("%w: invalid config format", ErrValidationFailed)
 	}
 
-	if integration.Type == "" {
-		return fmt.Errorf("%w: integration type is required", ErrValidationFailed)
+	typeVal, ok := config["type"].(string)
+	if !ok || typeVal == "" {
+		return fmt.Errorf("%w: config must include 'type' field", ErrValidationFailed)
 	}
 
 	// Validate integration type
-	validTypes := map[domain.IntegrationType]bool{
-		domain.IntegrationSMTP:       true,
-		domain.IntegrationSlack:      true,
-		domain.IntegrationGoogleChat: true,
+	validTypes := map[string]bool{
+		string(domain.IntegrationSMTP):       true,
+		string(domain.IntegrationSlack):      true,
+		string(domain.IntegrationGoogleChat): true,
+		string(domain.IntegrationDiscord):    true,
 	}
 
-	if !validTypes[integration.Type] {
-		return fmt.Errorf("%w: invalid integration type '%s'", ErrValidationFailed, integration.Type)
+	if !validTypes[typeVal] {
+		return fmt.Errorf("%w: invalid integration type '%s'", ErrValidationFailed, typeVal)
 	}
 
 	if err := s.integrations.Create(ctx, integration); err != nil {
@@ -75,7 +79,7 @@ func (s *IntegrationService) GetIntegrationByID(ctx context.Context, id string) 
 }
 
 // UpdateIntegration updates an existing integration.
-func (s *IntegrationService) UpdateIntegration(ctx context.Context, id string, name, target string, isActive *bool) (*domain.Integration, error) {
+func (s *IntegrationService) UpdateIntegration(ctx context.Context, id string, name string, config []byte, isActive *bool) (*domain.Integration, error) {
 	// Fetch existing integration
 	integration, err := s.integrations.FindByID(ctx, id)
 	if err != nil {
@@ -90,8 +94,8 @@ func (s *IntegrationService) UpdateIntegration(ctx context.Context, id string, n
 		integration.Name = name
 	}
 
-	if target != "" {
-		integration.Target = target
+	if len(config) > 0 {
+		integration.Config = config
 	}
 
 	if isActive != nil {

@@ -21,6 +21,17 @@ func NewSMTPNotifier() *SMTPNotifier {
 // It generates distinct email templates for "Resource Down" and "Resource Up" events.
 // For now, this logs the email details. In production, this would use an SMTP library like gomail.
 func (n *SMTPNotifier) Send(ctx context.Context, config domain.Integration, incident domain.Incident) error {
+	// Extract recipient from config
+	configMap, err := config.GetConfig()
+	if err != nil {
+		return fmt.Errorf("failed to parse config: %w", err)
+	}
+
+	recipient, ok := configMap["recipient"].(string)
+	if !ok || recipient == "" {
+		return fmt.Errorf("config missing 'recipient' field")
+	}
+
 	// Determine if this is a DOWN or UP notification based on ResolvedAt
 	isResolved := incident.ResolvedAt != nil
 
@@ -39,7 +50,7 @@ func (n *SMTPNotifier) Send(ctx context.Context, config domain.Integration, inci
 
 	// Log the notification (in production, send actual email)
 	log.Printf("[SMTP Notifier] Sending email to %s\nSubject: %s\nBody preview: %d bytes\n",
-		config.Target, subject, len(htmlBody))
+		recipient, subject, len(htmlBody))
 
 	// TODO: Implement actual SMTP sending with gomail or similar
 	// Example:

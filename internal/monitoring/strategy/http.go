@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/denisakp/pulseguard/internal/domain"
-	"github.com/denisakp/pulseguard/internal/monitoring"
 )
 
 type HTTPStrategy struct {
@@ -20,7 +19,7 @@ func NewHTTPStrategy(timeout time.Duration) *HTTPStrategy {
 	return &HTTPStrategy{client: &http.Client{Timeout: timeout}}
 }
 
-func (s *HTTPStrategy) Execute(ctx context.Context, resource *domain.Resource) (monitoring.Result, error) {
+func (s *HTTPStrategy) Execute(ctx context.Context, resource *domain.Resource) (domain.CheckResult, error) {
 	start := time.Now()
 
 	timeoutVal := resource.Timeout
@@ -33,7 +32,7 @@ func (s *HTTPStrategy) Execute(ctx context.Context, resource *domain.Resource) (
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodHead, resource.Target, nil)
 	if err != nil {
-		return monitoring.Result{
+		return domain.CheckResult{
 			Status:       string(domain.StatusDown),
 			ResponseTime: time.Since(start),
 			ResponseData: fmt.Sprintf("failed to create request: %v", err),
@@ -42,7 +41,7 @@ func (s *HTTPStrategy) Execute(ctx context.Context, resource *domain.Resource) (
 
 	resp, err := s.client.Do(req)
 	if err != nil {
-		return monitoring.Result{
+		return domain.CheckResult{
 			Status:       string(domain.StatusDown),
 			ResponseTime: time.Since(start),
 			ResponseData: fmt.Sprintf("request error: %v", err),
@@ -58,7 +57,7 @@ func (s *HTTPStrategy) Execute(ctx context.Context, resource *domain.Resource) (
 		headers = append(headers, fmt.Sprintf("%s: %s", k, strings.Join(v, ",")))
 	}
 
-	return monitoring.Result{
+	return domain.CheckResult{
 		Status: func() string {
 			if isSuccess {
 				return string(domain.StatusUp)

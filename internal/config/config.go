@@ -9,20 +9,47 @@ import (
 
 // Config holds all application configuration loaded from environment variables.
 type Config struct {
-	RedisUrl    string
-	DatabaseUrl string
-	Port        string
-	Environment string
+	RedisUrl              string
+	DatabaseUrl           string
+	Port                  string
+	Environment           string
+	SMTPHost              string
+	SMTPPort              string
+	SMTPUser              string
+	SMTPPassword          string
+	SMTPSender            string
+	DefaultRecipientEmail string
+	SMTPIsEnabled         bool
 }
 
 // Load reads configuration from environment variables.
 // It should be called after attempting to load .env file.
 func Load() Config {
+	// Load SMTP configuration
+	smtpHost := GetEnv("SMTP_HOST", "")
+	smtpPort := GetEnv("SMTP_PORT", "")
+	smtpUser := GetEnv("SMTP_USER", "")
+	smtpPassword := GetEnv("SMTP_PASSWORD", "")
+	smtpSender := GetEnv("SMTP_SENDER", "")
+	defaultRecipient := GetEnv("DEFAULT_RECIPIENT_EMAIL", "")
+
+	// SMTP is enabled only if ALL required variables are present and non-empty
+	smtpIsEnabled := smtpHost != "" && smtpPort != "" &&
+		smtpUser != "" && smtpPassword != "" &&
+		smtpSender != "" && defaultRecipient != ""
+
 	cfg := Config{
-		RedisUrl:    GetEnv("REDIS_URL", "localhost:6379"),
-		DatabaseUrl: GetEnv("DATABASE_URL", "postgres://denis:password@localhost:5432/pulse?sslmode=disable"),
-		Port:        GetEnv("PORT", "8080"),
-		Environment: GetEnv("APP_ENV", "development"),
+		RedisUrl:              GetEnv("REDIS_URL", "localhost:6379"),
+		DatabaseUrl:           GetEnv("DATABASE_URL", "postgres://denis:password@localhost:5432/pulse?sslmode=disable"),
+		Port:                  GetEnv("PORT", "8080"),
+		Environment:           GetEnv("APP_ENV", "development"),
+		SMTPHost:              smtpHost,
+		SMTPPort:              smtpPort,
+		SMTPUser:              smtpUser,
+		SMTPPassword:          smtpPassword,
+		SMTPSender:            smtpSender,
+		DefaultRecipientEmail: defaultRecipient,
+		SMTPIsEnabled:         smtpIsEnabled,
 	}
 	return cfg
 }
@@ -52,6 +79,14 @@ func MustInit() Config {
 	// Validate critical configuration
 	if cfg.DatabaseUrl == "" {
 		log.Fatalf("[config] DATABASE_URL environment variable is required")
+	}
+
+	// Log SMTP configuration status
+	if cfg.SMTPIsEnabled {
+		log.Printf("[config] SMTP notifications ENABLED (host: %s, sender: %s, recipient: %s)",
+			cfg.SMTPHost, cfg.SMTPSender, cfg.DefaultRecipientEmail)
+	} else {
+		log.Println("[config] SMTP notifications DISABLED (missing required SMTP_* environment variables)")
 	}
 
 	log.Printf("[config] Environment: %s, Port: %s", cfg.Environment, cfg.Port)

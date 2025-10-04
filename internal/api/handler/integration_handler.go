@@ -17,7 +17,7 @@ type IntegrationServiceInterface interface {
 	CreateIntegration(ctx context.Context, integration *domain.Integration) error
 	ListIntegrations(ctx context.Context, limit, offset int) ([]*domain.Integration, error)
 	GetIntegrationByID(ctx context.Context, id string) (*domain.Integration, error)
-	UpdateIntegration(ctx context.Context, id string, name, target string, isActive *bool) (*domain.Integration, error)
+	UpdateIntegration(ctx context.Context, id string, name string, config []byte, isActive *bool) (*domain.Integration, error)
 	ListActiveIntegrations(ctx context.Context) ([]*domain.Integration, error)
 }
 
@@ -48,13 +48,16 @@ func (h *IntegrationHandler) CreateIntegration(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	if integration.Target == "" {
-		respondError(w, http.StatusBadRequest, "Integration target is required")
+	// Validate Config contains required fields
+	config, err := integration.GetConfig()
+	if err != nil {
+		respondError(w, http.StatusBadRequest, "Invalid config format: "+err.Error())
 		return
 	}
 
-	if integration.Type == "" {
-		respondError(w, http.StatusBadRequest, "Integration type is required")
+	// Check if type is present in config
+	if _, ok := config["type"]; !ok {
+		respondError(w, http.StatusBadRequest, "Integration config must include 'type' field")
 		return
 	}
 
@@ -119,9 +122,9 @@ func (h *IntegrationHandler) UpdateIntegration(w http.ResponseWriter, r *http.Re
 	}
 
 	var payload struct {
-		Name     string `json:"name,omitempty"`
-		Target   string `json:"target,omitempty"`
-		IsActive *bool  `json:"is_active,omitempty"`
+		Name     string          `json:"name,omitempty"`
+		Config   json.RawMessage `json:"config,omitempty"`
+		IsActive *bool           `json:"is_active,omitempty"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
@@ -133,7 +136,7 @@ func (h *IntegrationHandler) UpdateIntegration(w http.ResponseWriter, r *http.Re
 		r.Context(),
 		integrationID,
 		payload.Name,
-		payload.Target,
+		payload.Config,
 		payload.IsActive,
 	)
 

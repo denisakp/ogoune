@@ -4,10 +4,10 @@ import (
 	"context"
 
 	"github.com/denisakp/pulseguard/internal/domain"
-	"github.com/denisakp/pulseguard/internal/monitoring"
+	"github.com/denisakp/pulseguard/internal/repository"
 )
 
-// SchedulerFake is a mock implementation of monitoring.Scheduler for testing.
+// SchedulerFake is a mock implementation of repository.Scheduler for testing.
 type SchedulerFake struct {
 	scheduledResources   map[string]*domain.Resource
 	unscheduledResources map[string]bool
@@ -36,8 +36,8 @@ func (s *SchedulerFake) Unschedule(ctx context.Context, resourceID string) error
 	return nil
 }
 
-// Ensure SchedulerFake implements the monitoring.Scheduler interface
-var _ monitoring.Scheduler = (*SchedulerFake)(nil)
+// Ensure SchedulerFake implements the repository.Scheduler interface
+var _ repository.Scheduler = (*SchedulerFake)(nil)
 
 // IsScheduled checks if a resource is scheduled (for testing).
 func (s *SchedulerFake) IsScheduled(resourceID string) bool {

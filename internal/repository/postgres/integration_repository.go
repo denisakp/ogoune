@@ -94,3 +94,17 @@ func (r *IntegrationRepositoryImpl) FindActiveByType(ctx context.Context, t doma
 	}
 	return integrations, nil
 }
+
+// ListActive retrieves all active integrations without pagination.
+func (r *IntegrationRepositoryImpl) ListActive(ctx context.Context) ([]*domain.Integration, error) {
+	var integrations []*domain.Integration
+	err := r.db.WithContext(ctx).
+		Where("is_active = ?", true).
+		Order("created_at DESC").
+		Find(&integrations).Error
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to list active integrations: %w", err)
+	}
+	return integrations, nil
+}

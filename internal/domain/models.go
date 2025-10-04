@@ -1,10 +1,12 @@
 package domain
 
 import (
+	"encoding/json"
 	"math/rand"
 	"time"
 
 	"github.com/oklog/ulid/v2"
+	"gorm.io/datatypes"
 	"gorm.io/gorm"
 )
 
@@ -77,7 +79,7 @@ type Incident struct {
 	ResourceID string              `json:"resource_id" gorm:"index"`
 	Resource   Resource            `json:"resource" gorm:"foreignKey:ResourceID"`
 	Reason     string              `json:"reason"`
-	Cause      string              `json:"cause" gorm:"index"`       // Structured failure reason (e.g., "connection_timeout", "invalid_status_code")
+	Cause      string              `json:"cause" gorm:"index;default:unknown_failure"`
 	ResolvedAt *time.Time          `json:"resolved_at" gorm:"index"` // nil = active, timestamp = resolved
 	StartedAt  time.Time           `json:"started_at" gorm:"index"`
 	Details    []byte              `json:"details"`
@@ -113,17 +115,48 @@ const (
 	IntegrationSMTP       IntegrationType = "smtp"
 	IntegrationSlack      IntegrationType = "slack"
 	IntegrationGoogleChat IntegrationType = "google_chat"
+	IntegrationDiscord    IntegrationType = "discord"
+)
+
+// EventType Event type constants for notification event types (avoid magic strings)
+type EventType string
+
+const (
+	EventTypeDown   EventType = "down"
+	EventTypeUp     EventType = "up"
+	EventTypeExpiry EventType = "expiry"
 )
 
 type Integration struct {
 	Base
-	Name     string          `json:"name"`
-	Target   string          `json:"target"`
-	Type     IntegrationType `json:"type" gorm:"index"`
-	IsActive bool            `json:"is_active" gorm:"default:true"`
+	Name       string         `json:"name"`
+	IsActive   bool           `json:"is_active" gorm:"default:true"`
+	Config     datatypes.JSON `json:"config"`                        // Stores integration-specific config, e.g., {"type": "slack", "webhook_url": "..."}
+	EventTypes datatypes.JSON `json:"event_types" gorm:"type:jsonb"` // Stores []string, e.g., ["down", "up"]
 }
 
 func (Integration) TableName() string { return "integrations" }
+
+// GetType extracts the integration type from the Config JSON field
+func (i *Integration) GetType() IntegrationType {
+	var config map[string]interface{}
+	if err := json.Unmarshal(i.Config, &config); err != nil {
+		return ""
+	}
+	if typeVal, ok := config["type"].(string); ok {
+		return IntegrationType(typeVal)
+	}
+	return ""
+}
+
+// GetConfig returns the full config as a map
+func (i *Integration) GetConfig() (map[string]interface{}, error) {
+	var config map[string]interface{}
+	if err := json.Unmarshal(i.Config, &config); err != nil {
+		return nil, err
+	}
+	return config, nil
+}
 
 type NotificationEventType string
 

@@ -69,6 +69,7 @@ type IntegrationRepository interface {
 	Update(ctx context.Context, m *domain.Integration) error
 	Delete(ctx context.Context, id string) error
 	FindActiveByType(ctx context.Context, t domain.IntegrationType, limit, offset int) ([]*domain.Integration, error)
+	ListActive(ctx context.Context) ([]*domain.Integration, error)
 }
 
 // NotificationRepository handles notification events
@@ -87,4 +88,10 @@ type MonitoringActivityRepository interface {
 	Create(ctx context.Context, activity *domain.MonitoringActivity) error
 	List(ctx context.Context, limit, offset int) ([]*domain.MonitoringActivity, error)
 	FindByResourceID(ctx context.Context, resourceID string, limit, offset int) ([]*domain.MonitoringActivity, error)
+}
+
+// Scheduler defines the interface for scheduling monitoring tasks
+type Scheduler interface {
+	Schedule(ctx context.Context, r *domain.Resource) error
+	Unschedule(ctx context.Context, resourceID string) error
 }

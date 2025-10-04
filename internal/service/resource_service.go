@@ -6,7 +6,6 @@ import (
 	"fmt"
 
 	"github.com/denisakp/pulseguard/internal/domain"
-	"github.com/denisakp/pulseguard/internal/monitoring"
 	"github.com/denisakp/pulseguard/internal/repository"
 )
 
@@ -27,7 +26,7 @@ type ResourceService struct {
 	resources repository.ResourceRepository
 	incidents repository.IncidentRepository
 	tags      repository.TagsRepository
-	scheduler monitoring.Scheduler
+	scheduler repository.Scheduler
 }
 
 // NewResourceService creates a new ResourceService with the given repository dependencies.
@@ -35,7 +34,7 @@ func NewResourceService(
 	resources repository.ResourceRepository,
 	incidents repository.IncidentRepository,
 	tags repository.TagsRepository,
-	scheduler monitoring.Scheduler,
+	scheduler repository.Scheduler,
 ) *ResourceService {
 	return &ResourceService{
 		resources: resources,

@@ -106,10 +106,10 @@ func (f *IntegrationFake) FindActiveByType(ctx context.Context, t domain.Integra
 	defer f.mu.RUnlock()
 
 	var integrations []*domain.Integration
-	i := 0
 	skipped := 0
 	for _, integration := range f.integrations {
-		if integration.Type == t && integration.IsActive {
+		integType := integration.GetType()
+		if integType == t && integration.IsActive {
 			if skipped < offset {
 				skipped++
 				continue
@@ -121,7 +121,23 @@ func (f *IntegrationFake) FindActiveByType(ctx context.Context, t domain.Integra
 			result := *integration
 			integrations = append(integrations, &result)
 		}
-		i++
+	}
+
+	return integrations, nil
+}
+
+// ListActive retrieves all active integrations without pagination.
+func (f *IntegrationFake) ListActive(ctx context.Context) ([]*domain.Integration, error) {
+	f.mu.RLock()
+	defer f.mu.RUnlock()
+
+	var integrations []*domain.Integration
+	for _, integration := range f.integrations {
+		if integration.IsActive {
+			// Return a copy to avoid external mutations
+			result := *integration
+			integrations = append(integrations, &result)
+		}
 	}
 
 	return integrations, nil
