@@ -1,16 +1,29 @@
 package notifier
 
 import (
+	"bytes"
 	"context"
+	"embed"
 	"fmt"
+	"html/template"
 	"log"
+	"strconv"
 	"time"
 
 	"github.com/denisakp/pulseguard/internal/domain"
+	gomail "gopkg.in/mail.v2"
 )
+
+//go:embed templates/*.html
+var emailTemplates embed.FS
 
 // SMTPNotifier implements email notifications using SMTP.
 type SMTPNotifier struct{}
+
+type TemplateData struct {
+	Incident domain.Incident
+	Duration string
+}
 
 // NewSMTPNotifier creates a new SMTP notifier instance.
 func NewSMTPNotifier() *SMTPNotifier {
@@ -19,17 +32,48 @@ func NewSMTPNotifier() *SMTPNotifier {
 
 // Send sends an email notification for the incident.
 // It generates distinct email templates for "Resource Down" and "Resource Up" events.
-// For now, this logs the email details. In production, this would use an SMTP library like gomail.
+// The config must contain: recipient, sender, smtp_host, smtp_port, smtp_user, smtp_password
 func (n *SMTPNotifier) Send(ctx context.Context, config domain.Integration, incident domain.Incident) error {
-	// Extract recipient from config
+	// Extract configuration from Integration Config field
 	configMap, err := config.GetConfig()
 	if err != nil {
 		return fmt.Errorf("failed to parse config: %w", err)
 	}
 
+	// Extract required fields
 	recipient, ok := configMap["recipient"].(string)
 	if !ok || recipient == "" {
 		return fmt.Errorf("config missing 'recipient' field")
+	}
+
+	sender, ok := configMap["sender"].(string)
+	if !ok || sender == "" {
+		return fmt.Errorf("config missing 'sender' field")
+	}
+
+	smtpHost, ok := configMap["smtp_host"].(string)
+	if !ok || smtpHost == "" {
+		return fmt.Errorf("config missing 'smtp_host' field")
+	}
+
+	smtpPortStr, ok := configMap["smtp_port"].(string)
+	if !ok || smtpPortStr == "" {
+		return fmt.Errorf("config missing 'smtp_port' field")
+	}
+
+	smtpPort, err := strconv.Atoi(smtpPortStr)
+	if err != nil {
+		return fmt.Errorf("invalid smtp_port: %w", err)
+	}
+
+	smtpUser, ok := configMap["smtp_user"].(string)
+	if !ok || smtpUser == "" {
+		return fmt.Errorf("config missing 'smtp_user' field")
+	}
+
+	smtpPassword, ok := configMap["smtp_password"].(string)
+	if !ok || smtpPassword == "" {
+		return fmt.Errorf("config missing 'smtp_password' field")
 	}
 
 	// Determine if this is a DOWN or UP notification based on ResolvedAt
@@ -48,90 +92,43 @@ func (n *SMTPNotifier) Send(ctx context.Context, config domain.Integration, inci
 		htmlBody = n.generateDownEmailHTML(incident)
 	}
 
-	// Log the notification (in production, send actual email)
-	log.Printf("[SMTP Notifier] Sending email to %s\nSubject: %s\nBody preview: %d bytes\n",
-		recipient, subject, len(htmlBody))
+	// Create email message
+	message := gomail.NewMessage()
+	message.SetHeader("From", sender)
+	message.SetHeader("To", recipient)
+	message.SetHeader("Subject", subject)
+	message.SetBody("text/html", htmlBody)
 
-	// TODO: Implement actual SMTP sending with gomail or similar
-	// Example:
-	// m := gomail.NewMessage()
-	// m.SetHeader("From", "alerts@pulseguard.com")
-	// m.SetHeader("To", config.Target)
-	// m.SetHeader("Subject", subject)
-	// m.SetBody("text/html", htmlBody)
-	// d := gomail.NewDialer("smtp.example.com", 587, "user", "pass")
-	// return d.DialAndSend(m)
+	// Create SMTP dialer
+	dialer := gomail.NewDialer(smtpHost, smtpPort, smtpUser, smtpPassword)
 
+	// Send the email
+	if err := dialer.DialAndSend(message); err != nil {
+		log.Printf("[SMTP Notifier] Failed to send email to %s: %v", recipient, err)
+		return fmt.Errorf("failed to send email: %w", err)
+	}
+
+	log.Printf("[SMTP Notifier] Successfully sent email to %s\nSubject: %s", recipient, subject)
 	return nil
 }
 
 // generateDownEmailHTML creates an HTML email for resource down events.
 func (n *SMTPNotifier) generateDownEmailHTML(incident domain.Incident) string {
-	return fmt.Sprintf(`
-<!DOCTYPE html>
-<html>
-<head>
-	<style>
-		body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-		.container { max-width: 600px; margin: 0 auto; padding: 20px; }
-		.header { background-color: #d32f2f; color: white; padding: 20px; border-radius: 5px 5px 0 0; }
-		.content { background-color: #f9f9f9; padding: 20px; border: 1px solid #ddd; border-top: none; }
-		.detail { margin: 10px 0; }
-		.label { font-weight: bold; color: #555; }
-		.value { color: #333; }
-		.footer { margin-top: 20px; padding-top: 20px; border-top: 1px solid #ddd; font-size: 12px; color: #777; }
-	</style>
-</head>
-<body>
-	<div class="container">
-		<div class="header">
-			<h2>🔴 Resource Down Alert</h2>
-		</div>
-		<div class="content">
-			<p>A critical resource is currently unavailable:</p>
-			
-			<div class="detail">
-				<span class="label">Resource:</span>
-				<span class="value">%s</span>
-			</div>
-			
-			<div class="detail">
-				<span class="label">Incident ID:</span>
-				<span class="value">%s</span>
-			</div>
-			
-			<div class="detail">
-				<span class="label">Cause:</span>
-				<span class="value">%s</span>
-			</div>
-			
-			<div class="detail">
-				<span class="label">Started At:</span>
-				<span class="value">%s</span>
-			</div>
-			
-			<div class="detail">
-				<span class="label">Target:</span>
-				<span class="value">%s</span>
-			</div>
-			
-			<p style="margin-top: 20px;">
-				<strong>Action Required:</strong> Please investigate this incident immediately.
-			</p>
-		</div>
-		<div class="footer">
-			<p>This is an automated alert from Pulseguard monitoring system.</p>
-		</div>
-	</div>
-</body>
-</html>
-`,
-		incident.Resource.Name,
-		incident.ID,
-		incident.Cause,
-		incident.StartedAt.Format("2006-01-02 15:04:05 MST"),
-		incident.Resource.Target,
-	)
+	data := &TemplateData{Incident: incident}
+
+	tmpl, err := template.ParseFS(emailTemplates, "templates/resource_down.html")
+	if err != nil {
+		log.Printf("[SMTP Notifier] Failed to parse template: %s", err)
+		return fmt.Sprintf("<!DOCTYPE html><html><body><p>Resource %s is down.</p></body></html>", incident.Resource.Name)
+	}
+
+	var buf bytes.Buffer
+	if err := tmpl.Execute(&buf, data); err != nil {
+		log.Printf("[SMTP Notifier] Failed to execute template: %s", err)
+		return fmt.Sprintf("error generating email content for resource %s", incident.Resource.Name)
+	}
+
+	return buf.String()
 }
 
 // generateUpEmailHTML creates an HTML email for resource recovery events.
@@ -142,77 +139,21 @@ func (n *SMTPNotifier) generateUpEmailHTML(incident domain.Incident) string {
 		duration = formatDuration(d)
 	}
 
-	return fmt.Sprintf(`
-<!DOCTYPE html>
-<html>
-<head>
-	<style>
-		body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-		.container { max-width: 600px; margin: 0 auto; padding: 20px; }
-		.header { background-color: #388e3c; color: white; padding: 20px; border-radius: 5px 5px 0 0; }
-		.content { background-color: #f9f9f9; padding: 20px; border: 1px solid #ddd; border-top: none; }
-		.detail { margin: 10px 0; }
-		.label { font-weight: bold; color: #555; }
-		.value { color: #333; }
-		.footer { margin-top: 20px; padding-top: 20px; border-top: 1px solid #ddd; font-size: 12px; color: #777; }
-	</style>
-</head>
-<body>
-	<div class="container">
-		<div class="header">
-			<h2>✅ Resource Recovered</h2>
-		</div>
-		<div class="content">
-			<p>Good news! The resource is back online:</p>
-			
-			<div class="detail">
-				<span class="label">Resource:</span>
-				<span class="value">%s</span>
-			</div>
-			
-			<div class="detail">
-				<span class="label">Incident ID:</span>
-				<span class="value">%s</span>
-			</div>
-			
-			<div class="detail">
-				<span class="label">Original Cause:</span>
-				<span class="value">%s</span>
-			</div>
-			
-			<div class="detail">
-				<span class="label">Downtime Duration:</span>
-				<span class="value">%s</span>
-			</div>
-			
-			<div class="detail">
-				<span class="label">Resolved At:</span>
-				<span class="value">%s</span>
-			</div>
-			
-			<div class="detail">
-				<span class="label">Target:</span>
-				<span class="value">%s</span>
-			</div>
-			
-			<p style="margin-top: 20px; color: #388e3c;">
-				<strong>Status:</strong> The resource is now operational.
-			</p>
-		</div>
-		<div class="footer">
-			<p>This is an automated notification from Pulseguard monitoring system.</p>
-		</div>
-	</div>
-</body>
-</html>
-`,
-		incident.Resource.Name,
-		incident.ID,
-		incident.Cause,
-		duration,
-		incident.ResolvedAt.Format("2006-01-02 15:04:05 MST"),
-		incident.Resource.Target,
-	)
+	data := TemplateData{Incident: incident, Duration: duration}
+
+	tmpl, err := template.ParseFS(emailTemplates, "templates/resource_up.html")
+	if err != nil {
+		log.Printf("[SMTP Notifier] Failed to parse template: %s", err)
+		return fmt.Sprintf("<!DOCTYPE html><html><body><p>Resource %s is back online.</p></body></html>", incident.Resource.Name)
+	}
+
+	var buf bytes.Buffer
+	if err := tmpl.Execute(&buf, data); err != nil {
+		log.Printf("[SMTP Notifier] Failed to execute template: %s", err)
+		return fmt.Sprintf("error generating email content for resource %s", incident.Resource.Name)
+	}
+
+	return buf.String()
 }
 
 // formatDuration formats a duration into a human-readable string.
@@ -227,12 +168,4 @@ func formatDuration(d time.Duration) string {
 		return fmt.Sprintf("%dm %ds", minutes, seconds)
 	}
 	return fmt.Sprintf("%ds", seconds)
-}
-
-// getIncidentStatus returns a human-readable status string.
-func getIncidentStatus(incident domain.Incident) string {
-	if incident.ResolvedAt != nil {
-		return "Resolved"
-	}
-	return "Active"
 }

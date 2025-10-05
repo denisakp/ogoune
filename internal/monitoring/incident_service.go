@@ -28,6 +28,10 @@ type IncidentService struct {
 	smtpIsEnabled bool
 	smtpRecipient string
 	smtpSender    string
+	smtpHost      string
+	smtpPort      string
+	smtpUser      string
+	smtpPassword  string
 }
 
 // NewIncidentService creates a new incident service with the given dependencies.
@@ -41,6 +45,10 @@ func NewIncidentService(
 	smtpIsEnabled bool,
 	smtpRecipient string,
 	smtpSender string,
+	smtpHost string,
+	smtpPort string,
+	smtpUser string,
+	smtpPassword string,
 ) *IncidentService {
 	return &IncidentService{
 		incidents:     incidents,
@@ -52,6 +60,10 @@ func NewIncidentService(
 		smtpIsEnabled: smtpIsEnabled,
 		smtpRecipient: smtpRecipient,
 		smtpSender:    smtpSender,
+		smtpHost:      smtpHost,
+		smtpPort:      smtpPort,
+		smtpUser:      smtpUser,
+		smtpPassword:  smtpPassword,
 	}
 }
 
@@ -276,9 +288,13 @@ func (s *IncidentService) sendDownNotification(ctx context.Context, incident *do
 
 	// Create a default SMTP integration config for sending
 	smtpConfig, _ := json.Marshal(map[string]string{
-		"type":      "smtp",
-		"recipient": s.smtpRecipient,
-		"sender":    s.smtpSender,
+		"type":          "smtp",
+		"recipient":     s.smtpRecipient,
+		"sender":        s.smtpSender,
+		"smtp_host":     s.smtpHost,
+		"smtp_port":     s.smtpPort,
+		"smtp_user":     s.smtpUser,
+		"smtp_password": s.smtpPassword,
 	})
 
 	smtpIntegration := domain.Integration{
@@ -323,9 +339,13 @@ func (s *IncidentService) sendUpNotification(ctx context.Context, incident *doma
 
 	// Create a default SMTP integration config for sending
 	smtpConfig, _ := json.Marshal(map[string]string{
-		"type":      "smtp",
-		"recipient": s.smtpRecipient,
-		"sender":    s.smtpSender,
+		"type":          "smtp",
+		"recipient":     s.smtpRecipient,
+		"sender":        s.smtpSender,
+		"smtp_host":     s.smtpHost,
+		"smtp_port":     s.smtpPort,
+		"smtp_user":     s.smtpUser,
+		"smtp_password": s.smtpPassword,
 	})
 
 	smtpIntegration := domain.Integration{

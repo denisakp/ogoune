@@ -27,7 +27,7 @@ func NewSchedulerService(client *asynq.Client, inspector *asynq.Inspector, sched
 }
 
 // Schedule creates or updates a periodic monitoring task for the given resource.
-// It first unschedules any existing task for the resource to handle updates correctly.
+// It first unschedule any existing task for the resource to handle updates correctly.
 // The task is only scheduled if the resource is active.
 // The task will run repeatedly at the interval specified in the resource (in seconds).
 func (s *SchedulerService) Schedule(ctx context.Context, r *domain.Resource) error {

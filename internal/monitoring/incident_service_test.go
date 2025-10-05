@@ -33,6 +33,10 @@ func setupTestService(smtpEnabled bool, smtpRecipient, smtpSender string) (*Inci
 		smtpEnabled,
 		smtpRecipient,
 		smtpSender,
+		"smtp.example.com", // SMTP host for testing
+		"587",              // SMTP port
+		"testuser",         // SMTP user
+		"testpass",         // SMTP password
 	)
 
 	// Type assert to concrete types for test access

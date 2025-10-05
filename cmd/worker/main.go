@@ -83,6 +83,10 @@ func main() {
 		cfg.SMTPIsEnabled,         // Pass SMTP enabled flag
 		cfg.DefaultRecipientEmail, // Pass default recipient
 		cfg.SMTPSender,            // Pass SMTP sender
+		cfg.SMTPHost,              // SMTP server host
+		cfg.SMTPPort,              // SMTP server port
+		cfg.SMTPUser,              // SMTP username
+		cfg.SMTPPassword,          // SMTP password
 	)
 
 	// Initialize task handlers
