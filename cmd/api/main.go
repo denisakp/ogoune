@@ -12,15 +12,21 @@ import (
 	"github.com/denisakp/pulseguard/internal/api"
 	"github.com/denisakp/pulseguard/internal/api/handler"
 	"github.com/denisakp/pulseguard/internal/config"
+	"github.com/denisakp/pulseguard/internal/domain"
 	"github.com/denisakp/pulseguard/internal/monitoring"
+	"github.com/denisakp/pulseguard/internal/monitoring/strategy"
 	"github.com/denisakp/pulseguard/internal/repository/postgres"
 	"github.com/denisakp/pulseguard/internal/repository/postgres/database"
 	"github.com/denisakp/pulseguard/internal/service"
+	"github.com/denisakp/pulseguard/internal/worker"
+	"github.com/denisakp/pulseguard/pkg/notifier"
 	"github.com/hibiken/asynq"
 )
 
 func main() {
-	log.Println("Starting Pulseguard API server...")
+	log.Println("========================================")
+	log.Println("Starting Pulseguard Application...")
+	log.Println("========================================")
 
 	// Load database configuration
 	cfg := config.MustInit()
@@ -37,6 +43,8 @@ func main() {
 		log.Fatalf("Database health check failed: %v", err)
 	}
 
+	log.Println("✓ Database connection established successfully")
+
 	// Get database instance
 	db, err := database.Instance()
 	if err != nil {
@@ -46,6 +54,8 @@ func main() {
 	// Initialize repositories
 	resourceRepo := postgres.NewResourceRepository(db)
 	incidentRepo := postgres.NewIncidentRepository(db)
+	incidentEventStepRepo := postgres.NewIncidentEventStepRepository(db)
+	notificationRepo := postgres.NewNotificationRepository(db)
 	monitoringActivityRepo := postgres.NewMonitoringActivityRepository(db)
 	tagsRepo := postgres.NewTagsRepository(db)
 	integrationRepo := postgres.NewIntegrationRepository(db)
@@ -73,8 +83,106 @@ func main() {
 	}()
 	defer asynqScheduler.Shutdown()
 
-	// Initialize services
+	// Initialize scheduler service
 	schedulerService := monitoring.NewSchedulerService(asynqClient, asynqInspector, asynqScheduler)
+
+	// ========================================
+	// STEP 1: BOOTSTRAP - Schedule all active resources
+	// This runs sequentially and blocks until complete
+	// ========================================
+	log.Println("========================================")
+	log.Println("BOOTSTRAP: Scheduling active resources...")
+	log.Println("========================================")
+
+	bootstrapCtx := context.Background()
+	activeResources, err := resourceRepo.FindActive(bootstrapCtx, 10000, 0) // Large limit to get all
+	if err != nil {
+		log.Fatalf("Failed to fetch active resources during bootstrap: %v", err)
+	}
+
+	log.Printf("Found %d active resources to schedule", len(activeResources))
+
+	successCount := 0
+	failureCount := 0
+
+	for _, resource := range activeResources {
+		log.Printf("Scheduling resource: %s (ID: %s, Type: %s, Interval: %ds)",
+			resource.Name, resource.ID, resource.Type, resource.Interval)
+
+		if err := schedulerService.Schedule(bootstrapCtx, resource); err != nil {
+			log.Printf("  ⚠️  Failed to schedule resource %s: %v", resource.ID, err)
+			failureCount++
+		} else {
+			log.Printf("  ✓ Successfully scheduled resource %s", resource.ID)
+			successCount++
+		}
+	}
+
+	log.Println("========================================")
+	log.Printf("Bootstrap completed!")
+	log.Printf("  Total resources processed: %d", len(activeResources))
+	log.Printf("  Successfully scheduled: %d", successCount)
+	log.Printf("  Failed to schedule: %d", failureCount)
+	log.Println("========================================")
+
+	if failureCount > 0 {
+		log.Println("⚠️  Some resources failed to schedule. Check logs above for details.")
+	}
+
+	// ========================================
+	// STEP 2: INITIALIZE WORKER - Start Asynq worker in background
+	// ========================================
+	log.Println("Initializing background worker...")
+
+	// Initialize monitoring services for worker
+	strategies := map[domain.ResourceType]domain.CheckStrategy{
+		domain.ResourceHTTP: strategy.NewHTTPStrategy(30 * time.Second),
+		domain.ResourceTCP:  strategy.NewTCPStrategy(30 * time.Second),
+	}
+	executor := domain.NewCheckExecutor(strategies)
+
+	// Initialize notifier factory for user-configured integrations
+	notifierFactory := notifier.NewNotifierFactory()
+
+	// Initialize incident service with two-layered notification support
+	incidentService := monitoring.NewIncidentService(
+		incidentRepo,
+		incidentEventStepRepo,
+		notificationRepo,
+		integrationRepo,
+		asynqClient,
+		notifierFactory,
+		cfg.SMTPIsEnabled,
+		cfg.DefaultRecipientEmail,
+		cfg.SMTPSender,
+		cfg.SMTPHost,
+		cfg.SMTPPort,
+		cfg.SMTPUser,
+		cfg.SMTPPassword,
+	)
+
+	// Initialize task handlers
+	monitoringHandler := worker.NewMonitoringTaskHandler(resourceRepo, monitoringActivityRepo, executor, incidentService)
+
+	// Create the Asynq worker processor
+	processor := worker.NewProcessor(redisOpt, monitoringHandler)
+
+	// Start worker in a goroutine (non-blocking)
+	go func() {
+		log.Println("✓ Starting Asynq worker server...")
+		if err := processor.Start(context.Background()); err != nil {
+			log.Fatalf("Could not run Asynq worker server: %v", err)
+		}
+	}()
+
+	log.Println("✓ Background worker started successfully")
+
+	// ========================================
+	// STEP 3: INITIALIZE API SERVER
+	// ========================================
+	log.Println("Initializing API server...")
+
+	// Initialize API services
 	resourceService := service.NewResourceService(resourceRepo, incidentRepo, tagsRepo, schedulerService)
 	activityService := service.NewMonitoringActivityService(monitoringActivityRepo)
 	tagService := service.NewTagService(tagsRepo)
@@ -99,13 +207,19 @@ func main() {
 		IdleTimeout:  60 * time.Second,
 	}
 
+	// ========================================
+	// STEP 4: GRACEFUL SHUTDOWN SETUP
+	// ========================================
 	// Channel to listen for interrupt signals
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 
-	// Start server in a goroutine
+	// Start API server in a goroutine
 	go func() {
-		log.Printf("API server listening on %s", addr)
+		log.Println("========================================")
+		log.Printf("✓ API server listening on %s", addr)
+		log.Println("✓ All systems operational!")
+		log.Println("========================================")
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Fatalf("Failed to start HTTP server: %v", err)
 		}
@@ -113,16 +227,28 @@ func main() {
 
 	// Block until we receive a signal
 	<-quit
-	log.Println("Received shutdown signal, gracefully shutting down...")
+	log.Println("========================================")
+	log.Println("Received shutdown signal...")
+	log.Println("========================================")
 
 	// Create a context with timeout for shutdown
 	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer shutdownCancel()
 
 	// Shutdown the HTTP server gracefully
+	log.Println("Shutting down API server...")
 	if err := srv.Shutdown(shutdownCtx); err != nil {
 		log.Printf("HTTP server forced to shutdown: %v", err)
+	} else {
+		log.Println("✓ API server stopped gracefully")
 	}
 
-	log.Println("API server stopped gracefully")
+	// Shutdown the worker processor
+	log.Println("Shutting down background worker...")
+	processor.Stop()
+	log.Println("✓ Background worker stopped gracefully")
+
+	log.Println("========================================")
+	log.Println("Pulseguard application stopped successfully")
+	log.Println("========================================")
 }

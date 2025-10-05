@@ -1,14 +1,12 @@
-.PHONY: help dev api worker bootstrap test build clean docker-up docker-down install
+.PHONY: help run dev test build clean docker-up docker-down install
 
 # Default target
 help:
 	@echo "Pulseguard - Makefile Commands"
 	@echo ""
 	@echo "Development:"
-	@echo "  make dev         - Start all services (Postgres, Redis, API, Worker)"
-	@echo "  make api         - Run API server only"
-	@echo "  make worker      - Run worker only"
-	@echo "  make bootstrap   - Sync scheduler with database (run after Redis restart)"
+	@echo "  make run         - Run the unified Pulseguard application (API + Worker)"
+	@echo "  make dev         - Start Docker services and run the application"
 	@echo ""
 	@echo "Database & Redis:"
 	@echo "  make docker-up   - Start Postgres and Redis containers"
@@ -17,7 +15,7 @@ help:
 	@echo "Build & Test:"
 	@echo "  make install     - Install dependencies"
 	@echo "  make test        - Run all tests"
-	@echo "  make build       - Build binaries (api, worker, bootstrap)"
+	@echo "  make build       - Build the Pulseguard binary"
 	@echo "  make clean       - Remove built binaries"
 
 # Install dependencies
@@ -42,20 +40,10 @@ docker-down:
 	@docker stop pulse-postgres pulse-redis 2>/dev/null || true
 	@echo "✓ Containers stopped"
 
-# Run API server
-api:
-	@echo "Starting API server..."
+# Run the unified Pulseguard application
+run:
+	@echo "Starting Pulseguard (API + Worker + Bootstrap)..."
 	go run ./cmd/api
-
-# Run worker
-worker:
-	@echo "Starting worker..."
-	go run ./cmd/worker
-
-# Run bootstrap (sync scheduler with database)
-bootstrap:
-	@echo "Running scheduler bootstrap..."
-	go run ./cmd/bootstrap
 
 # Run all tests
 test:
@@ -67,17 +55,12 @@ test-coverage:
 	@echo "Running tests with coverage..."
 	go test -cover ./...
 
-# Build binaries
+# Build the unified binary
 build:
-	@echo "Building binaries..."
+	@echo "Building Pulseguard binary..."
 	@mkdir -p bin
-	go build -o bin/pulseguard-api ./cmd/api
-	go build -o bin/pulseguard-worker ./cmd/worker
-	go build -o bin/pulseguard-bootstrap ./cmd/bootstrap
-	@echo "✓ Binaries built in ./bin/"
-	@echo "  - pulseguard-api"
-	@echo "  - pulseguard-worker"
-	@echo "  - pulseguard-bootstrap"
+	go build -o bin/pulseguard ./cmd/api
+	@echo "✓ Binary built: ./bin/pulseguard"
 
 # Clean built binaries
 clean:
@@ -88,8 +71,8 @@ clean:
 # Development mode - start everything
 dev: docker-up
 	@echo ""
-	@echo "Services started. Run in separate terminals:"
-	@echo "  Terminal 1: make api"
-	@echo "  Terminal 2: make worker"
+	@echo "✓ Docker services started"
 	@echo ""
-	@echo "Or use your IDE to run them separately"
+	@echo "Starting Pulseguard application..."
+	@echo ""
+	@$(MAKE) run
