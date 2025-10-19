@@ -25,7 +25,7 @@ import (
 
 func main() {
 	log.Println("========================================")
-	log.Println("Starting Pulseguard Application...")
+	log.Println("Starting Pulse guard Application...")
 	log.Println("========================================")
 
 	// Load database configuration
@@ -106,8 +106,7 @@ func main() {
 	failureCount := 0
 
 	for _, resource := range activeResources {
-		log.Printf("Scheduling resource: %s (ID: %s, Type: %s, Interval: %ds)",
-			resource.Name, resource.ID, resource.Type, resource.Interval)
+		log.Printf("Scheduling resource: %s (ID: %s)", resource.Name, resource.ID)
 
 		if err := schedulerService.Schedule(bootstrapCtx, resource); err != nil {
 			log.Printf("  ⚠️  Failed to schedule resource %s: %v", resource.ID, err)
@@ -175,6 +174,9 @@ func main() {
 		}
 	}()
 
+	log.Printf("Waiting 2 seconds for the worker to start...")
+	// Wait briefly to ensure worker starts before proceeding | this is a simple approach to ensure the worker is ready before handling tasks
+	time.Sleep(4 * time.Second)
 	log.Println("✓ Background worker started successfully")
 
 	// ========================================
@@ -187,15 +189,17 @@ func main() {
 	activityService := service.NewMonitoringActivityService(monitoringActivityRepo)
 	tagService := service.NewTagService(tagsRepo)
 	integrationService := service.NewIntegrationService(integrationRepo)
+	statusPageService := service.NewStatusPageService(resourceRepo, incidentRepo, monitoringActivityRepo)
 
-	// Initialize handlers with dependency injection
+	// Initialize JSON API handlers (no template dependencies)
 	resourceHandler := handler.NewResourceHandler(resourceService)
 	activityHandler := handler.NewMonitoringActivityHandler(activityService)
 	tagHandler := handler.NewTagHandler(tagService)
 	integrationHandler := handler.NewIntegrationHandler(integrationService)
+	statusPageHandler := handler.NewStatusPageHandler(statusPageService)
 
 	// Create router with injected handlers
-	router := api.NewRouter(resourceHandler, activityHandler, tagHandler, integrationHandler)
+	router := api.NewRouter(resourceHandler, activityHandler, tagHandler, integrationHandler, statusPageHandler)
 
 	// Create HTTP server with explicit configuration
 	addr := ":" + cfg.Port
@@ -208,7 +212,7 @@ func main() {
 	}
 
 	// ========================================
-	// STEP 4: GRACEFUL SHUTDOWN SETUP
+	// STEP 5: GRACEFUL SHUTDOWN SETUP
 	// ========================================
 	// Channel to listen for interrupt signals
 	quit := make(chan os.Signal, 1)
@@ -249,6 +253,6 @@ func main() {
 	log.Println("✓ Background worker stopped gracefully")
 
 	log.Println("========================================")
-	log.Println("Pulseguard application stopped successfully")
+	log.Println("Pulse guard application stopped successfully")
 	log.Println("========================================")
 }

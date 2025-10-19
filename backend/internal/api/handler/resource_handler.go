@@ -6,6 +6,7 @@ import (
 	"errors"
 	"net/http"
 
+	"github.com/denisakp/pulseguard/internal/api/response"
 	"github.com/denisakp/pulseguard/internal/domain"
 	"github.com/denisakp/pulseguard/internal/service"
 	"github.com/go-chi/chi/v5"
@@ -32,7 +33,6 @@ type ResourceHandler struct {
 }
 
 // NewResourceHandler creates a new ResourceHandler with injected dependencies.
-// The service dependency is injected to maintain loose coupling and testability.
 func NewResourceHandler(resourceService ResourceServiceInterface) *ResourceHandler {
 	return &ResourceHandler{
 		resourceService: resourceService,
@@ -296,17 +296,11 @@ func (h *ResourceHandler) RemoveTagFromResource(w http.ResponseWriter, r *http.R
 // respondJSON writes a JSON response with the given status code and payload.
 // This is a helper function to ensure consistent JSON response formatting.
 func respondJSON(w http.ResponseWriter, status int, payload interface{}) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	if err := json.NewEncoder(w).Encode(payload); err != nil {
-		// If encoding fails, we can't send a proper error response
-		// as headers have already been written
-		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
-	}
+	response.JSON(w, status, payload)
 }
 
 // respondError writes a JSON error response with the given status code and message.
 // Error responses follow a consistent format: {"error": "message"}
 func respondError(w http.ResponseWriter, status int, message string) {
-	respondJSON(w, status, map[string]string{"error": message})
+	response.Error(w, status, message)
 }

@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/denisakp/pulseguard/internal/api/response"
 	"github.com/denisakp/pulseguard/internal/service"
 )
 
@@ -14,7 +15,9 @@ type MonitoringActivityHandler struct {
 
 // NewMonitoringActivityHandler creates a new monitoring activity handler.
 func NewMonitoringActivityHandler(service *service.MonitoringActivityService) *MonitoringActivityHandler {
-	return &MonitoringActivityHandler{service: service}
+	return &MonitoringActivityHandler{
+		service: service,
+	}
 }
 
 // ListActivities handles GET /monitoring-activities requests.
@@ -49,11 +52,11 @@ func (h *MonitoringActivityHandler) ListActivities(w http.ResponseWriter, r *htt
 	}
 
 	if err != nil {
-		respondError(w, http.StatusInternalServerError, "Failed to fetch monitoring activities: "+err.Error())
+		response.Error(w, http.StatusInternalServerError, "Failed to fetch monitoring activities: "+err.Error())
 		return
 	}
 
-	respondJSON(w, http.StatusOK, map[string]interface{}{
+	response.JSON(w, http.StatusOK, map[string]interface{}{
 		"activities": activities,
 		"limit":      limit,
 		"offset":     offset,

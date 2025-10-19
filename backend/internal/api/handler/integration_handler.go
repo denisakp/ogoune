@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/denisakp/pulseguard/internal/api/response"
 	"github.com/denisakp/pulseguard/internal/domain"
 	"github.com/denisakp/pulseguard/internal/service"
 	"github.com/go-chi/chi/v5"
@@ -38,39 +39,39 @@ func (h *IntegrationHandler) CreateIntegration(w http.ResponseWriter, r *http.Re
 	var integration domain.Integration
 
 	if err := json.NewDecoder(r.Body).Decode(&integration); err != nil {
-		respondError(w, http.StatusBadRequest, "Invalid request payload: "+err.Error())
+		response.Error(w, http.StatusBadRequest, "Invalid request payload: "+err.Error())
 		return
 	}
 
 	// Validation
 	if integration.Name == "" {
-		respondError(w, http.StatusBadRequest, "Integration name is required")
+		response.Error(w, http.StatusBadRequest, "Integration name is required")
 		return
 	}
 
 	// Validate Config contains required fields
 	config, err := integration.GetConfig()
 	if err != nil {
-		respondError(w, http.StatusBadRequest, "Invalid config format: "+err.Error())
+		response.Error(w, http.StatusBadRequest, "Invalid config format: "+err.Error())
 		return
 	}
 
 	// Check if type is present in config
 	if _, ok := config["type"]; !ok {
-		respondError(w, http.StatusBadRequest, "Integration config must include 'type' field")
+		response.Error(w, http.StatusBadRequest, "Integration config must include 'type' field")
 		return
 	}
 
 	if err := h.integrationService.CreateIntegration(r.Context(), &integration); err != nil {
 		if errors.Is(err, service.ErrValidationFailed) {
-			respondError(w, http.StatusBadRequest, err.Error())
+			response.Error(w, http.StatusBadRequest, err.Error())
 			return
 		}
-		respondError(w, http.StatusInternalServerError, "Failed to create integration: "+err.Error())
+		response.Error(w, http.StatusInternalServerError, "Failed to create integration: "+err.Error())
 		return
 	}
 
-	respondJSON(w, http.StatusCreated, integration)
+	response.Created(w, integration)
 }
 
 // ListIntegrations handles GET /integrations - retrieves all integrations.
@@ -106,18 +107,18 @@ func (h *IntegrationHandler) ListIntegrations(w http.ResponseWriter, r *http.Req
 	}
 
 	if err != nil {
-		respondError(w, http.StatusInternalServerError, "Failed to retrieve integrations: "+err.Error())
+		response.Error(w, http.StatusInternalServerError, "Failed to retrieve integrations: "+err.Error())
 		return
 	}
 
-	respondJSON(w, http.StatusOK, integrations)
+	response.JSON(w, http.StatusOK, integrations)
 }
 
 // UpdateIntegration handles PATCH /integrations/{id} - updates an existing integration.
 func (h *IntegrationHandler) UpdateIntegration(w http.ResponseWriter, r *http.Request) {
 	integrationID := chi.URLParam(r, "id")
 	if integrationID == "" {
-		respondError(w, http.StatusBadRequest, "Integration ID is required")
+		response.Error(w, http.StatusBadRequest, "Integration ID is required")
 		return
 	}
 
@@ -128,7 +129,7 @@ func (h *IntegrationHandler) UpdateIntegration(w http.ResponseWriter, r *http.Re
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
-		respondError(w, http.StatusBadRequest, "Invalid request payload: "+err.Error())
+		response.Error(w, http.StatusBadRequest, "Invalid request payload: "+err.Error())
 		return
 	}
 
@@ -142,16 +143,16 @@ func (h *IntegrationHandler) UpdateIntegration(w http.ResponseWriter, r *http.Re
 
 	if err != nil {
 		if errors.Is(err, service.ErrValidationFailed) {
-			respondError(w, http.StatusBadRequest, err.Error())
+			response.Error(w, http.StatusBadRequest, err.Error())
 			return
 		}
 		if errors.Is(err, service.ErrResourceNotFound) {
-			respondError(w, http.StatusNotFound, "Integration not found")
+			response.Error(w, http.StatusNotFound, "Integration not found")
 			return
 		}
-		respondError(w, http.StatusInternalServerError, "Failed to update integration: "+err.Error())
+		response.Error(w, http.StatusInternalServerError, "Failed to update integration: "+err.Error())
 		return
 	}
 
-	respondJSON(w, http.StatusOK, updatedIntegration)
+	response.JSON(w, http.StatusOK, updatedIntegration)
 }

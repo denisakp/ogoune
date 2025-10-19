@@ -1,193 +1,78 @@
-# Pulseguard
+# Pulseguard – Open-source Monitoring
 
-🔐 **Pulseguard** is an open-source monitoring tool for SSL certificates, domain expirations, TCP services, and cronjobs — with alerting and public status pages.
+An open-source monitoring tool for websites, APIs, TCP services, SSL certificates, and cron jobs — with alerting and status pages.
 
-It is designed with a cloud-native, scalable architecture to ensure reliability and maintainability, whether you're monitoring one service or thousands.
+![Build Status](https://img.shields.io/badge/build-status-grey)
+![License](https://img.shields.io/badge/license-MIT-blue)
+![Go](https://img.shields.io/badge/go-1.25%2B-00ADD8)
 
-## 🌟 Features
+---
 
--   🔐 Monitor **SSL/TLS certificate** expiration and algorithms   
--   🌐 Track **domain name** expiration (WHOIS-based)
--   📡 Check and monitor **TCP port** (HTTP, PostgresSQL, MySQL, etc.)
--   ⏱️ Monitor **cronjobs** via ping endpoints ("heartbeat" monitoring)
--   📈 Generate **public status pages** with SLA/SLO insights
--   📬 Get notified via **Email**, **Google Chat**, and **Slack**
--   🔄 Support for **webhooks** to integrate with other services
--    
-----------
+## ✨ Features
 
-## 🚀 Tech Stack & Rationale
+- HTTP/HTTPS and TCP monitoring
+- SSL/TLS certificate expiry alerts
+- Incident management with 3-failure threshold
+- Notifications: SMTP, Slack, Discord, Google Chat
+- Public status page (backend data + frontend UI)
+- Real-time updates (WebSockets)
 
-The technology stack for Pulseguard was chosen to prioritize performance, scalability, and ease of deployment in modern cloud environments.
+---
 
-### Backend: Golang + Chi
+## 🚀 Project Structure
 
--   **Golang**: Go is the ideal choice for a high-performance monitoring tool. Its powerful concurrency model (goroutines) allows Pulseguard to perform thousands of checks simultaneously with a minimal memory footprint. The compilation to a single static binary makes containerization with Docker trivial and highly efficient.
-    
--   **Chi (`go-chi/chi`)**: While the standard `http.ServeMux` is capable, **Chi** is used as the HTTP router. It provides a more powerful and flexible API for building structured web applications, offering excellent middleware support (for logging, metrics, authentication) and clean context-aware request handling, which is essential as the application grows.
-    
+This repository is a monorepo with two main components:
 
-### Database: PostgreSQL + Redis
+- 📁 `backend/`: Core API, background worker, and monitoring engine in Go.
+- 📁 `frontend/`: React (Vite) dashboard using Shadcn/ui.
 
--   **PostgreSQL**: Serves as the primary data store for persistent, relational data. This includes monitor configurations, historical check results, user accounts, and data for calculating uptime and SLAs.
-    
--   **Redis**: Plays a crucial dual role, making the architecture asynchronous and scalable:
-    
-    1.  **Job Queue**: It acts as a message broker for all monitoring tasks. This decouples task scheduling from execution, meaning the API can remain fast and responsive while background workers handle the actual checks.
-        
-    2.  **Cache**: Used for caching recent check results to serve public status pages quickly without querying the main database on every page load.
-        
+Please see the README in each directory for setup and contributing guidelines.
 
-### Frontend: HTMX + Daisy UI
+---
 
--   This choice intentionally avoids the complexity of a full-fledged Single-Page Application (SPA) framework. **HTMX** allows us to build a modern, dynamic user interface while keeping all rendering logic on the Go backend. This simplifies the codebase, reduces the frontend build complexity, and aligns perfectly with Go's strengths. **Daisy UI** (on top of TailwindCSS) provides a clean component library for rapid UI development.
-    
-----------
+## ⚡ Quick Start
 
-## 🏗️ Architecture Overview
-
-Pulseguard is built on a **scalable, asynchronous, layered architecture**. The core principle is the separation of concerns, which allows different parts of the application to be developed, tested, and scaled independently.
-
-The system is composed of two main deployable units: the **API Server** and the **Worker**.
-
-1.  **API Server (`cmd/api`)**: This is the user-facing component. It handles all HTTP requests, serves the web interface (HTMX), and provides an API for managing monitors. When a check needs to be performed (either scheduled or manually triggered), the API server **does not perform the check itself**. Instead, it pushes a "job" onto the **Redis job queue**.
-    
-2.  **Worker (`cmd/worker`)**: This is a background process that is completely separate from the API server. It continuously polls the Redis job queue for new tasks. When it picks up a job (e.g., "check SSL for `example.com`"), it executes the necessary logic, and stores the result in the PostgreSQL database.
-    
-3.  **Decoupling**: This asynchronous pattern is key to scalability. If you need to handle more web traffic, you can scale up the number of `api` server instances. If you need to perform more checks per second, you can scale up the number of `worker` instances, all without impacting each other.
-    
-----------
-
-## 📁 Project Structure
-
-The project follows the standard Go project layout to ensure maintainability and a clear separation of concerns.
-
-
-``` plain
-pulseguard/
-├── cmd/                # Application entrypoints
-│   ├── api/            # The main web server (API and HTMX frontend)
-│   │   └── main.go
-│   └── worker/         # The background job processor
-│       └── main.go
-│
-├── internal/           # All private application logic
-│   ├── api/            # HTTP handlers, routing, and middleware
-│   │   ├── handler/    # Functions that handle specific HTTP requests
-│   │   └── router.go   # Route definitions using Chi
-│   │
-│   ├── config/         # Configuration loading (from env vars or files)
-│   │   └── config.go
-│   │
-│   ├── domain/         # Core business logic and data models. No knowledge of HTTP or SQL.
-│   │   ├── monitor/    # Business logic for monitors
-│   │   ├── check/      # The actual logic for performing SSL, TCP, etc., checks
-│   │   └── models.go   # Primary data structures (Monitor, CheckResult, etc.)
-│   │
-│   ├── repository/     # Data access layer (interfaces and implementations)
-│   │   ├── postgres/   # PostgreSQL-specific implementation
-│   │   └── redis/      # Redis-specific implementation (job queueing, caching)
-│   │
-│   └── worker/         # The business logic for the job processor itself
-│       └── processor.go
-│
-├── pkg/                # Sharable, public libraries (e.g., notification clients)
-│   └── notifier/       # Clients for sending Slack, Email, etc., notifications
-│
-├── web/                # Frontend assets
-│   ├── static/         # CSS, JS, images
-│   └── template/       # HTML templates rendered by Go
-│
-├── go.mod
-├── go.sum
-└── Dockerfile
-
-```
-
-## 📦 Installation
-
-Prerequisites:
-- Go 1.22+
-- PostgreSQL
-- Redis
-
-### Quick Start
+Using the provided Makefile (requires Docker for Postgres/Redis):
 
 ```bash
-# 1. Clone and install dependencies
-git clone https://github.com/denisakp/pulseguard.git
-cd pulseguard
-make install
-
-# 2. Start services (Postgres & Redis)
-make docker-up
-
-# 3. Configure environment (copy and edit .env)
-cp .env.example .env
-
-# 4. Run API and Worker (in separate terminals)
-make api      # Terminal 1
-make worker   # Terminal 2
+# From the repo root
+make install      # install go deps
+make docker-up    # start postgres and redis (local containers)
+make run          # run API + worker
 ```
 
-For detailed setup instructions, see [GETTING_STARTED.md](./GETTING_STARTED.md).
+API: http://localhost:8080
 
-### Manual Build
+Create a monitor:
 
-Install dependencies:
-
-```bash
-go mod download
-```
-
-Build:
-
-```bash
-go build ./...
-# or
-make build
-```
-
-Run unit tests:
-
-```bash
-go test ./...
-# or
-make test
-```
-
-## 🎯 API Endpoints
-
-Once running, the API is available at `http://localhost:8080`:
-
-- `GET /health` - Health check
-- `GET /monitor-types` - List available monitor types (http, tcp)
-- `GET /resources` - List all monitoring resources
-- `POST /resources` - Create a new monitoring resource
-
-Example: Create an HTTP monitor
 ```bash
 curl -X POST http://localhost:8080/resources \
   -H "Content-Type: application/json" \
   -d '{
-    "name": "Google",
+    "name": "My Website",
     "type": "http",
-    "target": "https://google.com",
+    "target": "https://example.com",
     "interval": 60,
-    "timeout": 30
+    "timeout": 10
   }'
 ```
 
-## 📅 Roadmap
+---
 
-Check the [Pulseguard Roadmap](https://github.com/denisakp/pulseguard/projects) to see what's planned.
+## 🧭 Documentation
+
+- Backend architecture: `backend/docs/ARCHITECTURE.md`
+- Backend setup: `backend/README.md`
+- Frontend setup: `frontend/README.md`
+
+---
 
 ## 🤝 Contributing
 
-Contributions are welcome! Please open issues or pull requests.
+Contributions are welcome! Please read `CONTRIBUTING.md` and follow the style and layering guidelines. Small, focused PRs are appreciated.
+
+---
 
 ## 📄 License
 
-MIT
-
-----------
+MIT — see `LICENSE`.

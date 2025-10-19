@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/denisakp/pulseguard/internal/api/response"
 	"github.com/denisakp/pulseguard/internal/domain"
 	"github.com/denisakp/pulseguard/internal/service"
 	"github.com/go-chi/chi/v5"
@@ -49,14 +50,14 @@ func (h *TagHandler) CreateTag(w http.ResponseWriter, r *http.Request) {
 
 	if err := h.tagService.CreateTag(r.Context(), &tag); err != nil {
 		if errors.Is(err, service.ErrValidationFailed) {
-			respondError(w, http.StatusBadRequest, err.Error())
+			response.Error(w, http.StatusBadRequest, err.Error())
 			return
 		}
-		respondError(w, http.StatusInternalServerError, "Failed to create tag: "+err.Error())
+		response.Error(w, http.StatusInternalServerError, "Failed to create tag: "+err.Error())
 		return
 	}
 
-	respondJSON(w, http.StatusCreated, tag)
+	response.Created(w, tag)
 }
 
 // ListTags handles GET /tags - retrieves all tags.
@@ -82,11 +83,11 @@ func (h *TagHandler) ListTags(w http.ResponseWriter, r *http.Request) {
 
 	tags, err := h.tagService.ListTags(r.Context(), limit, offset)
 	if err != nil {
-		respondError(w, http.StatusInternalServerError, "Failed to retrieve tags: "+err.Error())
+		response.Error(w, http.StatusInternalServerError, "Failed to retrieve tags: "+err.Error())
 		return
 	}
 
-	respondJSON(w, http.StatusOK, tags)
+	response.JSON(w, http.StatusOK, tags)
 }
 
 // UpdateTag handles PATCH /tags/{id} - updates an existing tag.
@@ -102,48 +103,48 @@ func (h *TagHandler) UpdateTag(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
-		respondError(w, http.StatusBadRequest, "Invalid request payload: "+err.Error())
+		response.Error(w, http.StatusBadRequest, "Invalid request payload: "+err.Error())
 		return
 	}
 
 	if payload.Name == "" {
-		respondError(w, http.StatusBadRequest, "Tag name is required")
+		response.Error(w, http.StatusBadRequest, "Tag name is required")
 		return
 	}
 
 	updatedTag, err := h.tagService.UpdateTag(r.Context(), tagID, payload.Name)
 	if err != nil {
 		if errors.Is(err, service.ErrValidationFailed) {
-			respondError(w, http.StatusBadRequest, err.Error())
+			response.Error(w, http.StatusBadRequest, err.Error())
 			return
 		}
 		if errors.Is(err, service.ErrResourceNotFound) {
-			respondError(w, http.StatusNotFound, "Tag not found")
+			response.Error(w, http.StatusNotFound, "Tag not found")
 			return
 		}
-		respondError(w, http.StatusInternalServerError, "Failed to update tag: "+err.Error())
+		response.Error(w, http.StatusInternalServerError, "Failed to update tag: "+err.Error())
 		return
 	}
 
-	respondJSON(w, http.StatusOK, updatedTag)
+	response.JSON(w, http.StatusOK, updatedTag)
 }
 
 // DeleteTag handles DELETE /tags/{id} - deletes a tag.
 func (h *TagHandler) DeleteTag(w http.ResponseWriter, r *http.Request) {
 	tagID := chi.URLParam(r, "id")
 	if tagID == "" {
-		respondError(w, http.StatusBadRequest, "Tag ID is required")
+		response.Error(w, http.StatusBadRequest, "Tag ID is required")
 		return
 	}
 
 	if err := h.tagService.DeleteTag(r.Context(), tagID); err != nil {
 		if errors.Is(err, service.ErrResourceNotFound) {
-			respondError(w, http.StatusNotFound, "Tag not found")
+			response.Error(w, http.StatusNotFound, "Tag not found")
 			return
 		}
-		respondError(w, http.StatusInternalServerError, "Failed to delete tag: "+err.Error())
+		response.Error(w, http.StatusInternalServerError, "Failed to delete tag: "+err.Error())
 		return
 	}
 
-	w.WriteHeader(http.StatusNoContent)
+	response.NoContent(w)
 }
