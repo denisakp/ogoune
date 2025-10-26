@@ -77,6 +77,24 @@ func (s *IntegrationService) UpdateIntegration(ctx context.Context, id string, p
 		return nil, err
 	}
 
+	// Apply updates from payload
+	integration.Name = payload.Name
+	integration.IsActive = payload.IsActive
+
+	// Marshal config to JSON
+	configBytes, err := json.Marshal(payload.Config)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal config: %w", err)
+	}
+	integration.Config = configBytes
+
+	// Marshal event types to JSON
+	eventTypesBytes, err := json.Marshal(payload.EventTypes)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal event types: %w", err)
+	}
+	integration.EventTypes = eventTypesBytes
+
 	if err := s.integrations.Update(ctx, integration); err != nil {
 		return nil, fmt.Errorf("failed to update integration: %w", err)
 	}
