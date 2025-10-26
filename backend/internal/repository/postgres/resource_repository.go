@@ -21,11 +21,11 @@ func NewResourceRepository(db *gorm.DB) repository.ResourceRepository {
 }
 
 // Create persists a new resource record to the database.
-func (r *ResourceRepositoryImpl) Create(ctx context.Context, resource *domain.Resource) error {
+func (r *ResourceRepositoryImpl) Create(ctx context.Context, resource *domain.Resource) (*domain.Resource, error) {
 	if err := r.db.WithContext(ctx).Create(resource).Error; err != nil {
-		return fmt.Errorf("failed to create resource: %w", err)
+		return nil, fmt.Errorf("failed to create resource: %w", err)
 	}
-	return nil
+	return resource, nil
 }
 
 // FindByID retrieves a resource by its ID.

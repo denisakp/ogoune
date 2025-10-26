@@ -21,11 +21,11 @@ func NewIncidentRepository(db *gorm.DB) repository.IncidentRepository {
 }
 
 // Create persists a new incident record to the database.
-func (r *IncidentRepositoryImpl) Create(ctx context.Context, incident *domain.Incident) error {
+func (r *IncidentRepositoryImpl) Create(ctx context.Context, incident *domain.Incident) (*domain.Incident, error) {
 	if err := r.db.WithContext(ctx).Create(incident).Error; err != nil {
-		return fmt.Errorf("failed to create incident: %w", err)
+		return nil, fmt.Errorf("failed to create incident: %w", err)
 	}
-	return nil
+	return incident, nil
 }
 
 // FindByID retrieves an incident by its ID.

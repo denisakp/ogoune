@@ -23,23 +23,23 @@ func NewResourceFake() *ResourceFake {
 	}
 }
 
-func (r *ResourceFake) Create(ctx context.Context, resource *domain.Resource) error {
+func (r *ResourceFake) Create(ctx context.Context, resource *domain.Resource) (*domain.Resource, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
 	if resource.ID == "" {
-		return ErrInvalidInput
+		return nil, ErrInvalidInput
 	}
 
 	if _, exists := r.resources[resource.ID]; exists {
-		return ErrDuplicate
+		return nil, ErrDuplicate
 	}
 
 	// Store a copy to avoid external mutations
 	copy := *resource
 	r.resources[resource.ID] = &copy
 
-	return nil
+	return &copy, nil
 }
 
 func (r *ResourceFake) FindByID(ctx context.Context, id string) (*domain.Resource, error) {

@@ -2,10 +2,12 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 
 	"github.com/denisakp/pulseguard/internal/domain"
+	"github.com/denisakp/pulseguard/internal/dto"
 	"github.com/denisakp/pulseguard/internal/repository"
 )
 
@@ -22,43 +24,29 @@ func NewIntegrationService(integrations repository.IntegrationRepository) *Integ
 }
 
 // CreateIntegration creates a new integration in the system.
-func (s *IntegrationService) CreateIntegration(ctx context.Context, integration *domain.Integration) error {
-	if integration == nil {
-		return fmt.Errorf("%w: integration cannot be nil", ErrValidationFailed)
-	}
-
-	if integration.Name == "" {
-		return fmt.Errorf("%w: integration name is required", ErrValidationFailed)
-	}
-
-	// Validate Config is present and contains type
-	config, err := integration.GetConfig()
+func (s *IntegrationService) CreateIntegration(ctx context.Context, payload *dto.CreateIntegrationPayload) (*domain.Integration, error) {
+	configBytes, err := json.Marshal(payload.Config)
 	if err != nil {
-		return fmt.Errorf("%w: invalid config format", ErrValidationFailed)
+		return nil, fmt.Errorf("failed to marshal config: %w", err)
 	}
 
-	typeVal, ok := config["type"].(string)
-	if !ok || typeVal == "" {
-		return fmt.Errorf("%w: config must include 'type' field", ErrValidationFailed)
+	eventTypesBytes, err := json.Marshal(payload.EventTypes)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal event types: %w", err)
 	}
 
-	// Validate integration type
-	validTypes := map[string]bool{
-		string(domain.IntegrationSMTP):       true,
-		string(domain.IntegrationSlack):      true,
-		string(domain.IntegrationGoogleChat): true,
-		string(domain.IntegrationDiscord):    true,
-	}
-
-	if !validTypes[typeVal] {
-		return fmt.Errorf("%w: invalid integration type '%s'", ErrValidationFailed, typeVal)
+	integration := &domain.Integration{
+		Name:       payload.Name,
+		Config:     configBytes,
+		IsActive:   payload.IsActive,
+		EventTypes: eventTypesBytes,
 	}
 
 	if err := s.integrations.Create(ctx, integration); err != nil {
-		return fmt.Errorf("failed to create integration: %w", err)
+		return nil, fmt.Errorf("failed to create integration: %w", err)
 	}
 
-	return nil
+	return integration, nil
 }
 
 // ListIntegrations retrieves all integrations with pagination.
@@ -79,7 +67,7 @@ func (s *IntegrationService) GetIntegrationByID(ctx context.Context, id string) 
 }
 
 // UpdateIntegration updates an existing integration.
-func (s *IntegrationService) UpdateIntegration(ctx context.Context, id string, name string, config []byte, isActive *bool) (*domain.Integration, error) {
+func (s *IntegrationService) UpdateIntegration(ctx context.Context, id string, payload *dto.UpdateIntegrationPayload) (*domain.Integration, error) {
 	// Fetch existing integration
 	integration, err := s.integrations.FindByID(ctx, id)
 	if err != nil {
@@ -87,19 +75,6 @@ func (s *IntegrationService) UpdateIntegration(ctx context.Context, id string, n
 			return nil, fmt.Errorf("%w: integration not found", ErrResourceNotFound)
 		}
 		return nil, err
-	}
-
-	// Apply updates
-	if name != "" {
-		integration.Name = name
-	}
-
-	if len(config) > 0 {
-		integration.Config = config
-	}
-
-	if isActive != nil {
-		integration.IsActive = *isActive
 	}
 
 	if err := s.integrations.Update(ctx, integration); err != nil {

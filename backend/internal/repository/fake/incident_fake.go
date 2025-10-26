@@ -21,23 +21,23 @@ func NewIncidentFake() *IncidentFake {
 	}
 }
 
-func (r *IncidentFake) Create(ctx context.Context, incident *domain.Incident) error {
+func (r *IncidentFake) Create(ctx context.Context, incident *domain.Incident) (*domain.Incident, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
 	if incident.ID == "" {
-		return ErrInvalidInput
+		return nil, ErrInvalidInput
 	}
 
 	if _, exists := r.incidents[incident.ID]; exists {
-		return ErrDuplicate
+		return nil, ErrDuplicate
 	}
 
 	// Store a copy to avoid external mutations
 	copy := *incident
 	r.incidents[incident.ID] = &copy
 
-	return nil
+	return &copy, nil
 }
 
 func (r *IncidentFake) FindByID(ctx context.Context, id string) (*domain.Incident, error) {

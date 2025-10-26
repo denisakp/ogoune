@@ -70,7 +70,6 @@ func TestIntegrationRepository_Contract(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, integration.ID, found.ID)
 		assert.Equal(t, integration.Name, found.Name)
-		assert.Equal(t, domain.IntegrationSMTP, found.GetType())
 
 		// Test not found
 		_, err = repo.FindByID(context.Background(), "non-existent-id")
@@ -234,12 +233,6 @@ func TestIntegrationRepository_Contract(t *testing.T) {
 			assert.Equal(t, domain.IntegrationSlack, integration.GetType())
 			assert.True(t, integration.IsActive)
 		}
-
-		// Find active SMTP integrations
-		activeSMTP, err := repo.FindActiveByType(context.Background(), domain.IntegrationSMTP, 10, 0)
-		require.NoError(t, err)
-		assert.Len(t, activeSMTP, 1)
-		assert.Equal(t, "Active SMTP", activeSMTP[0].Name)
 
 		// Find active Google Chat integrations (should be empty)
 		activeGoogleChat, err := repo.FindActiveByType(context.Background(), domain.IntegrationGoogleChat, 10, 0)

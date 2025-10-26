@@ -28,16 +28,16 @@ func TestIncidentEventStepRepository_Contract(t *testing.T) {
 			Message:    &message,
 		}
 
-		err := repo.Create(context.Background(), step)
+		_, err := repo.Create(context.Background(), step)
 		require.NoError(t, err)
 
 		// Test duplicate creation
-		err = repo.Create(context.Background(), step)
+		_, err = repo.Create(context.Background(), step)
 		assert.ErrorIs(t, err, fake.ErrDuplicate)
 
 		// Test invalid input (empty ID)
 		invalidStep := &domain.IncidentEventStep{IncidentID: "incident-123"}
-		err = repo.Create(context.Background(), invalidStep)
+		_, err = repo.Create(context.Background(), invalidStep)
 		assert.ErrorIs(t, err, fake.ErrInvalidInput)
 	})
 
@@ -53,7 +53,7 @@ func TestIncidentEventStepRepository_Contract(t *testing.T) {
 			Message:    &message,
 		}
 
-		err := repo.Create(context.Background(), step)
+		_, err := repo.Create(context.Background(), step)
 		require.NoError(t, err)
 
 		found, err := repo.FindByID(context.Background(), "test-step-2")
@@ -80,7 +80,7 @@ func TestIncidentEventStepRepository_Contract(t *testing.T) {
 			Message:    &initialMessage,
 		}
 
-		err := repo.Create(context.Background(), step)
+		_, err := repo.Create(context.Background(), step)
 		require.NoError(t, err)
 
 		updatedMessage := "Updated message"
@@ -113,7 +113,7 @@ func TestIncidentEventStepRepository_Contract(t *testing.T) {
 			Step:       domain.IncidentEventStepUpAlert,
 		}
 
-		err := repo.Create(context.Background(), step)
+		_, err := repo.Create(context.Background(), step)
 		require.NoError(t, err)
 
 		err = repo.Delete(context.Background(), "test-delete")
@@ -143,7 +143,7 @@ func TestIncidentEventStepRepository_Contract(t *testing.T) {
 				Step:       domain.IncidentEventStepDetected,
 				Message:    &message,
 			}
-			err := repo.Create(context.Background(), step)
+			_, err := repo.Create(context.Background(), step)
 			require.NoError(t, err)
 		}
 

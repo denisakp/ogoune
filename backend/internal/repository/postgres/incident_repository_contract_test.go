@@ -26,16 +26,16 @@ func TestIncidentRepository_Contract(t *testing.T) {
 			ResolvedAt: nil, // Active incident
 		}
 
-		err := repo.Create(context.Background(), incident)
+		_, err := repo.Create(context.Background(), incident)
 		require.NoError(t, err)
 
 		// Test duplicate creation
-		err = repo.Create(context.Background(), incident)
+		_, err = repo.Create(context.Background(), incident)
 		assert.ErrorIs(t, err, fake.ErrDuplicate)
 
 		// Test invalid input (empty ID)
 		invalidIncident := &domain.Incident{ResourceID: "resource-1"}
-		err = repo.Create(context.Background(), invalidIncident)
+		_, err = repo.Create(context.Background(), invalidIncident)
 		assert.ErrorIs(t, err, fake.ErrInvalidInput)
 	})
 
@@ -53,7 +53,7 @@ func TestIncidentRepository_Contract(t *testing.T) {
 			ResolvedAt: nil, // Active incident
 		}
 
-		err := repo.Create(context.Background(), incident)
+		_, err := repo.Create(context.Background(), incident)
 		require.NoError(t, err)
 
 		found, err := repo.FindByID(context.Background(), "test-incident-2")
@@ -80,7 +80,7 @@ func TestIncidentRepository_Contract(t *testing.T) {
 			ResolvedAt: nil, // Active incident
 		}
 
-		err := repo.Create(context.Background(), incident)
+		_, err := repo.Create(context.Background(), incident)
 		require.NoError(t, err)
 
 		// Update the incident (resolve it)
@@ -110,7 +110,7 @@ func TestIncidentRepository_Contract(t *testing.T) {
 			StartedAt:  time.Now(),
 		}
 
-		err := repo.Create(context.Background(), incident)
+		_, err := repo.Create(context.Background(), incident)
 		require.NoError(t, err)
 
 		// Delete
@@ -149,9 +149,9 @@ func TestIncidentRepository_Contract(t *testing.T) {
 			ResolvedAt: nil, // Active incident
 		}
 
-		err := repo.Create(context.Background(), resolvedIncident)
+		_, err := repo.Create(context.Background(), resolvedIncident)
 		require.NoError(t, err)
-		err = repo.Create(context.Background(), unresolvedIncident)
+		_, err = repo.Create(context.Background(), unresolvedIncident)
 		require.NoError(t, err)
 
 		// Find unresolved incidents
@@ -202,11 +202,11 @@ func TestIncidentRepository_Contract(t *testing.T) {
 			StartedAt:  now,
 		}
 
-		err := repo.Create(context.Background(), incident1)
+		_, err := repo.Create(context.Background(), incident1)
 		require.NoError(t, err)
-		err = repo.Create(context.Background(), incident2)
+		_, err = repo.Create(context.Background(), incident2)
 		require.NoError(t, err)
-		err = repo.Create(context.Background(), incident3)
+		_, err = repo.Create(context.Background(), incident3)
 		require.NoError(t, err)
 
 		// Find incidents for resource-1

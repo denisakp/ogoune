@@ -6,18 +6,9 @@ import (
 	"fmt"
 
 	"github.com/denisakp/pulseguard/internal/domain"
+	"github.com/denisakp/pulseguard/internal/dto"
 	"github.com/denisakp/pulseguard/internal/repository"
 )
-
-// UpdateResourcePayload contains the fields that can be updated for a resource
-type UpdateResourcePayload struct {
-	Name     *string              `json:"name,omitempty"`
-	Type     *domain.ResourceType `json:"type,omitempty"`
-	Target   *string              `json:"target,omitempty"`
-	Interval *int                 `json:"interval,omitempty"`
-	Timeout  *int                 `json:"timeout,omitempty"`
-	IsActive *bool                `json:"is_active,omitempty"`
-}
 
 // ResourceService orchestrates resource-related operations using repository interfaces.
 // This service demonstrates the dependency injection pattern and serves as an example
@@ -46,14 +37,36 @@ func NewResourceService(
 
 // CreateResource creates a new resource using domain validation and persistence.
 // After successful creation, it schedules monitoring for the resource.
-func (s *ResourceService) CreateResource(ctx context.Context, resource *domain.Resource) error {
+func (s *ResourceService) CreateResource(ctx context.Context, payload *dto.CreateResourcePayload) error {
 	// Validate target format
-	if err := domain.ValidateResourceTarget(resource.Target, resource.Type); err != nil {
+	if err := domain.ValidateResourceTarget(payload.Target, payload.Type); err != nil {
 		return fmt.Errorf("%w: %v", ErrValidationFailed, err)
 	}
 
+	resource := &domain.Resource{
+		Name:     payload.Name,
+		Type:     payload.Type,
+		Interval: payload.Interval,
+		Timeout:  payload.Timeout,
+		Target:   payload.Target,
+		IsActive: true,
+		Status:   domain.StatusPending,
+	}
+
+	// fetch tags by id if provided
+	if len(payload.Tags) > 0 {
+		tags, err := s.tags.FindByIDs(ctx, payload.Tags)
+		if err != nil {
+			if errors.Is(err, repository.ErrNotFound) {
+				return fmt.Errorf("%w: one or more tags not found", ErrValidationFailed)
+			}
+			return err
+		}
+		resource.Tags = tags
+	}
+
 	// Create resource in database
-	if err := s.resources.Create(ctx, resource); err != nil {
+	if _, err := s.resources.Create(ctx, resource); err != nil {
 		return err
 	}
 
@@ -69,11 +82,11 @@ func (s *ResourceService) CreateResource(ctx context.Context, resource *domain.R
 
 // UpdateResource updates an existing resource by ID with the provided payload.
 // It fetches the resource, applies changes, validates, updates, and reschedules monitoring.
-func (s *ResourceService) UpdateResource(ctx context.Context, id string, payload *UpdateResourcePayload) (*domain.Resource, error) {
+func (s *ResourceService) UpdateResource(ctx context.Context, id string, payload *dto.UpdateResourcePayload) (*domain.Resource, error) {
 	// Fetch existing resource
 	resource, err := s.resources.FindByID(ctx, id)
 	if err != nil {
-		if errors.Is(repository.ErrNotFound, err) {
+		if errors.Is(err, repository.ErrNotFound) {
 			return nil, ErrResourceNotFound
 		}
 		return nil, err
@@ -97,6 +110,22 @@ func (s *ResourceService) UpdateResource(ctx context.Context, id string, payload
 	}
 	if payload.IsActive != nil {
 		resource.IsActive = *payload.IsActive
+	}
+
+	if payload.Tags != nil {
+		if len(*payload.Tags) > 0 {
+			tags, err := s.tags.FindByIDs(ctx, *payload.Tags)
+			if err != nil {
+				if errors.Is(err, repository.ErrNotFound) {
+					return nil, fmt.Errorf("%w: one or more tags not found", ErrValidationFailed)
+				}
+				return nil, err
+			}
+			resource.Tags = tags
+		} else {
+			// Clear all tags if empty slice provided
+			resource.Tags = []*domain.Tags{}
+		}
 	}
 
 	// Validate target format after updates

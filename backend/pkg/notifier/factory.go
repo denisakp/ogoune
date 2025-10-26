@@ -17,8 +17,6 @@ func NewNotifierFactory() *NotifierFactory {
 // GetNotifier creates a notifier instance based on the integration type.
 func (f *NotifierFactory) GetNotifier(integrationType domain.IntegrationType) (Notifier, error) {
 	switch integrationType {
-	case domain.IntegrationSMTP:
-		return NewSMTPNotifier(), nil
 	case domain.IntegrationGoogleChat:
 		return NewGoogleChatNotifier(), nil
 	case domain.IntegrationSlack:

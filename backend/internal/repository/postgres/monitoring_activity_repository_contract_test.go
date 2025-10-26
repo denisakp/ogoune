@@ -25,7 +25,7 @@ func TestMonitoringActivityRepository_Create(t *testing.T) {
 		Timeout:  30,
 		IsActive: true,
 	}
-	err := resourceRepo.Create(context.Background(), resource)
+	_, err := resourceRepo.Create(context.Background(), resource)
 	require.NoError(t, err)
 
 	// Create a monitoring activity
@@ -57,7 +57,7 @@ func TestMonitoringActivityRepository_List(t *testing.T) {
 		Timeout:  30,
 		IsActive: true,
 	}
-	err := resourceRepo.Create(context.Background(), resource)
+	_, err := resourceRepo.Create(context.Background(), resource)
 	require.NoError(t, err)
 
 	// Create multiple activities
@@ -118,9 +118,9 @@ func TestMonitoringActivityRepository_FindByResourceID(t *testing.T) {
 		IsActive: true,
 	}
 
-	err := resourceRepo.Create(context.Background(), resource1)
+	_, err := resourceRepo.Create(context.Background(), resource1)
 	require.NoError(t, err)
-	err = resourceRepo.Create(context.Background(), resource2)
+	_, err = resourceRepo.Create(context.Background(), resource2)
 	require.NoError(t, err)
 
 	// Create activities for resource1
@@ -177,7 +177,7 @@ func TestMonitoringActivityRepository_Pagination(t *testing.T) {
 		Timeout:  30,
 		IsActive: true,
 	}
-	err := resourceRepo.Create(context.Background(), resource)
+	_, err := resourceRepo.Create(context.Background(), resource)
 	require.NoError(t, err)
 
 	// Create 15 activities

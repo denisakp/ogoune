@@ -20,22 +20,22 @@ func NewIncidentEventStepFake() repository.IncidentEventStepRepository {
 	}
 }
 
-func (f *IncidentEventStepFake) Create(ctx context.Context, s *domain.IncidentEventStep) error {
+func (f *IncidentEventStepFake) Create(ctx context.Context, s *domain.IncidentEventStep) (*domain.IncidentEventStep, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 
 	if s.ID == "" {
-		return ErrInvalidInput
+		return nil, ErrInvalidInput
 	}
 
 	if _, exists := f.steps[s.ID]; exists {
-		return ErrDuplicate
+		return nil, ErrDuplicate
 	}
 
 	// Create a copy to avoid external mutations
 	step := *s
 	f.steps[s.ID] = &step
-	return nil
+	return &step, nil
 }
 
 func (f *IncidentEventStepFake) FindByID(ctx context.Context, id string) (*domain.IncidentEventStep, error) {

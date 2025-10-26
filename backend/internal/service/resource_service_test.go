@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/denisakp/pulseguard/internal/domain"
+	"github.com/denisakp/pulseguard/internal/dto"
 	"github.com/denisakp/pulseguard/internal/repository/fake"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -18,27 +19,26 @@ func TestResourceService_CreateResource(t *testing.T) {
 	schedulerFake := fake.NewSchedulerFake()
 	service := NewResourceService(resourceRepo, incidentRepo, tagsRepo, schedulerFake)
 
-	resource := &domain.Resource{
-		Base: domain.Base{
-			ID:        "test-resource",
-			CreatedAt: time.Now(),
-		},
+	payload := &dto.CreateResourcePayload{
 		Name:     "Test Resource",
 		Type:     domain.ResourceHTTP,
 		Target:   "https://example.com",
-		IsActive: true,
+		Interval: 60,
+		Timeout:  5,
+		Tags:     []string{},
 	}
 
-	err := service.CreateResource(context.Background(), resource)
+	err := service.CreateResource(context.Background(), payload)
 	require.NoError(t, err)
 
-	// Verify resource was created
-	found, err := resourceRepo.FindByID(context.Background(), "test-resource")
+	// Verify resource was created (find by name or filter by recent creation)
+	resources, err := resourceRepo.List(context.Background(), 10, 0)
 	require.NoError(t, err)
-	assert.Equal(t, "Test Resource", found.Name)
+	require.Len(t, resources, 1)
+	assert.Equal(t, "Test Resource", resources[0].Name)
 
 	// Verify resource was scheduled
-	assert.True(t, schedulerFake.IsScheduled("test-resource"))
+	assert.True(t, schedulerFake.IsScheduled(resources[0].ID))
 }
 
 func TestResourceService_ListAll(t *testing.T) {
@@ -72,9 +72,9 @@ func TestResourceService_ListAll(t *testing.T) {
 	}
 
 	// Add resources to fake repository
-	err := resourceRepo.Create(context.Background(), resource1)
+	_, err := resourceRepo.Create(context.Background(), resource1)
 	require.NoError(t, err)
-	err = resourceRepo.Create(context.Background(), resource2)
+	_, err = resourceRepo.Create(context.Background(), resource2)
 	require.NoError(t, err)
 
 	// List all resources

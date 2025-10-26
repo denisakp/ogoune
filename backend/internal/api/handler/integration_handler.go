@@ -4,65 +4,66 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"strconv"
 
 	"github.com/denisakp/pulseguard/internal/api/response"
 	"github.com/denisakp/pulseguard/internal/domain"
+	"github.com/denisakp/pulseguard/internal/dto"
 	"github.com/denisakp/pulseguard/internal/service"
 	"github.com/go-chi/chi/v5"
 )
 
 // IntegrationServiceInterface defines the methods required by IntegrationHandler.
 type IntegrationServiceInterface interface {
-	CreateIntegration(ctx context.Context, integration *domain.Integration) error
+	CreateIntegration(ctx context.Context, integration *dto.CreateIntegrationPayload) (*domain.Integration, error)
 	ListIntegrations(ctx context.Context, limit, offset int) ([]*domain.Integration, error)
 	GetIntegrationByID(ctx context.Context, id string) (*domain.Integration, error)
-	UpdateIntegration(ctx context.Context, id string, name string, config []byte, isActive *bool) (*domain.Integration, error)
+	UpdateIntegration(ctx context.Context, id string, payload *dto.UpdateIntegrationPayload) (*domain.Integration, error)
 	ListActiveIntegrations(ctx context.Context) ([]*domain.Integration, error)
 }
 
 // IntegrationHandler handles HTTP requests for integration management.
 type IntegrationHandler struct {
 	integrationService IntegrationServiceInterface
+	validTypes         map[string]bool
+	validEventTypes    map[domain.EventType]bool
 }
 
 // NewIntegrationHandler creates a new IntegrationHandler with injected dependencies.
 func NewIntegrationHandler(integrationService IntegrationServiceInterface) *IntegrationHandler {
 	return &IntegrationHandler{
 		integrationService: integrationService,
+		validTypes: map[string]bool{
+			string(domain.IntegrationSlack):      true,
+			string(domain.IntegrationGoogleChat): true,
+			string(domain.IntegrationDiscord):    true,
+		},
+		validEventTypes: map[domain.EventType]bool{
+			domain.EventTypeDown:   true,
+			domain.EventTypeUp:     true,
+			domain.EventTypeExpiry: true,
+		},
 	}
 }
 
 // CreateIntegration handles POST /integrations - creates a new integration.
 func (h *IntegrationHandler) CreateIntegration(w http.ResponseWriter, r *http.Request) {
-	var integration domain.Integration
-
-	if err := json.NewDecoder(r.Body).Decode(&integration); err != nil {
+	var payload dto.CreateIntegrationPayload
+	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
 		response.Error(w, http.StatusBadRequest, "Invalid request payload: "+err.Error())
 		return
 	}
 
 	// Validation
-	if integration.Name == "" {
-		response.Error(w, http.StatusBadRequest, "Integration name is required")
+	if err := h.validateIntegrationPayload(payload.Name, payload.Config, payload.EventTypes); err != nil {
+		response.Error(w, http.StatusBadRequest, err.Error())
 		return
 	}
 
-	// Validate Config contains required fields
-	config, err := integration.GetConfig()
+	integration, err := h.integrationService.CreateIntegration(r.Context(), &payload)
 	if err != nil {
-		response.Error(w, http.StatusBadRequest, "Invalid config format: "+err.Error())
-		return
-	}
-
-	// Check if type is present in config
-	if _, ok := config["type"]; !ok {
-		response.Error(w, http.StatusBadRequest, "Integration config must include 'type' field")
-		return
-	}
-
-	if err := h.integrationService.CreateIntegration(r.Context(), &integration); err != nil {
 		if errors.Is(err, service.ErrValidationFailed) {
 			response.Error(w, http.StatusBadRequest, err.Error())
 			return
@@ -122,25 +123,20 @@ func (h *IntegrationHandler) UpdateIntegration(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	var payload struct {
-		Name     string          `json:"name,omitempty"`
-		Config   json.RawMessage `json:"config,omitempty"`
-		IsActive *bool           `json:"is_active,omitempty"`
-	}
+	var payload dto.UpdateIntegrationPayload
 
 	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
 		response.Error(w, http.StatusBadRequest, "Invalid request payload: "+err.Error())
 		return
 	}
 
-	updatedIntegration, err := h.integrationService.UpdateIntegration(
-		r.Context(),
-		integrationID,
-		payload.Name,
-		payload.Config,
-		payload.IsActive,
-	)
+	// validation
+	if err := h.validateIntegrationPayload(payload.Name, payload.Config, payload.EventTypes); err != nil {
+		response.Error(w, http.StatusBadRequest, err.Error())
+		return
+	}
 
+	updatedIntegration, err := h.integrationService.UpdateIntegration(r.Context(), integrationID, &payload)
 	if err != nil {
 		if errors.Is(err, service.ErrValidationFailed) {
 			response.Error(w, http.StatusBadRequest, err.Error())
@@ -155,4 +151,39 @@ func (h *IntegrationHandler) UpdateIntegration(w http.ResponseWriter, r *http.Re
 	}
 
 	response.JSON(w, http.StatusOK, updatedIntegration)
+}
+
+func (h *IntegrationHandler) validateIntegrationPayload(name string, config map[string]interface{}, eventTypes []domain.EventType) error {
+	// validate name
+	if name == "" {
+		return fmt.Errorf("integration name is required")
+	}
+
+	if config == nil || len(config) == 0 {
+		return fmt.Errorf("integration config is required")
+	}
+
+	// validate config.type
+	typeVal, ok := config["type"].(string)
+	if !ok || typeVal == "" {
+		return fmt.Errorf("integration config must include 'type' field")
+	}
+
+	// validate integration type
+	if !h.validTypes[typeVal] {
+		return fmt.Errorf("invalid integration type '%s'")
+	}
+
+	if len(eventTypes) == 0 {
+		return fmt.Errorf("at least one event type is required")
+	}
+
+	// validate each event type
+	for _, eventType := range eventTypes {
+		if !h.validEventTypes[eventType] {
+			return fmt.Errorf("invalid event type '%s'", string(eventType))
+		}
+	}
+
+	return nil
 }

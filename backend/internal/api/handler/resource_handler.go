@@ -8,6 +8,7 @@ import (
 
 	"github.com/denisakp/pulseguard/internal/api/response"
 	"github.com/denisakp/pulseguard/internal/domain"
+	"github.com/denisakp/pulseguard/internal/dto"
 	"github.com/denisakp/pulseguard/internal/service"
 	"github.com/go-chi/chi/v5"
 )
@@ -15,8 +16,8 @@ import (
 // ResourceServiceInterface defines the methods required by ResourceHandler.
 // This interface allows for better testing by enabling mock implementations.
 type ResourceServiceInterface interface {
-	CreateResource(ctx context.Context, resource *domain.Resource) error
-	UpdateResource(ctx context.Context, id string, payload *service.UpdateResourcePayload) (*domain.Resource, error)
+	CreateResource(ctx context.Context, payload *dto.CreateResourcePayload) error
+	UpdateResource(ctx context.Context, id string, payload *dto.UpdateResourcePayload) (*domain.Resource, error)
 	ListAll(ctx context.Context) ([]*domain.Resource, error)
 	DeleteResource(ctx context.Context, resourceID string) error
 	PauseMonitoring(ctx context.Context, resourceID string) error
@@ -43,7 +44,7 @@ func NewResourceHandler(resourceService ResourceServiceInterface) *ResourceHandl
 // Request body: JSON representation of domain.Resource
 // Response: 201 Created with the created resource (including generated ID)
 func (h *ResourceHandler) CreateResource(w http.ResponseWriter, r *http.Request) {
-	var resource domain.Resource
+	var resource dto.CreateResourcePayload
 
 	// Decode JSON request body
 	if err := json.NewDecoder(r.Body).Decode(&resource); err != nil {
@@ -118,7 +119,7 @@ func (h *ResourceHandler) UpdateResource(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	var payload service.UpdateResourcePayload
+	var payload dto.UpdateResourcePayload
 
 	// Decode JSON request body
 	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {

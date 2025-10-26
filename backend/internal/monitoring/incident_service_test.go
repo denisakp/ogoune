@@ -315,7 +315,7 @@ func TestIncidentService_ResolveIncident(t *testing.T) {
 	}
 
 	ctx := context.Background()
-	err := incidentRepo.Create(ctx, activeIncident)
+	_, err := incidentRepo.Create(ctx, activeIncident)
 	require.NoError(t, err)
 
 	result := domain.CheckResult{
@@ -447,7 +447,7 @@ func TestIncidentService_IntegrationFiltering_UpEvent(t *testing.T) {
 		ResolvedAt: nil,
 		StartedAt:  time.Now().Add(-5 * time.Minute),
 	}
-	err = incidentRepo.Create(ctx, incident)
+	_, err = incidentRepo.Create(ctx, incident)
 	require.NoError(t, err)
 
 	result := domain.CheckResult{

@@ -29,16 +29,16 @@ func TestResourceRepository_Contract(t *testing.T) {
 			IsActive: true,
 		}
 
-		err := repo.Create(context.Background(), resource)
+		_, err := repo.Create(context.Background(), resource)
 		require.NoError(t, err)
 
 		// Test duplicate creation
-		err = repo.Create(context.Background(), resource)
+		_, err = repo.Create(context.Background(), resource)
 		assert.ErrorIs(t, err, fake.ErrDuplicate)
 
 		// Test invalid input (empty ID)
 		invalidResource := &domain.Resource{Name: "Invalid"}
-		err = repo.Create(context.Background(), invalidResource)
+		_, err = repo.Create(context.Background(), invalidResource)
 		assert.ErrorIs(t, err, fake.ErrInvalidInput)
 	})
 
@@ -54,7 +54,7 @@ func TestResourceRepository_Contract(t *testing.T) {
 			IsActive: true,
 		}
 
-		err := repo.Create(context.Background(), resource)
+		_, err := repo.Create(context.Background(), resource)
 		require.NoError(t, err)
 
 		found, err := repo.FindByID(context.Background(), "test-resource-2")
@@ -77,7 +77,7 @@ func TestResourceRepository_Contract(t *testing.T) {
 			IsActive: true,
 		}
 
-		err := repo.Create(context.Background(), resource)
+		_, err := repo.Create(context.Background(), resource)
 		require.NoError(t, err)
 
 		// Update the resource
@@ -108,7 +108,7 @@ func TestResourceRepository_Contract(t *testing.T) {
 			IsActive: true,
 		}
 
-		err := repo.Create(context.Background(), resource)
+		_, err := repo.Create(context.Background(), resource)
 		require.NoError(t, err)
 
 		// Delete (soft delete)
@@ -145,9 +145,9 @@ func TestResourceRepository_Contract(t *testing.T) {
 			IsActive: false,
 		}
 
-		err := repo.Create(context.Background(), activeRes)
+		_, err := repo.Create(context.Background(), activeRes)
 		require.NoError(t, err)
-		err = repo.Create(context.Background(), inactiveRes)
+		_, err = repo.Create(context.Background(), inactiveRes)
 		require.NoError(t, err)
 
 		// Find active resources

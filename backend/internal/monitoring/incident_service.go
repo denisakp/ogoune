@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"slices"
 	"time"
 
 	"github.com/denisakp/pulseguard/internal/domain"
@@ -105,7 +106,7 @@ func (s *IncidentService) CreateIncident(ctx context.Context, r *domain.Resource
 		Details:    []byte(result.ResponseData),
 	}
 
-	if err := s.incidents.Create(ctx, incident); err != nil {
+	if _, err := s.incidents.Create(ctx, incident); err != nil {
 		return fmt.Errorf("failed to create incident: %w", err)
 	}
 
@@ -118,7 +119,7 @@ func (s *IncidentService) CreateIncident(ctx context.Context, r *domain.Resource
 		Message:    stringPtr(fmt.Sprintf("Incident detected: %s", cause)),
 	}
 
-	if err := s.eventSteps.Create(ctx, detectedStep); err != nil {
+	if _, err := s.eventSteps.Create(ctx, detectedStep); err != nil {
 		log.Printf("Warning: Failed to create detected event step: %v", err)
 	}
 
@@ -138,7 +139,7 @@ func (s *IncidentService) CreateIncident(ctx context.Context, r *domain.Resource
 			Message:    stringPtr("Default SMTP resource down alert sent"),
 		}
 
-		if err := s.eventSteps.Create(ctx, downAlertStep); err != nil {
+		if _, err := s.eventSteps.Create(ctx, downAlertStep); err != nil {
 			log.Printf("Warning: Failed to create resource_down_alert event step: %v", err)
 		}
 	} else {
@@ -224,7 +225,7 @@ func (s *IncidentService) ResolveIncident(ctx context.Context, r *domain.Resourc
 		Message:    stringPtr("Incident resolved: resource is back up"),
 	}
 
-	if err := s.eventSteps.Create(ctx, resolvedStep); err != nil {
+	if _, err := s.eventSteps.Create(ctx, resolvedStep); err != nil {
 		log.Printf("Warning: Failed to create resolved event step: %v", err)
 	}
 
@@ -244,7 +245,7 @@ func (s *IncidentService) ResolveIncident(ctx context.Context, r *domain.Resourc
 			Message:    stringPtr("Default SMTP resource up alert sent"),
 		}
 
-		if err := s.eventSteps.Create(ctx, upAlertStep); err != nil {
+		if _, err := s.eventSteps.Create(ctx, upAlertStep); err != nil {
 			log.Printf("Warning: Failed to create resource_up_alert event step: %v", err)
 		}
 	} else {
@@ -439,22 +440,12 @@ func stringPtr(s string) *string {
 
 // hasEventType checks if an integration is subscribed to a specific event type.
 func (s *IncidentService) hasEventType(integration *domain.Integration, eventType domain.EventType) bool {
-	// Parse the EventTypes JSON field
+	// Check if the event type is in the list
 	var eventTypes []string
 	if err := json.Unmarshal(integration.EventTypes, &eventTypes); err != nil {
-		log.Printf("Warning: Failed to parse event_types for integration %s: %v", integration.ID, err)
 		return false
 	}
-
-	// Check if the event type is in the list
-	eventTypeStr := string(eventType)
-	for _, et := range eventTypes {
-		if et == eventTypeStr {
-			return true
-		}
-	}
-
-	return false
+	return slices.Contains(eventTypes, string(eventType))
 }
 
 // sendIntegrationNotification sends a notification via a user-configured integration.

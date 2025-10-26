@@ -24,6 +24,7 @@ type PaginationParams struct {
 type TagsRepository interface {
 	Create(ctx context.Context, t *domain.Tags) error
 	FindByID(ctx context.Context, id string) (*domain.Tags, error)
+	FindByIDs(ctx context.Context, ids []string) ([]*domain.Tags, error)
 	FindByName(ctx context.Context, name string) (*domain.Tags, error)
 	List(ctx context.Context, limit, offset int) ([]*domain.Tags, error)
 	Update(ctx context.Context, t *domain.Tags) error
@@ -32,7 +33,7 @@ type TagsRepository interface {
 
 // ResourceRepository manages monitored resources
 type ResourceRepository interface {
-	Create(ctx context.Context, r *domain.Resource) error
+	Create(ctx context.Context, r *domain.Resource) (*domain.Resource, error)
 	FindByID(ctx context.Context, id string) (*domain.Resource, error)
 	List(ctx context.Context, limit, offset int) ([]*domain.Resource, error)
 	Update(ctx context.Context, r *domain.Resource) error
@@ -43,7 +44,7 @@ type ResourceRepository interface {
 
 // IncidentRepository manages incidents (unresolved vs resolved)
 type IncidentRepository interface {
-	Create(ctx context.Context, i *domain.Incident) error
+	Create(ctx context.Context, i *domain.Incident) (*domain.Incident, error)
 	FindByID(ctx context.Context, id string) (*domain.Incident, error)
 	List(ctx context.Context, limit, offset int) ([]*domain.Incident, error)
 	Update(ctx context.Context, i *domain.Incident) error
@@ -54,7 +55,7 @@ type IncidentRepository interface {
 
 // IncidentEventStepRepository manages lifecycle steps
 type IncidentEventStepRepository interface {
-	Create(ctx context.Context, s *domain.IncidentEventStep) error
+	Create(ctx context.Context, s *domain.IncidentEventStep) (*domain.IncidentEventStep, error)
 	FindByID(ctx context.Context, id string) (*domain.IncidentEventStep, error)
 	List(ctx context.Context, limit, offset int) ([]*domain.IncidentEventStep, error)
 	Update(ctx context.Context, s *domain.IncidentEventStep) error

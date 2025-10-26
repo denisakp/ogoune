@@ -31,8 +31,9 @@ func (base *Base) BeforeCreate(tx *gorm.DB) (err error) {
 // Tags represents a tag that can be associated with multiple resources
 type Tags struct {
 	Base
-	Name      string      `json:"name" gorm:"uniqueIndex"`
-	Resources []*Resource `json:"resources" gorm:"many2many:resource_tags;"`
+	Name        string      `json:"name" gorm:"uniqueIndex"`
+	Description *string     `json:"description,omitempty"`
+	Resources   []*Resource `json:"resources" gorm:"many2many:resource_tags;"`
 }
 
 func (Tags) TableName() string { return "tags" }
@@ -112,7 +113,6 @@ func (IncidentEventStep) TableName() string { return "incident_event_steps" }
 type IntegrationType string
 
 const (
-	IntegrationSMTP       IntegrationType = "smtp"
 	IntegrationSlack      IntegrationType = "slack"
 	IntegrationGoogleChat IntegrationType = "google_chat"
 	IntegrationDiscord    IntegrationType = "discord"
@@ -131,8 +131,8 @@ type Integration struct {
 	Base
 	Name       string         `json:"name"`
 	IsActive   bool           `json:"is_active" gorm:"default:true"`
-	Config     datatypes.JSON `json:"config"`                        // Stores integration-specific config, e.g., {"type": "slack", "webhook_url": "..."}
-	EventTypes datatypes.JSON `json:"event_types" gorm:"type:jsonb"` // Stores []string, e.g., ["down", "up"]
+	Config     datatypes.JSON `json:"config"`      // Stores integration-specific config, e.g., {"type": "slack", "webhook_url": "..."}
+	EventTypes datatypes.JSON `json:"event_types"` // Stores []string, e.g., ["down", "up"]
 }
 
 func (Integration) TableName() string { return "integrations" }

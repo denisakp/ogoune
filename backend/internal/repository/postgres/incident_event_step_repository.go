@@ -20,11 +20,11 @@ func NewIncidentEventStepRepository(db *gorm.DB) repository.IncidentEventStepRep
 }
 
 // Create persists a new incident event step record to the database.
-func (r *IncidentEventStepRepositoryImpl) Create(ctx context.Context, s *domain.IncidentEventStep) error {
+func (r *IncidentEventStepRepositoryImpl) Create(ctx context.Context, s *domain.IncidentEventStep) (*domain.IncidentEventStep, error) {
 	if err := r.db.WithContext(ctx).Create(s).Error; err != nil {
-		return fmt.Errorf("failed to create incident event step: %w", err)
+		return nil, fmt.Errorf("failed to create incident event step: %w", err)
 	}
-	return nil
+	return s, nil
 }
 
 // FindByID retrieves an incident event step by its ID.

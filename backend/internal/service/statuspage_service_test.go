@@ -33,7 +33,8 @@ func TestStatusPageService_GetData(t *testing.T) {
 
 		// Store resource
 		ctx := context.Background()
-		require.NoError(t, resourceRepo.Create(ctx, resource))
+		_, err := resourceRepo.Create(ctx, resource)
+		require.NoError(t, err)
 
 		// Create monitoring activities (30 days of data)
 		for i := 0; i < 100; i++ {
@@ -56,7 +57,8 @@ func TestStatusPageService_GetData(t *testing.T) {
 			StartedAt:  now.Add(-2 * time.Hour),
 			ResolvedAt: nil, // Ongoing
 		}
-		require.NoError(t, incidentRepo.Create(ctx, incident))
+		_, err = incidentRepo.Create(ctx, incident)
+		require.NoError(t, err)
 
 		// Create service
 		service := NewStatusPageService(resourceRepo, incidentRepo, activityRepo)
@@ -116,7 +118,8 @@ func TestStatusPageService_GetData(t *testing.T) {
 			Cause:      "test",
 			StartedAt:  time.Now().AddDate(0, 0, -100),
 		}
-		require.NoError(t, incidentRepo.Create(ctx, oldIncident))
+		_, err := incidentRepo.Create(ctx, oldIncident)
+		require.NoError(t, err)
 
 		// Create recent incident (10 days ago)
 		recentIncident := &domain.Incident{
@@ -126,7 +129,8 @@ func TestStatusPageService_GetData(t *testing.T) {
 			Cause:      "test",
 			StartedAt:  time.Now().AddDate(0, 0, -10),
 		}
-		require.NoError(t, incidentRepo.Create(ctx, recentIncident))
+		_, err = incidentRepo.Create(ctx, recentIncident)
+		require.NoError(t, err)
 
 		service := NewStatusPageService(resourceRepo, incidentRepo, activityRepo)
 

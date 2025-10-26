@@ -40,6 +40,22 @@ func (r *TagsRepositoryImpl) FindByID(ctx context.Context, id string) (*domain.T
 	return &tag, nil
 }
 
+// FindByIDs retrieves multiple tags by their IDs.
+func (r *TagsRepositoryImpl) FindByIDs(ctx context.Context, ids []string) ([]*domain.Tags, error) {
+	var tags []*domain.Tags
+	err := r.db.WithContext(ctx).Where("id IN ?", ids).Find(&tags).Error
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to find tags by IDs: %w", err)
+	}
+
+	if len(tags) != len(ids) {
+		return nil, repository.ErrNotFound
+	}
+
+	return tags, nil
+}
+
 // FindByName retrieves a tag by its name.
 func (r *TagsRepositoryImpl) FindByName(ctx context.Context, name string) (*domain.Tags, error) {
 	var tag domain.Tags
