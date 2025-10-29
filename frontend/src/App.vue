@@ -6,7 +6,7 @@ const isSidebarOpen = ref(false)
 
 const navigation = [
   { name: 'Monitoring', path: '/monitors', key: '1', icon: '📊' },
-  { name: 'Incidents', path: '/integrations', key: '2', icon: '🏷️' },
+  { name: 'Incidents', path: '/incidents', key: '2', icon: '🏷️' },
   { name: 'Settings', path: '/Settings', key: '3', icon: '🔌' },
   { name: 'Activities', path: '/activities', key: '4', icon: '📜' },
 ]
@@ -20,7 +20,17 @@ const menuItems = navigation.map((item) => ({
 <template>
   <a-layout style="min-height: 100vh">
     <!-- Header / Navbar -->
-    <a-layout-header class="header" style="background: #fff; padding: 0 24px; display: flex; align-items: center; justify-content: space-between; box-shadow: 0 2px 8px rgba(0,0,0,0.08)">
+    <a-layout-header
+      class="header"
+      style="
+        background: #fff;
+        padding: 0 24px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+      "
+    >
       <div style="display: flex; align-items: center; gap: 16px; flex: 1">
         <button
           @click="isSidebarOpen = !isSidebarOpen"
@@ -48,26 +58,26 @@ const menuItems = navigation.map((item) => ({
         <a-menu
           :items="menuItems"
           mode="vertical"
-          @click="(e) => {
-            const item = navigation[parseInt(e.key) - 1]
-            $router.push(item.path)
-            isSidebarOpen = false
-          }"
+          @click="
+            (e) => {
+              const item = navigation[parseInt(e.key) - 1]
+              $router.push(item.path)
+              isSidebarOpen = false
+            }
+          "
         />
       </a-drawer>
 
-      <a-layout-sider
-        class="hidden lg:block"
-        :width="256"
-        style="background: #fafafa"
-      >
+      <a-layout-sider class="hidden lg:block" :width="256" style="background: #fafafa">
         <a-menu
           :items="menuItems"
           mode="vertical"
-          @click="(e) => {
-            const item = navigation[parseInt(e.key) - 1]
-            $router.push(item.path)
-          }"
+          @click="
+            (e) => {
+              const item = navigation[parseInt(e.key) - 1]
+              $router.push(item.path)
+            }
+          "
         />
       </a-layout-sider>
 

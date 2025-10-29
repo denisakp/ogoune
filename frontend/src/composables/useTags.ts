@@ -11,7 +11,7 @@ export function useTags() {
     loading,
     error,
     // Store actions
-    fetchTags: store.fetchTags,
+    loadTags: store.fetchTags,
     addTag: store.addTag,
     updateTag: store.updateTag,
     deleteTag: store.deleteTag,

@@ -6,10 +6,7 @@ defineProps<{
 </script>
 
 <template>
-  <a-alert
-    type="error"
-    show-icon
-  >
+  <a-alert type="error" show-icon>
     <template #message v-if="title">
       {{ title }}
     </template>

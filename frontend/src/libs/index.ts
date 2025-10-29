@@ -1,1 +1,1 @@
-export * from './axios.helper';
+export * from './axios.helper'

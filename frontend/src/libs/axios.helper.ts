@@ -9,15 +9,15 @@ const axiosClient: AxiosInstance = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
-});
+})
 
 // add response interceptor for error handling
 axiosClient.interceptors.response.use(
   (response) => response,
   (error: AxiosError) => {
-    console.error('API Error:', error.message);
-    return Promise.reject(error);
-  }
-);
+    console.error('API Error:', error.message)
+    return Promise.reject(error)
+  },
+)
 
-export default axiosClient;
+export default axiosClient

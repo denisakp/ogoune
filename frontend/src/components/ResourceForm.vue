@@ -100,6 +100,7 @@ const { tags, loadTags } = useTags()
 onMounted(() => {
   loadTags()
 })
+
 const tagsOptions = computed(() => tags.value.map((tag) => ({ value: tag.id, label: tag.name })))
 </script>
 

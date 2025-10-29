@@ -12,10 +12,12 @@ export function useResources() {
     error,
     // Store actions
     loadResources: store.loadResources,
+    loadResource: store.loadResource,
     addResource: store.addResource,
     removeResource: store.removeResource,
     updateResourceData: store.updateResourceData,
     pauseResource: store.pauseMonitoring,
     resumeResource: store.resumeMonitoring,
+    testNotification: store.testNotification,
   }
 }
