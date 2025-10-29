@@ -12,10 +12,20 @@ import {
 
 import { useResources } from '@/composables/useResources'
 import { useTimeAgo } from '@/composables/useTimeAgo'
+import ResourceModal from '@/components/ResourceModal.vue'
+import UptimeSparkline from '@/components/UptimeSparkline.vue'
 import type { Resource } from '@/types'
 
-const { resources, loading, error, loadResources, removeResource, pauseResource, resumeResource } =
-  useResources()
+const {
+  resources,
+  loading,
+  error,
+  loadResources,
+  removeResource,
+  pauseResource,
+  resumeResource,
+  loadUptimeStats,
+} = useResources()
 
 const { timeAgo } = useTimeAgo()
 const router = useRouter()
@@ -34,17 +44,6 @@ const filterStatus = ref<string[]>([])
 const filterTags = ref<string[]>([])
 const orderBy = ref<'newest' | 'oldest' | 'up_first' | 'down_first'>('newest')
 
-// Mock data for uptime charts (simulated sparkline data)
-const mockUptimeData = (seed: number) => {
-  const data = []
-  for (let i = 0; i < 20; i++) {
-    // Generate consistent data based on resource
-    const random = Math.sin(seed * 12.9898 + i * 78.233) * 43758.5453
-    data.push(Math.floor((random % 100) + 50))
-  }
-  return data
-}
-
 // Generate mock stats based on timeRange
 const generateMockStats = (timeRange: string) => {
   const ranges = {
@@ -56,18 +55,35 @@ const generateMockStats = (timeRange: string) => {
   return ranges[timeRange as keyof typeof ranges] || ranges['24h']
 }
 
-onMounted(() => {
-  loadResources()
+onMounted(async () => {
+  await loadResources()
+  await loadUptimeStatsForAll()
 })
+
+// Load uptime stats for all resources
+const loadUptimeStatsForAll = async () => {
+  if (!resources.value || resources.value.length === 0) return
+
+  // Load uptime stats for each resource
+  await Promise.all(
+    resources.value.map(async (resource) => {
+      const stats = await loadUptimeStats(resource.id)
+      if (stats) {
+        resource.hourly_uptime = stats
+      }
+    }),
+  )
+}
 
 const openCreateModal = () => {
   editingResource.value = null
   showModal.value = true
 }
 
-const handleFormSubmit = () => {
+const handleFormSubmit = async () => {
   showModal.value = false
-  loadResources()
+  await loadResources()
+  await loadUptimeStatsForAll()
 }
 
 const handleDelete = async (id: string) => {
@@ -116,9 +132,9 @@ const columns = [
   { title: 'Name', dataIndex: 'name', key: 'name', width: 80 },
   { title: 'Type', dataIndex: 'type', key: 'type', width: 25 },
   { title: 'Target', dataIndex: 'target', key: 'target', width: 150 },
-  { title: 'Uptime', dataIndex: 'uptime', key: 'uptime', width: 80 },
+  { title: 'Uptime (24h)', dataIndex: 'uptime', key: 'uptime', width: 120 },
   { title: 'Last Checked', dataIndex: 'last_checked', key: 'last_checked', width: 100 },
-  { title: 'Actions', key: 'actions', width: 10 },
+  { title: 'Actions', key: 'actions', width: 80 },
 ]
 
 // Handle pagination change
@@ -297,20 +313,7 @@ const handleRowClick = (record: Resource) => {
 
             <!-- Uptime Column (Sparkline) -->
             <template v-else-if="column.key === 'uptime'">
-              <div style="display: flex; align-items: flex-end; gap: 1px; height: 20px">
-                <div
-                  v-for="(value, idx) in mockUptimeData(record.id.charCodeAt(0))"
-                  :key="idx"
-                  :style="{
-                    flex: 1,
-                    height: (value / 100) * 20 + 'px',
-                    backgroundColor: value > 95 ? '#52c41a' : value > 80 ? '#faad14' : '#f5222d',
-                    borderRadius: '1px 1px 0 0',
-                    opacity: 0.6 + value / 500,
-                  }"
-                  :title="`${value}% uptime`"
-                ></div>
-              </div>
+              <UptimeSparkline :data="record.hourly_uptime" :height="32" :bar-width="3" />
             </template>
 
             <!-- Last Checked Column -->
@@ -536,15 +539,11 @@ const handleRowClick = (record: Resource) => {
     </a-row>
 
     <!-- Modal -->
-    <a-modal
+    <ResourceModal
       v-model:open="showModal"
-      :title="editingResource ? 'Edit Monitor' : 'New Monitor'"
-      @ok="showModal = false"
-      :footer="null"
-      width="600px"
-    >
-      <ResourceForm :resource="editingResource || undefined" @submit="handleFormSubmit" />
-    </a-modal>
+      :resource="editingResource"
+      @submit="handleFormSubmit"
+    />
   </div>
 </template>
 

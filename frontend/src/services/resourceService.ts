@@ -1,5 +1,5 @@
 import axiosHelper from '../libs/axios.helper'
-import type { CreateResource, Resource, UpdateResource } from '@/types'
+import type { CreateResource, Resource, UpdateResource, HourlyUptimeStat } from '@/types'
 
 /**
  * Fetch all resources (monitors)
@@ -12,8 +12,21 @@ export const fetchResources = async (): Promise<Resource[]> => {
 /**
  * Fetch a single resource by ID
  */
-export const fetchResource = async (id: string): Promise<Resource> => {
-  const { data } = await axiosHelper.get<Resource>(`/resources/${id}`)
+export const fetchResource = async (id: string, limit?: number): Promise<Resource> => {
+  const params = limit ? { limit } : {}
+  const { data } = await axiosHelper.get<Resource>(`/resources/${id}`, { params })
+  return data
+}
+
+/**
+ * Fetch uptime statistics for a resource
+ */
+export const fetchUptimeStats = async (
+  id: string,
+): Promise<{ resource_id: string; stats: HourlyUptimeStat[] }> => {
+  const { data } = await axiosHelper.get<{ resource_id: string; stats: HourlyUptimeStat[] }>(
+    `/resources/${id}/uptime-stats`,
+  )
   return data
 }
 

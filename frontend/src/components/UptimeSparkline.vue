@@ -1,0 +1,156 @@
+<script setup lang="ts">
+import { computed } from 'vue'
+import type { HourlyUptimeStat } from '@/types'
+
+interface Props {
+  data?: HourlyUptimeStat[]
+  height?: number
+  width?: number
+  barWidth?: number
+  gap?: number
+}
+
+const props = withDefaults(defineProps<Props>(), {
+  data: () => [],
+  height: 40,
+  width: 200,
+  barWidth: 4,
+  gap: 2,
+})
+
+// Calculate bar heights based on uptime percentages
+const bars = computed(() => {
+  if (!props.data || props.data.length === 0) return []
+
+  return props.data.map((stat) => {
+    const heightPercent = (stat.uptime_percent / 100) * props.height
+    const color = getBarColor(stat.uptime_percent)
+
+    return {
+      height: Math.max(heightPercent, 2), // Minimum height of 2px
+      color,
+      uptime: stat.uptime_percent,
+      successful: stat.successful_count,
+      total: stat.total_count,
+      hour: stat.hour,
+    }
+  })
+})
+
+// Get color based on uptime percentage
+const getBarColor = (uptime: number): string => {
+  if (uptime >= 95) return '#52c41a' // Green
+  if (uptime >= 80) return '#faad14' // Orange
+  return '#ff4d4f' // Red
+}
+
+// Calculate total width
+const totalWidth = computed(() => {
+  const barCount = bars.value.length
+  return barCount * props.barWidth + (barCount - 1) * props.gap
+})
+
+// Calculate overall uptime percentage
+const overallUptime = computed(() => {
+  if (!props.data || props.data.length === 0) return 0
+
+  const total = props.data.reduce((sum, stat) => sum + stat.uptime_percent, 0)
+  return (total / props.data.length).toFixed(1)
+})
+
+// Format hour for tooltip
+const formatHour = (hour: string): string => {
+  const date = new Date(hour)
+  return date.toLocaleString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+}
+</script>
+
+<template>
+  <div class="uptime-sparkline">
+    <div v-if="bars.length > 0" class="sparkline-container">
+      <div
+        class="sparkline-bars"
+        :style="{
+          height: `${height}px`,
+          width: `${totalWidth}px`,
+        }"
+      >
+        <a-tooltip v-for="(bar, index) in bars" :key="index" placement="top">
+          <template #title>
+            <div style="text-align: left">
+              <div style="font-weight: 600; margin-bottom: 4px">
+                {{ formatHour(bar.hour) }}
+              </div>
+              <div>Uptime: {{ bar.uptime.toFixed(1) }}%</div>
+              <div>{{ bar.successful }}/{{ bar.total }} checks</div>
+            </div>
+          </template>
+          <div
+            class="sparkline-bar"
+            :style="{
+              height: `${bar.height}px`,
+              width: `${barWidth}px`,
+              backgroundColor: bar.color,
+              marginRight: index < bars.length - 1 ? `${gap}px` : '0',
+            }"
+          ></div>
+        </a-tooltip>
+      </div>
+      <div class="sparkline-percentage">{{ overallUptime }}%</div>
+    </div>
+    <div v-else class="sparkline-empty">
+      <span style="font-size: 12px; color: rgba(0, 0, 0, 0.45)">No data</span>
+    </div>
+  </div>
+</template>
+
+<style scoped>
+.uptime-sparkline {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.sparkline-container {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.sparkline-bars {
+  display: flex;
+  align-items: flex-end;
+  gap: 0;
+}
+
+.sparkline-bar {
+  border-radius: 2px 2px 0 0;
+  transition: opacity 0.2s ease;
+  cursor: pointer;
+}
+
+.sparkline-bar:hover {
+  opacity: 0.8;
+}
+
+.sparkline-percentage {
+  font-size: 14px;
+  font-weight: 600;
+  color: rgba(0, 0, 0, 0.85);
+  min-width: 45px;
+  text-align: right;
+}
+
+.sparkline-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 40px;
+  padding: 0 12px;
+}
+</style>

@@ -13,6 +13,8 @@ export function useResources() {
     // Store actions
     loadResources: store.loadResources,
     loadResource: store.loadResource,
+    loadResourceWithResponseTimes: store.loadResourceWithResponseTimes,
+    loadUptimeStats: store.loadUptimeStats,
     addResource: store.addResource,
     removeResource: store.removeResource,
     updateResourceData: store.updateResourceData,

@@ -57,6 +57,7 @@ func NewRouter(
 		r.Post("/{id}/resume", resourceHandler.ResumeResourceMonitoring)              // POST /resources/{id}/resume - resume monitoring
 		r.Post("/{resourceID}/tags", resourceHandler.AddTagsToResource)               // POST /resources/{resourceID}/tags - add tags
 		r.Delete("/{resourceID}/tags/{tagID}", resourceHandler.RemoveTagFromResource) // DELETE /resources/{resourceID}/tags/{tagID} - remove tag
+		r.Get("/{resourceId}/uptime-stats", activityHandler.GetUptimeStats)           // GET /resources/{resourceId}/uptime-stats - get hourly uptime stats
 	})
 
 	// Tags API

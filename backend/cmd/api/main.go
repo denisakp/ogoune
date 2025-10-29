@@ -185,7 +185,7 @@ func main() {
 	log.Println("Initializing API server...")
 
 	// Initialize API services
-	resourceService := service.NewResourceService(resourceRepo, incidentRepo, tagsRepo, schedulerService)
+	resourceService := service.NewResourceService(resourceRepo, incidentRepo, tagsRepo, schedulerService, monitoringActivityRepo)
 	activityService := service.NewMonitoringActivityService(monitoringActivityRepo)
 	tagService := service.NewTagService(tagsRepo)
 	integrationService := service.NewIntegrationService(integrationRepo)

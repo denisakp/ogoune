@@ -6,6 +6,7 @@ import (
 
 	"github.com/denisakp/pulseguard/internal/api/response"
 	"github.com/denisakp/pulseguard/internal/service"
+	"github.com/go-chi/chi/v5"
 )
 
 // MonitoringActivityHandler handles HTTP requests for monitoring activities.
@@ -60,5 +61,28 @@ func (h *MonitoringActivityHandler) ListActivities(w http.ResponseWriter, r *htt
 		"activities": activities,
 		"limit":      limit,
 		"offset":     offset,
+	})
+}
+
+// GetUptimeStats handles GET /resources/{resourceId}/uptime-stats requests.
+// Returns hourly uptime percentage for the last 24 hours.
+func (h *MonitoringActivityHandler) GetUptimeStats(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	resourceID := chi.URLParam(r, "resourceId")
+
+	if resourceID == "" {
+		response.Error(w, http.StatusBadRequest, "Resource ID is required")
+		return
+	}
+
+	stats, err := h.service.GetUptimeStats(ctx, resourceID)
+	if err != nil {
+		response.Error(w, http.StatusInternalServerError, "Failed to fetch uptime stats: "+err.Error())
+		return
+	}
+
+	response.JSON(w, http.StatusOK, map[string]interface{}{
+		"resource_id": resourceID,
+		"stats":       stats,
 	})
 }

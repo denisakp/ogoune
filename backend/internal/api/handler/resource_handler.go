@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"strconv"
 
 	"github.com/denisakp/pulseguard/internal/api/response"
 	"github.com/denisakp/pulseguard/internal/domain"
@@ -18,6 +19,7 @@ import (
 type ResourceServiceInterface interface {
 	CreateResource(ctx context.Context, payload *dto.CreateResourcePayload) error
 	GetResourceByID(ctx context.Context, id string) (*domain.Resource, error)
+	GetResourceByIDWithResponseTimes(ctx context.Context, id string, limit int) (*dto.ResourceResponse, error)
 	UpdateResource(ctx context.Context, id string, payload *dto.UpdateResourcePayload) (*domain.Resource, error)
 	ListAll(ctx context.Context) ([]*domain.Resource, error)
 	DeleteResource(ctx context.Context, resourceID string) error
@@ -91,16 +93,27 @@ func (h *ResourceHandler) CreateResource(w http.ResponseWriter, r *http.Request)
 	respondJSON(w, http.StatusCreated, resource)
 }
 
-// GetResourceByID handles GET /resources/{id} - retrieves a monitoring resource by ID.
+// GetResourceByID handles GET /resources/{id} - retrieves a monitoring resource by ID with response times.
 // URL parameter: id (resource ID)
-// Response: 200 OK with domain.Resource object
+// Query parameter: limit (optional, default 50) - number of recent response times to include
+// Response: 200 OK with dto.ResourceResponse object (includes response times)
 func (h *ResourceHandler) GetResourceByID(w http.ResponseWriter, r *http.Request) {
 	resourceID := chi.URLParam(r, "id")
 	if resourceID == "" {
 		respondError(w, http.StatusBadRequest, "Resource ID is required")
+		return
 	}
 
-	resource, err := h.resourceService.GetResourceByID(r.Context(), resourceID)
+	// Parse optional limit query parameter
+	limit := 50 // default
+	if limitStr := r.URL.Query().Get("limit"); limitStr != "" {
+		if parsedLimit, err := strconv.Atoi(limitStr); err == nil && parsedLimit > 0 {
+			limit = parsedLimit
+		}
+	}
+
+	// Get resource with response times
+	resource, err := h.resourceService.GetResourceByIDWithResponseTimes(r.Context(), resourceID, limit)
 	if err != nil {
 		if errors.Is(err, service.ErrResourceNotFound) {
 			respondError(w, http.StatusNotFound, "Resource not found")

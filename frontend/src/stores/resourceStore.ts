@@ -2,7 +2,7 @@ import { defineStore } from 'pinia'
 import { ref } from 'vue'
 
 import * as resourceService from '@/services/resourceService'
-import type { CreateResource, Resource, UpdateResource } from '@/types'
+import type { CreateResource, Resource, UpdateResource, HourlyUptimeStat } from '@/types'
 
 export const useResourceStore = defineStore('resource', () => {
   const resources = ref<Resource[]>([])
@@ -49,6 +49,50 @@ export const useResourceStore = defineStore('resource', () => {
     } catch (err) {
       error.value = err instanceof Error ? err.message : 'Failed to load resource'
       console.error('Error loading resource:', err)
+      return null
+    } finally {
+      loading.value = false
+    }
+  }
+
+  const loadResourceWithResponseTimes = async (
+    id: string,
+    limit = 50,
+  ): Promise<Resource | null> => {
+    loading.value = true
+    error.value = null
+    try {
+      // Fetch resource with response times included
+      const resource = await resourceService.fetchResource(id, limit)
+
+      // Update or add to local resources array
+      const index = resources.value.findIndex((r) => r.id === id)
+      if (index !== -1) {
+        resources.value[index] = resource
+      } else {
+        resources.value.push(resource)
+      }
+
+      return resource
+    } catch (err) {
+      error.value =
+        err instanceof Error ? err.message : 'Failed to load resource with response times'
+      console.error('Error loading resource with response times:', err)
+      return null
+    } finally {
+      loading.value = false
+    }
+  }
+
+  const loadUptimeStats = async (id: string): Promise<HourlyUptimeStat[] | null> => {
+    loading.value = true
+    error.value = null
+    try {
+      const response = await resourceService.fetchUptimeStats(id)
+      return response.stats
+    } catch (err) {
+      error.value = err instanceof Error ? err.message : 'Failed to load uptime stats'
+      console.error('Error loading uptime stats:', err)
       return null
     } finally {
       loading.value = false
@@ -132,6 +176,8 @@ export const useResourceStore = defineStore('resource', () => {
     error,
     loadResources,
     loadResource,
+    loadResourceWithResponseTimes,
+    loadUptimeStats,
     addResource,
     removeResource,
     updateResourceData,

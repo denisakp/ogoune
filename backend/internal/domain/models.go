@@ -196,3 +196,17 @@ type MonitoringActivity struct {
 }
 
 func (MonitoringActivity) TableName() string { return "monitoring_activities" }
+
+// UptimeStat represents aggregated uptime data for a specific hour
+type UptimeStat struct {
+	Hour            time.Time `json:"hour"`
+	UptimePercent   float64   `json:"uptime_percent"`
+	SuccessfulCount int       `json:"successful_count"`
+	TotalCount      int       `json:"total_count"`
+}
+
+// ResponseTimePoint represents a single response time measurement with timestamp
+type ResponseTimePoint struct {
+	Timestamp    time.Time `json:"timestamp"`
+	ResponseTime int       `json:"response_time"` // in milliseconds
+}

@@ -89,6 +89,8 @@ type MonitoringActivityRepository interface {
 	Create(ctx context.Context, activity *domain.MonitoringActivity) error
 	List(ctx context.Context, limit, offset int) ([]*domain.MonitoringActivity, error)
 	FindByResourceID(ctx context.Context, resourceID string, limit, offset int) ([]*domain.MonitoringActivity, error)
+	GetUptimeStats(ctx context.Context, resourceID string) ([]domain.UptimeStat, error)
+	GetRecentResponseTimes(ctx context.Context, resourceID string, limit int) ([]domain.ResponseTimePoint, error)
 }
 
 // Scheduler defines the interface for scheduling monitoring tasks

@@ -16,6 +16,27 @@ export interface Resource {
   updated_at: string
   tags?: Tag[]
   incidents?: Incident[]
+  uptime?: number // Overall uptime percentage
+  hourly_uptime?: HourlyUptimeStat[] // Hourly uptime data for sparklines
+  response_times?: ResponseTime[] // Response time history
+}
+
+/**
+ * Hourly uptime statistics
+ */
+export interface HourlyUptimeStat {
+  hour: string
+  uptime_percent: number
+  successful_count: number
+  total_count: number
+}
+
+/**
+ * Response time data point
+ */
+export interface ResponseTime {
+  timestamp: string
+  response_time: number // in milliseconds
 }
 
 export interface CreateResource {

@@ -5,25 +5,22 @@ import { message } from 'ant-design-vue'
 
 import { useResources } from '@/composables/useResources'
 import ResourceModal from '@/components/ResourceModal.vue'
+import ResponseTimeChart from '@/components/ResponseTimeChart.vue'
 import type { Resource, Incident } from '@/types'
 import {
   PauseOutlined,
   PlayCircleOutlined,
   ArrowLeftOutlined,
-  EditOutlined,
-  EllipsisOutlined,
+  DashboardOutlined,
+  RiseOutlined,
+  FallOutlined,
 } from '@ant-design/icons-vue'
 
 const router = useRouter()
 const route = useRoute()
 
 // Use the composable following the project architecture
-const {
-  loading,
-  pauseResource,
-  loadResource: loadResourceFromStore,
-  testNotification,
-} = useResources()
+const { loading, pauseResource, loadResourceWithResponseTimes, testNotification } = useResources()
 
 // Local state
 const resource = ref<Resource | null>(null)
@@ -111,7 +108,7 @@ onMounted(async () => {
   await loadResource()
 })
 
-// Load resource using the store
+// Load resource using the store with response times
 const loadResource = async () => {
   if (!resourceId.value) {
     message.error('Resource ID not found')
@@ -119,7 +116,8 @@ const loadResource = async () => {
   }
 
   try {
-    const data = await loadResourceFromStore(resourceId.value)
+    // Use the store method to fetch resource with response times (limit 50)
+    const data = await loadResourceWithResponseTimes(resourceId.value, 50)
     if (data) {
       resource.value = data
     } else {
@@ -341,7 +339,8 @@ const goBack = () => {
                 </div>
               </template>
 
-              <a-row :gutter="24">
+              <!-- Uptime and Incidents Row -->
+              <a-row :gutter="24" style="margin-bottom: 24px">
                 <a-col :xs="24" :sm="12">
                   <div style="text-align: center; padding: 24px">
                     <div style="font-size: 48px; font-weight: bold; color: #52c41a">
@@ -364,22 +363,61 @@ const goBack = () => {
                 </a-col>
               </a-row>
 
-              <!-- Response Time Chart Placeholder -->
+              <!-- Response Time Statistics -->
               <div
+                v-if="resource.response_times && resource.response_times.length > 0"
                 style="
-                  height: 200px;
-                  background: linear-gradient(180deg, rgba(24, 144, 255, 0.1) 0%, transparent 100%);
+                  display: grid;
+                  grid-template-columns: repeat(3, 1fr);
+                  gap: 16px;
+                  padding: 16px;
+                  background: rgba(0, 0, 0, 0.02);
                   border-radius: 8px;
-                  display: flex;
-                  align-items: center;
-                  justify-content: center;
-                  margin-top: 16px;
+                  margin-bottom: 16px;
                 "
               >
-                <div style="text-align: center; color: rgba(0, 0, 0, 0.45)">
-                  <a-icon-line-chart style="font-size: 48px; margin-bottom: 8px" />
-                  <div>Response time chart</div>
+                <!-- Average -->
+                <div style="text-align: center">
+                  <DashboardOutlined style="font-size: 24px; color: #1890ff; margin-bottom: 8px" />
+                  <div
+                    style="font-size: 20px; font-weight: 600; color: #1890ff; margin-bottom: 4px"
+                  >
+                    {{
+                      (
+                        resource.response_times.reduce((sum, r) => sum + r.response_time, 0) /
+                        resource.response_times.length
+                      ).toFixed(0)
+                    }}ms
+                  </div>
+                  <div style="font-size: 12px; color: rgba(0, 0, 0, 0.45)">Average</div>
                 </div>
+
+                <!-- Min -->
+                <div style="text-align: center">
+                  <RiseOutlined style="font-size: 24px; color: #52c41a; margin-bottom: 8px" />
+                  <div
+                    style="font-size: 20px; font-weight: 600; color: #52c41a; margin-bottom: 4px"
+                  >
+                    {{ Math.min(...resource.response_times.map((r) => r.response_time)) }}ms
+                  </div>
+                  <div style="font-size: 12px; color: rgba(0, 0, 0, 0.45)">Min</div>
+                </div>
+
+                <!-- Max -->
+                <div style="text-align: center">
+                  <FallOutlined style="font-size: 24px; color: #ff4d4f; margin-bottom: 8px" />
+                  <div
+                    style="font-size: 20px; font-weight: 600; color: #ff4d4f; margin-bottom: 4px"
+                  >
+                    {{ Math.max(...resource.response_times.map((r) => r.response_time)) }}ms
+                  </div>
+                  <div style="font-size: 12px; color: rgba(0, 0, 0, 0.45)">Max</div>
+                </div>
+              </div>
+
+              <!-- Response Time Chart -->
+              <div>
+                <ResponseTimeChart :data="resource.response_times" :height="300" />
               </div>
             </a-card>
 
@@ -589,6 +627,7 @@ const goBack = () => {
               <div style="text-align: center; padding: 24px; color: rgba(0, 0, 0, 0.45)">
                 <a-icon-info-circle style="font-size: 32px; margin-bottom: 8px" />
                 <div>Monitor is {{ resource.is_active ? 'active' : 'inactive' }}</div>
+                Show SSL and domain expiration here
               </div>
             </a-card>
           </a-col>

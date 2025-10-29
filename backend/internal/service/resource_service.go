@@ -14,10 +14,11 @@ import (
 // This service demonstrates the dependency injection pattern and serves as an example
 // of how to compose repository operations while maintaining clean boundaries.
 type ResourceService struct {
-	resources repository.ResourceRepository
-	incidents repository.IncidentRepository
-	tags      repository.TagsRepository
-	scheduler repository.Scheduler
+	resources          repository.ResourceRepository
+	incidents          repository.IncidentRepository
+	tags               repository.TagsRepository
+	scheduler          repository.Scheduler
+	monitoringActivity repository.MonitoringActivityRepository
 }
 
 // NewResourceService creates a new ResourceService with the given repository dependencies.
@@ -26,12 +27,14 @@ func NewResourceService(
 	incidents repository.IncidentRepository,
 	tags repository.TagsRepository,
 	scheduler repository.Scheduler,
+	monitoringActivity repository.MonitoringActivityRepository,
 ) *ResourceService {
 	return &ResourceService{
-		resources: resources,
-		incidents: incidents,
-		tags:      tags,
-		scheduler: scheduler,
+		resources:          resources,
+		incidents:          incidents,
+		tags:               tags,
+		scheduler:          scheduler,
+		monitoringActivity: monitoringActivity,
 	}
 }
 
@@ -134,6 +137,40 @@ func (s *ResourceService) GetResourceByID(ctx context.Context, id string) (*doma
 
 	return resource, nil
 
+}
+
+// GetResourceByIDWithResponseTimes retrieves a resource by its ID with recent response times.
+func (s *ResourceService) GetResourceByIDWithResponseTimes(ctx context.Context, id string, limit int) (*dto.ResourceResponse, error) {
+	// Get the base resource
+	resource, err := s.GetResourceByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+
+	// Get recent response times
+	responsePoints, err := s.monitoringActivity.GetRecentResponseTimes(ctx, id, limit)
+	if err != nil {
+		// Don't fail the entire request if we can't get response times
+		// Just log and return resource without response times
+		return &dto.ResourceResponse{
+			Resource:      *resource,
+			ResponseTimes: []dto.ResponseTimePoint{},
+		}, nil
+	}
+
+	// Map to DTO response times
+	responseTimes := make([]dto.ResponseTimePoint, len(responsePoints))
+	for i, point := range responsePoints {
+		responseTimes[i] = dto.ResponseTimePoint{
+			Timestamp:    point.Timestamp,
+			ResponseTime: point.ResponseTime,
+		}
+	}
+
+	return &dto.ResourceResponse{
+		Resource:      *resource,
+		ResponseTimes: responseTimes,
+	}, nil
 }
 
 // UpdateResource updates an existing resource by ID with the provided payload.
