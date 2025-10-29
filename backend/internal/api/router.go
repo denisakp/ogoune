@@ -16,6 +16,8 @@ func NewRouter(
 	tagHandler *handler.TagHandler,
 	integrationHandler *handler.IntegrationHandler,
 	statusPageHandler *handler.StatusPageHandler,
+	incidentHandler *handler.IncidentHandler,
+	notificationHandler *handler.NotificationHandler,
 ) http.Handler {
 	r := chi.NewRouter()
 
@@ -48,6 +50,7 @@ func NewRouter(
 	r.Route("/resources", func(r chi.Router) {
 		r.Get("/", resourceHandler.ListResources)                                     // GET /resources - list all resources
 		r.Post("/", resourceHandler.CreateResource)                                   // POST /resources - create new resource
+		r.Get("/{id}", resourceHandler.GetResourceByID)                               // GET /resources/{id} - get resource details
 		r.Patch("/{id}", resourceHandler.UpdateResource)                              // PATCH /resources/{id} - update resource
 		r.Delete("/{id}", resourceHandler.DeleteResource)                             // DELETE /resources/{id} - delete resource
 		r.Post("/{id}/pause", resourceHandler.PauseResourceMonitoring)                // POST /resources/{id}/pause - pause monitoring
@@ -73,6 +76,18 @@ func NewRouter(
 
 	// Monitoring Activities API
 	r.Get("/monitoring-activities", activityHandler.ListActivities) // GET /monitoring-activities - list activities (supports ?resource_id=xxx)
+
+	// Incidents API
+	r.Route("/incidents", func(r chi.Router) {
+		r.Get("/", incidentHandler.ListIncidents)                         // GET /incidents - list all incidents (supports ?unresolved=true, ?limit=x, ?offset=y)
+		r.Get("/{id}", incidentHandler.GetIncidentDetail)                 // GET /incidents/{id} - get incident details with event steps
+		r.Get("/{id}/event-steps", incidentHandler.GetIncidentEventSteps) // GET /incidents/{id}/event-steps - get event steps for incident
+	})
+
+	// Notifications API
+	r.Route("/notifications", func(r chi.Router) {
+		r.Post("/test", notificationHandler.TestNotification) // POST /notifications/test - send test notification for a resource
+	})
 
 	return r
 }

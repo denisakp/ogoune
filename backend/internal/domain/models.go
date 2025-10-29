@@ -68,7 +68,7 @@ type Resource struct {
 	Status       ResourceStatus `json:"status" gorm:"default:pending"`
 	IsActive     bool           `json:"is_active" gorm:"default:true"`
 	FailureCount int            `json:"failure_count" gorm:"default:0"`
-	Incidents    []Incident     `json:"-"`
+	Incidents    []Incident     `json:"incidents"`
 	Tags         []*Tags        `json:"tags" gorm:"many2many:resource_tags;"`
 }
 
@@ -84,7 +84,7 @@ type Incident struct {
 	ResolvedAt *time.Time          `json:"resolved_at" gorm:"index"` // nil = active, timestamp = resolved
 	StartedAt  time.Time           `json:"started_at" gorm:"index"`
 	Details    []byte              `json:"details"`
-	EventStep  []IncidentEventStep `json:"-"`
+	EventStep  []IncidentEventStep `json:"event_steps"`
 }
 
 func (Incident) TableName() string { return "incidents" }

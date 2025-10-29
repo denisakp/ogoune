@@ -17,6 +17,7 @@ import (
 // This interface allows for better testing by enabling mock implementations.
 type ResourceServiceInterface interface {
 	CreateResource(ctx context.Context, payload *dto.CreateResourcePayload) error
+	GetResourceByID(ctx context.Context, id string) (*domain.Resource, error)
 	UpdateResource(ctx context.Context, id string, payload *dto.UpdateResourcePayload) (*domain.Resource, error)
 	ListAll(ctx context.Context) ([]*domain.Resource, error)
 	DeleteResource(ctx context.Context, resourceID string) error
@@ -88,6 +89,28 @@ func (h *ResourceHandler) CreateResource(w http.ResponseWriter, r *http.Request)
 
 	// Respond with created resource (now includes generated ID from database)
 	respondJSON(w, http.StatusCreated, resource)
+}
+
+// GetResourceByID handles GET /resources/{id} - retrieves a monitoring resource by ID.
+// URL parameter: id (resource ID)
+// Response: 200 OK with domain.Resource object
+func (h *ResourceHandler) GetResourceByID(w http.ResponseWriter, r *http.Request) {
+	resourceID := chi.URLParam(r, "id")
+	if resourceID == "" {
+		respondError(w, http.StatusBadRequest, "Resource ID is required")
+	}
+
+	resource, err := h.resourceService.GetResourceByID(r.Context(), resourceID)
+	if err != nil {
+		if errors.Is(err, service.ErrResourceNotFound) {
+			respondError(w, http.StatusNotFound, "Resource not found")
+			return
+		}
+		respondError(w, http.StatusInternalServerError, "Failed to retrieve resource: "+err.Error())
+		return
+	}
+
+	respondJSON(w, http.StatusOK, resource)
 }
 
 // ListResources handles GET /resources - retrieves all monitoring resources.

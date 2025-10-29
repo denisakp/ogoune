@@ -35,6 +35,36 @@ func NewResourceService(
 	}
 }
 
+// findOrCreateTags finds existing tags by name or creates new ones if they don't exist.
+// It accepts tag names as strings and returns tag entities.
+func (s *ResourceService) findOrCreateTags(ctx context.Context, tagNames []string) ([]*domain.Tags, error) {
+	var tags []*domain.Tags
+
+	for _, tagName := range tagNames {
+		// Try to find the tag by name
+		tag, err := s.tags.FindByName(ctx, tagName)
+		if err != nil {
+			if errors.Is(err, repository.ErrNotFound) {
+				// Tag doesn't exist, create it
+				newTag := &domain.Tags{
+					Name: tagName,
+				}
+				if err := s.tags.Create(ctx, newTag); err != nil {
+					return nil, fmt.Errorf("failed to create tag '%s': %w", tagName, err)
+				}
+				tags = append(tags, newTag)
+			} else {
+				return nil, fmt.Errorf("failed to find tag '%s': %w", tagName, err)
+			}
+		} else {
+			// Tag exists, use it
+			tags = append(tags, tag)
+		}
+	}
+
+	return tags, nil
+}
+
 // CreateResource creates a new resource using domain validation and persistence.
 // After successful creation, it schedules monitoring for the resource.
 func (s *ResourceService) CreateResource(ctx context.Context, payload *dto.CreateResourcePayload) error {
@@ -53,14 +83,11 @@ func (s *ResourceService) CreateResource(ctx context.Context, payload *dto.Creat
 		Status:   domain.StatusPending,
 	}
 
-	// fetch tags by id if provided
+	// Find or create tags by name if provided
 	if len(payload.Tags) > 0 {
-		tags, err := s.tags.FindByIDs(ctx, payload.Tags)
+		tags, err := s.findOrCreateTags(ctx, payload.Tags)
 		if err != nil {
-			if errors.Is(err, repository.ErrNotFound) {
-				return fmt.Errorf("%w: one or more tags not found", ErrValidationFailed)
-			}
-			return err
+			return fmt.Errorf("failed to process tags: %w", err)
 		}
 		resource.Tags = tags
 	}
@@ -78,6 +105,35 @@ func (s *ResourceService) CreateResource(ctx context.Context, payload *dto.Creat
 	}
 
 	return nil
+}
+
+// GetResourceByID retrieves a resource by its ID.
+func (s *ResourceService) GetResourceByID(ctx context.Context, id string) (*domain.Resource, error) {
+	resource, err := s.resources.FindByID(ctx, id)
+	if err != nil {
+		if errors.Is(err, repository.ErrNotFound) {
+			return nil, ErrResourceNotFound
+		}
+		return nil, err
+	}
+
+	// load incidents
+	// load incidents and convert to the expected value slice type
+	incidentPtrs, err := s.incidents.FindByResource(ctx, id, 100, 0) // default limit 100
+	if err != nil {
+		return nil, fmt.Errorf("failed to load incidents for resource: %w", err)
+	}
+	incidents := make([]domain.Incident, 0, len(incidentPtrs))
+	for _, inc := range incidentPtrs {
+		if inc == nil {
+			continue
+		}
+		incidents = append(incidents, *inc)
+	}
+	resource.Incidents = incidents
+
+	return resource, nil
+
 }
 
 // UpdateResource updates an existing resource by ID with the provided payload.
@@ -114,12 +170,10 @@ func (s *ResourceService) UpdateResource(ctx context.Context, id string, payload
 
 	if payload.Tags != nil {
 		if len(*payload.Tags) > 0 {
-			tags, err := s.tags.FindByIDs(ctx, *payload.Tags)
+			// Find or create tags by name
+			tags, err := s.findOrCreateTags(ctx, *payload.Tags)
 			if err != nil {
-				if errors.Is(err, repository.ErrNotFound) {
-					return nil, fmt.Errorf("%w: one or more tags not found", ErrValidationFailed)
-				}
-				return nil, err
+				return nil, fmt.Errorf("failed to process tags: %w", err)
 			}
 			resource.Tags = tags
 		} else {
