@@ -1,90 +1,72 @@
-# Copilot Project Instructions (Pulseguard)
+# Copilot Instructions for Pulseguard
 
-Purpose: Enable AI coding agents to contribute productively and consistently to the Pulseguard Go codebase.
-Keep responses practical, incremental, and aligned with the asynchronous API+Worker architecture.
+Purpose: help AI coding agents be productive immediately in this monorepo. Keep changes aligned with the existing layering, data flow, and tooling.
 
-## Core Architecture (Must Respect)
+## Big picture
 
-- Two deployable binaries: `cmd/api` (HTTP + templates) and `cmd/worker` (job processor).
-- All monitor execution happens in workers. API must enqueue jobs (never perform checks inline).
-- Layers (clean boundaries):
-  1. `internal/domain` – pure business types & logic (no HTTP, DB, Redis).
-  2. `internal/repository` – persistence + queue abstractions (Postgres, Redis impls in subfolders).
-  3. `internal/api` – HTTP routing, handlers, request/response mapping, template rendering.
-  4. `internal/worker` – job polling + dispatch to domain logic.
-  5. `pkg/notifier` – outward notification clients (Slack, Email, etc.) suitable for reuse.
-- `web/template` (Go html/templates + partials) and `web/static` (CSS/JS) – prefer HTMX partial updates.
+- Monorepo with two apps:
+  - `backend/` Go API + background worker + scheduler (Asynq/Redis) + Postgres via GORM.
+  - `frontend/` Vue 3 + TS (Vite), Axios service layer, Pinia stores/composables, Ant Design Vue UI.
+- Runtime flow:
+  1. API writes/reads via repositories; scheduling is delegated to a Scheduler service (no checks in handlers).
+  2. Scheduler enqueues monitoring tasks in Redis (Asynq).
+  3. Worker executes checks using strategies, persists activities, drives incident lifecycle, sends notifications.
+  4. Frontend consumes JSON endpoints, never hits DB directly.
 
-## When Adding Code
+## How to run (local)
 
-- Put new business rules in `internal/domain/*` with small, testable functions.
-- Define interfaces for persistence in `internal/repository` (e.g., `MonitorStore`, `CheckResultStore`). Implement Postgres in `repository/postgres`, queue/cache in `repository/redis`.
-- API layer: accept/validate input -> call domain -> enqueue (Redis) or query repos -> render template or JSON.
-- Worker: consume queue message -> invoke domain check executor -> persist results -> trigger notifier(s).
-- Never import `internal/api` from domain or repositories; enforce one-way dependency (domain is ignorant of infra).
+- Backend (requires Docker for Postgres + Redis):
+  - From repo root: `make docker-up` then `make run` (runs API+worker). Health: `GET /health`.
+  - Env vars: see `backend/.env.example` (PORT, DATABASE*URL, REDIS_URL, SMTP*\*).
+  - Tests: `make test` (alias for `go test -v ./...`). Build: `make build`.
+- Frontend:
+  - `cd frontend && pnpm install && pnpm dev` with `VITE_API_BASE_URL=http://localhost:8080`.
 
-## Conventions
+## Backend architecture and conventions
 
-- Go version: from `go.mod` (currently 1.25.x). Use stdlib first; only add deps with clear justification.
-- File/package naming: lowercase, short, domain-oriented (`sslcheck`, `uptime`, `scheduler`). Avoid generic `utils`.
-- Errors: return rich `error` values; wrap with `fmt.Errorf("context: %w", err)` at boundaries.
-- Configuration: centralize future env parsing in `internal/config/config.go` (expand instead of scattering `os.Getenv`).
-- Jobs: model as small structs (e.g., `CheckJob{MonitorID, Type, ScheduledAt}`) serialized for Redis (JSON unless a better encoding is added). Keep stable for backward compatibility.
-- Templates: prefer small partials that map to route handlers (e.g., `/monitors/list` -> `monitors/list.html`). HTMX responses should return only the fragment required.
-- **Database**: Use `internal/repository/postgres/database` package for all DB access. Call `database.Init()` once at startup, use `database.Instance()` in repositories. GORM auto-migration handles schema changes. Pool settings: MaxOpen=25, MaxIdle=5, 30m lifetime.
+- Entry point: `backend/cmd/api/main.go`
+  - Bootstraps DB, repositories, Asynq (client/inspector/scheduler), worker, HTTP server.
+  - Registers monitoring strategies: HTTP/TCP in `internal/monitoring/strategy/*` via a map in `main.go`.
+- HTTP layer:
+  - Router: `internal/api/router.go` (Chi). JSON-only; CORS enabled; sets `Content-Type: application/json`.
+  - Handlers in `internal/api/handler/*` call services; handlers do not perform DB queries or checks directly.
+- Services layer (`internal/service/*`): orchestrates repositories + scheduler, applies domain validation.
+  - Example: `ResourceService` schedules/unschedules via `repository.Scheduler`; uses `ErrValidationFailed`, `ErrResourceNotFound` (see `internal/service/errors.go`).
+- Repositories (`internal/repository/*`): interfaces in `interfaces.go`, Postgres impls under `postgres/`.
+- Monitoring runtime (`internal/worker/*`, `internal/monitoring/*`):
+  - Worker `Processor` consumes `monitoring:check` tasks.
+  - `MonitoringTaskHandler` executes checks via `domain.CheckExecutor` and updates resource status.
+  - Incident rules: incident is created on the 3rd consecutive DOWN; resolving triggers when UP after DOWN.
+  - Notifications (two layers): default SMTP (if enabled) + user integrations (Slack/Discord/Google Chat) via `pkg/notifier/*` and `NotifierFactory`.
 
-## Testing (Establish Early)
+## Frontend architecture and conventions
 
-- Unit tests for domain packages (no external calls). Table-driven style.
-- Repository tests may use a temporary Postgres (later: use docker or testcontainers) – if not available yet, scaffold interfaces + in‑memory fake to unblock logic tests.
-- Worker logic: test job -> side-effects using mock interfaces (define minimal interfaces to allow this).
+- Do not call Axios from components.
+  - HTTP in `src/services/*` using `src/libs/axios.helper.ts` (base URL from `VITE_API_BASE_URL`).
+  - State via Pinia stores and thin composables (e.g., `src/composables/useResources.ts` wraps `src/stores/resourceStore.ts`).
+- Routing: `src/router/index.ts` (Monitors, Incidents, Activities, Settings routes).
+- Types: centralised in `src/types/index.ts`; keep service return types and component props aligned.
 
-## Adding a New Monitor Type (Pattern)
+## When adding features
 
-1. Add core type & validation in `internal/domain/monitor` (e.g., `type SSLMonitor struct {...}`).
-2. Extend a generic `Monitor` model or registry map (`Type -> executor`).
-3. Implement check executor in `internal/domain/check` (pure function returning result struct).
-4. Repository additions (schema, migrations later) + method on `MonitorStore`.
-5. API: create form handler -> validate -> store -> enqueue initial check.
-6. Worker: dispatch on job type -> call executor -> persist -> call notifiers.
+- New API endpoint:
+  1. Define service method in `internal/service/*` using repository interfaces.
+  2. Add handler in `internal/api/handler/*` and route in `internal/api/router.go`.
+  3. If scheduling/monitoring-related, go through `repository.Scheduler` instead of running checks.
+- New monitor type:
+  - Implement `domain.CheckStrategy` in `internal/monitoring/strategy/`, register in `main.go` strategies map.
+- Frontend page/feature:
+  - Add service in `src/services/`, types in `src/types/`, composable/store in `src/composables/` or `src/stores/`, route in `src/router/index.ts`, and a view in `src/views/`.
 
-## Notifications
+## Gotchas and project-specific patterns
 
-- Place provider-specific code in `pkg/notifier/<provider>.go` returning a simple interface `Send(ctx, message)`.
-- Keep formatting decisions near the notifier (not spread through worker logic).
+- IDs are ULIDs (set in `domain.Base.BeforeCreate`). GORM models live in `internal/domain/*`.
+- Repository errors: map `repository.ErrNotFound` to service-level errors used by handlers.
+- All API responses are JSON; keep CORS headers intact; avoid blocking on scheduler failures (log, return domain error like `ErrSchedulerSync`).
+- Incident event steps (`detected`, `resource_down_alert`, `resolved`, `resource_up_alert`) are persisted; don’t assume steps are always present.
+- Frontend uses Ant Design Vue; components should stay presentational and delegate logic to services/stores.
 
-## Performance & Scalability Hooks
+## Key files to reference
 
-- Ensure any blocking I/O (network checks) runs in goroutines batched by worker concurrency limit (config-driven later).
-- Cache recent check results in Redis (read path in API should first attempt cache once that layer exists).
-
-## Safe Changes / Guardrails
-
-- Do not collapse directory layering even though current files are skeletal—future growth depends on this separation.
-- Do not add runtime dependencies in domain (no SQL, Redis, HTTP clients there).
-- Keep new public types in `pkg/` minimal and stability-minded (prefer internal until stable).
-
-## Minimal TODO Seeds (Acceptable to Implement Incrementally)
-
-- Populate `internal/config/config.go` with struct + loader stub.
-- Implement router scaffolding in `internal/api/router.go` with Chi (defer advanced middleware until needed).
-- Introduce job struct & interface definitions in repositories to unblock worker implementation.
-
-## Example: Enqueue Flow (Target Pattern)
-
-(API handler) parse form -> build domain command `CreateMonitorCmd` -> repo.Save(...) -> queue.Enqueue(CheckJob{MonitorID,...}). Return 202 + HTMX swap.
-(Worker) queue.Pop() -> resolve executor -> result := executor.Run(ctx, monitor) -> repo.RecordResult(result) -> notifier.Send(...)
-
-## What NOT To Do
-
-- Don’t perform monitor checks directly in API handlers.
-- Don’t let infra types (Redis/Postgres clients) leak into domain code.
-- Don’t create circular imports (respect direction: api -> domain & repos; worker -> domain & repos; domain -> stdlib only).
-
-## Agent Response Expectations
-
-- Before coding: restate intent + placement (package & file) succinctly.
-- Prefer small, incremental PR-sized edits (one concern per change).
-- Provide follow-up suggestions after implementing a request (tests, docs, edge handling).
-
-Feedback Welcome: If any ambiguity (e.g., naming a new interface) surface 1–2 options, pick a default, proceed unless explicitly blocked.
+- Backend: `cmd/api/main.go`, `internal/api/router.go`, `internal/service/resource_service.go`, `internal/worker/handler_monitoring.go`, `internal/monitoring/incident_service.go`, `internal/repository/interfaces.go`, `internal/domain/models.go`.
+- Frontend: `src/libs/axios.helper.ts`, `src/services/resourceService.ts`, `src/composables/useResources.ts`, `src/router/index.ts`, `src/types/index.ts`, `src/App.vue`.
