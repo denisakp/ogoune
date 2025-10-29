@@ -4,24 +4,57 @@ import { ref } from 'vue'
 import * as resourceService from '@/services/resourceService'
 import type { CreateResource, Resource, UpdateResource } from '@/types'
 
-export const useResourceStore = defineStore('resource', () => { 
+export const useResourceStore = defineStore('resource', () => {
   const resources = ref<Resource[]>([])
   const loading = ref(false)
   const error = ref<string | null>(null)
-  
-  const loadResources = async () => { 
+
+  const loadResources = async () => {
     loading.value = true
     error.value = null
-    try { 
+    try {
       resources.value = await resourceService.fetchResources()
-    } catch (err) { 
+    } catch (err) {
       error.value = err instanceof Error ? err.message : 'Failed to load resources'
       console.error('Error loading resources:', err)
-    } finally { 
+    } finally {
       loading.value = false
-    } 
+    }
   }
-  
+
+  const loadResource = async (id: string): Promise<Resource | null> => {
+    loading.value = true
+    error.value = null
+    try {
+      // Asynchronously fetch the single resource data from the service using its ID.
+      const resource = await resourceService.fetchResource(id)
+
+      // Find the index of the resource in our local `resources` array.
+      // This is to check if we already have a version of this resource stored locally.
+      const index = resources.value.findIndex((r) => r.id === id)
+
+      // If the resource is found in the local array (index is not -1)...
+      if (index !== -1) {
+        // ...update the item at that index with the newly fetched resource data.
+        // This keeps our local cache in sync.
+        resources.value[index] = resource
+      } else {
+        // If the resource is not in the local array...
+        // ...add the newly fetched resource to the end of the array.
+        resources.value.push(resource)
+      }
+
+      // Return the fetched resource so the calling component can use it.
+      return resource
+    } catch (err) {
+      error.value = err instanceof Error ? err.message : 'Failed to load resource'
+      console.error('Error loading resource:', err)
+      return null
+    } finally {
+      loading.value = false
+    }
+  }
+
   const addResource = async (resource: CreateResource) => {
     try {
       await resourceService.createResource(resource)
@@ -33,7 +66,7 @@ export const useResourceStore = defineStore('resource', () => {
       return false
     }
   }
-  
+
   const removeResource = async (id: string) => {
     try {
       await resourceService.deleteResource(id)
@@ -45,7 +78,7 @@ export const useResourceStore = defineStore('resource', () => {
       return false
     }
   }
-  
+
   const updateResourceData = async (id: string, updates: UpdateResource) => {
     try {
       await resourceService.updateResource(id, updates)
@@ -57,7 +90,7 @@ export const useResourceStore = defineStore('resource', () => {
       return false
     }
   }
-  
+
   const pauseMonitoring = async (id: string) => {
     try {
       await resourceService.pauseResource(id)
@@ -69,7 +102,7 @@ export const useResourceStore = defineStore('resource', () => {
       return false
     }
   }
-  
+
   const resumeMonitoring = async (id: string) => {
     try {
       await resourceService.resumeResource(id)
@@ -81,16 +114,29 @@ export const useResourceStore = defineStore('resource', () => {
       return false
     }
   }
-  
+
+  const testNotification = async (resourceId: string) => {
+    try {
+      await resourceService.testNotification(resourceId)
+      return true
+    } catch (err) {
+      error.value = err instanceof Error ? err.message : 'Failed to send test notification'
+      console.error('Error sending test notification:', err)
+      return false
+    }
+  }
+
   return {
     resources,
     loading,
     error,
     loadResources,
+    loadResource,
     addResource,
     removeResource,
     updateResourceData,
     pauseMonitoring,
     resumeMonitoring,
+    testNotification,
   }
-});
+})

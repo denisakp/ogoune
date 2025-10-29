@@ -5,8 +5,8 @@ import type { CreateTag, Tag } from '@/types'
  * Fetch all tags
  */
 export const fetchTags = async (): Promise<Tag[]> => {
-  const {data} = await axiosHelper.get<Tag[]>('/tags');
-  return data;
+  const { data } = await axiosHelper.get<Tag[]>('/tags')
+  return data
 }
 
 /**
@@ -14,7 +14,7 @@ export const fetchTags = async (): Promise<Tag[]> => {
  */
 export const fetchTag = async (id: string): Promise<Tag> => {
   const { data } = await axiosHelper.get<Tag>(`/tags/${id}`)
-  return data;
+  return data
 }
 
 /**
@@ -22,7 +22,7 @@ export const fetchTag = async (id: string): Promise<Tag> => {
  */
 export const createTag = async (tag: CreateTag): Promise<Tag> => {
   const { data } = await axiosHelper.post<Tag>('/tags', tag)
-  return data;
+  return data
 }
 
 /**
@@ -30,7 +30,7 @@ export const createTag = async (tag: CreateTag): Promise<Tag> => {
  */
 export const updateTag = async (id: string, tag: Partial<Tag>): Promise<Tag> => {
   const { data } = await axiosHelper.patch<Tag>(`/tags/${id}`, tag)
-  return data;
+  return data
 }
 
 /**

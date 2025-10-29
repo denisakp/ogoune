@@ -28,7 +28,10 @@ export const createIntegration = async (integration: CreateIntegration): Promise
 /**
  * Update an existing integration
  */
-export const updateIntegration = async (id: string,integration: Partial<Integration>): Promise<Integration> => {
+export const updateIntegration = async (
+  id: string,
+  integration: Partial<Integration>,
+): Promise<Integration> => {
   const { data } = await axiosHelper.patch<Integration>(`/integrations/${id}`, integration)
   return data
 }

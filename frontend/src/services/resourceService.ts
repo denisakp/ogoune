@@ -5,7 +5,7 @@ import type { CreateResource, Resource, UpdateResource } from '@/types'
  * Fetch all resources (monitors)
  */
 export const fetchResources = async (): Promise<Resource[]> => {
-  const { data } = await axiosHelper.get<Resource[]>('/resources');
+  const { data } = await axiosHelper.get<Resource[]>('/resources')
   return data
 }
 
@@ -13,8 +13,7 @@ export const fetchResources = async (): Promise<Resource[]> => {
  * Fetch a single resource by ID
  */
 export const fetchResource = async (id: string): Promise<Resource> => {
-  const { data } = await axiosHelper.get<Resource>(`/resources/${id}`);
-  console.log('Fetched resource:', data);
+  const { data } = await axiosHelper.get<Resource>(`/resources/${id}`)
   return data
 }
 
@@ -29,7 +28,7 @@ export const createResource = async (resource: CreateResource): Promise<Resource
 /**
  * Update an existing resource
  */
-export const updateResource = async (id: string,resource: UpdateResource): Promise<Resource> => {
+export const updateResource = async (id: string, resource: UpdateResource): Promise<Resource> => {
   const { data } = await axiosHelper.patch<Resource>(`/resources/${id}`, resource)
   return data
 }
@@ -46,7 +45,7 @@ export const deleteResource = async (id: string): Promise<void> => {
  */
 export const pauseResource = async (id: string): Promise<Resource> => {
   const { data } = await axiosHelper.post<Resource>(`/resources/${id}/pause`, {})
-  return data;
+  return data
 }
 
 /**
@@ -54,7 +53,7 @@ export const pauseResource = async (id: string): Promise<Resource> => {
  */
 export const resumeResource = async (id: string): Promise<Resource> => {
   const { data } = await axiosHelper.post<Resource>(`/resources/${id}/resume`, {})
-  return data;
+  return data
 }
 
 /**
@@ -69,4 +68,13 @@ export const addTagsToResource = async (resourceId: string, tagIds: string[]): P
  */
 export const removeTagFromResource = async (resourceId: string, tagId: string): Promise<void> => {
   await axiosHelper.delete(`/resources/${resourceId}/tags/${tagId}`)
+}
+
+/**
+ *  send test notification for a resource
+ * @param resourceId
+ */
+export const testNotification = async (resourceId: string) => {
+  const { data } = await axiosHelper.post(`/notifications/test`, { resource_id: resourceId })
+  return data
 }

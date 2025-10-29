@@ -12,9 +12,7 @@ const activeKey = ref(1)
     <div class="settings">
       <div>
         <h1>Settings</h1>
-        <p>
-          Configure integrations, tags, and general settings
-        </p>
+        <p>Configure integrations, tags, and general settings</p>
       </div>
     </div>
     <a-tabs v-model:activeKey="activeKey">
@@ -40,11 +38,11 @@ const activeKey = ref(1)
 .settings h1 {
   font-size: 28px;
   font-weight: bold;
-  margin: 0
+  margin: 0;
 }
 
 .settings p {
   color: rgba(0, 0, 0, 0.45);
-  margin-top: 8px
+  margin-top: 8px;
 }
 </style>

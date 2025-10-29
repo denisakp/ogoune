@@ -15,6 +15,7 @@ export interface Resource {
   created_at: string
   updated_at: string
   tags?: Tag[]
+  incidents?: Incident[]
 }
 
 export interface CreateResource {
@@ -135,17 +136,49 @@ export interface MonitoringActivity {
 }
 
 /**
+ * Incident event step types
+ */
+export type IncidentEventStepType =
+  | 'detected'
+  | 'resolved'
+  | 'alert_sent'
+  | 'resource_down_alert'
+  | 'resource_up_alert'
+
+/**
+ * Incident event step represents a step in the lifecycle of an incident
+ */
+export interface IncidentEventStep {
+  id: string
+  incident_id: string
+  step: IncidentEventStepType
+  message?: string
+  created_at: string
+  updated_at: string
+}
+
+/**
  * Incident represents a detected downtime event
  */
 export interface Incident {
   id: string
   resource_id: string
+  resource?: Resource
   reason: string
   cause: string
   started_at: string
-  resolved_at?: string
+  resolved_at?: string | null
+  details?: string
+  event_steps?: IncidentEventStep[]
   created_at: string
   updated_at: string
+}
+
+export interface IncidentsQueryParams {
+  unresolved?: boolean
+  limit?: number
+  offset?: number
+  resource_id?: string
 }
 
 /**

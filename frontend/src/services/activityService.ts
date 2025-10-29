@@ -6,13 +6,15 @@ import type { MonitoringActivity } from '@/types'
  */
 export const fetchActivities = async (resourceId?: string): Promise<MonitoringActivity[]> => {
   const params = resourceId ? { resource_id: resourceId } : {}
-  const { data } = await axiosHelper.get<MonitoringActivity[]>('/monitoring-activities', {params})
+  const { data } = await axiosHelper.get<MonitoringActivity[]>('/monitoring-activities', { params })
   return data
 }
 
 /**
  * Fetch activities for a specific resource
  */
-export const fetchActivityByResource = async (resourceId: string): Promise<MonitoringActivity[]> => {
+export const fetchActivityByResource = async (
+  resourceId: string,
+): Promise<MonitoringActivity[]> => {
   return fetchActivities(resourceId)
 }

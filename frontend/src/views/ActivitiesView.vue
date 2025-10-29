@@ -31,19 +31,38 @@ const columns = [
   <div style="padding: 24px">
     <div style="margin-bottom: 24px">
       <h1 style="font-size: 28px; font-weight: bold; margin: 0">Monitoring Activities</h1>
-      <p style="color: rgba(0,0,0,0.45); margin-top: 8px">View all monitoring check results</p>
+      <p style="color: rgba(0, 0, 0, 0.45); margin-top: 8px">View all monitoring check results</p>
     </div>
 
-    <a-alert message="WebSocket Integration" description="This page will be upgraded with real-time WebSocket updates" type="info" show-icon style="margin-bottom: 16px" />
+    <a-alert
+      message="WebSocket Integration"
+      description="This page will be upgraded with real-time WebSocket updates"
+      type="info"
+      show-icon
+      style="margin-bottom: 16px"
+    />
 
-    <a-alert v-if="error" message="Error" :description="error" type="error" show-icon style="margin-bottom: 16px" />
+    <a-alert
+      v-if="error"
+      message="Error"
+      :description="error"
+      type="error"
+      show-icon
+      style="margin-bottom: 16px"
+    />
 
     <div v-if="loading" style="text-align: center; padding: 48px">
       <a-spin size="large" />
     </div>
 
     <a-card v-else title="Activities List" :bordered="false">
-      <a-table :columns="columns" :data-source="activities" :loading="loading" :pagination="false" row-key="id">
+      <a-table
+        :columns="columns"
+        :data-source="activities"
+        :loading="loading"
+        :pagination="false"
+        row-key="id"
+      >
         <template #bodyCell="{ column, record }">
           <template v-if="column.key === 'success'">
             <a-tag :color="record.success ? 'green' : 'red'">
