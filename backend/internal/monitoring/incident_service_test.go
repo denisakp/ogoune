@@ -442,7 +442,6 @@ func TestIncidentService_IntegrationFiltering_UpEvent(t *testing.T) {
 		Base:       domain.Base{ID: "incident-1"},
 		ResourceID: resource.ID,
 		Resource:   *resource,
-		Reason:     "Test incident",
 		Cause:      "connection_timeout",
 		ResolvedAt: nil,
 		StartedAt:  time.Now().Add(-5 * time.Minute),

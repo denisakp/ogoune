@@ -85,7 +85,8 @@ func (h *MonitoringTaskHandler) ProcessTask(ctx context.Context, task *asynq.Tas
 
 	currentResultStatus := domain.ResourceStatus(result.Status)
 
-	if currentResultStatus == domain.StatusUp {
+	switch currentResultStatus {
+	case domain.StatusUp:
 		// Resource is UP
 		if previousStatus == domain.StatusDown {
 			// This is a RECOVERY - resource was down, now it's up
@@ -103,7 +104,7 @@ func (h *MonitoringTaskHandler) ProcessTask(ctx context.Context, task *asynq.Tas
 			return fmt.Errorf("failed to update resource status: %w", err)
 		}
 
-	} else if currentResultStatus == domain.StatusDown {
+	case domain.StatusDown:
 		// Resource is DOWN - increment failure count
 		resource.FailureCount++
 		resource.Status = domain.StatusDown
@@ -119,7 +120,7 @@ func (h *MonitoringTaskHandler) ProcessTask(ctx context.Context, task *asynq.Tas
 				fmt.Printf("Warning: failed to create incident on 3rd failure: %v\n", err)
 			}
 		}
-	} else {
+	default:
 		// Handle other statuses (error, unknown, etc.)
 		resource.Status = currentResultStatus
 		resource.LastChecked = &[]time.Time{time.Now()}[0]

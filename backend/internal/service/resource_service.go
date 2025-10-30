@@ -19,6 +19,7 @@ type ResourceService struct {
 	tags               repository.TagsRepository
 	scheduler          repository.Scheduler
 	monitoringActivity repository.MonitoringActivityRepository
+	enrichment         *EnrichmentService
 }
 
 // NewResourceService creates a new ResourceService with the given repository dependencies.
@@ -28,6 +29,7 @@ func NewResourceService(
 	tags repository.TagsRepository,
 	scheduler repository.Scheduler,
 	monitoringActivity repository.MonitoringActivityRepository,
+	enrichment *EnrichmentService,
 ) *ResourceService {
 	return &ResourceService{
 		resources:          resources,
@@ -35,6 +37,7 @@ func NewResourceService(
 		tags:               tags,
 		scheduler:          scheduler,
 		monitoringActivity: monitoringActivity,
+		enrichment:         enrichment,
 	}
 }
 
@@ -84,6 +87,15 @@ func (s *ResourceService) CreateResource(ctx context.Context, payload *dto.Creat
 		Target:   payload.Target,
 		IsActive: true,
 		Status:   domain.StatusPending,
+	}
+
+	if metadata, err := s.enrichment.Enrich(ctx, resource); err == nil && metadata != nil {
+		resource.Metadata = &domain.ResourceMetaData{
+			SSLExpirationDate:    metadata.SSLExpirationDate,
+			SSLIssuer:            metadata.SSLIssuer,
+			DomainExpirationDate: metadata.DomainExpirationDate,
+			DomainRegistrar:      metadata.DomainRegistrar,
+		}
 	}
 
 	// Find or create tags by name if provided
@@ -205,13 +217,23 @@ func (s *ResourceService) UpdateResource(ctx context.Context, id string, payload
 		resource.IsActive = *payload.IsActive
 	}
 
+	// Handle tags update: payload.Tags contains tag IDs (not names)
+	// We fetch existing tags by ID and replace the resource's tag associations
 	if payload.Tags != nil {
 		if len(*payload.Tags) > 0 {
-			// Find or create tags by name
-			tags, err := s.findOrCreateTags(ctx, *payload.Tags)
-			if err != nil {
-				return nil, fmt.Errorf("failed to process tags: %w", err)
+			// Fetch existing tags by ID (not create new ones)
+			var tags []*domain.Tags
+			for _, tagID := range *payload.Tags {
+				tag, err := s.tags.FindByID(ctx, tagID)
+				if err != nil {
+					if errors.Is(err, repository.ErrNotFound) {
+						return nil, fmt.Errorf("%w: tag with ID '%s' not found", ErrValidationFailed, tagID)
+					}
+					return nil, fmt.Errorf("failed to fetch tag '%s': %w", tagID, err)
+				}
+				tags = append(tags, tag)
 			}
+			// Replace tags (clear old ones and set new ones)
 			resource.Tags = tags
 		} else {
 			// Clear all tags if empty slice provided
@@ -222,6 +244,15 @@ func (s *ResourceService) UpdateResource(ctx context.Context, id string, payload
 	// Validate target format after updates
 	if err := domain.ValidateResourceTarget(resource.Target, resource.Type); err != nil {
 		return nil, fmt.Errorf("%w: %v", ErrValidationFailed, err)
+	}
+
+	if metadata, err := s.enrichment.Enrich(ctx, resource); err == nil && metadata != nil {
+		resource.Metadata = &domain.ResourceMetaData{
+			SSLExpirationDate:    metadata.SSLExpirationDate,
+			SSLIssuer:            metadata.SSLIssuer,
+			DomainExpirationDate: metadata.DomainExpirationDate,
+			DomainRegistrar:      metadata.DomainRegistrar,
+		}
 	}
 
 	// Update resource in database

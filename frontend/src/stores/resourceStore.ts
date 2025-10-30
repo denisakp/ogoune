@@ -16,7 +16,8 @@ export const useResourceStore = defineStore('resource', () => {
       resources.value = await resourceService.fetchResources()
     } catch (err) {
       error.value = err instanceof Error ? err.message : 'Failed to load resources'
-      console.error('Error loading resources:', err)
+      // L'intercepteur axios gère déjà l'affichage du toast d'erreur
+      throw err
     } finally {
       loading.value = false
     }
@@ -48,8 +49,8 @@ export const useResourceStore = defineStore('resource', () => {
       return resource
     } catch (err) {
       error.value = err instanceof Error ? err.message : 'Failed to load resource'
-      console.error('Error loading resource:', err)
-      return null
+      // L'intercepteur axios gère déjà l'affichage du toast d'erreur
+      throw err
     } finally {
       loading.value = false
     }
@@ -77,8 +78,8 @@ export const useResourceStore = defineStore('resource', () => {
     } catch (err) {
       error.value =
         err instanceof Error ? err.message : 'Failed to load resource with response times'
-      console.error('Error loading resource with response times:', err)
-      return null
+      // L'intercepteur axios gère déjà l'affichage du toast d'erreur
+      throw err
     } finally {
       loading.value = false
     }
@@ -92,8 +93,8 @@ export const useResourceStore = defineStore('resource', () => {
       return response.stats
     } catch (err) {
       error.value = err instanceof Error ? err.message : 'Failed to load uptime stats'
-      console.error('Error loading uptime stats:', err)
-      return null
+      // L'intercepteur axios gère déjà l'affichage du toast d'erreur
+      throw err
     } finally {
       loading.value = false
     }
@@ -106,7 +107,7 @@ export const useResourceStore = defineStore('resource', () => {
       return true
     } catch (err) {
       error.value = err instanceof Error ? err.message : 'Failed to create resource'
-      console.error('Error creating resource:', err)
+      // L'intercepteur axios gère déjà l'affichage du toast d'erreur
       return false
     }
   }
@@ -118,7 +119,7 @@ export const useResourceStore = defineStore('resource', () => {
       return true
     } catch (err) {
       error.value = err instanceof Error ? err.message : 'Failed to delete resource'
-      console.error('Error deleting resource:', err)
+      // L'intercepteur axios gère déjà l'affichage du toast d'erreur
       return false
     }
   }
@@ -130,7 +131,7 @@ export const useResourceStore = defineStore('resource', () => {
       return true
     } catch (err) {
       error.value = err instanceof Error ? err.message : 'Failed to update resource'
-      console.error('Error updating resource:', err)
+      // L'intercepteur axios gère déjà l'affichage du toast d'erreur
       return false
     }
   }
@@ -142,7 +143,7 @@ export const useResourceStore = defineStore('resource', () => {
       return true
     } catch (err) {
       error.value = err instanceof Error ? err.message : 'Failed to pause monitoring'
-      console.error('Error pausing monitoring:', err)
+      // L'intercepteur axios gère déjà l'affichage du toast d'erreur
       return false
     }
   }
@@ -154,7 +155,7 @@ export const useResourceStore = defineStore('resource', () => {
       return true
     } catch (err) {
       error.value = err instanceof Error ? err.message : 'Failed to resume monitoring'
-      console.error('Error resuming monitoring:', err)
+      // L'intercepteur axios gère déjà l'affichage du toast d'erreur
       return false
     }
   }
@@ -165,7 +166,7 @@ export const useResourceStore = defineStore('resource', () => {
       return true
     } catch (err) {
       error.value = err instanceof Error ? err.message : 'Failed to send test notification'
-      console.error('Error sending test notification:', err)
+      // L'intercepteur axios gère déjà l'affichage du toast d'erreur
       return false
     }
   }

@@ -8,6 +8,7 @@ import (
 	"slices"
 	"time"
 
+	"github.com/denisakp/pulseguard/internal/config"
 	"github.com/denisakp/pulseguard/internal/domain"
 	"github.com/denisakp/pulseguard/internal/repository"
 	"github.com/denisakp/pulseguard/pkg/notifier"
@@ -99,7 +100,6 @@ func (s *IncidentService) CreateIncident(ctx context.Context, r *domain.Resource
 	incident := &domain.Incident{
 		ResourceID: r.ID,
 		Resource:   *r,
-		Reason:     "Resource failed health check 3 consecutive times",
 		Cause:      cause,
 		ResolvedAt: nil, // nil means active
 		StartedAt:  time.Now(),
@@ -284,23 +284,26 @@ func (s *IncidentService) ResolveIncident(ctx context.Context, r *domain.Resourc
 
 // sendDownNotification sends a "Resource Down" email notification and logs it.
 func (s *IncidentService) sendDownNotification(ctx context.Context, incident *domain.Incident) error {
+	// load config
+	cfg := config.Load()
+
 	// Use default SMTP notifier
 	smtpNotifier := notifier.NewSMTPNotifier()
 
 	// Create a default SMTP integration config for sending
 	smtpConfig, _ := json.Marshal(map[string]string{
 		"type":          "smtp",
-		"recipient":     s.smtpRecipient,
-		"sender":        s.smtpSender,
-		"smtp_host":     s.smtpHost,
-		"smtp_port":     s.smtpPort,
-		"smtp_user":     s.smtpUser,
-		"smtp_password": s.smtpPassword,
+		"recipient":     cfg.DefaultRecipientEmail,
+		"sender":        "no-reply@pulseguard.io",
+		"smtp_host":     cfg.SMTPHost,
+		"smtp_port":     cfg.SMTPPort,
+		"smtp_user":     cfg.SMTPUser,
+		"smtp_password": cfg.SMTPPassword,
 	})
 
 	smtpIntegration := domain.Integration{
 		Base:     domain.Base{ID: "smtp-default"},
-		Name:     "Default SMTP",
+		Name:     "default-smtp-integration",
 		IsActive: true,
 		Config:   smtpConfig,
 	}

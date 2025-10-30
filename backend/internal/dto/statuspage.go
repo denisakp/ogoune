@@ -25,7 +25,6 @@ type IncidentSummary struct {
 	ID         string     `json:"id"`
 	ResourceID string     `json:"resource_id"`
 	Resource   string     `json:"resource"`
-	Reason     string     `json:"reason"`
 	Cause      string     `json:"cause"`
 	StartedAt  time.Time  `json:"started_at"`
 	ResolvedAt *time.Time `json:"resolved_at,omitempty"`

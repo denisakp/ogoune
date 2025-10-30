@@ -54,22 +54,32 @@ const (
 	StatusUnknown ResourceStatus = "unknown"
 	StatusPaused  ResourceStatus = "paused"
 	StatusPending ResourceStatus = "pending"
+	StatusWarn    ResourceStatus = "warning"
 )
+
+// ResourceMetaData collect domain and ssl metadata form resource
+type ResourceMetaData struct {
+	SSLExpirationDate    *time.Time `json:"ssl_expiration_date" gorm:"column:ssl_expiration_date"`
+	SSLIssuer            string     `json:"ssl_issuer" gorm:"column:ssl_issuer"`
+	DomainExpirationDate *time.Time `json:"domain_expiration_date" gorm:"column:domain_expiration_date"`
+	DomainRegistrar      string     `json:"domain_registrar" gorm:"column:domain_registrar"`
+}
 
 // A Resource is something that can be monitored, such as a website or server.
 type Resource struct {
 	Base
-	Name         string         `json:"name"`
-	Type         ResourceType   `json:"type"  gorm:"index"`
-	Interval     int            `json:"interval" gorm:"default:300"` // in seconds
-	Timeout      int            `json:"timeout" gorm:"default:10"`   // in seconds
-	Target       string         `json:"target"`
-	LastChecked  *time.Time     `json:"last_checked"`
-	Status       ResourceStatus `json:"status" gorm:"default:pending"`
-	IsActive     bool           `json:"is_active" gorm:"default:true"`
-	FailureCount int            `json:"failure_count" gorm:"default:0"`
-	Incidents    []Incident     `json:"incidents"`
-	Tags         []*Tags        `json:"tags" gorm:"many2many:resource_tags;"`
+	Name         string            `json:"name"`
+	Type         ResourceType      `json:"type"  gorm:"index"`
+	Interval     int               `json:"interval" gorm:"default:300"` // in seconds
+	Timeout      int               `json:"timeout" gorm:"default:10"`   // in seconds
+	Target       string            `json:"target"`
+	LastChecked  *time.Time        `json:"last_checked"`
+	Status       ResourceStatus    `json:"status" gorm:"default:pending"`
+	IsActive     bool              `json:"is_active" gorm:"default:true"`
+	FailureCount int               `json:"failure_count" gorm:"default:0"`
+	Metadata     *ResourceMetaData `json:"metadata" gorm:"embedded"`
+	Incidents    []Incident        `json:"incidents"`
+	Tags         []*Tags           `json:"tags" gorm:"many2many:resource_tags;"`
 }
 
 func (Resource) TableName() string { return "resources" }
@@ -79,7 +89,6 @@ type Incident struct {
 	Base
 	ResourceID string              `json:"resource_id" gorm:"index"`
 	Resource   Resource            `json:"resource" gorm:"foreignKey:ResourceID"`
-	Reason     string              `json:"reason"`
 	Cause      string              `json:"cause" gorm:"index;default:unknown_failure"`
 	ResolvedAt *time.Time          `json:"resolved_at" gorm:"index"` // nil = active, timestamp = resolved
 	StartedAt  time.Time           `json:"started_at" gorm:"index"`

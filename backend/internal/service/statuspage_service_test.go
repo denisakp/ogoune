@@ -52,7 +52,6 @@ func TestStatusPageService_GetData(t *testing.T) {
 		incident := &domain.Incident{
 			Base:       domain.Base{ID: "incident-1"},
 			ResourceID: resource.ID,
-			Reason:     "Service Unavailable",
 			Cause:      "http_error",
 			StartedAt:  now.Add(-2 * time.Hour),
 			ResolvedAt: nil, // Ongoing
@@ -83,7 +82,6 @@ func TestStatusPageService_GetData(t *testing.T) {
 		// Check incident info
 		incidentInfo := data.Incidents[0]
 		assert.Equal(t, "incident-1", incidentInfo.ID)
-		assert.Equal(t, "Service Unavailable", incidentInfo.Reason)
 		assert.True(t, incidentInfo.IsOngoing)
 		assert.Nil(t, incidentInfo.ResolvedAt)
 	})
@@ -114,7 +112,6 @@ func TestStatusPageService_GetData(t *testing.T) {
 		oldIncident := &domain.Incident{
 			Base:       domain.Base{ID: "old-incident"},
 			ResourceID: "resource-1",
-			Reason:     "Old Incident",
 			Cause:      "test",
 			StartedAt:  time.Now().AddDate(0, 0, -100),
 		}
@@ -125,7 +122,6 @@ func TestStatusPageService_GetData(t *testing.T) {
 		recentIncident := &domain.Incident{
 			Base:       domain.Base{ID: "recent-incident"},
 			ResourceID: "resource-1",
-			Reason:     "Recent Incident",
 			Cause:      "test",
 			StartedAt:  time.Now().AddDate(0, 0, -10),
 		}
@@ -257,7 +253,6 @@ func TestStatusPageService_buildIncidentSummary(t *testing.T) {
 		incident := &domain.Incident{
 			Base:       domain.Base{ID: "incident-1"},
 			ResourceID: "resource-1",
-			Reason:     "Service Down",
 			Cause:      "http_error",
 			StartedAt:  now.Add(-2 * time.Hour),
 			ResolvedAt: nil,
@@ -277,7 +272,6 @@ func TestStatusPageService_buildIncidentSummary(t *testing.T) {
 		incident := &domain.Incident{
 			Base:       domain.Base{ID: "incident-1"},
 			ResourceID: "resource-1",
-			Reason:     "Service Down",
 			Cause:      "http_error",
 			StartedAt:  now.Add(-3 * time.Hour),
 			ResolvedAt: &resolvedAt,

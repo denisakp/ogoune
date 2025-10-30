@@ -136,7 +136,6 @@ func (s *StatusPageService) buildIncidentSummary(incident *domain.Incident) dto.
 		ID:         incident.ID,
 		ResourceID: incident.ResourceID,
 		Resource:   "", // Will be populated by handler if needed
-		Reason:     incident.Reason,
 		Cause:      incident.Cause,
 		StartedAt:  incident.StartedAt,
 		ResolvedAt: incident.ResolvedAt,

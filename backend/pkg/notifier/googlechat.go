@@ -56,7 +56,6 @@ func (n *GoogleChatNotifier) Send(ctx context.Context, integration domain.Integr
 			"%s *%s* | Resource: %s\n"+
 				"Status: *%s*\n"+
 				"Target: %s\n"+
-				"Reason: %s\n"+
 				"Cause: %s\n"+
 				"Incident ID: %s",
 			emoji,
@@ -64,7 +63,6 @@ func (n *GoogleChatNotifier) Send(ctx context.Context, integration domain.Integr
 			incident.Resource.Name,
 			status,
 			incident.Resource.Target,
-			incident.Reason,
 			incident.Cause,
 			incident.ID,
 		),

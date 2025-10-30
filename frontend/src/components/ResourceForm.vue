@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { ref, watch, onMounted, computed } from 'vue'
-import { message } from 'ant-design-vue'
 
 import type { Resource, CreateResource } from '@/types'
 import { useResources } from '@/composables/useResources'
@@ -53,21 +52,16 @@ watch(
 )
 
 const handleSubmit = async () => {
-  // Validation
   if (!form.value.name.trim()) {
-    message.error('Name is required')
     return
   }
   if (!form.value.target.trim()) {
-    message.error('Target is required')
     return
   }
   if (form.value.interval < 10) {
-    message.error('Interval must be at least 10 seconds')
     return
   }
   if (form.value.timeout < 1) {
-    message.error('Timeout must be at least 1 second')
     return
   }
 
@@ -88,8 +82,7 @@ const handleSubmit = async () => {
       await addResource(form.value)
     }
     emit('submit')
-  } catch (err) {
-    message.error(err instanceof Error ? err.message : 'An error occurred')
+  } catch {
   } finally {
     loading.value = false
   }

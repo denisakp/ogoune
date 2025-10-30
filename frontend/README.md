@@ -1,14 +1,13 @@
 # Pulseguard Frontend
 
-A modern, responsive Vue 3 + TypeScript + Ant Design Vue dashboard for the Pulseguard monitoring platform.
+A modern, responsive Vue 3 + TypeScript + Daisy UI dashboard for the Pulseguard monitoring platform.
 
 ## Technology Stack
 
 - **Framework**: Vue 3 (Composition API with `<script setup>`)
 - **Language**: TypeScript
 - **Build Tool**: Vite
-- **UI Library**: Ant Design Vue 4.2.6+
-- **Icons**: @ant-design/icons-vue
+- **Styling**: Tailwind CSS + Daisy UI
 - **HTTP Client**: Axios
 - **Routing**: Vue Router v4
 - **State Management**: Pinia (for future use)
@@ -164,28 +163,21 @@ See `src/services/` for service implementations.
 - [ ] Resource filtering and search
 - [ ] Advanced dashboard with analytics
 - [ ] User authentication and authorization
-- [ ] Theme customization (light/dark/custom via ConfigProvider)
+- [ ] Dark/light theme toggle
 - [ ] Incident timeline and history
 - [ ] Notification preview and test
 - [ ] Bulk operations on resources
 
 ## Styling
 
-The application uses Ant Design Vue components with responsive, professional design. All interactive elements use Ant Design Vue:
+The application uses Daisy UI components with a dark theme (`data-theme="night"`) configured in `tailwind.config.ts`.
 
-- **Layout**: a-layout, a-layout-header, a-layout-sider, a-drawer (responsive mobile navigation)
-- **Navigation**: a-menu with keyboard navigation
-- **Tables**: a-table with custom rendering and pagination
-- **Forms**: a-form, a-form-item, a-input, a-select, a-slider
-- **Feedback**: a-alert, a-spin (loading), message (notifications), Modal (confirmations)
-- **Display**: a-card, a-tag, a-badge
-- **Layout Grid**: a-row, a-col (12-column responsive)
+All interactive elements use Daisy UI classes:
 
-Color scheme uses Ant Design Vue defaults:
-- Primary: `#1890ff` (blue)
-- Success: `#52c41a` (green)
-- Error: `#f5222d` (red)
-- Warning: `#faad14` (orange)
+- Buttons: `btn`, `btn-primary`, `btn-error`, etc.
+- Tables: `table`, `table-compact`
+- Modals: `modal`, `modal-box`
+- Forms: `form-control`, `input`, `select`, `checkbox`, etc.
 
 ## Error Handling
 

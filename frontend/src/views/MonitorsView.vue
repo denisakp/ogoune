@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { onMounted, ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
-import { message, Modal } from 'ant-design-vue'
+import { Modal } from 'ant-design-vue'
 import {
   EditOutlined,
   DeleteOutlined,
@@ -84,7 +84,6 @@ const handleDelete = async (id: string) => {
     cancelText: 'Cancel',
     async onOk() {
       await removeResource(id)
-      message.success('Monitor deleted successfully')
     },
   })
 }
@@ -92,10 +91,8 @@ const handleDelete = async (id: string) => {
 const handleTogglePause = async (resource: Resource) => {
   if (resource.status === 'paused') {
     await resumeResource(resource.id)
-    message.success('Monitor resumed')
   } else {
     await pauseResource(resource.id)
-    message.success('Monitor paused')
   }
 }
 

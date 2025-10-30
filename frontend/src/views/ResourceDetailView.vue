@@ -14,6 +14,14 @@ import {
   DashboardOutlined,
   RiseOutlined,
   FallOutlined,
+  SafetyOutlined,
+  GlobalOutlined,
+  CalendarOutlined,
+  CheckCircleOutlined,
+  WarningOutlined,
+  ClockCircleOutlined,
+  EditOutlined,
+  EllipsisOutlined,
 } from '@ant-design/icons-vue'
 
 const router = useRouter()
@@ -103,6 +111,58 @@ const formatDuration = (startDate: string, endDate?: string | null): string => {
   return `${minutes}m`
 }
 
+// Format expiration date for display
+const formatExpirationDate = (dateString: string): string => {
+  const date = new Date(dateString)
+  return date.toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+  })
+}
+
+// Calculate days until expiration
+const getDaysUntilExpiration = (dateString: string): number => {
+  const expirationDate = new Date(dateString)
+  const now = new Date()
+  const diff = expirationDate.getTime() - now.getTime()
+  return Math.ceil(diff / (1000 * 60 * 60 * 24))
+}
+
+// Get expiration status with color and icon
+const getExpirationStatus = (
+  dateString?: string,
+): { text: string; color: string; type: 'success' | 'warning' | 'danger' } => {
+  if (!dateString) return { text: 'Unknown', color: '#d9d9d9', type: 'success' }
+
+  const days = getDaysUntilExpiration(dateString)
+
+  if (days < 0) {
+    return { text: 'Expired', color: '#ff4d4f', type: 'danger' }
+  } else if (days <= 7) {
+    return {
+      text: `Expires in ${days} day${days !== 1 ? 's' : ''}`,
+      color: '#ff4d4f',
+      type: 'danger',
+    }
+  } else if (days <= 30) {
+    return { text: `Expires in ${days} days`, color: '#faad14', type: 'warning' }
+  } else {
+    return { text: `Expires in ${days} days`, color: '#52c41a', type: 'success' }
+  }
+}
+
+// Check if metadata exists
+const hasMetadata = computed(() => {
+  return (
+    resource.value?.metadata &&
+    (resource.value.metadata.ssl_expiration_date ||
+      resource.value.metadata.ssl_issuer ||
+      resource.value.metadata.domain_expiration_date ||
+      resource.value.metadata.domain_registrar)
+  )
+})
+
 // Fetch resource on mount
 onMounted(async () => {
   await loadResource()
@@ -160,12 +220,10 @@ const handlePauseResource = async () => {
   if (!resource.value) return
   try {
     await pauseResource(resource.value.id)
-    message.success('Resource paused successfully')
+    // L'intercepteur axios affiche automatiquement le toast de succès
     await loadResource()
-  } catch (err) {
-    const errorMsg = err instanceof Error ? err.message : 'Failed to pause resource'
-    message.error(errorMsg)
-    console.error('Error pausing resource:', err)
+  } catch {
+    // L'intercepteur axios affiche automatiquement le toast d'erreur
   }
 }
 
@@ -175,10 +233,9 @@ const handleTestNotification = async () => {
 
   try {
     await testNotification(resource.value.id)
-    message.success('Test notification sent successfully')
-  } catch (err) {
-    const errorMsg = err instanceof Error ? err.message : 'Failed to send test notification'
-    message.error(errorMsg)
+    // L'intercepteur axios affiche automatiquement le toast de succès
+  } catch {
+    // L'intercepteur axios affiche automatiquement le toast d'erreur
   }
 }
 
@@ -189,8 +246,8 @@ const openEditModal = () => {
 
 const handleEditSubmit = async () => {
   showEditModal.value = false
+  // L'intercepteur axios affiche automatiquement le toast de succès
   await loadResource()
-  message.success('Monitor updated successfully')
 }
 
 // Go back
@@ -624,11 +681,166 @@ const goBack = () => {
               <template #title>
                 <div style="font-size: 14px; font-weight: 600">Additional info</div>
               </template>
-              <div style="text-align: center; padding: 24px; color: rgba(0, 0, 0, 0.45)">
-                <a-icon-info-circle style="font-size: 32px; margin-bottom: 8px" />
-                <div>Monitor is {{ resource.is_active ? 'active' : 'inactive' }}</div>
-                Show SSL and domain expiration here
-              </div>
+
+              <template v-if="hasMetadata">
+                <div style="display: flex; flex-direction: column; gap: 20px">
+                  <!-- SSL Certificate Information -->
+                  <div
+                    v-if="resource.metadata?.ssl_expiration_date || resource.metadata?.ssl_issuer"
+                    style="
+                      padding: 16px;
+                      background: rgba(24, 144, 255, 0.05);
+                      border-radius: 8px;
+                      border-left: 3px solid #1890ff;
+                    "
+                  >
+                    <div
+                      style="
+                        display: flex;
+                        align-items: center;
+                        gap: 8px;
+                        margin-bottom: 12px;
+                        font-weight: 600;
+                        color: #1890ff;
+                      "
+                    >
+                      <SafetyOutlined style="font-size: 18px" />
+                      <span>SSL Certificate</span>
+                    </div>
+
+                    <!-- SSL Issuer -->
+                    <div v-if="resource.metadata?.ssl_issuer" style="margin-bottom: 12px">
+                      <div style="font-size: 12px; color: rgba(0, 0, 0, 0.45); margin-bottom: 4px">
+                        Issuer
+                      </div>
+                      <div style="font-size: 14px; color: rgba(0, 0, 0, 0.85)">
+                        {{ resource.metadata.ssl_issuer }}
+                      </div>
+                    </div>
+
+                    <!-- SSL Expiration -->
+                    <div v-if="resource.metadata?.ssl_expiration_date">
+                      <div style="font-size: 12px; color: rgba(0, 0, 0, 0.45); margin-bottom: 4px">
+                        Expiration Date
+                      </div>
+                      <div style="display: flex; align-items: center; gap: 8px">
+                        <CalendarOutlined style="font-size: 14px; color: rgba(0, 0, 0, 0.45)" />
+                        <span style="font-size: 14px; color: rgba(0, 0, 0, 0.85)">
+                          {{ formatExpirationDate(resource.metadata.ssl_expiration_date) }}
+                        </span>
+                      </div>
+                      <div style="margin-top: 8px">
+                        <a-tag
+                          :color="getExpirationStatus(resource.metadata.ssl_expiration_date).color"
+                        >
+                          <template #icon>
+                            <CheckCircleOutlined
+                              v-if="
+                                getExpirationStatus(resource.metadata.ssl_expiration_date).type ===
+                                'success'
+                              "
+                            />
+                            <WarningOutlined
+                              v-else-if="
+                                getExpirationStatus(resource.metadata.ssl_expiration_date).type ===
+                                'warning'
+                              "
+                            />
+                            <ClockCircleOutlined v-else />
+                          </template>
+                          {{ getExpirationStatus(resource.metadata.ssl_expiration_date).text }}
+                        </a-tag>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Domain Information -->
+                  <div
+                    v-if="
+                      resource.metadata?.domain_expiration_date ||
+                      resource.metadata?.domain_registrar
+                    "
+                    style="
+                      padding: 16px;
+                      background: rgba(82, 196, 26, 0.05);
+                      border-radius: 8px;
+                      border-left: 3px solid #52c41a;
+                    "
+                  >
+                    <div
+                      style="
+                        display: flex;
+                        align-items: center;
+                        gap: 8px;
+                        margin-bottom: 12px;
+                        font-weight: 600;
+                        color: #52c41a;
+                      "
+                    >
+                      <GlobalOutlined style="font-size: 18px" />
+                      <span>Domain</span>
+                    </div>
+
+                    <!-- Domain Registrar -->
+                    <div v-if="resource.metadata?.domain_registrar" style="margin-bottom: 12px">
+                      <div style="font-size: 12px; color: rgba(0, 0, 0, 0.45); margin-bottom: 4px">
+                        Registrar
+                      </div>
+                      <div style="font-size: 14px; color: rgba(0, 0, 0, 0.85)">
+                        {{ resource.metadata.domain_registrar }}
+                      </div>
+                    </div>
+
+                    <!-- Domain Expiration -->
+                    <div v-if="resource.metadata?.domain_expiration_date">
+                      <div style="font-size: 12px; color: rgba(0, 0, 0, 0.45); margin-bottom: 4px">
+                        Expiration Date
+                      </div>
+                      <div style="display: flex; align-items: center; gap: 8px">
+                        <CalendarOutlined style="font-size: 14px; color: rgba(0, 0, 0, 0.45)" />
+                        <span style="font-size: 14px; color: rgba(0, 0, 0, 0.85)">
+                          {{ formatExpirationDate(resource.metadata.domain_expiration_date) }}
+                        </span>
+                      </div>
+                      <div style="margin-top: 8px">
+                        <a-tag
+                          :color="
+                            getExpirationStatus(resource.metadata.domain_expiration_date).color
+                          "
+                        >
+                          <template #icon>
+                            <CheckCircleOutlined
+                              v-if="
+                                getExpirationStatus(resource.metadata.domain_expiration_date)
+                                  .type === 'success'
+                              "
+                            />
+                            <WarningOutlined
+                              v-else-if="
+                                getExpirationStatus(resource.metadata.domain_expiration_date)
+                                  .type === 'warning'
+                              "
+                            />
+                            <ClockCircleOutlined v-else />
+                          </template>
+                          {{ getExpirationStatus(resource.metadata.domain_expiration_date).text }}
+                        </a-tag>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </template>
+
+              <!-- Empty State -->
+              <template v-else>
+                <div style="text-align: center; padding: 32px 24px; color: rgba(0, 0, 0, 0.45)">
+                  <a-icon-info-circle style="font-size: 40px; margin-bottom: 12px; opacity: 0.5" />
+                  <div style="font-size: 14px; margin-bottom: 4px">No metadata available</div>
+                  <div style="font-size: 12px">
+                    SSL and domain information will appear here when available
+                  </div>
+                </div>
+              </template>
             </a-card>
           </a-col>
         </a-row>

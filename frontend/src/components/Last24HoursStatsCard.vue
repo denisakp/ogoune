@@ -99,9 +99,7 @@ const getRangeText = (range: string): string => {
           </span>
         </div>
         <!-- Progress Bar -->
-        <div
-          style="height: 4px; background-color: #f0f0f0; border-radius: 2px; overflow: hidden"
-        >
+        <div style="height: 4px; background-color: #f0f0f0; border-radius: 2px; overflow: hidden">
           <div
             :style="{
               height: '100%',
@@ -128,9 +126,7 @@ const getRangeText = (range: string): string => {
             {{ summary.incidents }}
           </span>
         </div>
-        <div
-          style="height: 4px; background-color: #f0f0f0; border-radius: 2px; overflow: hidden"
-        >
+        <div style="height: 4px; background-color: #f0f0f0; border-radius: 2px; overflow: hidden">
           <div
             :style="{
               height: '100%',
@@ -157,9 +153,7 @@ const getRangeText = (range: string): string => {
             {{ summary.without_incidents_duration }}
           </span>
         </div>
-        <div
-          style="height: 4px; background-color: #f0f0f0; border-radius: 2px; overflow: hidden"
-        >
+        <div style="height: 4px; background-color: #f0f0f0; border-radius: 2px; overflow: hidden">
           <div
             :style="{
               height: '100%',

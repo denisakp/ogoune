@@ -58,14 +58,27 @@ func (r *ResourceRepositoryImpl) List(ctx context.Context, limit, offset int) ([
 }
 
 // Update modifies an existing resource record in the database.
+// It properly handles the many-to-many relationship with tags by replacing them.
 func (r *ResourceRepositoryImpl) Update(ctx context.Context, resource *domain.Resource) error {
-	result := r.db.WithContext(ctx).Save(resource)
-	if result.Error != nil {
-		return fmt.Errorf("failed to update resource: %w", result.Error)
+	// Use a transaction to ensure atomicity
+	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		// First, update the resource fields (excluding associations)
+		if err := tx.Model(resource).Updates(resource).Error; err != nil {
+			return fmt.Errorf("failed to update resource fields: %w", err)
+		}
+
+		// Replace tags using Association API to properly handle many-to-many relationship
+		if err := tx.Model(resource).Association("Tags").Replace(resource.Tags); err != nil {
+			return fmt.Errorf("failed to update resource tags: %w", err)
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return err
 	}
-	if result.RowsAffected == 0 {
-		return repository.ErrNotFound
-	}
+
 	return nil
 }
 

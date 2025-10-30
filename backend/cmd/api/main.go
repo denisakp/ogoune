@@ -86,6 +86,9 @@ func main() {
 	// Initialize scheduler service
 	schedulerService := monitoring.NewSchedulerService(asynqClient, asynqInspector, asynqScheduler)
 
+	// Initialize enrichment service for resource metadata collection
+	enrichmentService := service.NewEnrichmentService(30 * time.Second)
+
 	// ========================================
 	// STEP 1: BOOTSTRAP - Schedule all active resources
 	// This runs sequentially and blocks until complete
@@ -174,9 +177,9 @@ func main() {
 		}
 	}()
 
-	log.Printf("Waiting 2 seconds for the worker to start...")
+	log.Printf("Waiting 10 seconds for the worker to start...")
 	// Wait briefly to ensure worker starts before proceeding | this is a simple approach to ensure the worker is ready before handling tasks
-	time.Sleep(4 * time.Second)
+	time.Sleep(10 * time.Second)
 	log.Println("✓ Background worker started successfully")
 
 	// ========================================
@@ -185,7 +188,7 @@ func main() {
 	log.Println("Initializing API server...")
 
 	// Initialize API services
-	resourceService := service.NewResourceService(resourceRepo, incidentRepo, tagsRepo, schedulerService, monitoringActivityRepo)
+	resourceService := service.NewResourceService(resourceRepo, incidentRepo, tagsRepo, schedulerService, monitoringActivityRepo, enrichmentService)
 	activityService := service.NewMonitoringActivityService(monitoringActivityRepo)
 	tagService := service.NewTagService(tagsRepo)
 	integrationService := service.NewIntegrationService(integrationRepo)

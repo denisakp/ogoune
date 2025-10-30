@@ -1,4 +1,14 @@
 /**
+ * Resource metadata containing SSL and domain information
+ */
+export interface ResourceMetadata {
+  ssl_expiration_date?: string
+  ssl_issuer?: string
+  domain_expiration_date?: string
+  domain_registrar?: string
+}
+
+/**
  * Resource represents a monitor target (HTTP, TCP, etc.)
  */
 export interface Resource {
@@ -19,6 +29,7 @@ export interface Resource {
   uptime?: number // Overall uptime percentage
   hourly_uptime?: HourlyUptimeStat[] // Hourly uptime data for sparklines
   response_times?: ResponseTime[] // Response time history
+  metadata?: ResourceMetadata // SSL and domain metadata
 }
 
 /**

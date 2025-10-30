@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/denisakp/pulseguard/internal/domain"
+	"github.com/denisakp/pulseguard/internal/dto"
 	"github.com/denisakp/pulseguard/internal/service"
 	"github.com/go-chi/chi/v5"
 	"github.com/stretchr/testify/assert"
@@ -19,7 +20,7 @@ import (
 // mockResourceService is a test double for ResourceService
 type mockResourceService struct {
 	createResourceFunc        func(ctx context.Context, r *domain.Resource) error
-	updateResourceFunc        func(ctx context.Context, id string, payload *service.UpdateResourcePayload) (*domain.Resource, error)
+	updateResourceFunc        func(ctx context.Context, id string, payload *dto.UpdateResourcePayload) (*domain.Resource, error)
 	listAllFunc               func(ctx context.Context) ([]*domain.Resource, error)
 	deleteResourceFunc        func(ctx context.Context, id string) error
 	pauseMonitoringFunc       func(ctx context.Context, resourceID string) error
@@ -44,7 +45,7 @@ func (m *mockResourceService) ListAll(ctx context.Context) ([]*domain.Resource, 
 	return []*domain.Resource{}, nil
 }
 
-func (m *mockResourceService) UpdateResource(ctx context.Context, id string, payload *service.UpdateResourcePayload) (*domain.Resource, error) {
+func (m *mockResourceService) UpdateResource(ctx context.Context, id string, payload *dto.UpdateResourcePayload) (*domain.Resource, error) {
 	if m.updateResourceFunc != nil {
 		return m.updateResourceFunc(ctx, id, payload)
 	}

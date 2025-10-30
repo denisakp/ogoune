@@ -1,5 +1,12 @@
+import type { AxiosRequestConfig } from 'axios'
 import axiosHelper from '../libs/axios.helper'
 import type { CreateResource, Resource, UpdateResource, HourlyUptimeStat } from '@/types'
+
+interface CustomAxiosConfig extends AxiosRequestConfig {
+  successMessage?: string
+  skipSuccessToast?: boolean
+  skipErrorToast?: boolean
+}
 
 /**
  * Fetch all resources (monitors)
@@ -34,7 +41,10 @@ export const fetchUptimeStats = async (
  * Create a new resource
  */
 export const createResource = async (resource: CreateResource): Promise<Resource> => {
-  const { data } = await axiosHelper.post<Resource>('/resources', resource)
+  const config: CustomAxiosConfig = {
+    successMessage: 'Monitor created successfully',
+  }
+  const { data } = await axiosHelper.post<Resource>('/resources', resource, config)
   return data
 }
 
@@ -42,7 +52,10 @@ export const createResource = async (resource: CreateResource): Promise<Resource
  * Update an existing resource
  */
 export const updateResource = async (id: string, resource: UpdateResource): Promise<Resource> => {
-  const { data } = await axiosHelper.patch<Resource>(`/resources/${id}`, resource)
+  const config: CustomAxiosConfig = {
+    successMessage: 'Monitor updated successfully',
+  }
+  const { data } = await axiosHelper.patch<Resource>(`/resources/${id}`, resource, config)
   return data
 }
 
@@ -50,14 +63,20 @@ export const updateResource = async (id: string, resource: UpdateResource): Prom
  * Delete a resource
  */
 export const deleteResource = async (id: string): Promise<void> => {
-  await axiosHelper.delete(`/resources/${id}`)
+  const config: CustomAxiosConfig = {
+    successMessage: 'Monitor deleted successfully',
+  }
+  await axiosHelper.delete(`/resources/${id}`, config)
 }
 
 /**
  * Pause monitoring for a resource
  */
 export const pauseResource = async (id: string): Promise<Resource> => {
-  const { data } = await axiosHelper.post<Resource>(`/resources/${id}/pause`, {})
+  const config: CustomAxiosConfig = {
+    successMessage: 'Monitoring paused',
+  }
+  const { data } = await axiosHelper.post<Resource>(`/resources/${id}/pause`, {}, config)
   return data
 }
 
@@ -65,7 +84,10 @@ export const pauseResource = async (id: string): Promise<Resource> => {
  * Resume monitoring for a resource
  */
 export const resumeResource = async (id: string): Promise<Resource> => {
-  const { data } = await axiosHelper.post<Resource>(`/resources/${id}/resume`, {})
+  const config: CustomAxiosConfig = {
+    successMessage: 'Monitoring resumed',
+  }
+  const { data } = await axiosHelper.post<Resource>(`/resources/${id}/resume`, {}, config)
   return data
 }
 
@@ -88,6 +110,13 @@ export const removeTagFromResource = async (resourceId: string, tagId: string): 
  * @param resourceId
  */
 export const testNotification = async (resourceId: string) => {
-  const { data } = await axiosHelper.post(`/notifications/test`, { resource_id: resourceId })
+  const config: CustomAxiosConfig = {
+    successMessage: 'Test notification sent successfully',
+  }
+  const { data } = await axiosHelper.post(
+    `/notifications/test`,
+    { resource_id: resourceId },
+    config,
+  )
   return data
 }
