@@ -114,3 +114,28 @@ func (r *IncidentRepositoryImpl) FindByResource(ctx context.Context, resourceID 
 	}
 	return incidents, nil
 }
+
+// GetIncidentStats retrieves incident statistics for a given time range.
+// Returns: total incidents count, affected monitors count, error
+func (r *IncidentRepositoryImpl) GetIncidentStats(ctx context.Context, hours int) (int, int, error) {
+	var result struct {
+		TotalIncidents   int
+		AffectedMonitors int
+	}
+
+	// SQL query to get total incidents and distinct resource count within the time range
+	query := fmt.Sprintf(`
+		SELECT
+			COUNT(*) as total_incidents,
+			COUNT(DISTINCT resource_id) as affected_monitors
+		FROM incidents
+		WHERE started_at >= NOW() - INTERVAL '%d hours'
+	`, hours)
+
+	err := r.db.WithContext(ctx).Raw(query).Scan(&result).Error
+	if err != nil {
+		return 0, 0, fmt.Errorf("failed to get incident stats: %w", err)
+	}
+
+	return result.TotalIncidents, result.AffectedMonitors, nil
+}

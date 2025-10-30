@@ -192,6 +192,7 @@ func main() {
 	statusPageService := service.NewStatusPageService(resourceRepo, incidentRepo, monitoringActivityRepo)
 	incidentAPIService := service.NewIncidentService(incidentRepo, incidentEventStepRepo)
 	notificationService := service.NewNotificationService(resourceRepo, integrationRepo)
+	statsService := service.NewStatsService(monitoringActivityRepo, incidentRepo)
 
 	// Initialize JSON API handlers (no template dependencies)
 	resourceHandler := handler.NewResourceHandler(resourceService)
@@ -201,9 +202,10 @@ func main() {
 	statusPageHandler := handler.NewStatusPageHandler(statusPageService)
 	incidentHandler := handler.NewIncidentHandler(incidentAPIService)
 	notificationHandler := handler.NewNotificationHandler(notificationService)
+	statsHandler := handler.NewStatsHandler(statsService)
 
 	// Create router with injected handlers
-	router := api.NewRouter(resourceHandler, activityHandler, tagHandler, integrationHandler, statusPageHandler, incidentHandler, notificationHandler)
+	router := api.NewRouter(resourceHandler, activityHandler, tagHandler, integrationHandler, statusPageHandler, incidentHandler, notificationHandler, statsHandler)
 
 	// Create HTTP server with explicit configuration
 	addr := ":" + cfg.Port

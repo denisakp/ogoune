@@ -14,6 +14,7 @@ import { useResources } from '@/composables/useResources'
 import { useTimeAgo } from '@/composables/useTimeAgo'
 import ResourceModal from '@/components/ResourceModal.vue'
 import UptimeSparkline from '@/components/UptimeSparkline.vue'
+import Last24HoursStatsCard from '@/components/Last24HoursStatsCard.vue'
 import type { Resource } from '@/types'
 
 const {
@@ -32,7 +33,6 @@ const router = useRouter()
 
 const showModal = ref(false)
 const editingResource = ref<Resource | null>(null)
-const timeRange = ref<'2h' | '24h' | '7d' | '30d'>('24h')
 const paginationState = ref({
   current: 1,
   pageSize: 10,
@@ -43,17 +43,6 @@ const searchName = ref('')
 const filterStatus = ref<string[]>([])
 const filterTags = ref<string[]>([])
 const orderBy = ref<'newest' | 'oldest' | 'up_first' | 'down_first'>('newest')
-
-// Generate mock stats based on timeRange
-const generateMockStats = (timeRange: string) => {
-  const ranges = {
-    '2h': { uptime: 99.8, incidents: 0 },
-    '24h': { uptime: 98.5, incidents: 1 },
-    '7d': { uptime: 97.2, incidents: 2 },
-    '30d': { uptime: 96.8, incidents: 5 },
-  }
-  return ranges[timeRange as keyof typeof ranges] || ranges['24h']
-}
 
 onMounted(async () => {
   await loadResources()
@@ -120,11 +109,6 @@ const getStatusColor = (status: string) => {
   }
   return colors[status] || 'default'
 }
-
-// Computed stats for the right panel
-const currentStats = computed(() => {
-  return generateMockStats(timeRange.value)
-})
 
 // Table columns
 const columns = [
@@ -426,115 +410,8 @@ const handleRowClick = (record: Resource) => {
           </div>
         </a-card>
 
-        <!-- Last 24 hours Stats Card -->
-        <a-card>
-          <template #title>
-            <div style="font-size: 14px; font-weight: 600">Last 24 hours.</div>
-          </template>
-
-          <!-- Time Range Selector -->
-          <div style="margin-bottom: 16px; display: flex; gap: 4px">
-            <a-button
-              v-for="range in ['2h', '24h', '7d', '30d']"
-              :key="range"
-              :type="timeRange === range ? 'primary' : 'default'"
-              size="small"
-              @click="timeRange = range as any"
-              style="flex: 1; font-size: 12px"
-            >
-              {{ range }}
-            </a-button>
-          </div>
-
-          <!-- Stats Display -->
-          <div style="display: flex; flex-direction: column; gap: 16px">
-            <!-- Uptime -->
-            <div>
-              <div
-                style="
-                  display: flex;
-                  justify-content: space-between;
-                  align-items: center;
-                  margin-bottom: 8px;
-                "
-              >
-                <span style="font-size: 12px; color: rgba(0, 0, 0, 0.65)">Overall uptime</span>
-                <span style="font-size: 16px; font-weight: bold; color: #f5222d">
-                  {{ currentStats.uptime }}%
-                </span>
-              </div>
-              <!-- Progress Bar -->
-              <div
-                style="height: 4px; background-color: #f0f0f0; border-radius: 2px; overflow: hidden"
-              >
-                <div
-                  :style="{
-                    height: '100%',
-                    width: currentStats.uptime + '%',
-                    backgroundColor: currentStats.uptime > 95 ? '#52c41a' : '#faad14',
-                    transition: 'all 0.3s ease',
-                  }"
-                ></div>
-              </div>
-            </div>
-
-            <!-- Incidents -->
-            <div>
-              <div
-                style="
-                  display: flex;
-                  justify-content: space-between;
-                  align-items: center;
-                  margin-bottom: 8px;
-                "
-              >
-                <span style="font-size: 12px; color: rgba(0, 0, 0, 0.65)">Incidents</span>
-                <span style="font-size: 16px; font-weight: bold">
-                  {{ currentStats.incidents }}
-                </span>
-              </div>
-              <div
-                style="height: 4px; background-color: #f0f0f0; border-radius: 2px; overflow: hidden"
-              >
-                <div
-                  :style="{
-                    height: '100%',
-                    width: Math.min((currentStats.incidents / 10) * 100, 100) + '%',
-                    backgroundColor: '#ff7875',
-                  }"
-                ></div>
-              </div>
-            </div>
-
-            <!-- Without Incident -->
-            <div>
-              <div
-                style="
-                  display: flex;
-                  justify-content: space-between;
-                  align-items: center;
-                  margin-bottom: 8px;
-                "
-              >
-                <span style="font-size: 12px; color: rgba(0, 0, 0, 0.65)">Without incidents</span>
-                <span style="font-size: 16px; font-weight: bold; color: #52c41a">0m</span>
-              </div>
-              <div
-                style="height: 4px; background-color: #f0f0f0; border-radius: 2px; overflow: hidden"
-              >
-                <div style="height: 100%; width: 0%; background-color: #52c41a"></div>
-              </div>
-            </div>
-
-            <!-- Affected Monitors -->
-            <div>
-              <div style="display: flex; justify-content: space-between; align-items: center">
-                <span style="font-size: 12px; color: rgba(0, 0, 0, 0.65)">Affected monitors</span>
-                <span style="font-size: 16px; font-weight: bold">1</span>
-              </div>
-            </div>
-          </div>
-        </a-card>
+        <!-- Last 24 Hours Stats Card (New Reusable Component) -->
+        <Last24HoursStatsCard />
       </a-col>
     </a-row>
 

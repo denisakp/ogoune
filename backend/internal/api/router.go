@@ -18,6 +18,7 @@ func NewRouter(
 	statusPageHandler *handler.StatusPageHandler,
 	incidentHandler *handler.IncidentHandler,
 	notificationHandler *handler.NotificationHandler,
+	statsHandler *handler.StatsHandler,
 ) http.Handler {
 	r := chi.NewRouter()
 
@@ -88,6 +89,11 @@ func NewRouter(
 	// Notifications API
 	r.Route("/notifications", func(r chi.Router) {
 		r.Post("/test", notificationHandler.TestNotification) // POST /notifications/test - send test notification for a resource
+	})
+
+	// Stats API
+	r.Route("/stats", func(r chi.Router) {
+		r.Get("/summary", statsHandler.GetSummary) // GET /stats/summary?range=24h - get aggregated statistics for all monitors
 	})
 
 	return r

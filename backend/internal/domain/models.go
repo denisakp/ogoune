@@ -210,3 +210,11 @@ type ResponseTimePoint struct {
 	Timestamp    time.Time `json:"timestamp"`
 	ResponseTime int       `json:"response_time"` // in milliseconds
 }
+
+// GlobalStats represents aggregated statistics across all monitored resources
+type GlobalStats struct {
+	OverallUptime            float64 // Average uptime percentage across all resources
+	TotalIncidents           int     // Total number of incidents in the time range
+	WithoutIncidentsDuration int64   // Duration in seconds without any incidents
+	AffectedMonitors         int     // Number of distinct resources with incidents
+}

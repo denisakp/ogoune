@@ -129,3 +129,29 @@ func (r *MonitoringActivityRepositoryImpl) GetRecentResponseTimes(ctx context.Co
 
 	return responsePoints, nil
 }
+
+// GetGlobalUptimeStats calculates the overall uptime percentage across all resources
+// for a given time range in hours.
+func (r *MonitoringActivityRepositoryImpl) GetGlobalUptimeStats(ctx context.Context, hours int) (float64, error) {
+	var result struct {
+		UptimePercent float64
+	}
+
+	// SQL query to calculate overall uptime percentage across all resources
+	query := fmt.Sprintf(`
+		SELECT
+			COALESCE(
+				ROUND((COUNT(CASE WHEN success = true THEN 1 END)::numeric / NULLIF(COUNT(*)::numeric, 0) * 100), 2),
+				0.0
+			) as uptime_percent
+		FROM monitoring_activities
+		WHERE created_at >= NOW() - INTERVAL '%d hours'
+	`, hours)
+
+	err := r.db.WithContext(ctx).Raw(query).Scan(&result).Error
+	if err != nil {
+		return 0.0, fmt.Errorf("failed to get global uptime stats: %w", err)
+	}
+
+	return result.UptimePercent, nil
+}

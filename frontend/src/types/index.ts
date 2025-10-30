@@ -39,6 +39,16 @@ export interface ResponseTime {
   response_time: number // in milliseconds
 }
 
+/**
+ * Stats summary for a given time range
+ */
+export interface StatsSummary {
+  overall_uptime: number // Uptime percentage
+  incidents: number // Number of incidents
+  without_incidents_duration: string // Duration without incidents (e.g., "5h 30m")
+  affected_monitors: number // Number of monitors affected
+}
+
 export interface CreateResource {
   name: string
   type: 'http' | 'tcp'

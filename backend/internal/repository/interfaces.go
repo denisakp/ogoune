@@ -51,6 +51,7 @@ type IncidentRepository interface {
 	Delete(ctx context.Context, id string) error
 	FindUnresolved(ctx context.Context, limit, offset int) ([]*domain.Incident, error)
 	FindByResource(ctx context.Context, resourceID string, limit, offset int) ([]*domain.Incident, error)
+	GetIncidentStats(ctx context.Context, hours int) (int, int, error)
 }
 
 // IncidentEventStepRepository manages lifecycle steps
@@ -91,6 +92,7 @@ type MonitoringActivityRepository interface {
 	FindByResourceID(ctx context.Context, resourceID string, limit, offset int) ([]*domain.MonitoringActivity, error)
 	GetUptimeStats(ctx context.Context, resourceID string) ([]domain.UptimeStat, error)
 	GetRecentResponseTimes(ctx context.Context, resourceID string, limit int) ([]domain.ResponseTimePoint, error)
+	GetGlobalUptimeStats(ctx context.Context, hours int) (float64, error)
 }
 
 // Scheduler defines the interface for scheduling monitoring tasks

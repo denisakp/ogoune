@@ -56,6 +56,7 @@ declare module 'vue' {
     ATooltip: typeof import('ant-design-vue/es')['Tooltip']
     ErrorAlert: typeof import('./src/components/ErrorAlert.vue')['default']
     IntegrationComponent: typeof import('./src/components/IntegrationComponent.vue')['default']
+    Last24HoursStatsCard: typeof import('./src/components/Last24HoursStatsCard.vue')['default']
     LoadingSpinner: typeof import('./src/components/LoadingSpinner.vue')['default']
     ResourceForm: typeof import('./src/components/ResourceForm.vue')['default']
     ResourceModal: typeof import('./src/components/ResourceModal.vue')['default']
