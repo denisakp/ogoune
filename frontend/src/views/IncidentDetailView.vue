@@ -2,6 +2,23 @@
 import { onMounted, ref, computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { message } from 'ant-design-vue'
+import {
+  PauseOutlined,
+  PlayCircleOutlined,
+  ArrowLeftOutlined,
+  DashboardOutlined,
+  RiseOutlined,
+  FallOutlined,
+  SafetyOutlined,
+  GlobalOutlined,
+  CalendarOutlined,
+  CheckCircleOutlined,
+  WarningOutlined,
+  ClockCircleOutlined,
+  EditOutlined,
+  EllipsisOutlined,
+} from '@ant-design/icons-vue'
+
 import { useIncidents } from '@/composables/useIncidents'
 import type { Incident, IncidentEventStep } from '@/types'
 
@@ -181,7 +198,7 @@ const handleDownloadResponse = () => {
           <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 16px">
             <a-button type="text" @click="goBack">
               <template #icon>
-                <a-icon-arrow-left />
+                <ArrowLeftOutlined />
               </template>
               Incidents
             </a-button>

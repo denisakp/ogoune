@@ -6,7 +6,7 @@ import { useTags } from '@/composables/useTags'
 import type { Tag, CreateTag } from '@/types'
 
 // Use composables
-const { tags, loading, error, fetchTags, addTag, updateTag, deleteTag } = useTags()
+const { tags, loading, error, loadTags: fetchTags, addTag, updateTag, deleteTag } = useTags()
 
 // Modal and form state
 const isModalVisible = ref(false)

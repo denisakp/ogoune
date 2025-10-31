@@ -11,7 +11,7 @@ import {
 } from '@ant-design/icons-vue'
 
 import { useResources } from '@/composables/useResources'
-import { useTimeAgo } from '@/composables/useTimeAgo'
+import { useDateTime } from '@/composables/useDateTime'
 import ResourceModal from '@/components/ResourceModal.vue'
 import UptimeSparkline from '@/components/UptimeSparkline.vue'
 import Last24HoursStatsCard from '@/components/Last24HoursStatsCard.vue'
@@ -28,7 +28,7 @@ const {
   loadUptimeStats,
 } = useResources()
 
-const { timeAgo } = useTimeAgo()
+const { timeAgo } = useDateTime()
 const router = useRouter()
 
 const showModal = ref(false)

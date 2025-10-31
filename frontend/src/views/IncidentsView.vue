@@ -2,6 +2,7 @@
 import { onMounted, ref, reactive, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { message } from 'ant-design-vue'
+
 import { useIncidents } from '@/composables/useIncidents'
 import type { Incident, IncidentsQueryParams } from '@/types'
 

@@ -1,105 +1,181 @@
 <script setup lang="ts">
-import { ref } from 'vue'
-import { MenuFoldOutlined, MenuUnfoldOutlined } from '@ant-design/icons-vue'
+import { ref, computed, h } from 'vue'
+import {
+  MenuFoldOutlined,
+  MenuUnfoldOutlined,
+  LogoutOutlined,
+  DashboardOutlined,
+  AlertOutlined,
+  SettingOutlined,
+} from '@ant-design/icons-vue'
 
 const isSidebarOpen = ref(false)
 
 const navigation = [
-  { name: 'Monitoring', path: '/monitors', key: '1', icon: '📊' },
-  { name: 'Incidents', path: '/incidents', key: '2', icon: '🏷️' },
-  { name: 'Settings', path: '/Settings', key: '3', icon: '🔌' },
-  { name: 'Activities', path: '/activities', key: '4', icon: '📜' },
+  { name: 'Monitoring', path: '/monitors', key: '1', icon: DashboardOutlined },
+  { name: 'Incidents', path: '/incidents', key: '2', icon: AlertOutlined },
+  { name: 'Settings', path: '/settings', key: '3', icon: SettingOutlined },
 ]
 
-const menuItems = navigation.map((item) => ({
-  key: item.key,
-  label: item.name,
-}))
+const menuItems = computed(() =>
+  navigation.map((item) => ({
+    key: item.key,
+    label: item.name,
+    icon: () => h(item.icon),
+  })),
+)
+
+const isDektop = computed(() => window.innerWidth >= 1024)
+
+const handleLogout = () => {
+  console.log('Logout clicked')
+}
 </script>
 
 <template>
   <a-layout style="min-height: 100vh">
-    <!-- Header / Navbar -->
-    <a-layout-header
-      class="header"
-      style="
-        background: #fff;
-        padding: 0 24px;
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-      "
+    <!-- Mobile Drawer Sidebar -->
+    <a-drawer
+      v-model:open="isSidebarOpen"
+      title="Navigation"
+      placement="left"
+      :closable="true"
+      :mask="true"
+      class="lg:hidden"
     >
-      <div style="display: flex; align-items: center; gap: 16px; flex: 1">
+      <a-menu
+        :items="menuItems"
+        mode="vertical"
+        @click="
+          (e) => {
+            const item = navigation[parseInt(e.key) - 1]
+            $router.push(item.path)
+            isSidebarOpen = false
+          }
+        "
+      />
+
+      <!-- Logout button in drawer -->
+      <div
+        style="
+          position: absolute;
+          bottom: 0;
+          left: 0;
+          right: 0;
+          padding: 16px;
+          border-top: 1px solid #f0f0f0;
+        "
+      >
+        <a-button type="text" danger block @click="handleLogout">
+          <template #icon>
+            <LogoutOutlined />
+          </template>
+          Logout
+        </a-button>
+      </div>
+    </a-drawer>
+
+    <!-- Desktop Sidebar -->
+    <a-layout-sider
+      class="hidden lg:block sidebar-container"
+      :width="256"
+      style="background: #fafafa; position: fixed; left: 0; top: 0; bottom: 0; z-index: 100"
+    >
+      <!-- Logo at top (sans bordure) -->
+      <div style="padding: 24px 16px">
+        <div style="font-size: 20px; font-weight: bold; color: #1890ff"> Pulseguard</div>
+      </div>
+
+      <!-- Menu -->
+      <a-menu
+        :items="menuItems"
+        mode="vertical"
+        style="border: none; background: transparent"
+        @click="
+          (e: any) => {
+            const item = navigation[parseInt(e.key) - 1]
+            $router.push(item.path)
+          }
+        "
+      />
+
+      <!-- Logout button at bottom -->
+      <div
+        style="
+          position: absolute;
+          bottom: 0;
+          left: 0;
+          right: 0;
+          padding: 15px;
+          border-top: 1px solid #e8e8e8;
+          background: #fafafa;
+        "
+      >
+        <a-button type="text" danger block @click="handleLogout">
+          <template #icon><LogoutOutlined /></template>
+          Logout
+        </a-button>
+      </div>
+    </a-layout-sider>
+
+    <!-- Main Content avec margin-left pour le desktop -->
+    <a-layout style="background: #fff" :style="{ marginLeft: isDektop ? '256px' : '0' }">
+      <!-- Mobile menu toggle -->
+      <div class="lg:hidden" style="padding: 16px; background: #fff">
         <button
           @click="isSidebarOpen = !isSidebarOpen"
-          style="display: none; border: none; background: none; cursor: pointer; font-size: 18px"
-          class="md:hidden"
+          style="
+            border: none;
+            background: none;
+            cursor: pointer;
+            font-size: 18px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+          "
         >
-          <MenuUnfoldOutlined v-if="isSidebarOpen" />
+          <MenuUnfoldOutlined v-if="!isSidebarOpen" />
           <MenuFoldOutlined v-else />
+          <span style="font-weight: 600">Menu</span>
         </button>
-        <div style="font-size: 20px; font-weight: bold; color: #1890ff">🔍 Pulseguard</div>
       </div>
-      <a-tag color="blue">Ant Design Vue</a-tag>
-    </a-layout-header>
 
-    <a-layout>
-      <!-- Sidebar -->
-      <a-drawer
-        v-model:open="isSidebarOpen"
-        title="Navigation"
-        placement="left"
-        :closable="true"
-        :mask="true"
-        class="lg:hidden"
-      >
-        <a-menu
-          :items="menuItems"
-          mode="vertical"
-          @click="
-            (e) => {
-              const item = navigation[parseInt(e.key) - 1]
-              $router.push(item.path)
-              isSidebarOpen = false
-            }
-          "
-        />
-      </a-drawer>
+      <a-layout-content style="padding: 24px; background: #fff; min-height: calc(100vh - 70px)">
+        <router-view />
+      </a-layout-content>
 
-      <a-layout-sider class="hidden lg:block" :width="256" style="background: #fafafa">
-        <a-menu
-          :items="menuItems"
-          mode="vertical"
-          @click="
-            (e) => {
-              const item = navigation[parseInt(e.key) - 1]
-              $router.push(item.path)
-            }
-          "
-        />
-      </a-layout-sider>
-
-      <!-- Main Content -->
-      <a-layout>
-        <a-layout-content style="padding: 24px">
-          <router-view />
-        </a-layout-content>
-      </a-layout>
+      <!-- Footer fixe en bas -->
+      <a-layout-footer style="text-align: center; background: #fff; padding: 16px">
+        Pulse Guard ©{{ new Date().getUTCFullYear() }} By
+        <a target="_blank" href="https://github.com/denisakp">Denis Yaovi</a>
+      </a-layout-footer>
     </a-layout>
   </a-layout>
 </template>
 
 <style scoped>
-.header {
-  background: #fff;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+.sidebar-container {
+  height: 100vh;
+  overflow-y: auto;
 }
 
-@media (max-width: 768px) {
-  :deep(.ant-layout-sider) {
-    display: none;
+@media (max-width: 1024px) {
+  .hidden.lg\\:block {
+    display: none !important;
+  }
+
+  .lg\\:hidden {
+    display: block !important;
+  }
+}
+
+@media (min-width: 1024px) {
+  .hidden.lg\\:block {
+    display: block !important;
+  }
+
+  .lg\\:hidden {
+    display: none !important;
   }
 }
 </style>

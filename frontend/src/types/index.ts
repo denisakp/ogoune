@@ -240,3 +240,9 @@ export interface ApiError {
   message: string
   code?: string
 }
+
+export interface ExpirationStatus {
+  text: string
+  color: string
+  type: 'success' | 'warning' | 'danger'
+}

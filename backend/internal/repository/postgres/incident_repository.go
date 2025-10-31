@@ -86,7 +86,7 @@ func (r *IncidentRepositoryImpl) FindUnresolved(ctx context.Context, limit, offs
 	var incidents []*domain.Incident
 	err := r.db.WithContext(ctx).
 		Preload("Resource").
-		Where("is_resolved = ?", false).
+		Where("resolved_at", nil).
 		Order("started_at DESC").
 		Limit(limit).
 		Offset(offset).

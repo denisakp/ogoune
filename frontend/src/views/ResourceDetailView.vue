@@ -2,11 +2,6 @@
 import { onMounted, ref, computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { message } from 'ant-design-vue'
-
-import { useResources } from '@/composables/useResources'
-import ResourceModal from '@/components/ResourceModal.vue'
-import ResponseTimeChart from '@/components/ResponseTimeChart.vue'
-import type { Resource, Incident } from '@/types'
 import {
   PauseOutlined,
   PlayCircleOutlined,
@@ -24,6 +19,12 @@ import {
   EllipsisOutlined,
 } from '@ant-design/icons-vue'
 
+import { useResources } from '@/composables/useResources'
+import { useDateTime } from '@/composables/useDateTime'
+import ResourceModal from '@/components/ResourceModal.vue'
+import ResponseTimeChart from '@/components/ResponseTimeChart.vue'
+import type { Resource, Incident, ExpirationStatus } from '@/types'
+
 const router = useRouter()
 const route = useRoute()
 
@@ -39,20 +40,62 @@ const showEditModal = ref(false)
 // Get resource ID from route
 const resourceId = computed(() => route.params.id as string)
 
-// Generate mock stats based on timeRange
-const generateMockStats = (range: string) => {
-  const ranges = {
-    '24h': { uptime: 100, incidents: 0 },
-    '7d': { uptime: 100, incidents: 0 },
-    '30d': { uptime: 99.5, incidents: 1 },
-    '365d': { uptime: 98.2, incidents: 5 },
-  }
-  return ranges[range as keyof typeof ranges] || ranges['24h']
-}
+const { getTimeRangeCutoff } = useDateTime()
 
-// Get current stats
+// Get incidents filtered by time range
+const filteredIncidents = computed(() => {
+  if (!resource.value?.incidents) return []
+
+  const cutoffDate = getTimeRangeCutoff(timeRange.value)
+
+  return resource.value.incidents.filter((incident) => {
+    const startDate = new Date(incident.started_at)
+    return startDate >= cutoffDate
+  })
+})
+
+// Calculate real uptime based on time range
+const calculateUptime = computed((): number => {
+  if (!resource.value) return 0
+
+  // If the resource has an overall uptime property, use it as baseline
+  if (resource.value.uptime !== undefined && timeRange.value === '24h') {
+    return Number(resource.value.uptime.toFixed(1))
+  }
+
+  // Calculate based on incidents in the time range
+  const cutoffDate = getTimeRangeCutoff(timeRange.value)
+  const now = new Date()
+  const totalDuration = now.getTime() - cutoffDate.getTime()
+
+  if (totalDuration <= 0) return 100
+
+  // Calculate total downtime from incidents in this period
+  let totalDowntime = 0
+
+  filteredIncidents.value.forEach((incident) => {
+    const startDate = new Date(incident.started_at)
+    const endDate = incident.resolved_at ? new Date(incident.resolved_at) : now
+
+    // Only count time within our range
+    const effectiveStart = startDate > cutoffDate ? startDate : cutoffDate
+    const downtime = endDate.getTime() - effectiveStart.getTime()
+
+    if (downtime > 0) {
+      totalDowntime += downtime
+    }
+  })
+
+  const uptime = ((totalDuration - totalDowntime) / totalDuration) * 100
+  return Number(Math.max(0, Math.min(100, uptime)).toFixed(1))
+})
+
+// Get current stats with real data
 const currentStats = computed(() => {
-  return generateMockStats(timeRange.value)
+  return {
+    uptime: calculateUptime.value,
+    incidents: filteredIncidents.value.length,
+  }
 })
 
 // Get sorted incidents (latest first)
@@ -130,9 +173,7 @@ const getDaysUntilExpiration = (dateString: string): number => {
 }
 
 // Get expiration status with color and icon
-const getExpirationStatus = (
-  dateString?: string,
-): { text: string; color: string; type: 'success' | 'warning' | 'danger' } => {
+const getExpirationStatus = (dateString?: string): ExpirationStatus => {
   if (!dateString) return { text: 'Unknown', color: '#d9d9d9', type: 'success' }
 
   const days = getDaysUntilExpiration(dateString)
@@ -220,10 +261,9 @@ const handlePauseResource = async () => {
   if (!resource.value) return
   try {
     await pauseResource(resource.value.id)
-    // L'intercepteur axios affiche automatiquement le toast de succès
     await loadResource()
   } catch {
-    // L'intercepteur axios affiche automatiquement le toast d'erreur
+    // axios interceptor will handle the error toast here
   }
 }
 
@@ -233,10 +273,7 @@ const handleTestNotification = async () => {
 
   try {
     await testNotification(resource.value.id)
-    // L'intercepteur axios affiche automatiquement le toast de succès
-  } catch {
-    // L'intercepteur axios affiche automatiquement le toast d'erreur
-  }
+  } catch {}
 }
 
 // Handle edit modal
@@ -246,7 +283,6 @@ const openEditModal = () => {
 
 const handleEditSubmit = async () => {
   showEditModal.value = false
-  // L'intercepteur axios affiche automatiquement le toast de succès
   await loadResource()
 }
 

@@ -2,7 +2,6 @@ import { createRouter, createWebHistory } from 'vue-router'
 import MonitorsView from '@/views/MonitorsView.vue'
 import ResourceDetailView from '@/views/ResourceDetailView.vue'
 import IntegrationsView from '@/views/IntegrationsView.vue'
-import ActivitiesView from '@/views/ActivitiesView.vue'
 import SettingsView from '@/views/SettingsView.vue'
 import IncidentsView from '@/views/IncidentsView.vue'
 import IncidentDetailView from '@/views/IncidentDetailView.vue'
@@ -41,11 +40,6 @@ const routes = [
     path: '/integrations',
     name: 'Integrations',
     component: IntegrationsView,
-  },
-  {
-    path: '/activities',
-    name: 'Activities',
-    component: ActivitiesView,
   },
 ]
 
