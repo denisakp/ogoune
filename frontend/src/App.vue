@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, h } from 'vue'
+import { useRoute } from 'vue-router'
 import {
   MenuFoldOutlined,
   MenuUnfoldOutlined,
@@ -7,15 +8,23 @@ import {
   DashboardOutlined,
   AlertOutlined,
   SettingOutlined,
+  ApiOutlined,
 } from '@ant-design/icons-vue'
 
+const route = useRoute()
 const isSidebarOpen = ref(false)
 
 const navigation = [
   { name: 'Monitoring', path: '/monitors', key: '1', icon: DashboardOutlined },
   { name: 'Incidents', path: '/incidents', key: '2', icon: AlertOutlined },
-  { name: 'Settings', path: '/settings', key: '3', icon: SettingOutlined },
+  { name: 'Status Page', path: '/status', key: '3', icon: ApiOutlined },
+  { name: 'Settings', path: '/settings', key: '4', icon: SettingOutlined },
 ]
+
+// Check if current route requires layout
+const requiresLayout = computed(() => {
+  return route.meta.requiresLayout !== false
+})
 
 const menuItems = computed(() =>
   navigation.map((item) => ({
@@ -33,7 +42,13 @@ const handleLogout = () => {
 </script>
 
 <template>
-  <a-layout style="min-height: 100vh">
+  <!-- Public routes (no layout) -->
+  <div v-if="!requiresLayout">
+    <router-view />
+  </div>
+
+  <!-- Admin routes (with layout) -->
+  <a-layout v-else style="min-height: 100vh">
     <!-- Mobile Drawer Sidebar -->
     <a-drawer
       v-model:open="isSidebarOpen"
@@ -46,11 +61,14 @@ const handleLogout = () => {
       <a-menu
         :items="menuItems"
         mode="vertical"
+        theme="dark"
         @click="
-          (e) => {
+          (e: any) => {
             const item = navigation[parseInt(e.key) - 1]
-            $router.push(item.path)
-            isSidebarOpen = false
+            if (item) {
+              $router.push(item.path)
+              isSidebarOpen = false
+            }
           }
         "
       />
@@ -83,7 +101,7 @@ const handleLogout = () => {
     >
       <!-- Logo at top (sans bordure) -->
       <div style="padding: 24px 16px">
-        <div style="font-size: 20px; font-weight: bold; color: #1890ff"> Pulseguard</div>
+        <div style="font-size: 20px; font-weight: bold; color: #1890ff">Pulseguard</div>
       </div>
 
       <!-- Menu -->
@@ -94,7 +112,9 @@ const handleLogout = () => {
         @click="
           (e: any) => {
             const item = navigation[parseInt(e.key) - 1]
-            $router.push(item.path)
+            if (item) {
+              $router.push(item.path)
+            }
           }
         "
       />

@@ -46,6 +46,7 @@ func NewRouter(
 
 	// Public status page (returns JSON status data)
 	r.Get("/status", statusPageHandler.HandleStatusPage)
+	r.Get("/status/{resourceId}", statusPageHandler.HandleResourceDetailStatus) // GET /status/{resourceId} - get detailed status for a specific resource
 
 	// Resources (Monitors) API
 	r.Route("/resources", func(r chi.Router) {

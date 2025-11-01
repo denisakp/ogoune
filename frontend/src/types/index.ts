@@ -246,3 +246,95 @@ export interface ExpirationStatus {
   color: string
   type: 'success' | 'warning' | 'danger'
 }
+
+/**
+ * Status page types based on /status endpoint
+ */
+
+/**
+ * Daily status for a single day in the 90-day window
+ */
+export type DailyStatus = 'up' | 'degraded' | 'down' | 'no_data'
+
+/**
+ * Current status of a resource (simplified for status page)
+ */
+export type ResourceCurrentStatus = 'up' | 'down' | 'degraded'
+
+/**
+ * Resource status information for status page
+ */
+export interface ResourceStatusInfo {
+  id: string
+  name: string
+  current_status: ResourceCurrentStatus
+  uptime_percentage_last_90_days: number
+  daily_status_last_90_days: DailyStatus[]
+}
+
+/**
+ * Global status for all systems
+ */
+export type GlobalStatus = 'all_systems_operational' | 'some_systems_down'
+
+/**
+ * Complete status page data response
+ */
+export interface StatusPageData {
+  global_status: GlobalStatus
+  generated_at: string
+  resources: ResourceStatusInfo[]
+}
+
+/**
+ * Public monitor detail types based on /status/:id endpoint
+ */
+
+/**
+ * Event type for recent events
+ */
+export type MonitorEventType = 'up' | 'down'
+
+/**
+ * Recent event in monitor timeline
+ */
+export interface MonitorRecentEvent {
+  type: MonitorEventType
+  timestamp: string
+  duration: string | null
+  reason: string
+  details: string | null
+}
+
+/**
+ * Uptime summary for different time periods
+ */
+export interface MonitorUptimeSummary {
+  last_24_hours: number
+  last_7_days: number
+  last_30_days: number
+  last_90_days: number
+}
+
+/**
+ * Response time summary for 7 days
+ */
+export interface MonitorResponseTimeSummary {
+  avg_ms: number
+  min_ms: number
+  max_ms: number
+}
+
+/**
+ * Public monitor detail data
+ */
+export interface PublicMonitorDetail {
+  id: string
+  name: string
+  current_status: ResourceCurrentStatus
+  last_updated: string
+  uptime_history_90_days: DailyStatus[]
+  uptime_summary: MonitorUptimeSummary
+  response_time_summary_7_days: MonitorResponseTimeSummary
+  recent_events: MonitorRecentEvent[]
+}

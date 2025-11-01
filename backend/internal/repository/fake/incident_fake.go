@@ -170,3 +170,21 @@ func (r *IncidentFake) FindByResource(ctx context.Context, resourceID string, li
 
 	return forResource[offset:end], nil
 }
+
+func (r *IncidentFake) GetIncidentStats(ctx context.Context, hours int) (int, int, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	// This is a simplified implementation for testing
+	// In a real scenario, you would filter by time range
+	totalIncidents := len(r.incidents)
+
+	// Count unique resource IDs
+	resourceMap := make(map[string]bool)
+	for _, inc := range r.incidents {
+		resourceMap[inc.ResourceID] = true
+	}
+	affectedMonitors := len(resourceMap)
+
+	return totalIncidents, affectedMonitors, nil
+}

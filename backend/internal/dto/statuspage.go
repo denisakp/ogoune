@@ -4,20 +4,18 @@ import "time"
 
 // StatusPageData represents the complete data structure for rendering the public status page.
 type StatusPageData struct {
-	Resources []ResourceStatusInfo `json:"resources"`
-	Incidents []IncidentSummary    `json:"incidents"`
-	Generated time.Time            `json:"generated"`
+	GlobalStatus string               `json:"global_status"`
+	GeneratedAt  time.Time            `json:"generated_at"`
+	Resources    []ResourceStatusInfo `json:"resources"`
 }
 
 // ResourceStatusInfo represents a monitored resource's current status and uptime metrics.
 type ResourceStatusInfo struct {
-	ID               string    `json:"id"`
-	Name             string    `json:"name"`
-	Type             string    `json:"type"`
-	CurrentStatus    string    `json:"current_status"`
-	UptimeLast30Days float64   `json:"uptime_last_30_days"`
-	LastChecked      time.Time `json:"last_checked"`
-	ResponseTime     int       `json:"response_time_ms,omitempty"`
+	ID                         string   `json:"id"`
+	Name                       string   `json:"name"`
+	CurrentStatus              string   `json:"current_status"`
+	UptimePercentageLast90Days float64  `json:"uptime_percentage_last_90_days"`
+	DailyStatusLast90Days      []string `json:"daily_status_last_90_days"`
 }
 
 // IncidentSummary represents a high-level summary of an incident for public display.
@@ -30,4 +28,40 @@ type IncidentSummary struct {
 	ResolvedAt *time.Time `json:"resolved_at,omitempty"`
 	Duration   string     `json:"duration"`
 	IsOngoing  bool       `json:"is_ongoing"`
+}
+
+// ResourceDetailStatusData represents detailed status information for a single resource
+type ResourceDetailStatusData struct {
+	ID                    string              `json:"id"`
+	Name                  string              `json:"name"`
+	CurrentStatus         string              `json:"current_status"`
+	LastUpdated           time.Time           `json:"last_updated"`
+	UptimeHistory90Days   []string            `json:"uptime_history_90_days"`
+	UptimeSummary         UptimeSummary       `json:"uptime_summary"`
+	ResponseTimeSummary7D ResponseTimeSummary `json:"response_time_summary_7_days"`
+	RecentEvents          []ResourceEvent     `json:"recent_events"`
+}
+
+// UptimeSummary represents uptime percentages for different time windows
+type UptimeSummary struct {
+	Last24Hours float64 `json:"last_24_hours"`
+	Last7Days   float64 `json:"last_7_days"`
+	Last30Days  float64 `json:"last_30_days"`
+	Last90Days  float64 `json:"last_90_days"`
+}
+
+// ResponseTimeSummary represents response time statistics
+type ResponseTimeSummary struct {
+	AvgMs int `json:"avg_ms"`
+	MinMs int `json:"min_ms"`
+	MaxMs int `json:"max_ms"`
+}
+
+// ResourceEvent represents a status change event (up/down)
+type ResourceEvent struct {
+	Type      string    `json:"type"` // "up" or "down"
+	Timestamp time.Time `json:"timestamp"`
+	Duration  *string   `json:"duration,omitempty"`
+	Reason    string    `json:"reason"`
+	Details   *string   `json:"details,omitempty"`
 }

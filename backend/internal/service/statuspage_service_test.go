@@ -12,7 +12,7 @@ import (
 )
 
 func TestStatusPageService_GetData(t *testing.T) {
-	t.Run("returns data with active resources and recent incidents", func(t *testing.T) {
+	t.Run("returns data with active resources and 90-day stats", func(t *testing.T) {
 		// Setup fake repositories
 		resourceRepo := fake.NewResourceFake()
 		incidentRepo := fake.NewIncidentFake()
@@ -36,28 +36,17 @@ func TestStatusPageService_GetData(t *testing.T) {
 		_, err := resourceRepo.Create(ctx, resource)
 		require.NoError(t, err)
 
-		// Create monitoring activities (30 days of data)
-		for i := 0; i < 100; i++ {
+		// Create monitoring activities (90 days of data)
+		for i := 0; i < 200; i++ {
 			activity := &domain.MonitoringActivity{
 				Base:         domain.Base{ID: "activity-" + string(rune(i))},
 				ResourceID:   resource.ID,
 				Success:      i%10 != 0, // 90% success rate
 				ResponseTime: 100 + i,
 			}
-			activity.CreatedAt = now.AddDate(0, 0, -i%30)
+			activity.CreatedAt = now.AddDate(0, 0, -i%90)
 			require.NoError(t, activityRepo.Create(ctx, activity))
 		}
-
-		// Create recent incident
-		incident := &domain.Incident{
-			Base:       domain.Base{ID: "incident-1"},
-			ResourceID: resource.ID,
-			Cause:      "http_error",
-			StartedAt:  now.Add(-2 * time.Hour),
-			ResolvedAt: nil, // Ongoing
-		}
-		_, err = incidentRepo.Create(ctx, incident)
-		require.NoError(t, err)
 
 		// Create service
 		service := NewStatusPageService(resourceRepo, incidentRepo, activityRepo)
@@ -68,22 +57,61 @@ func TestStatusPageService_GetData(t *testing.T) {
 		// Assert
 		require.NoError(t, err)
 		assert.NotNil(t, data)
+		assert.Equal(t, "all_systems_operational", data.GlobalStatus)
 		assert.Len(t, data.Resources, 1)
-		assert.Len(t, data.Incidents, 1)
 
 		// Check resource info
 		resourceInfo := data.Resources[0]
 		assert.Equal(t, "resource-1", resourceInfo.ID)
 		assert.Equal(t, "Test Website", resourceInfo.Name)
-		assert.Equal(t, "http", resourceInfo.Type)
 		assert.Equal(t, "up", resourceInfo.CurrentStatus)
-		assert.InDelta(t, 90.0, resourceInfo.UptimeLast30Days, 5.0) // ~90% uptime
+		assert.InDelta(t, 90.0, resourceInfo.UptimePercentageLast90Days, 5.0) // ~90% uptime
+		assert.Len(t, resourceInfo.DailyStatusLast90Days, 90)                 // Must have 90 days
+	})
 
-		// Check incident info
-		incidentInfo := data.Incidents[0]
-		assert.Equal(t, "incident-1", incidentInfo.ID)
-		assert.True(t, incidentInfo.IsOngoing)
-		assert.Nil(t, incidentInfo.ResolvedAt)
+	t.Run("sets global status to some_systems_down when resource is down", func(t *testing.T) {
+		// Setup fake repositories
+		resourceRepo := fake.NewResourceFake()
+		incidentRepo := fake.NewIncidentFake()
+		activityRepo := fake.NewMonitoringActivityFake()
+
+		ctx := context.Background()
+		now := time.Now()
+
+		// Create down resource
+		resource := &domain.Resource{
+			Base:        domain.Base{ID: "resource-1"},
+			Name:        "Down Website",
+			Type:        domain.ResourceHTTP,
+			Target:      "https://example.com",
+			Status:      domain.StatusDown,
+			IsActive:    true,
+			Interval:    60,
+			LastChecked: &now,
+		}
+		_, err := resourceRepo.Create(ctx, resource)
+		require.NoError(t, err)
+
+		// Create some monitoring activities
+		for i := 0; i < 10; i++ {
+			activity := &domain.MonitoringActivity{
+				Base:         domain.Base{ID: "activity-" + string(rune(i))},
+				ResourceID:   resource.ID,
+				Success:      false,
+				ResponseTime: 0,
+			}
+			activity.CreatedAt = now.AddDate(0, 0, -i)
+			require.NoError(t, activityRepo.Create(ctx, activity))
+		}
+
+		service := NewStatusPageService(resourceRepo, incidentRepo, activityRepo)
+
+		data, err := service.GetData(ctx)
+
+		require.NoError(t, err)
+		assert.Equal(t, "some_systems_down", data.GlobalStatus)
+		assert.Len(t, data.Resources, 1)
+		assert.Equal(t, "down", data.Resources[0].CurrentStatus)
 	})
 
 	t.Run("handles empty resources gracefully", func(t *testing.T) {
@@ -98,48 +126,12 @@ func TestStatusPageService_GetData(t *testing.T) {
 		require.NoError(t, err)
 		assert.NotNil(t, data)
 		assert.Empty(t, data.Resources)
-		assert.Empty(t, data.Incidents)
-	})
-
-	t.Run("filters incidents older than 90 days", func(t *testing.T) {
-		resourceRepo := fake.NewResourceFake()
-		incidentRepo := fake.NewIncidentFake()
-		activityRepo := fake.NewMonitoringActivityFake()
-
-		ctx := context.Background()
-
-		// Create old incident (100 days ago)
-		oldIncident := &domain.Incident{
-			Base:       domain.Base{ID: "old-incident"},
-			ResourceID: "resource-1",
-			Cause:      "test",
-			StartedAt:  time.Now().AddDate(0, 0, -100),
-		}
-		_, err := incidentRepo.Create(ctx, oldIncident)
-		require.NoError(t, err)
-
-		// Create recent incident (10 days ago)
-		recentIncident := &domain.Incident{
-			Base:       domain.Base{ID: "recent-incident"},
-			ResourceID: "resource-1",
-			Cause:      "test",
-			StartedAt:  time.Now().AddDate(0, 0, -10),
-		}
-		_, err = incidentRepo.Create(ctx, recentIncident)
-		require.NoError(t, err)
-
-		service := NewStatusPageService(resourceRepo, incidentRepo, activityRepo)
-
-		data, err := service.GetData(ctx)
-
-		require.NoError(t, err)
-		assert.Len(t, data.Incidents, 1)
-		assert.Equal(t, "recent-incident", data.Incidents[0].ID)
+		assert.Equal(t, "all_systems_operational", data.GlobalStatus)
 	})
 }
 
 func TestStatusPageService_buildResourceStatusInfo(t *testing.T) {
-	t.Run("calculates uptime correctly", func(t *testing.T) {
+	t.Run("calculates 90-day uptime correctly", func(t *testing.T) {
 		resourceRepo := fake.NewResourceFake()
 		incidentRepo := fake.NewIncidentFake()
 		activityRepo := fake.NewMonitoringActivityFake()
@@ -154,26 +146,26 @@ func TestStatusPageService_buildResourceStatusInfo(t *testing.T) {
 			Status: domain.StatusUp,
 		}
 
-		// 8 successful checks, 2 failures = 80% uptime
-		for i := 0; i < 8; i++ {
+		// 80 successful checks, 20 failures = 80% uptime
+		for i := 0; i < 80; i++ {
 			activity := &domain.MonitoringActivity{
 				Base:         domain.Base{ID: "success-" + string(rune(i))},
 				ResourceID:   resource.ID,
 				Success:      true,
 				ResponseTime: 100,
 			}
-			activity.CreatedAt = now.AddDate(0, 0, -i)
+			activity.CreatedAt = now.AddDate(0, 0, -i%90)
 			require.NoError(t, activityRepo.Create(ctx, activity))
 		}
 
-		for i := 0; i < 2; i++ {
+		for i := 0; i < 20; i++ {
 			activity := &domain.MonitoringActivity{
 				Base:         domain.Base{ID: "failure-" + string(rune(i))},
 				ResourceID:   resource.ID,
 				Success:      false,
 				ResponseTime: 0,
 			}
-			activity.CreatedAt = now.AddDate(0, 0, -i-8)
+			activity.CreatedAt = now.AddDate(0, 0, -(i+10)%90)
 			require.NoError(t, activityRepo.Create(ctx, activity))
 		}
 
@@ -182,7 +174,8 @@ func TestStatusPageService_buildResourceStatusInfo(t *testing.T) {
 		info, err := service.buildResourceStatusInfo(ctx, resource)
 
 		require.NoError(t, err)
-		assert.Equal(t, 80.0, info.UptimeLast30Days)
+		assert.Equal(t, 80.0, info.UptimePercentageLast90Days)
+		assert.Len(t, info.DailyStatusLast90Days, 90)
 	})
 
 	t.Run("handles resource with no activities", func(t *testing.T) {
@@ -202,87 +195,172 @@ func TestStatusPageService_buildResourceStatusInfo(t *testing.T) {
 		info, err := service.buildResourceStatusInfo(context.Background(), resource)
 
 		require.NoError(t, err)
-		assert.Equal(t, 100.0, info.UptimeLast30Days) // Default to 100% if no data
-	})
-
-	t.Run("filters activities older than 30 days", func(t *testing.T) {
-		resourceRepo := fake.NewResourceFake()
-		incidentRepo := fake.NewIncidentFake()
-		activityRepo := fake.NewMonitoringActivityFake()
-
-		ctx := context.Background()
-		now := time.Now()
-
-		resource := &domain.Resource{
-			Base:   domain.Base{ID: "resource-1"},
-			Name:   "Test",
-			Type:   domain.ResourceHTTP,
-			Status: domain.StatusUp,
-		}
-
-		// Old activity (40 days ago) - should be ignored
-		oldActivity := &domain.MonitoringActivity{
-			Base:       domain.Base{ID: "old-activity"},
-			ResourceID: resource.ID,
-			Success:    false,
-		}
-		oldActivity.CreatedAt = now.AddDate(0, 0, -40)
-		require.NoError(t, activityRepo.Create(ctx, oldActivity))
-
-		// Recent activity (10 days ago) - should be counted
-		recentActivity := &domain.MonitoringActivity{
-			Base:       domain.Base{ID: "recent-activity"},
-			ResourceID: resource.ID,
-			Success:    true,
-		}
-		recentActivity.CreatedAt = now.AddDate(0, 0, -10)
-		require.NoError(t, activityRepo.Create(ctx, recentActivity))
-
-		service := NewStatusPageService(resourceRepo, incidentRepo, activityRepo)
-
-		info, err := service.buildResourceStatusInfo(ctx, resource)
-
-		require.NoError(t, err)
-		assert.Equal(t, 100.0, info.UptimeLast30Days) // Only recent success counted
+		assert.Equal(t, 100.0, info.UptimePercentageLast90Days) // Default to 100% if no data
+		assert.Len(t, info.DailyStatusLast90Days, 90)
 	})
 }
 
-func TestStatusPageService_buildIncidentSummary(t *testing.T) {
-	t.Run("handles ongoing incident", func(t *testing.T) {
-		now := time.Now()
-		incident := &domain.Incident{
-			Base:       domain.Base{ID: "incident-1"},
-			ResourceID: "resource-1",
-			Cause:      "http_error",
-			StartedAt:  now.Add(-2 * time.Hour),
-			ResolvedAt: nil,
+func TestStatusPageService_mapResourceStatus(t *testing.T) {
+	service := NewStatusPageService(nil, nil, nil)
+
+	tests := []struct {
+		name           string
+		resourceStatus domain.ResourceStatus
+		want           string
+	}{
+		{
+			name:           "up status",
+			resourceStatus: domain.StatusUp,
+			want:           "up",
+		},
+		{
+			name:           "down status",
+			resourceStatus: domain.StatusDown,
+			want:           "down",
+		},
+		{
+			name:           "error status maps to down",
+			resourceStatus: domain.StatusError,
+			want:           "down",
+		},
+		{
+			name:           "warn status maps to degraded",
+			resourceStatus: domain.StatusWarn,
+			want:           "degraded",
+		},
+		{
+			name:           "pending status maps to degraded",
+			resourceStatus: domain.StatusPending,
+			want:           "degraded",
+		},
+		{
+			name:           "unknown status maps to degraded",
+			resourceStatus: domain.StatusUnknown,
+			want:           "degraded",
+		},
+		{
+			name:           "paused status maps to up",
+			resourceStatus: domain.StatusPaused,
+			want:           "up",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := service.mapResourceStatus(tt.resourceStatus)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
+func TestStatusPageService_calculateDayStatus(t *testing.T) {
+	service := NewStatusPageService(nil, nil, nil)
+	now := time.Now()
+	dayStart := now.Truncate(24 * time.Hour)
+	dayEnd := dayStart.Add(24 * time.Hour)
+
+	t.Run("returns down for major incident", func(t *testing.T) {
+		// Incident covering 18 hours (75% of day)
+		incidents := []*domain.Incident{
+			{
+				StartedAt:  dayStart.Add(2 * time.Hour),
+				ResolvedAt: ptrTime(dayStart.Add(20 * time.Hour)),
+			},
 		}
 
-		service := NewStatusPageService(nil, nil, nil)
-		summary := service.buildIncidentSummary(incident)
-
-		assert.True(t, summary.IsOngoing)
-		assert.Nil(t, summary.ResolvedAt)
-		assert.Contains(t, summary.Duration, "h") // Duration in hours
+		status := service.calculateDayStatus(dayStart, dayEnd, nil, incidents)
+		assert.Equal(t, "down", status)
 	})
 
-	t.Run("handles resolved incident", func(t *testing.T) {
-		now := time.Now()
-		resolvedAt := now.Add(-1 * time.Hour)
-		incident := &domain.Incident{
-			Base:       domain.Base{ID: "incident-1"},
-			ResourceID: "resource-1",
-			Cause:      "http_error",
-			StartedAt:  now.Add(-3 * time.Hour),
-			ResolvedAt: &resolvedAt,
+	t.Run("returns degraded for minor incident with good uptime", func(t *testing.T) {
+		// Incident covering 2 hours (8% of day)
+		incidents := []*domain.Incident{
+			{
+				StartedAt:  dayStart.Add(2 * time.Hour),
+				ResolvedAt: ptrTime(dayStart.Add(4 * time.Hour)),
+			},
 		}
 
-		service := NewStatusPageService(nil, nil, nil)
-		summary := service.buildIncidentSummary(incident)
+		// 95% success rate
+		activities := make([]*domain.MonitoringActivity, 0)
+		for i := 0; i < 95; i++ {
+			activities = append(activities, &domain.MonitoringActivity{
+				Base:    domain.Base{CreatedAt: dayStart.Add(time.Duration(i) * time.Minute)},
+				Success: true,
+			})
+		}
+		for i := 0; i < 5; i++ {
+			activities = append(activities, &domain.MonitoringActivity{
+				Base:    domain.Base{CreatedAt: dayStart.Add(time.Duration(i+95) * time.Minute)},
+				Success: false,
+			})
+		}
 
-		assert.False(t, summary.IsOngoing)
-		assert.NotNil(t, summary.ResolvedAt)
-		assert.Contains(t, summary.Duration, "h") // ~2 hours duration
+		status := service.calculateDayStatus(dayStart, dayEnd, activities, incidents)
+		assert.Equal(t, "degraded", status)
+	})
+
+	t.Run("returns down for low success rate", func(t *testing.T) {
+		// 30% success rate
+		activities := make([]*domain.MonitoringActivity, 0)
+		for i := 0; i < 30; i++ {
+			activities = append(activities, &domain.MonitoringActivity{
+				Base:    domain.Base{CreatedAt: dayStart.Add(time.Duration(i) * time.Minute)},
+				Success: true,
+			})
+		}
+		for i := 0; i < 70; i++ {
+			activities = append(activities, &domain.MonitoringActivity{
+				Base:    domain.Base{CreatedAt: dayStart.Add(time.Duration(i+30) * time.Minute)},
+				Success: false,
+			})
+		}
+
+		status := service.calculateDayStatus(dayStart, dayEnd, activities, nil)
+		assert.Equal(t, "down", status)
+	})
+
+	t.Run("returns degraded for moderate success rate", func(t *testing.T) {
+		// 85% success rate
+		activities := make([]*domain.MonitoringActivity, 0)
+		for i := 0; i < 85; i++ {
+			activities = append(activities, &domain.MonitoringActivity{
+				Base:    domain.Base{CreatedAt: dayStart.Add(time.Duration(i) * time.Minute)},
+				Success: true,
+			})
+		}
+		for i := 0; i < 15; i++ {
+			activities = append(activities, &domain.MonitoringActivity{
+				Base:    domain.Base{CreatedAt: dayStart.Add(time.Duration(i+85) * time.Minute)},
+				Success: false,
+			})
+		}
+
+		status := service.calculateDayStatus(dayStart, dayEnd, activities, nil)
+		assert.Equal(t, "degraded", status)
+	})
+
+	t.Run("returns up for high success rate", func(t *testing.T) {
+		// 99% success rate
+		activities := make([]*domain.MonitoringActivity, 0)
+		for i := 0; i < 99; i++ {
+			activities = append(activities, &domain.MonitoringActivity{
+				Base:    domain.Base{CreatedAt: dayStart.Add(time.Duration(i) * time.Minute)},
+				Success: true,
+			})
+		}
+		activities = append(activities, &domain.MonitoringActivity{
+			Base:    domain.Base{CreatedAt: dayStart.Add(99 * time.Minute)},
+			Success: false,
+		})
+
+		status := service.calculateDayStatus(dayStart, dayEnd, activities, nil)
+		assert.Equal(t, "up", status)
+	})
+
+	t.Run("returns up when no data available", func(t *testing.T) {
+		status := service.calculateDayStatus(dayStart, dayEnd, nil, nil)
+		assert.Equal(t, "up", status)
 	})
 }
 
@@ -320,4 +398,9 @@ func TestFormatDuration(t *testing.T) {
 			assert.Equal(t, tt.want, got)
 		})
 	}
+}
+
+// Helper function to create time pointer
+func ptrTime(t time.Time) *time.Time {
+	return &t
 }
