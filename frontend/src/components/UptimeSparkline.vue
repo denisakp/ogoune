@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+
 import type { HourlyUptimeStat } from '@/types'
 
 interface Props {

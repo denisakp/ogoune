@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
+
 import * as incidentService from '@/services/incidentService'
 import type { Incident, IncidentsQueryParams, PaginatedResponse } from '@/types'
 

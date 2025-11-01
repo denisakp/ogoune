@@ -23,7 +23,7 @@ const props = withDefaults(defineProps<Props>(), {
 })
 
 // Events pagination
-const INITIAL_EVENTS_COUNT = 1
+const INITIAL_EVENTS_COUNT = 5
 const visibleEventsCount = ref(INITIAL_EVENTS_COUNT)
 
 // Map status to display color

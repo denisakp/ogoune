@@ -1,4 +1,5 @@
 import { storeToRefs } from 'pinia'
+
 import { useIncidentStore } from '@/stores/incidentStore'
 
 export function useIncidents() {

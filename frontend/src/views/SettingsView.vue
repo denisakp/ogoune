@@ -5,7 +5,7 @@ import { EyeOutlined, SaveOutlined } from '@ant-design/icons-vue'
 
 import IntegrationComponent from '@/components/IntegrationComponent.vue'
 import TagComponent from '@/components/TagComponent.vue'
-import { StatusPageSettings } from '@/components/status-page'
+import StatusPageSettings from '@/components/status-page/StatusPageSettings.vue'
 
 const activeKey = ref('1')
 const saving = ref(false)

@@ -6,6 +6,8 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"path/filepath"
+	"strings"
 	"syscall"
 	"time"
 
@@ -20,8 +22,37 @@ import (
 	"github.com/denisakp/pulseguard/internal/service"
 	"github.com/denisakp/pulseguard/internal/worker"
 	"github.com/denisakp/pulseguard/pkg/notifier"
+	"github.com/go-chi/chi"
+	"github.com/go-chi/chi/v5"
 	"github.com/hibiken/asynq"
 )
+
+func serveStaticFiles(router chi.NewRouter, staticDir string) {
+	// Serve files from the static directory
+	fs := http.FileServer(http.Dir(staticDir))
+	
+	// Handle all non-API routes
+	router.Get("/*", func(w http.ResponseWriter, r *http.Request) {
+		path := r.URL.Path
+		
+		// Don't serve static files for API routes
+		if strings.HasPrefix(path, "/api/") {
+			http.NotFound(w, r)
+			return
+		}
+		
+		// Check if the requested file exists
+		fullPath := filepath.Join(staticDir, path)
+		if _, err := os.Stat(fullPath); os.IsNotExist(err) {
+			// File doesn't exist, serve index.html for Vue Router
+			http.ServeFile(w, r, filepath.Join(staticDir, "index.html"))
+			return
+		}
+		
+		// File exists, serve it
+		fs.ServeHTTP(w, r)
+	})
+}
 
 func main() {
 	log.Println("========================================")
@@ -209,7 +240,7 @@ func main() {
 
 	// Create router with injected handlers
 	router := api.NewRouter(resourceHandler, activityHandler, tagHandler, integrationHandler, statusPageHandler, incidentHandler, notificationHandler, statsHandler)
-
+	
 	// Create HTTP server with explicit configuration
 	addr := ":" + cfg.Port
 	srv := &http.Server{

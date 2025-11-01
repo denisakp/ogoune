@@ -1,4 +1,5 @@
 import type { AxiosRequestConfig } from 'axios'
+
 import axiosHelper from '../libs/axios.helper'
 import type { CreateResource, Resource, UpdateResource, HourlyUptimeStat } from '@/types'
 

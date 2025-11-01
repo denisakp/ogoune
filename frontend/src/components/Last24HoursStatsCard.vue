@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted, watch } from 'vue'
+
 import { useStats } from '@/composables/useStats'
 
 interface Props {

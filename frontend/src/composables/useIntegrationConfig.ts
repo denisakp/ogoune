@@ -1,4 +1,5 @@
 import { reactive, ref, watch } from 'vue'
+
 import type {
   IntegrationType,
   IntegrationConfig,

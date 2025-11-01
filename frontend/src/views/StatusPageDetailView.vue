@@ -3,14 +3,14 @@ import { onMounted, computed, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ArrowLeftOutlined } from '@ant-design/icons-vue'
 
-import MonitorStatusDetail from '@/components/status-page/MonitorStatusDetail.vue'
-import { usePublicMonitor } from '@/composables/usePublicMonitor'
+import StatusPageDetail from '@/components/status-page/StatusPageDetail.vue'
+import { useStatusPage } from '@/composables/useStatusPage'
 
 const router = useRouter()
 const route = useRoute()
 
 // Get composable
-const { monitorDetail, loading, loadMonitorDetail, clearMonitorDetail } = usePublicMonitor()
+const { monitorDetail, loading, loadMonitorDetail, clearMonitorDetail } = useStatusPage()
 
 // Get monitor ID from route
 const monitorId = computed(() => route.params.id as string)
@@ -112,7 +112,7 @@ const goBack = () => {
     <!-- Main Content -->
     <div class="status-content">
       <div class="container">
-        <MonitorStatusDetail :monitor-data="monitorDetail" :loading="loading" />
+        <StatusPageDetail :monitor-data="monitorDetail" :loading="loading" />
       </div>
     </div>
 

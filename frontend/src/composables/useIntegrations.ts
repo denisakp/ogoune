@@ -1,4 +1,5 @@
 import { storeToRefs } from 'pinia'
+
 import { useIntegrationStore } from '@/stores/integrationStore'
 
 export function useIntegrations() {

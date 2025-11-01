@@ -1,4 +1,5 @@
 import { ref } from 'vue'
+
 import * as activityService from '@/services/activityService'
 import type { MonitoringActivity } from '@/types'
 

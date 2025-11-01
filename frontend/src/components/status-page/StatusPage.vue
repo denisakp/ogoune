@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { CheckCircleOutlined, WarningOutlined, CloseCircleOutlined } from '@ant-design/icons-vue'
+
 import ServiceStatusItem from './ServiceStatusItem.vue'
 import type { GlobalStatus, ResourceStatusInfo, DailyStatus } from '@/types'
 

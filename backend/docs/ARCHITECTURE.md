@@ -1,187 +1,402 @@
 # Pulseguard Backend Architecture
 
-Version: October 2025
+This document describes the technical architecture of the Pulseguard backend. It covers the API surface, background processing, persistence, scheduling, incidents, notifications, configuration, and operational guidance, with pointers to the main packages and files.
 
-This document describes the Go backend that powers Pulseguard. It focuses solely on the JSON API, the background worker, persistence, scheduling, real‑time updates, and notifications. It intentionally excludes any frontend implementation details.
-
-## Table of Contents
-
-1. High‑Level Overview
-2. Technology Stack (Backend)
-3. Core Architecture (API + Worker)
-4. Scheduling Engine (Ticker)
-5. Real‑time System (WebSockets)
-6. Backend Directory Structure
-7. Database Models (Overview)
-8. Incident Management Logic
-9. Notification System
-10. Deployment Notes
-11. Performance & Scalability
-12. Security
+Scope: Backend only (Go). No frontend details are included.
 
 ---
 
 ## 1) High‑Level Overview
 
-The backend is a headless service that exposes a REST/JSON API and executes health checks asynchronously. Responsibilities:
+The backend is a single Go binary that, on startup, initializes:
+- PostgreSQL (via GORM) and auto-migrates core models.
+- Redis-backed Asynq components:
+  - Periodic scheduler: registers recurring checks per resource.
+  - Worker server: processes monitoring jobs from Redis.
+- HTTP JSON API (Chi router) with CORS enabled.
 
-- Expose endpoints to create/read/update/delete monitoring resources, tags, integrations, and incidents.
-- Enqueue and process check jobs for HTTP/TCP targets.
-- Persist activities and incidents to PostgreSQL.
-- Dispatch notifications via pluggable providers.
-- Broadcast activity/incident events to connected clients over WebSockets.
+Core responsibilities:
+- CRUD for monitored resources, tags, and integrations.
+- Periodic health checks (HTTP, TCP).
+- Persisted monitoring activities.
+- Incident lifecycle (create on persistent failures, resolve on recovery).
+- Notifications (SMTP + pluggable integrations).
+- Aggregated stats and status endpoints for dashboards/status pages.
 
-Principles:
-
-- Clean layering (domain, repository, api, worker). Domain has no infra dependencies.
-- API handlers must never perform network checks inline; they only enqueue work.
-- PostgreSQL is the source of truth; Redis is used for job transport.
-
----
-
-## 2) Technology Stack (Backend)
-
-- Go 1.25+
-- Chi (HTTP router)
-- GORM (ORM for PostgreSQL)
-- PostgreSQL (primary datastore)
-- Redis + Asynq (job queue and worker)
-- nhooyr.io/websocket (WebSockets)
+Source of truth: PostgreSQL.
+Transport for background work: Redis + Asynq.
 
 ---
 
-## 3) Core Architecture (API + Worker)
+## 2) Technology Stack
 
-Single deployable that starts two long‑running components:
+- Language/runtime: Go 1.25+
+- HTTP: Chi router
+- Persistence: GORM ORM + PostgreSQL
+- Background jobs: Redis + Asynq (periodic scheduler + worker server)
+- Notifications: SMTP (+ Slack, Discord, Google Chat integrations)
+- Configuration: Environment variables (dotenv supported in development)
 
-- API Server
-
-  - Validates input, applies business rules via services, persists via repositories.
-  - Enqueues jobs (e.g., monitoring:check) into Redis (Asynq) for the worker.
-  - Manages WebSocket connections (upgrade + message routing to clients).
-
-- Background Worker
-  - Consumes jobs from Redis (Asynq server) and executes checks using domain strategies.
-  - Writes MonitoringActivity rows, updates Resource state and Incident lifecycle.
-  - Emits events to the in‑process broadcast channel consumed by the WebSocket hub.
-
-Flow (simplified):
-
-1. Client calls API (create/update resource) → DB write.
-2. API enqueues job → Redis.
-3. Worker consumes job → executes check (HTTP/TCP) → persists results.
-4. Incident service creates/resolves incidents as needed.
-5. Notifications sent; activity broadcasted to WebSocket hub for real‑time UI updates.
+Key modules and files:
+- Entry point: `backend/cmd/api/main.go`
+- Config: `backend/internal/config/config.go`
+- Database: `backend/internal/repository/postgres/database`
+- API router: `backend/internal/api/router.go`
+- Worker: `backend/internal/worker`
+- Monitoring pipeline: `backend/internal/monitoring`
+- Domain models and strategies: `backend/internal/domain`, `backend/internal/monitoring/strategy`
+- Notifiers: `backend/pkg/notifier`
 
 ---
 
-## 4) Scheduling Engine (Ticker)
+## 3) Process Topology
 
-The backend uses a ticker‑driven scheduler (internal/scheduler/ticker.go) instead of asynq.Scheduler.
+Single process with three long‑running components:
+- HTTP API server
+- Asynq periodic scheduler
+- Asynq worker server
 
-Rationale:
+Startup sequence (simplified):
+1. Load config and init DB (auto-migrations).
+2. Init Redis/Asynq client, inspector, scheduler.
+3. Bootstrap: list active resources and schedule each with Asynq periodic tasks.
+4. Start Asynq worker (consumes monitoring jobs).
+5. Start HTTP server.
 
-- Robustness and simplicity: a single loop is easier to reason about and operate.
-- Database as source of truth: reads active resources and their intervals directly from PostgreSQL.
-- Dynamic reconfiguration: interval or pause changes are honored on the next tick; no out‑of‑band schedule writes.
-
-Design:
-
-- A `time.Ticker` wakes up at a small cadence (e.g., 5s).
-- On each tick: query active resources; for each resource whose interval elapsed since LastChecked, enqueue a monitoring job and update LastChecked.
-- Back‑pressure is handled by Asynq concurrency and retries.
-
----
-
-## 5) Real‑time System (WebSockets)
-
-Pulseguard pushes live updates to clients using WebSockets built with `nhooyr.io/websocket`.
-
-Components:
-
-- WebSocket Hub: manages client connections; broadcasts JSON messages to all or selected subscribers.
-- In‑process Events Channel (e.g., `events.ActivityBroadcast`): a buffered channel decoupling producers (worker) from consumers (hub).
-
-Data Flow:
-
-1. Worker finishes a check → creates a MonitoringActivity and possibly an Incident.
-2. Worker publishes an event to `ActivityBroadcast` with the minimal JSON payload (resource id, status, response time, incident id, etc.).
-3. The Hub goroutine listens on the channel, marshals to JSON, and writes to all connected WebSocket clients.
-
-Notes:
-
-- Messages are compact JSON objects; version the payload if fields evolve.
-- The hub enforces write deadlines and cleans up dead connections.
+Note: The current binary starts all three components by default in every instance. See Scaling considerations in section 12.
 
 ---
 
-## 6) Backend Directory Structure
+## 4) Directory Structure (Backend)
 
-High‑level overview of `backend/internal` packages:
-
-- api: routing (Chi), HTTP handlers, request/response mapping.
-- config: environment loading and configuration.
-- domain: pure business types and logic (validation, check strategies, incident rules).
-- repository: interfaces + PostgreSQL implementations (GORM) for resources, incidents, activities, integrations, tags.
-- service: application services orchestrating domain + repos.
-- worker: Asynq server and task handlers (monitoring jobs, notification dispatch).
-- (scheduler): ticker loop responsible for enqueuing due checks.
-- (websocket): hub managing WebSocket clients and broadcasting.
-- pkg/notifier: providers (SMTP, Slack, Discord, Google Chat), plus templates for emails.
-
----
-
-## 7) Database Models (Overview)
-
-Core entities (see `internal/domain/models.go` for exact fields):
-
-- Resource: target to monitor (type: http|tcp, target, interval, timeout, status, failure count, timestamps).
-- MonitoringActivity: per‑check log (success, message, response time, raw data optional).
-- Incident: downtime record (reason/cause, started_at, resolved_at NULL while active).
-- Integration: notifier configuration (type + config JSON, subscribed event types).
-- Tag: labels for organizing resources (many‑to‑many).
-
-Indexes focus on frequent filters: resource status/active; incident resolved_at/resource_id; activity resource_id/created_at.
+- `internal/api`
+  - `router.go`: route wiring, CORS, content-type.
+  - `handler/*`: HTTP handlers for resources, activities, tags, integrations, incidents, status page, stats, notifications.
+- `internal/config`
+  - `config.go`: env loading, dotenv support, SMTP enablement flag.
+- `internal/domain`
+  - `models.go`: core entities (Resource, Incident, Event Steps, Integration, NotificationEvent, MonitoringActivity, Tags).
+  - `check.go`: check strategies interface and executor contract.
+- `internal/monitoring`
+  - `scheduler_service.go`: Asynq periodic scheduling per resource.
+  - `incident_service.go`: incident creation/resolution and notifications.
+  - `strategy/*`: concrete check strategies (HTTP, TCP; DNS file exists but core strategies are HTTP/TCP).
+- `internal/repository`
+  - `interfaces.go`: repository interfaces.
+  - `postgres/*`: GORM implementations and DB setup (auto-migrate).
+- `internal/service`
+  - `resource_service.go`, `statuspage_service.go`, `stats_service.go`, etc.: orchestration logic used by handlers.
+- `internal/worker`
+  - `processor.go`: Asynq server and mux registration.
+  - `handler_monitoring.go`: monitoring job handler, resource status transitions, activity persistence, incident handoff.
+- `pkg/notifier`
+  - `smtp.go` (with HTML templates under `templates/`), `slack.go`, `discord.go`, `googlechat.go`, `factory.go`.
 
 ---
 
-## 8) Incident Management Logic
+## 5) Data Model (Summary)
 
-- Stateful rule: create an Incident after N consecutive failures (default 3). Reset failure count on success.
-- Idempotency: ensure a resource has at most one active incident; if already active, append steps/details but don’t duplicate.
-- Resolution: on first successful check after downtime, set `resolved_at` and emit an "up" event.
+- Resource
+  - Fields: `id`, `name`, `type` (http|tcp), `target`, `interval` (seconds), `timeout` (seconds), `status` (up/down/error/warning/pending/unknown/paused), `is_active`, `failure_count`, `last_checked`, `created_at`, `updated_at`.
+  - Relations: many‑to‑many `tags`, one‑to‑many `incidents`, one‑to‑many `monitoring_activities`.
+- MonitoringActivity
+  - Per-check log: `resource_id`, `success` (bool), `response_time` (ms), `message`, `response_data`, timestamps.
+- Incident
+  - Downtime record: `resource_id`, `cause` (structured string), `started_at`, `resolved_at` (NULL while active), `details` (bytes), event steps.
+- IncidentEventStep
+  - Timeline events for each incident: `detected`, `resolved`, `resource_down_alert`, `resource_up_alert`, etc.
+- Integration
+  - Notification integration config (JSON) + subscribed event types (JSON).
+- NotificationEvent
+  - Audit of notification attempts (type up/down/expiry).
+- Tags
+  - Labels for resources (many‑to‑many).
 
----
-
-## 9) Notification System
-
-Two layers:
-
-1. System SMTP (optional): sends to a default admin recipient if configured (environment variables). Acts as safety net.
-2. User Integrations: per‑integration type (smtp, slack, discord, googlechat, webhook), filtered by `event_types` (e.g., ["down","up"]). Matching integrations are executed in parallel.
-
-Providers live in `pkg/notifier`. Email templates under `pkg/notifier/templates/`.
-
----
-
-## 10) Deployment Notes
-
-- Single process binary (API + worker + scheduler + websocket hub).
-- Requires PostgreSQL and Redis. Configuration via environment variables (DATABASE*URL, REDIS_URL, PORT, SMTP*\* …).
-- Horizontal scale by running multiple instances; Asynq coordinates job distribution.
+GORM auto-migrates all above on startup.
 
 ---
 
-## 11) Performance & Scalability
+## 6) API Surface (JSON only)
 
-- Concurrency controlled by Asynq; tune worker concurrency per instance.
-- DB pool suggested defaults: MaxOpen=25, MaxIdle=5, 30m lifetime.
-- Consider caching hot read paths in Redis (future) and partitioning large activity tables.
+- Health
+  - `GET /health` → "OK" (text)
+- Status Page
+  - `GET /status` → global status + 90‑day per-resource summary (see `docs/STATUS_ENDPOINT.md`)
+  - `GET /status/{resourceId}` → detailed single-resource view (see `docs/resource-detail-status-example.json`)
+- Resources
+  - `GET /resources`
+  - `POST /resources`
+  - `GET /resources/{id}`
+  - `PATCH /resources/{id}`
+  - `DELETE /resources/{id}`
+  - `POST /resources/{id}/pause`
+  - `POST /resources/{id}/resume`
+  - `POST /resources/{resourceID}/tags`
+  - `DELETE /resources/{resourceID}/tags/{tagID}`
+  - `GET /resources/{resourceId}/uptime-stats` (hourly aggregation)
+- Monitoring Activities
+  - `GET /monitoring-activities` (supports `?resource_id=...`)
+- Incidents
+  - `GET /incidents` (supports `?unresolved=true`, `?limit`, `?offset`)
+  - `GET /incidents/{id}`
+  - `GET /incidents/{id}/event-steps`
+- Integrations
+  - `GET /integrations`
+  - `POST /integrations`
+  - `PATCH /integrations/{id}`
+- Notifications
+  - `POST /notifications/test`
+- Stats
+  - `GET /stats/summary?range=2h|24h|7d|30d` (see `docs/STATS_API.md`)
+
+CORS: permissive wildcard by default (adjust for production).
+
+Authentication/authorization: not implemented at present.
 
 ---
 
-## 12) Security
+## 7) Monitoring Pipeline
 
-- Secrets via environment variables (consider external secret managers later).
-- Authentication/authorization TBD (API keys/JWT roadmap).
-- TLS termination recommended at ingress/reverse proxy.
+1. Scheduling
+   - On boot, active resources are read from PostgreSQL and scheduled as recurring Asynq tasks using the `@every <interval>s` cronspec.
+   - Each resource has a unique periodic entry id `monitor:<resourceID>`. Updating a resource reschedules by unregistering and re-registering its periodic task.
+   - Inactive resources are not scheduled.
+
+2. Execution
+   - Asynq scheduler enqueues "monitoring:check" tasks into the "monitoring" queue at the requested interval.
+   - The Asynq worker (concurrency default: 10) consumes tasks via `handler_monitoring.go`.
+
+3. Strategy
+   - `CheckExecutor` dispatches by `Resource.Type`:
+     - HTTP: HEAD request with timeout; maps common error substrings to structured causes (timeout/refused/dns/ssl).
+     - TCP: dial target with timeout and infer availability from connection result.
+
+4. Persistence
+   - A `MonitoringActivity` row is created per check with success flag and response metrics.
+
+5. State transitions
+   - Previous resource status is read; `failure_count` increments on consecutive downs, resets on up.
+   - After each check, resource `status` and `last_checked` are updated.
+
+6. Incidents
+   - On exactly the 3rd consecutive failure: create incident if none is active.
+   - On recovery (first `up` after a `down`): resolve the most recent active incident.
+
+7. Notifications
+   - Two layers:
+     - System SMTP (optional): if SMTP is enabled via environment variables, send default "down" and "up" emails and record `NotificationEvent`.
+     - User integrations: load active integrations, filter by subscribed event types (`down`, `up`, `expiry`), and send via notifier factory (Slack, Discord, Google Chat). Record `NotificationEvent` for each attempt.
+
+8. Status and Stats
+   - `/status`: pre-aggregated 90‑day uptime and per‑day status array per resource (includes "no_data" days before resource creation). See `docs/STATUS_ENDPOINT.md`.
+   - `/stats/summary`: global uptime %, incident counts, affected monitors across time windows. See `docs/STATS_API.md`.
+
+---
+
+## 8) Scheduling Details (Asynq)
+
+- Component: `internal/monitoring/scheduler_service.go`
+- API:
+  - `Schedule(ctx, *domain.Resource)`:
+    - Unregister previous periodic entry `monitor:<id>` (ignore if not present).
+    - If resource is active, register `asynq.NewTask("monitoring:check", payload)` with `@every <interval>s` in the "monitoring" queue.
+  - `Unschedule(ctx, resourceID)`:
+    - Unregister entry `monitor:<id>`.
+
+Operational notes:
+- Rescheduling is idempotent: safe on updates.
+- The scheduler runs in‑process and requires Redis connectivity.
+- At present, every running instance also starts a scheduler; see Scaling (section 12).
+
+---
+
+## 9) Worker Server
+
+- Component: `internal/worker/processor.go`
+- Server config:
+  - Concurrency: 10
+  - Queues: `monitoring: 10`
+- Mux:
+  - `"monitoring:check"` → `MonitoringTaskHandler.ProcessTask`
+- Handler steps:
+  - Parse payload, re-fetch resource from DB (honors current `is_active`, interval changes, etc.).
+  - Execute check via `CheckExecutor`.
+  - Persist activity.
+  - Transition resource status and `failure_count`.
+  - Create or resolve incident when appropriate.
+  - Trigger notifications (SMTP optional, integrations filtered by event type).
+
+Error handling and retries:
+- Handler returns errors for fatal problems (e.g., resource not found). Asynq will retry per its defaults.
+- Functional errors (e.g., failing to persist an activity) are logged; incident logic continues to avoid dropping state transitions.
+
+---
+
+## 10) Persistence
+
+- Component: `internal/repository/postgres`
+- Initialization: `database.Init(ctx, dsn)` opens the GORM connection, sets pool limits (MaxOpen=25, MaxIdle=5, lifetime=30m), and auto-migrates all registered models.
+- Repositories expose CRUD and aggregated queries:
+  - Activities: global uptime %, per-resource hourly stats, recent response times.
+  - Incidents: unresolved filter, per-resource, incident stats (count and affected monitors).
+  - Resources, Tags, Integrations, Incident Event Steps, Notification Events.
+
+PostgreSQL is the sole source of truth; Redis is used only for job scheduling/transport.
+
+---
+
+## 11) Notifications
+
+- SMTP (system-level):
+  - Enabled only when all required env vars are non-empty: `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_SENDER`, `DEFAULT_RECIPIENT_EMAIL`.
+  - Uses embedded HTML templates for "down" and "up" messages.
+  - Sends test messages via `POST /notifications/test`.
+
+- Integrations (user-level):
+  - Providers: Slack, Discord, Google Chat.
+  - Selection: by `Integration.Config.type` and `Integration.EventTypes` (contains the current event type).
+  - Dispatch: parallelized per incident event via notifier factory.
+  - Audit: each attempt creates a `NotificationEvent` entry.
+
+---
+
+## 12) Operations & Scaling
+
+- Single process model:
+  - API server, Asynq periodic scheduler, and worker server all run in the same binary.
+
+- Horizontal scaling:
+  - Worker: multiple instances safely share the Redis queue; this scales check throughput linearly.
+  - Scheduler: current code starts a scheduler in every instance. Running multiple schedulers may register the same periodic entries concurrently. To avoid double-enqueueing checks, prefer running a single instance of the binary in “scheduler-enabled” mode. If you deploy multiple instances today, be aware of possible duplicated scheduling until a toggle/leadership mechanism is introduced.
+
+- Database:
+  - Tune pool sizes based on workload. Auto-migration runs at startup; ensure least-privilege and pre-migrate in production if needed.
+
+- Redis:
+  - Ensure proper sizing and persistence policy for Asynq keys. Network latency to Redis directly affects scheduling jitter.
+
+- CORS/security:
+  - CORS is wide open by default; restrict origins for production.
+  - TLS termination should be handled by an ingress/reverse proxy.
+  - Authentication/authorization is not implemented; gate API access at the edge if required.
+
+- Logging:
+  - Structured logs to stdout; GORM warns slow queries.
+
+- Backups:
+  - RPO depends on PostgreSQL backup cadence; Redis is ephemeral for job transport.
+
+---
+
+## 13) Configuration
+
+Environment variables (examples in parentheses indicate typical local defaults):
+- Server:
+  - `PORT` (e.g., `8080`)
+  - `APP_ENV` (e.g., `development`)
+- Database:
+  - `DATABASE_URL` (e.g., `postgres://user:password@localhost:5432/pulseguard?sslmode=disable`)
+- Redis:
+  - `REDIS_URL` (e.g., `localhost:6379`)
+- SMTP (optional; all required):
+  - `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_SENDER`, `DEFAULT_RECIPIENT_EMAIL`
+
+Dotenv:
+- In development, `.env` is loaded if present.
+
+Required:
+- `DATABASE_URL` must be set; the process will exit if missing.
+
+---
+
+## 14) Local Development
+
+Prerequisites:
+- PostgreSQL accessible via `DATABASE_URL`.
+- Redis accessible via `REDIS_URL`.
+
+Typical flow:
+- Create and export environment variables (or use a `.env` file).
+- Run the backend:
+  - Change directory to `backend` and execute `go run ./cmd/api`.
+  - On startup, the app will:
+    - Connect to PostgreSQL and migrate.
+    - Connect to Redis, start the Asynq scheduler and worker.
+    - Bootstrap scheduling for active resources.
+    - Start the JSON API server at `http://localhost:<PORT>`.
+
+Useful endpoints:
+- Health: `/health`
+- Status page data: `/status`
+- Stats: `/stats/summary`
+- Resources CRUD: `/resources`
+- Incidents: `/incidents`
+
+---
+
+## 15) Incident Management Logic (Details)
+
+- Creation:
+  - Increment `failure_count` on each consecutive `down`.
+  - On exactly the 3rd consecutive failure: create an incident if none is active.
+  - Add an `IncidentEventStep` with `detected`.
+  - Send notifications (SMTP if enabled, plus provider integrations subscribed to `down`).
+
+- Resolution:
+  - When a `down` resource transitions to `up`, resolve the most recent active incident (set `resolved_at`).
+  - Add `IncidentEventStep` with `resolved`.
+  - Send notifications for `up`.
+
+- Idempotency:
+  - Only one active incident per resource at a time; checks guard against duplicates.
+
+- Cause classification:
+  - `Incident.Cause` derived from `CheckResult` (timeout/refused/dns/invalid_status_code/ssl_certificate_error/etc) for consistent reporting.
+
+---
+
+## 16) Status and Statistics
+
+- Status endpoint (`/status`):
+  - Returns `global_status`, generation timestamp, and per-resource block with:
+    - `current_status` simplified (up/down/degraded/… mapping).
+    - `uptime_percentage_last_90_days`.
+    - `daily_status_last_90_days` (exactly 90 entries; `no_data` for days before creation).
+  - See `docs/STATUS_ENDPOINT.md`, `docs/STATUS_ENDPOINT_CHANGELOG.md`, and `docs/NO_DATA_STATUS_FIX.md`.
+
+- Stats endpoint (`/stats/summary`):
+  - Aggregations across all resources over `2h`, `24h`, `7d`, `30d`:
+    - Overall uptime %, total incidents, affected monitors, placeholder “without incidents duration”.
+  - See `docs/STATS_API.md`.
+
+---
+
+## 17) Future Enhancements (Non‑exhaustive)
+
+- Scheduler leadership/toggle to safely run multiple API instances without duplicate scheduling.
+- WebSocket or Server‑Sent Events for real‑time UI updates.
+- Caching for heavy status aggregations (e.g., Redis TTL).
+- Authentication/authorization (API keys/JWT).
+- Metrics and tracing for checks, DB queries, and queue latencies.
+- More check strategies (DNS, TLS/SSL expiry, WHOIS/domain expiry fully integrated).
+- Fine‑grained notification throttling and templating across providers.
+
+---
+
+## 18) Quick Cross‑Reference
+
+- Entry and wiring: `backend/cmd/api/main.go`
+- Router and routes: `backend/internal/api/router.go`
+- Scheduling: `backend/internal/monitoring/scheduler_service.go`
+- Worker server: `backend/internal/worker/processor.go`
+- Monitoring handler: `backend/internal/worker/handler_monitoring.go`
+- Incident service: `backend/internal/monitoring/incident_service.go`
+- Check executor & strategies: `backend/internal/domain/check.go`, `backend/internal/monitoring/strategy`
+- Stats service: `backend/internal/service/stats_service.go`
+- Status page service: `backend/internal/service/statuspage_service.go`
+- GORM DB setup: `backend/internal/repository/postgres/database`
+- Notifiers: `backend/pkg/notifier`
+
+---
+
+This document reflects the current implementation in the repository and is intended to help Go developers navigate and extend the backend effectively.

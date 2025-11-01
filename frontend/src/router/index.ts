@@ -1,13 +1,14 @@
-import { createRouter, createWebHistory } from 'vue-router'
-import MonitorsView from '@/views/MonitorsView.vue'
-import ResourceDetailView from '@/views/ResourceDetailView.vue'
-import SettingsView from '@/views/SettingsView.vue'
-import IncidentsView from '@/views/IncidentsView.vue'
-import IncidentDetailView from '@/views/IncidentDetailView.vue'
-import StatusPageView from '@/views/StatusPageView.vue'
-import PublicMonitorDetailView from '@/views/PublicMonitorDetailView.vue'
+import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router'
 
-const routes = [
+const MonitorsView = () => import('@/views/MonitorsView.vue')
+const ResourceDetailView = () => import('@/views/ResourceDetailView.vue')
+const SettingsView = () => import('@/views/SettingsView.vue')
+const IncidentsView = () => import('@/views/IncidentsView.vue')
+const IncidentDetailView = () => import('@/views/IncidentDetailView.vue')
+const StatusPageView = () => import('@/views/StatusPageView.vue')
+const StatusPageDetailView = () => import('@/views/StatusPageDetailView.vue')
+
+const routes: RouteRecordRaw[] = [
   {
     path: '/',
     redirect: '/monitors',
@@ -51,8 +52,8 @@ const routes = [
   },
   {
     path: '/status/:id',
-    name: 'PublicMonitorDetail',
-    component: PublicMonitorDetailView,
+    name: 'StatusPageDetail',
+    component: StatusPageDetailView,
     meta: { public: true, requiresLayout: false },
   },
 ]

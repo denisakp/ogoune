@@ -1,4 +1,5 @@
 import { storeToRefs } from 'pinia'
+
 import { useStatsStore } from '@/stores/statsStore'
 
 export function useStats() {
