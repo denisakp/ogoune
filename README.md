@@ -10,12 +10,22 @@ An open-source monitoring tool for websites, APIs, TCP services, SSL certificate
 
 ## ✨ Features
 
+### Core Features
 - HTTP/HTTPS and TCP monitoring
 - SSL/TLS certificate expiry alerts
 - Incident management with 3-failure threshold
 - Notifications: SMTP, Slack, Discord, Google Chat
 - Public status page (backend data + frontend UI)
 - Real-time updates (WebSockets)
+
+### Upcoming Features
+- [ ] **SSE Real-time Updates** – Server-Sent Events for faster status propagation
+- [ ] **Advanced Analytics Dashboard** – Deep insights into uptime trends and performance metrics
+- [ ] **User Authentication** – Multi-user support with role-based access control
+- [ ] **SSL Certificate Monitoring** – Enhanced certificate tracking and renewal alerts
+- [ ] **Integration Marketplace** – Extensible notification and data pipeline integrations
+- [ ] **Mobile App** – Native mobile monitoring and alerting
+- [ ] **Custom Alert Workflows** – Flexible, rule-based alert orchestration
 
 ---
 
@@ -24,7 +34,7 @@ An open-source monitoring tool for websites, APIs, TCP services, SSL certificate
 This repository is a monorepo with two main components:
 
 - 📁 `backend/`: Core API, background worker, and monitoring engine in Go.
-- 📁 `frontend/`: React (Vite) dashboard using Shadcn/ui.
+- 📁 `frontend/`: Vue 3 (Vite) dashboard using Ant Design Vue.
 
 Please see the README in each directory for setup and contributing guidelines.
 
@@ -32,21 +42,54 @@ Please see the README in each directory for setup and contributing guidelines.
 
 ## ⚡ Quick Start
 
-Using the provided Makefile (requires Docker for Postgres/Redis):
+### Prerequisites
+- Docker (for Postgres and Redis)
+- Go 1.25+
+- Node.js and pnpm (for frontend)
+
+### Backend Setup
 
 ```bash
-# From the repo root
-make install      # install go deps
-make docker-up    # start postgres and redis (local containers)
-make run          # run API + worker
+# Navigate to the backend directory
+cd backend
+
+# Install dependencies
+go mod download
+
+# Set up environment variables (see .env.example)
+cp .env.example .env
+
+# Start Postgres and Redis
+docker compose up -d
+
+# Run the API and worker
+go run ./cmd/api
 ```
 
-API: http://localhost:8080
+API base: http://localhost:8080/api
 
-Create a monitor:
+### Frontend Setup
 
 ```bash
-curl -X POST http://localhost:8080/resources \
+# Navigate to the frontend directory
+cd frontend
+
+# Install dependencies
+pnpm install
+
+# Set environment variables
+export VITE_API_BASE_URL=http://localhost:8080
+
+# Run development server
+pnpm dev
+```
+
+Dashboard: http://localhost:5173
+
+### Create a Monitor
+
+```bash
+curl -X POST http://localhost:8080/api/resources \
   -H "Content-Type: application/json" \
   -d '{
     "name": "My Website",

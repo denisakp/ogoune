@@ -14,7 +14,7 @@ interface RequestConfig extends InternalAxiosRequestConfig, CustomRequestConfig 
 
 // Create axios instance with default config
 const axiosClient: AxiosInstance = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || '/api',
+  baseURL: import.meta.env.VITE_API_BASE_URL,
   timeout: 10000,
   headers: {
     'Content-Type': 'application/json',

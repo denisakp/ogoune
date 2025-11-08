@@ -1,6 +1,6 @@
 # Pulseguard — Backend (API, Scheduler, Worker)
 
-A Go backend that monitors resources (HTTP/TCP), stores results in PostgreSQL, detects incidents, and sends notifications through SMTP and chat integrations. It exposes a pure JSON API and runs a Redis/Asynq–based scheduler and worker in the same process.
+The backend monitors resources (HTTP/TCP), stores results in PostgreSQL, detects incidents, and sends notifications through SMTP and chat integrations. It exposes a pure JSON API and runs a Redis/Asynq–based scheduler and worker in the same process.
 
 Highlights
 - Single binary with three components: HTTP API server, Asynq periodic scheduler, Asynq worker
@@ -12,7 +12,7 @@ Useful docs
 - Unified overview: docs/BACKEND_OVERVIEW.md
 - Architecture: docs/ARCHITECTURE.md
 
---------------------------------------------------------------------------------
+---
 
 Backend structure
 
@@ -41,13 +41,13 @@ Backend structure
 - pkg/notifier/
   - smtp.go (+ templates), slack.go, discord.go, googlechat.go, factory.go
 
---------------------------------------------------------------------------------
+---
 
 Dependencies
 
 Required
-- Go 1.25+
-- PostgreSQL 14+ (DATABASE_URL)
+- Go 1.24+
+- PostgreSQL 16+ (DATABASE_URL)
 - Redis 6+ (REDIS_URL)
 
 Optional (enables system SMTP notifications)
@@ -58,13 +58,12 @@ Optional (enables system SMTP notifications)
 - SMTP_SENDER
 - DEFAULT_RECIPIENT_EMAIL
 
---------------------------------------------------------------------------------
+---
 
 Configuration
 
 Environment variables (examples in parentheses)
 - PORT (8080)
-- APP_ENV (development)
 - DATABASE_URL (postgres://user:password@localhost:5432/pulseguard?sslmode=disable)
 - REDIS_URL (localhost:6379)
 
@@ -81,15 +80,16 @@ Notes
 - DATABASE_URL is required; the app exits if missing
 - SMTP is enabled only when all SMTP_* variables above are set and non-empty
 
---------------------------------------------------------------------------------
+---
 
 Running locally
 
 1) Ensure PostgreSQL and Redis are running and reachable via DATABASE_URL / REDIS_URL
 - Example Redis: `docker run --rm -p 6379:6379 redis:7`
 - Example Postgres:
-  - `docker run --rm -e POSTGRES_PASSWORD=password -e POSTGRES_USER=postgres -e POSTGRES_DB=pulseguard -p 5432:5432 postgres:16`
+  - `docker run --rm -e POSTGRES_PASSWORD=password -e POSTGRES_USER=postgres -e POSTGRES_DB=pulseguard -p 5432:5432 postgres:17-alpine`
   - DATABASE_URL: `postgres://postgres:password@localhost:5432/pulseguard?sslmode=disable`
+Or you can simply rely on the existing `docker-compose.yml` file
 
 2) Export environment variables (or create a local .env)
 - PORT=8080
@@ -105,19 +105,19 @@ Running locally
   - Connect to PostgreSQL, configure pool, and auto-migrate models
   - Connect to Redis, start the Asynq scheduler and worker
   - Bootstrap scheduling for active resources
-  - Start the HTTP JSON API on http://localhost:${PORT}
+  - Serve the dashboard at http://localhost:${PORT} and the JSON API under http://localhost:${PORT}/api
 
 4) Useful endpoints (JSON)
-- Health: GET /health
-- Status page: GET /status, GET /status/{resourceId}
-- Stats summary: GET /stats/summary?range=2h|24h|7d|30d
-- Resources: GET/POST /resources, GET/PATCH/DELETE /resources/{id}, pause/resume, tags, uptime-stats
-- Activities: GET /monitoring-activities (?resource_id=...)
-- Incidents: GET /incidents (?unresolved=...), GET /incidents/{id}, GET /incidents/{id}/event-steps
-- Integrations: GET/POST /integrations, PATCH /integrations/{id}
-- Notifications: POST /notifications/test
+- Health: GET /api/health
+- Status page: GET /api/status, GET /api/status/{resourceId}
+- Stats summary: GET /api/stats/summary?range=2h|24h|7d|30d
+- Resources: GET/POST /api/resources, GET/PATCH/DELETE /api/resources/{id}, pause/resume, tags, uptime-stats
+- Activities: GET /api/monitoring-activities (?resource_id=...)
+- Incidents: GET /api/incidents (?unresolved=...), GET /api/incidents/{id}, GET /api/incidents/{id}/event-steps
+- Integrations: GET/POST /api/integrations, PATCH /api/integrations/{id}
+- Notifications: POST /api/notifications/test
 
---------------------------------------------------------------------------------
+---
 
 How it works (short)
 
@@ -135,10 +135,10 @@ How it works (short)
   - Layer 1: system SMTP (optional; global admin recipient)
   - Layer 2: integrations (Slack/Discord/Google Chat) filtered by subscribed event types
 - Status and stats
-  - `/status`: pre-aggregated 90-day per-resource series including “no_data” before creation
-  - `/stats/summary`: global uptime %, incident counts, affected monitors in time windows
+  - `/api/status`: pre-aggregated 90-day per-resource series including “no_data” before creation
+  - `/api/stats/summary`: global uptime %, incident counts, affected monitors in time windows
 
---------------------------------------------------------------------------------
+---
 
 Troubleshooting
 
@@ -154,7 +154,7 @@ Troubleshooting
 - Duplicate scheduling
   - Current binary starts a scheduler in every instance; prefer a single scheduler instance in production until a toggle/leader strategy is added
 
---------------------------------------------------------------------------------
+---
 
 Development notes
 
@@ -162,9 +162,3 @@ Development notes
 - GORM logs slow queries; tune DB pool as needed
 - Add new check strategies by implementing `CheckStrategy` and registering in `CheckExecutor`
 - Add new notifiers by implementing the `Notifier` interface and wiring into the factory
-
---------------------------------------------------------------------------------
-
-License
-
-MIT (see repository root if applicable).

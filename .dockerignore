@@ -1,0 +1,8 @@
+.github/
+.idea/
+.vscode
+.ignore
+CODE_OF_CONDUCT.md
+CONTRIBUTING.md
+docker-compose.yml
+README.md

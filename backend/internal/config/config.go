@@ -12,7 +12,6 @@ type Config struct {
 	RedisUrl              string
 	DatabaseUrl           string
 	Port                  string
-	Environment           string
 	SMTPHost              string
 	SMTPPort              string
 	SMTPUser              string
@@ -20,6 +19,7 @@ type Config struct {
 	SMTPSender            string
 	DefaultRecipientEmail string
 	SMTPIsEnabled         bool
+	StaticDir             string
 }
 
 // Load reads configuration from environment variables.
@@ -39,10 +39,9 @@ func Load() Config {
 		smtpSender != "" && defaultRecipient != ""
 
 	cfg := Config{
-		RedisUrl:              GetEnv("REDIS_URL", "localhost:6379"),
-		DatabaseUrl:           GetEnv("DATABASE_URL", "postgres://denis:password@localhost:5432/pulse?sslmode=disable"),
+		RedisUrl:              GetEnv("REDIS_URL", "redis:6379"),
+		DatabaseUrl:           GetEnv("DATABASE_URL", "postgres://pulseguard:EE94PPHGz3TZ@postgres:5432/pulse?sslmode=disable"),
 		Port:                  GetEnv("PORT", "8080"),
-		Environment:           GetEnv("APP_ENV", "development"),
 		SMTPHost:              smtpHost,
 		SMTPPort:              smtpPort,
 		SMTPUser:              smtpUser,
@@ -50,6 +49,7 @@ func Load() Config {
 		SMTPSender:            smtpSender,
 		DefaultRecipientEmail: defaultRecipient,
 		SMTPIsEnabled:         smtpIsEnabled,
+		StaticDir:             GetEnv("STATIC_DIR", "./static"),
 	}
 	return cfg
 }
@@ -89,6 +89,6 @@ func MustInit() Config {
 		log.Println("[config] SMTP notifications DISABLED (missing required SMTP_* environment variables)")
 	}
 
-	log.Printf("[config] Environment: %s, Port: %s", cfg.Environment, cfg.Port)
+	log.Printf("[config] Port: %s", cfg.Port)
 	return cfg
 }

@@ -36,7 +36,7 @@ For a detailed explanation of the architecture, data flow, and coding patterns, 
 
 ### Prerequisites
 
--   [Node.js](https://nodejs.org/) (version 20.x or higher)
+-   [Node.js](https://nodejs.org/) (version 22.x or higher)
 -   [pnpm](https://pnpm.io/)
 
 ### 1. Install Dependencies
@@ -54,8 +54,10 @@ Create a `.env.local` file in the `frontend` directory. This file will store the
 
 ```env
 # .env.local
-VITE_API_BASE_URL=http://localhost:8080
+VITE_API_BASE_URL=http://localhost:8080/api
 ```
+
+Note: When the frontend is built and served by the backend, you can omit VITE_API_BASE_URL. Axios defaults to /api so requests go to /api/... on the same origin.
 
 ### 3. Run the Development Server
 

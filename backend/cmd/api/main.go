@@ -22,25 +22,24 @@ import (
 	"github.com/denisakp/pulseguard/internal/service"
 	"github.com/denisakp/pulseguard/internal/worker"
 	"github.com/denisakp/pulseguard/pkg/notifier"
-	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/v5"
 	"github.com/hibiken/asynq"
 )
 
-func serveStaticFiles(router chi.NewRouter, staticDir string) {
+func serveStaticFiles(router *chi.Mux, staticDir string) {
 	// Serve files from the static directory
 	fs := http.FileServer(http.Dir(staticDir))
-	
+
 	// Handle all non-API routes
 	router.Get("/*", func(w http.ResponseWriter, r *http.Request) {
 		path := r.URL.Path
-		
+
 		// Don't serve static files for API routes
 		if strings.HasPrefix(path, "/api/") {
 			http.NotFound(w, r)
 			return
 		}
-		
+
 		// Check if the requested file exists
 		fullPath := filepath.Join(staticDir, path)
 		if _, err := os.Stat(fullPath); os.IsNotExist(err) {
@@ -48,7 +47,7 @@ func serveStaticFiles(router chi.NewRouter, staticDir string) {
 			http.ServeFile(w, r, filepath.Join(staticDir, "index.html"))
 			return
 		}
-		
+
 		// File exists, serve it
 		fs.ServeHTTP(w, r)
 	})
@@ -239,13 +238,35 @@ func main() {
 	statsHandler := handler.NewStatsHandler(statsService)
 
 	// Create router with injected handlers
-	router := api.NewRouter(resourceHandler, activityHandler, tagHandler, integrationHandler, statusPageHandler, incidentHandler, notificationHandler, statsHandler)
-	
+	apiHandler := api.NewRouter(resourceHandler, activityHandler, tagHandler, integrationHandler, statusPageHandler, incidentHandler, notificationHandler, statsHandler)
+
+	// Root router: mount JSON API under /api
+	rootRouter := chi.NewRouter()
+	rootRouter.Mount("/api", apiHandler)
+	// Expose health at root for compatibility
+	rootRouter.Get("/health", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/plain")
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("OK"))
+	})
+
+	// ========================================
+	// STEP 4: SERVE STATIC FILES (SPA Support)
+	// ========================================
+	// Serve Vue.js static files if available
+	staticDir := cfg.StaticDir
+	if info, err := os.Stat(staticDir); err == nil && info.IsDir() {
+		log.Printf("✓ Serving static files from: %s", staticDir)
+		serveStaticFiles(rootRouter, staticDir)
+	} else {
+		log.Printf("⚠️  Static directory not found at %s - frontend will not be served", staticDir)
+	}
+
 	// Create HTTP server with explicit configuration
 	addr := ":" + cfg.Port
 	srv := &http.Server{
 		Addr:         addr,
-		Handler:      router,
+		Handler:      rootRouter,
 		ReadTimeout:  15 * time.Second,
 		WriteTimeout: 15 * time.Second,
 		IdleTimeout:  60 * time.Second,
