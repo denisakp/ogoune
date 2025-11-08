@@ -104,18 +104,18 @@ curl -X POST http://localhost:8080/api/resources \
 
 ## 🧭 Documentation
 
-- Backend architecture: `backend/docs/ARCHITECTURE.md`
-- Backend setup: `backend/README.md`
-- Frontend setup: `frontend/README.md`
+- [Backend architecture](./backend/docs/ARCHITECTURE.md)
+- [Backend setup](./backend/README.md)
+- [Frontend setup](./frontend/README.md)
 
 ---
 
 ## 🤝 Contributing
 
-Contributions are welcome! Please read `CONTRIBUTING.md` and follow the style and layering guidelines. Small, focused PRs are appreciated.
+Contributions are welcome! Please read [CONTRIBUTING](./CONTRIBUTING.md) and follow the style and layering guidelines. Small, focused PRs are appreciated.
 
 ---
 
 ## 📄 License
 
-MIT — see `LICENSE`.
+MIT — see [LICENSE](./LICENSE).
