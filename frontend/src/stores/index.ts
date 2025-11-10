@@ -1,5 +1,4 @@
 export * from './incidentStore'
-export * from './integrationStore'
 export * from './resourceStore'
 export * from './statsStore'
 export * from './tagStore'
