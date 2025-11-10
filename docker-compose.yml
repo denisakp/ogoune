@@ -1,14 +1,11 @@
 name: pulse-guard
-
 networks:
   pulseguard:
     name: pulse-guard
-
 volumes:
   postgres-data:
   redis-data:
   traefik-data:
-    
 services:
   postgres:
     image: postgres:17-alpine
@@ -25,7 +22,6 @@ services:
       test: ["CMD", "pg_isready", "-q", "-d", "${PG_DATABASE}", "-U", "${PG_USERNAME}"]
       timeout: 5s
       retries: 3
-  
   redis:
     image: 'redis:alpine'
     volumes:
@@ -36,9 +32,8 @@ services:
       test: ["CMD", "redis-cli", "ping"]
       retries: 3
       timeout: 5s
-        
   pulseguard:
-    image: ghcr.io/denisakp/pulseguard
+    image: ghcr.io/denisakp/pulseguard@sha256:6718ca2c2774742a4fa8cce23615033c8bb50894511bb180274a5ed0d60eb393
     depends_on:
       postgres:
         condition: service_healthy
@@ -67,7 +62,6 @@ services:
       - "traefik.http.routers.pulseguard.entrypoints=websecure"
       - "traefik.http.routers.pulseguard.tls.certresolver=le"
       - "traefik.http.services.pulseguard.loadbalancer.server.port=${APP_PORT}"
-  
   traefik:
     image: traefik:v3
     restart: unless-stopped
@@ -81,7 +75,7 @@ services:
     environment:
       ACME_EMAIL: ${ACME_EMAIL}
     volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro 
+      - /var/run/docker.sock:/var/run/docker.sock:ro
       - traefik-letsencrypt:/letsencrypt
       - $PWD/scripts/traefik/traefik.yml:/etc/traefik/traefik.yml:ro
     command:
@@ -99,4 +93,3 @@ services:
       - "--certificatesresolvers.le.acme.email=${ACME_EMAIL}"
       - "--certificatesresolvers.le.acme.storage=/letsencrypt/acme.json"
       - "--certificatesresolvers.le.acme.httpchallenge.entrypoint=web"
-      
