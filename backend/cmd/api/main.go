@@ -21,7 +21,6 @@ import (
 	"github.com/denisakp/pulseguard/internal/repository/postgres/database"
 	"github.com/denisakp/pulseguard/internal/service"
 	"github.com/denisakp/pulseguard/internal/worker"
-	"github.com/denisakp/pulseguard/pkg/notifier"
 	"github.com/go-chi/chi/v5"
 	"github.com/hibiken/asynq"
 )
@@ -88,7 +87,6 @@ func main() {
 	notificationRepo := postgres.NewNotificationRepository(db)
 	monitoringActivityRepo := postgres.NewMonitoringActivityRepository(db)
 	tagsRepo := postgres.NewTagsRepository(db)
-	integrationRepo := postgres.NewIntegrationRepository(db)
 
 	// Initialize Redis connection for Asynq
 	redisOpt := asynq.RedisClientOpt{
@@ -173,17 +171,18 @@ func main() {
 	}
 	executor := domain.NewCheckExecutor(strategies)
 
-	// Initialize notifier factory for user-configured integrations
-	notifierFactory := notifier.NewNotifierFactory()
+	// Prepare webhook secret as pointer (nil if not provided)
+	var webhookSecret *string
+	if cfg.WebHookSignature != "" {
+		webhookSecret = &cfg.WebHookSignature
+	}
 
-	// Initialize incident service with two-layered notification support
+	// Initialize incident service with SMTP and webhook notification support
 	incidentService := monitoring.NewIncidentService(
 		incidentRepo,
 		incidentEventStepRepo,
 		notificationRepo,
-		integrationRepo,
 		asynqClient,
-		notifierFactory,
 		cfg.SMTPIsEnabled,
 		cfg.DefaultRecipientEmail,
 		cfg.SMTPSender,
@@ -191,6 +190,8 @@ func main() {
 		cfg.SMTPPort,
 		cfg.SMTPUser,
 		cfg.SMTPPassword,
+		cfg.WebHookUrl,
+		webhookSecret,
 	)
 
 	// Initialize task handlers
@@ -221,24 +222,31 @@ func main() {
 	resourceService := service.NewResourceService(resourceRepo, incidentRepo, tagsRepo, schedulerService, monitoringActivityRepo, enrichmentService)
 	activityService := service.NewMonitoringActivityService(monitoringActivityRepo)
 	tagService := service.NewTagService(tagsRepo)
-	integrationService := service.NewIntegrationService(integrationRepo)
 	statusPageService := service.NewStatusPageService(resourceRepo, incidentRepo, monitoringActivityRepo)
 	incidentAPIService := service.NewIncidentService(incidentRepo, incidentEventStepRepo)
-	notificationService := service.NewNotificationService(resourceRepo, integrationRepo)
+	notificationService := service.NewNotificationService(
+		resourceRepo,
+		cfg.SMTPIsEnabled,
+		cfg.DefaultRecipientEmail,
+		cfg.SMTPSender,
+		cfg.SMTPHost,
+		cfg.SMTPPort,
+		cfg.SMTPUser,
+		cfg.SMTPPassword,
+	)
 	statsService := service.NewStatsService(monitoringActivityRepo, incidentRepo)
 
 	// Initialize JSON API handlers (no template dependencies)
 	resourceHandler := handler.NewResourceHandler(resourceService)
 	activityHandler := handler.NewMonitoringActivityHandler(activityService)
 	tagHandler := handler.NewTagHandler(tagService)
-	integrationHandler := handler.NewIntegrationHandler(integrationService)
 	statusPageHandler := handler.NewStatusPageHandler(statusPageService)
 	incidentHandler := handler.NewIncidentHandler(incidentAPIService)
 	notificationHandler := handler.NewNotificationHandler(notificationService)
 	statsHandler := handler.NewStatsHandler(statsService)
 
 	// Create router with injected handlers
-	apiHandler := api.NewRouter(resourceHandler, activityHandler, tagHandler, integrationHandler, statusPageHandler, incidentHandler, notificationHandler, statsHandler)
+	apiHandler := api.NewRouter(resourceHandler, activityHandler, tagHandler, statusPageHandler, incidentHandler, notificationHandler, statsHandler)
 
 	// Root router: mount JSON API under /api
 	rootRouter := chi.NewRouter()

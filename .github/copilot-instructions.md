@@ -37,7 +37,7 @@ Purpose: help AI coding agents be productive immediately in this monorepo. Keep 
   - Worker `Processor` consumes `monitoring:check` tasks.
   - `MonitoringTaskHandler` executes checks via `domain.CheckExecutor` and updates resource status.
   - Incident rules: incident is created on the 3rd consecutive DOWN; resolving triggers when UP after DOWN.
-  - Notifications (two layers): default SMTP (if enabled) + user integrations (Slack/Discord/Google Chat) via `pkg/notifier/*` and `NotifierFactory`.
+  - Notifications (two layers): default SMTP (if enabled) + user integrations (Slack/Webhooks) via `pkg/notifier/*` and `NotifierFactory`.
 
 ## Frontend architecture and conventions
 

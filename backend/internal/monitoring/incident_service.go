@@ -2,13 +2,10 @@ package monitoring
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"log"
-	"slices"
 	"time"
 
-	"github.com/denisakp/pulseguard/internal/config"
 	"github.com/denisakp/pulseguard/internal/domain"
 	"github.com/denisakp/pulseguard/internal/repository"
 	"github.com/denisakp/pulseguard/pkg/notifier"
@@ -17,16 +14,14 @@ import (
 
 // IncidentService manages incident creation and resolution with refined stateful logic.
 // It creates incidents only after 3 consecutive failures and tracks the full lifecycle.
-// Notifications are sent in two layers:
-// 1. Default SMTP (system-level, if enabled)
-// 2. User-configured integrations (event-driven, filtered by event type)
+// Notifications are sent via:
+// 1. SMTP (if configured via env variables)
+// 2. Webhook (if configured via env variables)
 type IncidentService struct {
 	incidents     repository.IncidentRepository
 	eventSteps    repository.IncidentEventStepRepository
 	notifications repository.NotificationRepository
-	integrations  repository.IntegrationRepository
 	client        *asynq.Client
-	factory       *notifier.NotifierFactory
 	smtpIsEnabled bool
 	smtpRecipient string
 	smtpSender    string
@@ -34,6 +29,8 @@ type IncidentService struct {
 	smtpPort      string
 	smtpUser      string
 	smtpPassword  string
+	webhookUrl    string
+	webhookSecret *string
 }
 
 // NewIncidentService creates a new incident service with the given dependencies.
@@ -41,9 +38,7 @@ func NewIncidentService(
 	incidents repository.IncidentRepository,
 	eventSteps repository.IncidentEventStepRepository,
 	notifications repository.NotificationRepository,
-	integrations repository.IntegrationRepository,
 	client *asynq.Client,
-	factory *notifier.NotifierFactory,
 	smtpIsEnabled bool,
 	smtpRecipient string,
 	smtpSender string,
@@ -51,14 +46,14 @@ func NewIncidentService(
 	smtpPort string,
 	smtpUser string,
 	smtpPassword string,
+	webhookUrl string,
+	webhookSecret *string,
 ) *IncidentService {
 	return &IncidentService{
 		incidents:     incidents,
 		eventSteps:    eventSteps,
 		notifications: notifications,
-		integrations:  integrations,
 		client:        client,
-		factory:       factory,
 		smtpIsEnabled: smtpIsEnabled,
 		smtpRecipient: smtpRecipient,
 		smtpSender:    smtpSender,
@@ -66,14 +61,14 @@ func NewIncidentService(
 		smtpPort:      smtpPort,
 		smtpUser:      smtpUser,
 		smtpPassword:  smtpPassword,
+		webhookUrl:    webhookUrl,
+		webhookSecret: webhookSecret,
 	}
 }
 
 // CreateIncident creates a new incident when a resource reaches 3 consecutive failures.
 // It checks for existing active incidents, creates event steps, and triggers notifications.
-// Notifications are sent in two layers:
-// Stage 1: Default SMTP notification (system-level, if enabled)
-// Stage 2: User-configured integrations (event-driven, filtered by event type)
+// Notifications are sent via SMTP and webhook (if configured).
 func (s *IncidentService) CreateIncident(ctx context.Context, r *domain.Resource, result domain.CheckResult) error {
 	if r == nil {
 		return fmt.Errorf("resource cannot be nil")
@@ -124,7 +119,7 @@ func (s *IncidentService) CreateIncident(ctx context.Context, r *domain.Resource
 	}
 
 	// ============================================================
-	// STAGE 1: Default SMTP Notification (System Level)
+	// Send SMTP Notification (if enabled)
 	// ============================================================
 	if s.smtpIsEnabled {
 		if err := s.sendDownNotification(ctx, incident); err != nil {
@@ -147,30 +142,15 @@ func (s *IncidentService) CreateIncident(ctx context.Context, r *domain.Resource
 	}
 
 	// ============================================================
-	// STAGE 2: User-Configured Integrations (User Level)
+	// Send Webhook Notification (if enabled)
 	// ============================================================
-	currentEvent := domain.EventTypeDown
-
-	// Fetch all active integrations
-	activeIntegrations, err := s.integrations.ListActive(ctx)
-	if err != nil {
-		log.Printf("Warning: Failed to fetch active integrations: %v", err)
-		return nil // Don't fail the incident creation due to integration fetch errors
-	}
-
-	// Filter integrations by event type
-	var filteredIntegrations []*domain.Integration
-	for _, integration := range activeIntegrations {
-		if s.hasEventType(integration, currentEvent) {
-			filteredIntegrations = append(filteredIntegrations, integration)
+	if s.webhookUrl != "" {
+		if err := s.sendWebhookNotification(ctx, incident); err != nil {
+			log.Printf("Warning: Failed to send webhook down notification: %v", err)
+			// Continue processing - notification failure should not stop incident creation
 		}
-	}
-
-	log.Printf("Found %d integrations subscribed to '%s' event", len(filteredIntegrations), currentEvent)
-
-	// Dispatch notifications to filtered integrations
-	for _, integration := range filteredIntegrations {
-		s.sendIntegrationNotification(ctx, integration, incident, currentEvent)
+	} else {
+		log.Println("Webhook notifications disabled (no URL configured)")
 	}
 
 	return nil
@@ -178,9 +158,7 @@ func (s *IncidentService) CreateIncident(ctx context.Context, r *domain.Resource
 
 // ResolveIncident resolves an active incident when a resource recovers.
 // It updates the incident, creates event steps, and triggers recovery notifications.
-// Notifications are sent in two layers:
-// Stage 1: Default SMTP notification (system-level, if enabled)
-// Stage 2: User-configured integrations (event-driven, filtered by event type)
+// Notifications are sent via SMTP and webhook (if configured).
 func (s *IncidentService) ResolveIncident(ctx context.Context, r *domain.Resource, result domain.CheckResult) error {
 	if r == nil {
 		return fmt.Errorf("resource cannot be nil")
@@ -230,7 +208,7 @@ func (s *IncidentService) ResolveIncident(ctx context.Context, r *domain.Resourc
 	}
 
 	// ============================================================
-	// STAGE 1: Default SMTP Notification (System Level)
+	// Send SMTP Notification (if enabled)
 	// ============================================================
 	if s.smtpIsEnabled {
 		if err := s.sendUpNotification(ctx, activeIncident); err != nil {
@@ -253,63 +231,34 @@ func (s *IncidentService) ResolveIncident(ctx context.Context, r *domain.Resourc
 	}
 
 	// ============================================================
-	// STAGE 2: User-Configured Integrations (User Level)
+	// Send Webhook Notification (if enabled)
 	// ============================================================
-	currentEvent := domain.EventTypeUp
-
-	// Fetch all active integrations
-	activeIntegrations, err := s.integrations.ListActive(ctx)
-	if err != nil {
-		log.Printf("Warning: Failed to fetch active integrations: %v", err)
-		return nil // Don't fail the incident resolution due to integration fetch errors
-	}
-
-	// Filter integrations by event type
-	var filteredIntegrations []*domain.Integration
-	for _, integration := range activeIntegrations {
-		if s.hasEventType(integration, currentEvent) {
-			filteredIntegrations = append(filteredIntegrations, integration)
+	if s.webhookUrl != "" {
+		if err := s.sendWebhookNotification(ctx, activeIncident); err != nil {
+			log.Printf("Warning: Failed to send webhook up notification: %v", err)
+			// Continue processing - notification failure should not stop incident resolution
 		}
-	}
-
-	log.Printf("Found %d integrations subscribed to '%s' event", len(filteredIntegrations), currentEvent)
-
-	// Dispatch notifications to filtered integrations
-	for _, integration := range filteredIntegrations {
-		s.sendIntegrationNotification(ctx, integration, activeIncident, currentEvent)
+	} else {
+		log.Println("Webhook notifications disabled (no URL configured)")
 	}
 
 	return nil
 }
 
-// sendDownNotification sends a "Resource Down" email notification and logs it.
+// sendDownNotification sends a "Resource Down" email notification via SMTP.
 func (s *IncidentService) sendDownNotification(ctx context.Context, incident *domain.Incident) error {
-	// load config
-	cfg := config.Load()
-
-	// Use default SMTP notifier
-	smtpNotifier := notifier.NewSMTPNotifier()
-
-	// Create a default SMTP integration config for sending
-	smtpConfig, _ := json.Marshal(map[string]string{
-		"type":          "smtp",
-		"recipient":     cfg.DefaultRecipientEmail,
-		"sender":        "no-reply@pulseguard.io",
-		"smtp_host":     cfg.SMTPHost,
-		"smtp_port":     cfg.SMTPPort,
-		"smtp_user":     cfg.SMTPUser,
-		"smtp_password": cfg.SMTPPassword,
-	})
-
-	smtpIntegration := domain.Integration{
-		Base:     domain.Base{ID: "smtp-default"},
-		Name:     "default-smtp-integration",
-		IsActive: true,
-		Config:   smtpConfig,
-	}
+	// Create SMTP notifier with configured credentials
+	smtpNotifier := notifier.NewSMTPNotifier(
+		s.smtpRecipient,
+		s.smtpSender,
+		s.smtpHost,
+		s.smtpPort,
+		s.smtpUser,
+		s.smtpPassword,
+	)
 
 	// Send the notification
-	err := smtpNotifier.Send(ctx, smtpIntegration, *incident)
+	err := smtpNotifier.Send(ctx, *incident)
 
 	// Create notification record to log the attempt
 	notificationEvent := &domain.NotificationEvent{
@@ -336,31 +285,20 @@ func (s *IncidentService) sendDownNotification(ctx context.Context, incident *do
 	return err
 }
 
-// sendUpNotification sends a "Resource Up" email notification and logs it.
+// sendUpNotification sends a "Resource Up" email notification via SMTP.
 func (s *IncidentService) sendUpNotification(ctx context.Context, incident *domain.Incident) error {
-	// Use default SMTP notifier
-	smtpNotifier := notifier.NewSMTPNotifier()
-
-	// Create a default SMTP integration config for sending
-	smtpConfig, _ := json.Marshal(map[string]string{
-		"type":          "smtp",
-		"recipient":     s.smtpRecipient,
-		"sender":        s.smtpSender,
-		"smtp_host":     s.smtpHost,
-		"smtp_port":     s.smtpPort,
-		"smtp_user":     s.smtpUser,
-		"smtp_password": s.smtpPassword,
-	})
-
-	smtpIntegration := domain.Integration{
-		Base:     domain.Base{ID: "smtp-default"},
-		Name:     "Default SMTP",
-		IsActive: true,
-		Config:   smtpConfig,
-	}
+	// Create SMTP notifier with configured credentials
+	smtpNotifier := notifier.NewSMTPNotifier(
+		s.smtpRecipient,
+		s.smtpSender,
+		s.smtpHost,
+		s.smtpPort,
+		s.smtpUser,
+		s.smtpPassword,
+	)
 
 	// Send the notification
-	err := smtpNotifier.Send(ctx, smtpIntegration, *incident)
+	err := smtpNotifier.Send(ctx, *incident)
 
 	// Create notification record to log the attempt
 	notificationEvent := &domain.NotificationEvent{
@@ -382,6 +320,42 @@ func (s *IncidentService) sendUpNotification(ctx context.Context, incident *doma
 	// Persist the notification event (regardless of send success/failure)
 	if err := s.notifications.Create(ctx, notificationEvent); err != nil {
 		log.Printf("Warning: Failed to persist notification event: %v", err)
+	}
+
+	return err
+}
+
+// sendWebhookNotification sends a notification via webhook.
+func (s *IncidentService) sendWebhookNotification(ctx context.Context, incident *domain.Incident) error {
+	// Create webhook notifier with configured URL and secret
+	webhookNotifier := notifier.NewWebHookNotifier(s.webhookUrl, s.webhookSecret)
+
+	// Send the notification
+	err := webhookNotifier.Send(ctx, *incident)
+
+	// Determine notification event type based on incident status
+	eventType := domain.NotificationEventTypeDown
+	if incident.ResolvedAt != nil {
+		eventType = domain.NotificationEventTypeUp
+	}
+
+	// Create notification record to log the attempt
+	notificationEvent := &domain.NotificationEvent{
+		IncidentID: incident.ID,
+		Type:       eventType,
+	}
+
+	if err != nil {
+		log.Printf("[WEBHOOK ERROR] Failed to send %s notification for incident %s: %v",
+			eventType, incident.ID, err)
+	} else {
+		log.Printf("[WEBHOOK SUCCESS] Sent %s notification for incident %s to %s",
+			eventType, incident.ID, s.webhookUrl)
+	}
+
+	// Persist the notification event (regardless of send success/failure)
+	if err := s.notifications.Create(ctx, notificationEvent); err != nil {
+		log.Printf("Warning: Failed to persist webhook notification event: %v", err)
 	}
 
 	return err
@@ -439,60 +413,4 @@ func findSubstring(s, substr string) bool {
 // stringPtr is a helper to create string pointers.
 func stringPtr(s string) *string {
 	return &s
-}
-
-// hasEventType checks if an integration is subscribed to a specific event type.
-func (s *IncidentService) hasEventType(integration *domain.Integration, eventType domain.EventType) bool {
-	// Check if the event type is in the list
-	var eventTypes []string
-	if err := json.Unmarshal(integration.EventTypes, &eventTypes); err != nil {
-		return false
-	}
-	return slices.Contains(eventTypes, string(eventType))
-}
-
-// sendIntegrationNotification sends a notification via a user-configured integration.
-func (s *IncidentService) sendIntegrationNotification(ctx context.Context, integration *domain.Integration, incident *domain.Incident, eventType domain.EventType) {
-	// Get the appropriate notifier from the factory
-	integrationType := integration.GetType()
-	notifier, err := s.factory.GetNotifier(integrationType)
-	if err != nil {
-		log.Printf("[INTEGRATION ERROR] Failed to get notifier for type %s: %v", integrationType, err)
-		return
-	}
-
-	// Send the notification
-	err = notifier.Send(ctx, *integration, *incident)
-
-	// Determine notification event type
-	var notificationEventType domain.NotificationEventType
-	switch eventType {
-	case domain.EventTypeDown:
-		notificationEventType = domain.NotificationEventTypeDown
-	case domain.EventTypeUp:
-		notificationEventType = domain.NotificationEventTypeUp
-	case domain.EventTypeExpiry:
-		notificationEventType = domain.NotificationEventTypeExpiry
-	default:
-		notificationEventType = domain.NotificationEventTypeDown
-	}
-
-	// Create notification event record
-	notificationEvent := &domain.NotificationEvent{
-		IncidentID: incident.ID,
-		Type:       notificationEventType,
-	}
-
-	if err != nil {
-		log.Printf("[INTEGRATION ERROR] Failed to send %s notification via %s (%s): %v",
-			eventType, integration.Name, integrationType, err)
-	} else {
-		log.Printf("[INTEGRATION SUCCESS] Sent %s notification via %s (%s) for incident %s",
-			eventType, integration.Name, integrationType, incident.ID)
-	}
-
-	// Persist the notification event (regardless of send success/failure)
-	if err := s.notifications.Create(ctx, notificationEvent); err != nil {
-		log.Printf("Warning: Failed to persist integration notification event: %v", err)
-	}
 }

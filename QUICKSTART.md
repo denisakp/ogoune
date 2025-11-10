@@ -134,9 +134,8 @@ pnpm run dev      # http://localhost:5173
 ✅ **Integrations**
 
 - Send notifications to Slack
-- Receive Discord alerts
+- Receive alerts via Webhooks
 - Email notifications via SMTP
-- Google Chat updates
 - Webhook support
 
 ### View Activity & History

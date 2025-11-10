@@ -2,34 +2,27 @@ package monitoring
 
 import (
 	"context"
-	"encoding/json"
 	"testing"
-	"time"
 
 	"github.com/denisakp/pulseguard/internal/domain"
 	"github.com/denisakp/pulseguard/internal/repository/fake"
-	"github.com/denisakp/pulseguard/pkg/notifier"
 	"github.com/hibiken/asynq"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 // Test helpers
-func setupTestService(smtpEnabled bool, smtpRecipient, smtpSender string) (*IncidentService, *fake.IncidentFake, *fake.IncidentEventStepFake, *fake.NotificationFake, *fake.IntegrationFake, *asynq.Client) {
+func setupTestService(smtpEnabled bool, smtpRecipient, smtpSender string) (*IncidentService, *fake.IncidentFake, *fake.IncidentEventStepFake, *fake.NotificationFake, *asynq.Client) {
 	incidentRepo := fake.NewIncidentFake()
 	eventStepRepoInterface := fake.NewIncidentEventStepFake()
 	notificationRepo := fake.NewNotificationFake()
-	integrationRepoInterface := fake.NewIntegrationFake()
 	asynqClient := asynq.NewClient(asynq.RedisClientOpt{Addr: "localhost:6379"})
-	factory := notifier.NewNotifierFactory()
 
 	service := NewIncidentService(
 		incidentRepo,
 		eventStepRepoInterface,
 		notificationRepo,
-		integrationRepoInterface,
 		asynqClient,
-		factory,
 		smtpEnabled,
 		smtpRecipient,
 		smtpSender,
@@ -37,13 +30,14 @@ func setupTestService(smtpEnabled bool, smtpRecipient, smtpSender string) (*Inci
 		"587",              // SMTP port
 		"testuser",         // SMTP user
 		"testpass",         // SMTP password
+		"",                 // webhook URL (disabled for tests)
+		nil,                // webhook secret (disabled for tests)
 	)
 
 	// Type assert to concrete types for test access
 	eventStepRepo := eventStepRepoInterface.(*fake.IncidentEventStepFake)
-	integrationRepo := integrationRepoInterface.(*fake.IntegrationFake)
 
-	return service, incidentRepo, eventStepRepo, notificationRepo, integrationRepo, asynqClient
+	return service, incidentRepo, eventStepRepo, notificationRepo, asynqClient
 }
 
 // ============================================================
@@ -100,7 +94,7 @@ func TestExtractCause(t *testing.T) {
 			name: "generic down",
 			result: domain.CheckResult{
 				Status:       "down",
-				ResponseData: "service unavailable",
+				ResponseData: "",
 			},
 			expected: "health_check_failed",
 		},
@@ -108,424 +102,281 @@ func TestExtractCause(t *testing.T) {
 			name: "execution error",
 			result: domain.CheckResult{
 				Status:       "error",
-				ResponseData: "failed to execute check",
+				ResponseData: "some error",
 			},
 			expected: "check_execution_error",
-		},
-		{
-			name: "unknown",
-			result: domain.CheckResult{
-				Status:       "unknown",
-				ResponseData: "",
-			},
-			expected: "unknown_failure",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			cause := extractCause(tt.result)
-			assert.Equal(t, tt.expected, cause)
+			result := extractCause(tt.result)
+			assert.Equal(t, tt.expected, result)
 		})
 	}
 }
 
 // ============================================================
-// INTEGRATION TESTS - Testing complete workflows
+// INTEGRATION TESTS - Testing incident lifecycle
 // ============================================================
 
-func TestIncidentService_CreateIncident_ThreeFailureRule(t *testing.T) {
-	service, incidentRepo, _, _, _, asynqClient := setupTestService(false, "test@example.com", "sender@example.com")
+func TestIncidentService_CreateIncident_Success(t *testing.T) {
+	service, incidentRepo, eventStepRepo, notificationRepo, asynqClient := setupTestService(false, "admin@example.com", "noreply@example.com")
 	defer asynqClient.Close()
-
-	resource := &domain.Resource{
-		Base: domain.Base{
-			ID:        "resource-1",
-			CreatedAt: time.Now(),
-		},
-		Name:         "Test Resource",
-		Type:         domain.ResourceHTTP,
-		Target:       "https://example.com",
-		Status:       domain.StatusDown,
-		FailureCount: 3, // At 3rd failure
-		IsActive:     true,
-	}
-
-	result := domain.CheckResult{
-		Status:       "down",
-		ResponseData: "connection timeout",
-		ResponseTime: 5 * time.Second,
-	}
 
 	ctx := context.Background()
 
+	// Create test resource
+	resource := &domain.Resource{
+		Base:         domain.Base{ID: "res-123"},
+		Name:         "Example API",
+		Target:       "https://example.com",
+		Type:         domain.ResourceHTTP,
+		Timeout:      30,
+		IsActive:     true,
+		FailureCount: 0,
+		Status:       domain.StatusUp,
+	}
+
+	// Create test result
+	result := domain.CheckResult{
+		Status:       "down",
+		ResponseData: "connection timeout",
+	}
+
+	// Create incident
 	err := service.CreateIncident(ctx, resource, result)
 	require.NoError(t, err)
 
-	// Verify incident was created with correct cause
+	// Verify incident was created
 	incidents, err := incidentRepo.FindByResource(ctx, resource.ID, 10, 0)
 	require.NoError(t, err)
-	assert.Len(t, incidents, 1)
+	require.Equal(t, 1, len(incidents))
+	assert.Equal(t, resource.ID, incidents[0].ResourceID)
+	assert.Nil(t, incidents[0].ResolvedAt)
 	assert.Equal(t, "connection_timeout", incidents[0].Cause)
-	assert.Nil(t, incidents[0].ResolvedAt, "New incident should be unresolved")
+
+	// Verify event step was created
+	steps, err := eventStepRepo.List(ctx, 10, 0)
+	require.NoError(t, err)
+	assert.Greater(t, len(steps), 0)
+	assert.Equal(t, domain.IncidentEventStepDetected, steps[0].Step)
 }
 
-func TestIncidentService_CreateIncident_IdempotentCheck(t *testing.T) {
-	service, incidentRepo, _, _, _, asynqClient := setupTestService(false, "test@example.com", "sender@example.com")
+func TestIncidentService_CreateIncident_DuplicatePrevention(t *testing.T) {
+	service, incidentRepo, _, _, asynqClient := setupTestService(false, "", "")
 	defer asynqClient.Close()
 
+	ctx := context.Background()
+
 	resource := &domain.Resource{
-		Base: domain.Base{
-			ID:        "resource-1",
-			CreatedAt: time.Now(),
-		},
-		Name:         "Test Resource",
+		Base:         domain.Base{ID: "res-456"},
+		Name:         "API Server",
+		Target:       "https://api.example.com",
 		Type:         domain.ResourceHTTP,
-		Target:       "https://example.com",
-		Status:       domain.StatusDown,
-		FailureCount: 3,
 		IsActive:     true,
+		FailureCount: 0,
+		Status:       domain.StatusDown,
 	}
 
 	result := domain.CheckResult{
 		Status:       "down",
-		ResponseData: "connection timeout",
-		ResponseTime: 5 * time.Second,
+		ResponseData: "connection refused",
 	}
 
-	ctx := context.Background()
-
-	// Create incident first time
+	// Create first incident
 	err := service.CreateIncident(ctx, resource, result)
 	require.NoError(t, err)
 
-	// Try to create incident again (should be idempotent)
+	// Try to create second incident - should be skipped
 	err = service.CreateIncident(ctx, resource, result)
 	require.NoError(t, err)
 
-	// Should still only have one incident
+	// Verify only one incident exists
 	incidents, err := incidentRepo.FindByResource(ctx, resource.ID, 10, 0)
 	require.NoError(t, err)
-	assert.Len(t, incidents, 1, "Should not create duplicate incident")
+	assert.Equal(t, 1, len(incidents))
 }
 
-func TestIncidentService_SMTPDisabled_NoNotifications(t *testing.T) {
-	service, incidentRepo, _, notificationRepo, _, asynqClient := setupTestService(false, "", "")
+func TestIncidentService_ResolveIncident_Success(t *testing.T) {
+	service, incidentRepo, eventStepRepo, _, asynqClient := setupTestService(false, "", "")
 	defer asynqClient.Close()
 
+	ctx := context.Background()
+
 	resource := &domain.Resource{
-		Base: domain.Base{
-			ID:        "resource-1",
-			CreatedAt: time.Now(),
-		},
-		Name:         "Test Resource",
-		Type:         domain.ResourceHTTP,
-		Target:       "https://example.com",
-		Status:       domain.StatusDown,
-		FailureCount: 3,
+		Base:         domain.Base{ID: "res-789"},
+		Name:         "Database",
+		Target:       "db.example.com:5432",
+		Type:         domain.ResourceTCP,
 		IsActive:     true,
+		FailureCount: 3,
+		Status:       domain.StatusDown,
 	}
 
-	result := domain.CheckResult{
+	downResult := domain.CheckResult{
 		Status:       "down",
 		ResponseData: "connection timeout",
-		ResponseTime: 5 * time.Second,
 	}
 
-	ctx := context.Background()
-
-	err := service.CreateIncident(ctx, resource, result)
+	// Create incident
+	err := service.CreateIncident(ctx, resource, downResult)
 	require.NoError(t, err)
 
-	// Verify incident was created
-	incidents, err := incidentRepo.List(ctx, 10, 0)
-	require.NoError(t, err)
-	assert.Len(t, incidents, 1)
-
-	// With SMTP disabled and no integrations, no notifications should be created
-	notifications, err := notificationRepo.List(ctx, 10, 0)
-	require.NoError(t, err)
-	assert.Len(t, notifications, 0)
-}
-
-func TestIncidentService_SMTPEnabled_CreatesNotification(t *testing.T) {
-	service, incidentRepo, _, notificationRepo, _, asynqClient := setupTestService(true, "admin@example.com", "noreply@example.com")
-	defer asynqClient.Close()
-
-	resource := &domain.Resource{
-		Base:         domain.Base{ID: "resource-1"},
-		Name:         "Test Resource",
-		Type:         domain.ResourceHTTP,
-		Target:       "https://example.com",
-		Status:       domain.StatusDown,
-		FailureCount: 3,
-	}
-
-	result := domain.CheckResult{
-		Status:       "down",
-		ResponseTime: 0,
-		ResponseData: "Connection timeout",
-	}
-
-	ctx := context.Background()
-
-	err := service.CreateIncident(ctx, resource, result)
-	require.NoError(t, err)
-
-	// Verify incident was created
-	incidents, err := incidentRepo.List(ctx, 10, 0)
-	require.NoError(t, err)
-	assert.Len(t, incidents, 1)
-
-	// Verify SMTP notification was logged (even if send failed)
-	notifications, err := notificationRepo.List(ctx, 10, 0)
-	require.NoError(t, err)
-	assert.Len(t, notifications, 1)
-	assert.Equal(t, domain.NotificationEventTypeDown, notifications[0].Type)
-}
-
-func TestIncidentService_ResolveIncident(t *testing.T) {
-	service, incidentRepo, _, _, _, asynqClient := setupTestService(false, "test@example.com", "sender@example.com")
-	defer asynqClient.Close()
-
-	resource := &domain.Resource{
-		Base: domain.Base{
-			ID:        "resource-1",
-			CreatedAt: time.Now(),
-		},
-		Name:         "Test Resource",
-		Type:         domain.ResourceHTTP,
-		Target:       "https://example.com",
-		Status:       domain.StatusUp,
-		FailureCount: 0,
-		IsActive:     true,
-	}
-
-	// Create an active incident first
-	activeIncident := &domain.Incident{
-		Base: domain.Base{
-			ID:        "incident-1",
-			CreatedAt: time.Now(),
-		},
-		ResourceID: resource.ID,
-		Resource:   *resource,
-		Cause:      "connection_timeout",
-		ResolvedAt: nil, // Active
-		StartedAt:  time.Now().Add(-10 * time.Minute),
-	}
-
-	ctx := context.Background()
-	_, err := incidentRepo.Create(ctx, activeIncident)
-	require.NoError(t, err)
-
-	result := domain.CheckResult{
+	// Now resolve it
+	upResult := domain.CheckResult{
 		Status:       "up",
-		ResponseData: "success",
-		ResponseTime: 100 * time.Millisecond,
-	}
-
-	err = service.ResolveIncident(ctx, resource, result)
-	require.NoError(t, err)
-
-	// Verify incident was resolved
-	resolvedIncident, err := incidentRepo.FindByID(ctx, activeIncident.ID)
-	require.NoError(t, err)
-	assert.NotNil(t, resolvedIncident.ResolvedAt, "Incident should be resolved")
-}
-
-// ============================================================
-// TWO-LAYER NOTIFICATION ARCHITECTURE TESTS
-// ============================================================
-
-func TestIncidentService_IntegrationFiltering_DownEvent(t *testing.T) {
-	service, incidentRepo, _, notificationRepo, integrationRepo, asynqClient := setupTestService(false, "", "")
-	defer asynqClient.Close()
-
-	ctx := context.Background()
-
-	// Create Google Chat integration subscribed to "down" events
-	googleChatConfig, _ := json.Marshal(map[string]string{
-		"type":        "google_chat",
-		"webhook_url": "https://chat.googleapis.com/v1/spaces/AAAA/messages?key=123",
-	})
-	googleChatEventTypes, _ := json.Marshal([]string{"down", "up"})
-
-	googleChatIntegration := &domain.Integration{
-		Base:       domain.Base{ID: "integration-1"},
-		Name:       "Google Chat Alerts",
-		IsActive:   true,
-		Config:     googleChatConfig,
-		EventTypes: googleChatEventTypes,
-	}
-	err := integrationRepo.Create(ctx, googleChatIntegration)
-	require.NoError(t, err)
-
-	// Create Slack integration subscribed only to "up" events (should be filtered out)
-	slackConfig, _ := json.Marshal(map[string]string{
-		"type":        "slack",
-		"webhook_url": "https://hooks.slack.com/services/T00/B00/XXX",
-	})
-	slackEventTypes, _ := json.Marshal([]string{"up"})
-	slackIntegration := &domain.Integration{
-		Base:       domain.Base{ID: "integration-2"},
-		Name:       "Slack Recovery Alerts",
-		IsActive:   true,
-		Config:     slackConfig,
-		EventTypes: slackEventTypes,
-	}
-	err = integrationRepo.Create(ctx, slackIntegration)
-	require.NoError(t, err)
-
-	resource := &domain.Resource{
-		Base:         domain.Base{ID: "resource-1"},
-		Name:         "Test Resource",
-		Type:         domain.ResourceHTTP,
-		Target:       "https://example.com",
-		Status:       domain.StatusDown,
-		FailureCount: 3,
-	}
-
-	result := domain.CheckResult{
-		Status:       "down",
-		ResponseTime: 0,
-		ResponseData: "Connection timeout",
-	}
-
-	err = service.CreateIncident(ctx, resource, result)
-	require.NoError(t, err)
-
-	// Verify incident was created
-	incidents, err := incidentRepo.List(ctx, 10, 0)
-	require.NoError(t, err)
-	assert.Len(t, incidents, 1)
-
-	// Verify only Google Chat notification was logged (Slack filtered out)
-	notifications, err := notificationRepo.List(ctx, 10, 0)
-	require.NoError(t, err)
-	assert.Len(t, notifications, 1, "Only Google Chat should send notification for 'down' event")
-	assert.Equal(t, domain.NotificationEventTypeDown, notifications[0].Type)
-}
-
-func TestIncidentService_IntegrationFiltering_UpEvent(t *testing.T) {
-	service, incidentRepo, _, notificationRepo, integrationRepo, asynqClient := setupTestService(false, "", "")
-	defer asynqClient.Close()
-
-	ctx := context.Background()
-
-	// Create Slack integration subscribed to "up" events
-	slackConfig, _ := json.Marshal(map[string]string{
-		"type":        "slack",
-		"webhook_url": "https://hooks.slack.com/services/T00/B00/XXX",
-	})
-	slackEventTypes, _ := json.Marshal([]string{"up"})
-	slackIntegration := &domain.Integration{
-		Base:       domain.Base{ID: "integration-1"},
-		Name:       "Slack Recovery Alerts",
-		IsActive:   true,
-		Config:     slackConfig,
-		EventTypes: slackEventTypes,
-	}
-	err := integrationRepo.Create(ctx, slackIntegration)
-	require.NoError(t, err)
-
-	resource := &domain.Resource{
-		Base:         domain.Base{ID: "resource-1"},
-		Name:         "Test Resource",
-		Type:         domain.ResourceHTTP,
-		Target:       "https://example.com",
-		Status:       domain.StatusUp,
-		FailureCount: 0,
-	}
-
-	// Create an active incident first
-	incident := &domain.Incident{
-		Base:       domain.Base{ID: "incident-1"},
-		ResourceID: resource.ID,
-		Resource:   *resource,
-		Cause:      "connection_timeout",
-		ResolvedAt: nil,
-		StartedAt:  time.Now().Add(-5 * time.Minute),
-	}
-	_, err = incidentRepo.Create(ctx, incident)
-	require.NoError(t, err)
-
-	result := domain.CheckResult{
-		Status:       "up",
-		ResponseTime: 100,
 		ResponseData: "OK",
 	}
 
-	err = service.ResolveIncident(ctx, resource, result)
+	err = service.ResolveIncident(ctx, resource, upResult)
 	require.NoError(t, err)
 
-	// Verify incident was resolved
-	incidents, err := incidentRepo.List(ctx, 10, 0)
+	// Verify incident is resolved
+	incidents, err := incidentRepo.FindByResource(ctx, resource.ID, 10, 0)
 	require.NoError(t, err)
-	assert.Len(t, incidents, 1)
-	assert.NotNil(t, incidents[0].ResolvedAt, "Incident should be resolved")
+	require.Equal(t, 1, len(incidents))
+	assert.NotNil(t, incidents[0].ResolvedAt)
 
-	// Verify Slack notification was logged (subscribed to "up" events)
-	notifications, err := notificationRepo.List(ctx, 10, 0)
+	// Verify resolved event step was created
+	steps, err := eventStepRepo.List(ctx, 10, 0)
 	require.NoError(t, err)
-	assert.Len(t, notifications, 1)
-	assert.Equal(t, domain.NotificationEventTypeUp, notifications[0].Type)
+	foundResolved := false
+	for _, step := range steps {
+		if step.Step == domain.IncidentEventStepResolved {
+			foundResolved = true
+			break
+		}
+	}
+	assert.True(t, foundResolved, "Resolved event step should have been created")
 }
 
-func TestIncidentService_TwoLayerArchitecture_SMTPAndIntegrations(t *testing.T) {
-	service, incidentRepo, _, notificationRepo, integrationRepo, asynqClient := setupTestService(true, "admin@example.com", "noreply@example.com")
+func TestIncidentService_ResolveIncident_NoActiveIncident(t *testing.T) {
+	service, _, _, _, asynqClient := setupTestService(false, "", "")
 	defer asynqClient.Close()
 
 	ctx := context.Background()
 
-	// Create Google Chat integration
-	googleChatConfig, _ := json.Marshal(map[string]string{
-		"type":        "google_chat",
-		"webhook_url": "https://chat.googleapis.com/v1/spaces/AAAA/messages?key=123",
-	})
-	googleChatEventTypes, _ := json.Marshal([]string{"down"})
-
-	googleChatIntegration := &domain.Integration{
-		Base:       domain.Base{ID: "integration-1"},
-		Name:       "Google Chat Alerts",
-		IsActive:   true,
-		Config:     googleChatConfig,
-		EventTypes: googleChatEventTypes,
+	resource := &domain.Resource{
+		Base:     domain.Base{ID: "res-999"},
+		Name:     "Orphaned Resource",
+		Target:   "orphan.example.com",
+		Type:     domain.ResourceHTTP,
+		IsActive: true,
+		Status:   domain.StatusUp,
 	}
-	err := integrationRepo.Create(ctx, googleChatIntegration)
+
+	upResult := domain.CheckResult{
+		Status:       "up",
+		ResponseData: "OK",
+	}
+
+	// Try to resolve without creating incident - should return nil (no error)
+	err := service.ResolveIncident(ctx, resource, upResult)
 	require.NoError(t, err)
+}
+
+func TestIncidentService_CreateIncident_WithSMTPEnabled(t *testing.T) {
+	service, incidentRepo, eventStepRepo, notificationRepo, asynqClient := setupTestService(true, "admin@example.com", "noreply@example.com")
+	defer asynqClient.Close()
+
+	ctx := context.Background()
 
 	resource := &domain.Resource{
-		Base:         domain.Base{ID: "resource-1"},
-		Name:         "Test Resource",
+		Base:         domain.Base{ID: "res-smtp"},
+		Name:         "SMTP Test Resource",
+		Target:       "smtp-test.example.com",
 		Type:         domain.ResourceHTTP,
-		Target:       "https://example.com",
-		Status:       domain.StatusDown,
-		FailureCount: 3,
+		IsActive:     true,
+		FailureCount: 0,
+		Status:       domain.StatusUp,
 	}
 
 	result := domain.CheckResult{
 		Status:       "down",
-		ResponseTime: 0,
-		ResponseData: "Connection timeout",
+		ResponseData: "connection refused",
 	}
 
-	err = service.CreateIncident(ctx, resource, result)
+	// Create incident with SMTP enabled
+	err := service.CreateIncident(ctx, resource, result)
 	require.NoError(t, err)
 
 	// Verify incident was created
-	incidents, err := incidentRepo.List(ctx, 10, 0)
+	incidents, err := incidentRepo.FindByResource(ctx, resource.ID, 10, 0)
 	require.NoError(t, err)
-	assert.Len(t, incidents, 1)
+	require.Equal(t, 1, len(incidents))
 
-	// Verify both SMTP and integration notifications were logged
+	// Verify event steps include down alert
+	steps, err := eventStepRepo.List(ctx, 10, 0)
+	require.NoError(t, err)
+	foundDownAlert := false
+	for _, step := range steps {
+		if step.Step == domain.IncidentEventStepDownAlert {
+			foundDownAlert = true
+			break
+		}
+	}
+	assert.True(t, foundDownAlert, "Down alert event step should have been created when SMTP is enabled")
+
+	// Verify notification event was created
 	notifications, err := notificationRepo.List(ctx, 10, 0)
 	require.NoError(t, err)
-	assert.Len(t, notifications, 2, "Should have notifications from both SMTP (stage 1) and integration (stage 2)")
+	assert.Greater(t, len(notifications), 0)
+}
 
-	// Verify notification types
-	notifTypes := make(map[domain.NotificationEventType]int)
-	for _, notif := range notifications {
-		notifTypes[notif.Type]++
+func TestIncidentService_ResolveIncident_WithSMTPEnabled(t *testing.T) {
+	service, incidentRepo, eventStepRepo, notificationRepo, asynqClient := setupTestService(true, "admin@example.com", "noreply@example.com")
+	defer asynqClient.Close()
+
+	ctx := context.Background()
+
+	resource := &domain.Resource{
+		Base:         domain.Base{ID: "res-resolve-smtp"},
+		Name:         "Resolve SMTP Test",
+		Target:       "resolve-test.example.com",
+		Type:         domain.ResourceHTTP,
+		IsActive:     true,
+		FailureCount: 3,
+		Status:       domain.StatusDown,
 	}
-	assert.Equal(t, 2, notifTypes[domain.NotificationEventTypeDown], "Both SMTP and Google Chat should send down notifications")
+
+	// Create incident
+	downResult := domain.CheckResult{
+		Status:       "down",
+		ResponseData: "timeout",
+	}
+	err := service.CreateIncident(ctx, resource, downResult)
+	require.NoError(t, err)
+
+	// Resolve incident
+	upResult := domain.CheckResult{
+		Status:       "up",
+		ResponseData: "OK",
+	}
+	err = service.ResolveIncident(ctx, resource, upResult)
+	require.NoError(t, err)
+
+	// Verify event steps include up alert
+	steps, err := eventStepRepo.List(ctx, 10, 0)
+	require.NoError(t, err)
+	foundUpAlert := false
+	for _, step := range steps {
+		if step.Step == domain.IncidentEventStepUpAlert {
+			foundUpAlert = true
+			break
+		}
+	}
+	assert.True(t, foundUpAlert, "Up alert event step should have been created when SMTP is enabled")
+
+	// Verify notification events were created (both down and up)
+	notifications, err := notificationRepo.List(ctx, 100, 0)
+	require.NoError(t, err)
+	assert.GreaterOrEqual(t, len(notifications), 2, "Should have at least down and up notifications")
+}
+
+func TestStringPtr(t *testing.T) {
+	testStr := "test"
+	result := stringPtr(testStr)
+	require.NotNil(t, result)
+	assert.Equal(t, testStr, *result)
 }

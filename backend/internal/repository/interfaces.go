@@ -63,17 +63,6 @@ type IncidentEventStepRepository interface {
 	Delete(ctx context.Context, id string) error
 }
 
-// IntegrationRepository for outbound integrations
-type IntegrationRepository interface {
-	Create(ctx context.Context, m *domain.Integration) error
-	FindByID(ctx context.Context, id string) (*domain.Integration, error)
-	List(ctx context.Context, limit, offset int) ([]*domain.Integration, error)
-	Update(ctx context.Context, m *domain.Integration) error
-	Delete(ctx context.Context, id string) error
-	FindActiveByType(ctx context.Context, t domain.IntegrationType, limit, offset int) ([]*domain.Integration, error)
-	ListActive(ctx context.Context) ([]*domain.Integration, error)
-}
-
 // NotificationRepository handles notification events
 type NotificationRepository interface {
 	Create(ctx context.Context, n *domain.NotificationEvent) error

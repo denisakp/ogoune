@@ -36,7 +36,7 @@ The system is a single Go binary that initializes the database, the Redis/Asynq 
 - HTTP router: Chi
 - ORM/DB: GORM + PostgreSQL
 - Background processing: Redis + Asynq (periodic scheduler + worker server)
-- Notifications: SMTP (HTML templates) + Slack, Discord, Google Chat
+- Notifications: SMTP (HTML templates) + Slack, Webhook
 - Config: environment variables (dotenv supported in development)
 
 Key packages and files (relative to backend/):
@@ -52,7 +52,7 @@ Key packages and files (relative to backend/):
 - internal/worker/processor.go: Asynq server and task mux
 - internal/worker/handler_monitoring.go: “monitoring:check” task handler
 - internal/repository/postgres/*: GORM repository implementations + DB setup
-- pkg/notifier/*: SMTP + Slack/Discord/Google Chat providers and factory
+- pkg/notifier/*: SMTP + Slack/Webhook providers and factory
 
 ---
 
@@ -211,7 +211,7 @@ Two‑layer fan‑out:
   - Uses embedded HTML templates for emails (subject and content tailored per event)
   - A test endpoint is available: POST /notifications/test
 - User integrations (Slack, Discord, Google Chat):
-  - Each `Integration` carries a JSON config (`config`) that includes `"type": "slack"|"discord"|"google_chat"` and any provider settings
+  - Each `Integration` carries a JSON config (`config`) that includes `"type": "slack"|"webhook"` and any provider settings
   - Subscriptions are filtered via `event_types` JSON array
   - A simple factory resolves notifier implementations by type
   - Every attempt is audited by a `NotificationEvent`

@@ -25,7 +25,6 @@ var (
 		&domain.Resource{},
 		&domain.Incident{},
 		&domain.IncidentEventStep{},
-		&domain.Integration{},
 		&domain.NotificationEvent{},
 		&domain.Tags{},
 		&domain.MonitoringActivity{},

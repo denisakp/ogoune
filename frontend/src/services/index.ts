@@ -1,6 +1,5 @@
 export * from './activityService'
 export * from './incidentService'
-export * from './integrationService'
 export * from './resourceService'
 export * from './statsService'
 export * from './statusPageService'

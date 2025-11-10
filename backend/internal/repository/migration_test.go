@@ -17,8 +17,7 @@ func TestMigration(t *testing.T) {
 		"resources",
 		"incidents",
 		"incident_event_steps",
-		"integrations",
-		// "notification_events", // TODO: Add when NotificationEvent model is complete
+		// "notification_events",
 	}
 
 	for _, table := range tables {

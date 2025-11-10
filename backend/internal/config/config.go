@@ -20,6 +20,9 @@ type Config struct {
 	DefaultRecipientEmail string
 	SMTPIsEnabled         bool
 	StaticDir             string
+	WebHookUrl            string
+	WebHookSignature      string
+	WebHookIsEnabled      bool
 }
 
 // Load reads configuration from environment variables.
@@ -38,6 +41,9 @@ func Load() Config {
 		smtpUser != "" && smtpPassword != "" &&
 		smtpSender != "" && defaultRecipient != ""
 
+	webhookUrl := GetEnv("WEBHOOK_URL", "")
+	webhookIsEnabled := webhookUrl != ""
+
 	cfg := Config{
 		RedisUrl:              GetEnv("REDIS_URL", "redis:6379"),
 		DatabaseUrl:           GetEnv("DATABASE_URL", "postgres://pulseguard:EE94PPHGz3TZ@postgres:5432/pulse?sslmode=disable"),
@@ -49,6 +55,9 @@ func Load() Config {
 		SMTPSender:            smtpSender,
 		DefaultRecipientEmail: defaultRecipient,
 		SMTPIsEnabled:         smtpIsEnabled,
+		WebHookUrl:            webhookUrl,
+		WebHookSignature:      GetEnv("WEBHOOK_SIGNATURE", ""),
+		WebHookIsEnabled:      webhookIsEnabled,
 		StaticDir:             GetEnv("STATIC_DIR", "./static"),
 	}
 	return cfg

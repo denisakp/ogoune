@@ -14,7 +14,6 @@ func NewRouter(
 	resourceHandler *handler.ResourceHandler,
 	activityHandler *handler.MonitoringActivityHandler,
 	tagHandler *handler.TagHandler,
-	integrationHandler *handler.IntegrationHandler,
 	statusPageHandler *handler.StatusPageHandler,
 	incidentHandler *handler.IncidentHandler,
 	notificationHandler *handler.NotificationHandler,
@@ -68,13 +67,6 @@ func NewRouter(
 		r.Post("/", tagHandler.CreateTag)       // POST /tags - create new tag
 		r.Patch("/{id}", tagHandler.UpdateTag)  // PATCH /tags/{id} - update tag
 		r.Delete("/{id}", tagHandler.DeleteTag) // DELETE /tags/{id} - delete tag
-	})
-
-	// Integrations API
-	r.Route("/integrations", func(r chi.Router) {
-		r.Get("/", integrationHandler.ListIntegrations)        // GET /integrations - list all integrations
-		r.Post("/", integrationHandler.CreateIntegration)      // POST /integrations - create new integration
-		r.Patch("/{id}", integrationHandler.UpdateIntegration) // PATCH /integrations/{id} - update integration
 	})
 
 	// Monitoring Activities API

@@ -18,7 +18,14 @@ import (
 var emailTemplates embed.FS
 
 // SMTPNotifier implements email notifications using SMTP.
-type SMTPNotifier struct{}
+type SMTPNotifier struct {
+	recipient    string
+	sender       string
+	smtpHost     string
+	smtpPort     string
+	smtpUser     string
+	smtpPassword string
+}
 
 type TemplateData struct {
 	Incident domain.Incident
@@ -30,55 +37,44 @@ type TestTemplateData struct {
 	Timestamp string
 }
 
-// NewSMTPNotifier creates a new SMTP notifier instance.
-func NewSMTPNotifier() *SMTPNotifier {
-	return &SMTPNotifier{}
+// NewSMTPNotifier creates a new SMTP notifier instance with the provided configuration.
+func NewSMTPNotifier(recipient, sender, smtpHost, smtpPort, smtpUser, smtpPassword string) *SMTPNotifier {
+	return &SMTPNotifier{
+		recipient:    recipient,
+		sender:       sender,
+		smtpHost:     smtpHost,
+		smtpPort:     smtpPort,
+		smtpUser:     smtpUser,
+		smtpPassword: smtpPassword,
+	}
 }
 
 // Send sends an email notification for the incident.
 // It generates distinct email templates for "Resource Down" and "Resource Up" events.
-// The config must contain: recipient, sender, smtp_host, smtp_port, smtp_user, smtp_password
-func (n *SMTPNotifier) Send(ctx context.Context, config domain.Integration, incident domain.Incident) error {
-	// Extract configuration from Integration Config field
-	configMap, err := config.GetConfig()
-	if err != nil {
-		return fmt.Errorf("failed to parse config: %w", err)
+func (n *SMTPNotifier) Send(ctx context.Context, incident domain.Incident) error {
+	// Validate configuration
+	if n.recipient == "" {
+		return fmt.Errorf("smtp recipient is not configured")
+	}
+	if n.sender == "" {
+		return fmt.Errorf("smtp sender is not configured")
+	}
+	if n.smtpHost == "" {
+		return fmt.Errorf("smtp host is not configured")
+	}
+	if n.smtpPort == "" {
+		return fmt.Errorf("smtp port is not configured")
+	}
+	if n.smtpUser == "" {
+		return fmt.Errorf("smtp user is not configured")
+	}
+	if n.smtpPassword == "" {
+		return fmt.Errorf("smtp password is not configured")
 	}
 
-	// Extract required fields
-	recipient, ok := configMap["recipient"].(string)
-	if !ok || recipient == "" {
-		return fmt.Errorf("config missing 'recipient' field")
-	}
-
-	sender, ok := configMap["sender"].(string)
-	if !ok || sender == "" {
-		return fmt.Errorf("config missing 'sender' field")
-	}
-
-	smtpHost, ok := configMap["smtp_host"].(string)
-	if !ok || smtpHost == "" {
-		return fmt.Errorf("config missing 'smtp_host' field")
-	}
-
-	smtpPortStr, ok := configMap["smtp_port"].(string)
-	if !ok || smtpPortStr == "" {
-		return fmt.Errorf("config missing 'smtp_port' field")
-	}
-
-	smtpPort, err := strconv.Atoi(smtpPortStr)
+	smtpPort, err := strconv.Atoi(n.smtpPort)
 	if err != nil {
 		return fmt.Errorf("invalid smtp_port: %w", err)
-	}
-
-	smtpUser, ok := configMap["smtp_user"].(string)
-	if !ok || smtpUser == "" {
-		return fmt.Errorf("config missing 'smtp_user' field")
-	}
-
-	smtpPassword, ok := configMap["smtp_password"].(string)
-	if !ok || smtpPassword == "" {
-		return fmt.Errorf("config missing 'smtp_password' field")
 	}
 
 	// Determine if this is a DOWN or UP notification based on ResolvedAt
@@ -99,21 +95,21 @@ func (n *SMTPNotifier) Send(ctx context.Context, config domain.Integration, inci
 
 	// Create email message
 	message := gomail.NewMessage()
-	message.SetHeader("From", sender)
-	message.SetHeader("To", recipient)
+	message.SetHeader("From", n.sender)
+	message.SetHeader("To", n.recipient)
 	message.SetHeader("Subject", subject)
 	message.SetBody("text/html", htmlBody)
 
 	// Create SMTP dialer
-	dialer := gomail.NewDialer(smtpHost, smtpPort, smtpUser, smtpPassword)
+	dialer := gomail.NewDialer(n.smtpHost, smtpPort, n.smtpUser, n.smtpPassword)
 
 	// Send the email
 	if err := dialer.DialAndSend(message); err != nil {
-		log.Printf("[SMTP Notifier] Failed to send email to %s: %v", recipient, err)
+		log.Printf("[SMTP Notifier] Failed to send email to %s: %v", n.recipient, err)
 		return fmt.Errorf("failed to send email: %w", err)
 	}
 
-	log.Printf("[SMTP Notifier] Successfully sent email to %s\nSubject: %s", recipient, subject)
+	log.Printf("[SMTP Notifier] Successfully sent email to %s\nSubject: %s", n.recipient, subject)
 	return nil
 }
 
@@ -177,47 +173,30 @@ func formatDuration(d time.Duration) string {
 
 // SendTestNotification sends a test email notification for a resource.
 // It uses the test.html template to send a simple test message.
-func (n *SMTPNotifier) SendTestNotification(ctx context.Context, config domain.Integration, resource domain.Resource) error {
-	// Extract configuration from Integration Config field
-	configMap, err := config.GetConfig()
-	if err != nil {
-		return fmt.Errorf("failed to parse config: %w", err)
+func (n *SMTPNotifier) SendTestNotification(ctx context.Context, resource domain.Resource) error {
+	// Validate configuration
+	if n.recipient == "" {
+		return fmt.Errorf("smtp recipient is not configured")
+	}
+	if n.sender == "" {
+		return fmt.Errorf("smtp sender is not configured")
+	}
+	if n.smtpHost == "" {
+		return fmt.Errorf("smtp host is not configured")
+	}
+	if n.smtpPort == "" {
+		return fmt.Errorf("smtp port is not configured")
+	}
+	if n.smtpUser == "" {
+		return fmt.Errorf("smtp user is not configured")
+	}
+	if n.smtpPassword == "" {
+		return fmt.Errorf("smtp password is not configured")
 	}
 
-	// Extract required fields
-	recipient, ok := configMap["recipient"].(string)
-	if !ok || recipient == "" {
-		return fmt.Errorf("config missing 'recipient' field")
-	}
-
-	sender, ok := configMap["sender"].(string)
-	if !ok || sender == "" {
-		return fmt.Errorf("config missing 'sender' field")
-	}
-
-	smtpHost, ok := configMap["smtp_host"].(string)
-	if !ok || smtpHost == "" {
-		return fmt.Errorf("config missing 'smtp_host' field")
-	}
-
-	smtpPortStr, ok := configMap["smtp_port"].(string)
-	if !ok || smtpPortStr == "" {
-		return fmt.Errorf("config missing 'smtp_port' field")
-	}
-
-	smtpPort, err := strconv.Atoi(smtpPortStr)
+	smtpPort, err := strconv.Atoi(n.smtpPort)
 	if err != nil {
 		return fmt.Errorf("invalid smtp_port: %w", err)
-	}
-
-	smtpUser, ok := configMap["smtp_user"].(string)
-	if !ok || smtpUser == "" {
-		return fmt.Errorf("config missing 'smtp_user' field")
-	}
-
-	smtpPassword, ok := configMap["smtp_password"].(string)
-	if !ok || smtpPassword == "" {
-		return fmt.Errorf("config missing 'smtp_password' field")
 	}
 
 	// Generate test email content
@@ -226,21 +205,21 @@ func (n *SMTPNotifier) SendTestNotification(ctx context.Context, config domain.I
 
 	// Create email message
 	message := gomail.NewMessage()
-	message.SetHeader("From", sender)
-	message.SetHeader("To", recipient)
+	message.SetHeader("From", n.sender)
+	message.SetHeader("To", n.recipient)
 	message.SetHeader("Subject", subject)
 	message.SetBody("text/html", htmlBody)
 
 	// Create SMTP dialer
-	dialer := gomail.NewDialer(smtpHost, smtpPort, smtpUser, smtpPassword)
+	dialer := gomail.NewDialer(n.smtpHost, smtpPort, n.smtpUser, n.smtpPassword)
 
 	// Send the email
 	if err := dialer.DialAndSend(message); err != nil {
-		log.Printf("[SMTP Notifier] Failed to send test email to %s: %v", recipient, err)
+		log.Printf("[SMTP Notifier] Failed to send test email to %s: %v", n.recipient, err)
 		return fmt.Errorf("failed to send test email: %w", err)
 	}
 
-	log.Printf("[SMTP Notifier] Successfully sent test email to %s\nSubject: %s", recipient, subject)
+	log.Printf("[SMTP Notifier] Successfully sent test email to %s\nSubject: %s", n.recipient, subject)
 	return nil
 }
 

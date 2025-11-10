@@ -34,7 +34,7 @@ Transport for background work: Redis + Asynq.
 - HTTP: Chi router
 - Persistence: GORM ORM + PostgreSQL
 - Background jobs: Redis + Asynq (periodic scheduler + worker server)
-- Notifications: SMTP (+ Slack, Discord, Google Chat integrations)
+- Notifications: SMTP (+ Slack, Webhook integrations)
 - Configuration: Environment variables (dotenv supported in development)
 
 Key modules and files:
@@ -90,7 +90,7 @@ Note: The current binary starts all three components by default in every instanc
   - `processor.go`: Asynq server and mux registration.
   - `handler_monitoring.go`: monitoring job handler, resource status transitions, activity persistence, incident handoff.
 - `pkg/notifier`
-  - `smtp.go` (with HTML templates under `templates/`), `slack.go`, `discord.go`, `googlechat.go`, `factory.go`.
+  - `smtp.go` (with HTML templates under `templates/`), `slack.go`, `webhook.go`, `factory.go`.
 
 ---
 
@@ -185,7 +185,7 @@ Authentication/authorization: not implemented at present.
 7. Notifications
    - Two layers:
      - System SMTP (optional): if SMTP is enabled via environment variables, send default "down" and "up" emails and record `NotificationEvent`.
-     - User integrations: load active integrations, filter by subscribed event types (`down`, `up`, `expiry`), and send via notifier factory (Slack, Discord, Google Chat). Record `NotificationEvent` for each attempt.
+     - User integrations: load active integrations, filter by subscribed event types (`down`, `up`, `expiry`), and send via notifier factory (Slack, Webhook). Record `NotificationEvent` for each attempt.
 
 8. Status and Stats
    - `/status`: pre-aggregated 90‑day uptime and per‑day status array per resource (includes "no_data" days before resource creation). See `docs/STATUS_ENDPOINT.md`.
@@ -253,7 +253,7 @@ PostgreSQL is the sole source of truth; Redis is used only for job scheduling/tr
   - Sends test messages via `POST /notifications/test`.
 
 - Integrations (user-level):
-  - Providers: Slack, Discord, Google Chat.
+  - Providers: Slack, Webhook.
   - Selection: by `Integration.Config.type` and `Integration.EventTypes` (contains the current event type).
   - Dispatch: parallelized per incident event via notifier factory.
   - Audit: each attempt creates a `NotificationEvent` entry.

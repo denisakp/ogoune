@@ -3,7 +3,6 @@ import { ref } from 'vue'
 import { message } from 'ant-design-vue'
 import { EyeOutlined, SaveOutlined } from '@ant-design/icons-vue'
 
-import IntegrationComponent from '@/components/IntegrationComponent.vue'
 import TagComponent from '@/components/TagComponent.vue'
 import StatusPageSettings from '@/components/status-page/StatusPageSettings.vue'
 
@@ -34,17 +33,11 @@ const handlePreviewStatusPage = () => {
     <div class="settings">
       <div>
         <h1>Settings</h1>
-        <p>Configure integrations, tags, and general settings</p>
+        <p>Configure tags, and status page settings</p>
       </div>
     </div>
     <a-tabs v-model:activeKey="activeKey">
-      <a-tab-pane key="1" tab="Integrations">
-        <IntegrationComponent />
-      </a-tab-pane>
-      <a-tab-pane key="2" tab="Tags" force-render>
-        <TagComponent />
-      </a-tab-pane>
-      <a-tab-pane key="3" tab="Status Page">
+      <a-tab-pane key="1" tab="Status Page">
         <!-- Status Page Header with Actions -->
         <div class="status-page-header">
           <div class="header-info">
@@ -97,6 +90,10 @@ const handlePreviewStatusPage = () => {
             </template>
           </a-alert>
         </div>
+      </a-tab-pane>
+      
+      <a-tab-pane key="2" tab="Tags" force-render>
+        <TagComponent />
       </a-tab-pane>
     </a-tabs>
   </div>
