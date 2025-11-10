@@ -1,98 +1,104 @@
-  name: Build and deploy
-  
-  on:
-    push:
-      branches:
-        - main
-    workflow_dispatch:
-  
-  permissions:
-    contents: write
-    packages: write
-  
-  jobs:
-    build-and-push:
-      if: "!contains(github.event.head_commit.message, '[skip ci]')"
-      runs-on: ubuntu-latest
-      
-      env:
-        IMAGE_NAME: pulseguard
-        REGISTRY: ghcr.io
-      
-      steps:
-        - uses: actions/checkout@v5
-        
-        - name: setup variables
-          id: vars
-          run: |
-            echo "short_sha=$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
-            OWNER_LOWER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
-            echo "owner_lower=$OWNER_LOWER" >> "$GITHUB_OUTPUT"
-            echo "image_repo=${{ env.REGISTRY }}/$OWNER_LOWER/${{ env.IMAGE_NAME }}" >> "$GITHUB_OUTPUT"
-        
-        - uses: docker/setup-buildx-action@v3
-        
-        - name: Log in to GitHub Container Registry
-          uses: docker/login-action@v3
-          with:
-            registry: ${{ env.REGISTRY }}
-            username: ${{ github.actor }}
-            password: ${{ secrets.GITHUB_TOKEN }}
-        
-        - name: build and push image to registry
-          uses: docker/build-push-action@v5
-          with:
-            context: .
-            file: backend/Dockerfile
-            push: true
-            cache-from: type=gha,scope=${{ env.IMAGE_NAME }}
-            cache-to: type=gha,mode=max,scope=${{ env.IMAGE_NAME }}
-            tags: |
-              ${{ steps.vars.outputs.image_repo }}:${{ steps.vars.outputs.short_sha }}
-              ${{ steps.vars.outputs.image_repo }}:latest
+name: Build and deploy
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  build-and-push:
+    if: "!contains(github.event.head_commit.message, '[skip ci]')"
+    runs-on: ubuntu-latest
     
-    update-tag:
-      runs-on: ubuntu-latest
-      needs: build-and-push
-      steps:
-        - uses: actions/checkout@v5
-        
-        - name: Install jq and yq
-          run: |
-            sudo apt-get update
-            sudo apt-get install -y jq
-            wget https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 -O /usr/local/bin/yq && chmod +x /usr/local/bin/yq
-            yq --version
-            jq --version
-        
-        - name: update docker-compose
-          run: |
-            set -euo pipefail
-            
-            IMAGE_REPO=$(jq -r '.image_repo' image-refs.json)
-            PULSEGUARD_DIGEST=$(jq -r '.pulseguard.digest' image-refs.json)
-            
-            export IMAGE_REPO
-            export PULSEGUARD_IMAGE="${IMAGE_REPO}-pulseguard@${PULSEGUARD_DIGEST}"
-            
-            if [ -f docker-compose.yml ]; then
-              yq -i ".services.pulseguard.image = \"${PULSEGUARD_IMAGE}\"" docker-compose.yml
-            else
-              echo "docker-compose.yml not found"
-            fi
-            
-            if ! git diff --quiet docker-compose.yml; then
-              echo "Changes detected:"
-              git diff docker-compose.yml
-            else
-              echo "No changes detected, skipping commit"
-              exit 0
-            fi
-            
-        - name: Commit and push changes
-          uses: stefanzweifel/git-auto-commit-action@v5
-          with:
-            commit_message: "ci: update image digest for pulseguard [skip ci]"
-            branch: main
-            file_pattern: docker-compose.yml
-                        
+    env:
+      IMAGE_NAME: pulseguard
+      REGISTRY: ghcr.io
+    
+    outputs:
+      image_repo: ${{ steps.vars.outputs.image_repo }}
+      short_sha: ${{ steps.vars.outputs.short_sha }}
+      digest: ${{ steps.build.outputs.digest }}
+    
+    steps:
+      - uses: actions/checkout@v5
+      
+      - name: setup variables
+        id: vars
+        run: |
+          echo "short_sha=$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
+          OWNER_LOWER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
+          echo "owner_lower=$OWNER_LOWER" >> "$GITHUB_OUTPUT"
+          echo "image_repo=${{ env.REGISTRY }}/$OWNER_LOWER/${{ env.IMAGE_NAME }}" >> "$GITHUB_OUTPUT"
+      
+      - uses: docker/setup-buildx-action@v3
+      
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: build and push image to registry
+        id: build
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: backend/Dockerfile
+          push: true
+          cache-from: type=gha,scope=${{ env.IMAGE_NAME }}
+          cache-to: type=gha,mode=max,scope=${{ env.IMAGE_NAME }}
+          tags: |
+            ${{ steps.vars.outputs.image_repo }}:${{ steps.vars.outputs.short_sha }}
+            ${{ steps.vars.outputs.image_repo }}:latest
+
+  update-tag:
+    runs-on: ubuntu-latest
+    needs: build-and-push
+    steps:
+      - uses: actions/checkout@v5
+      
+      - name: Install jq and yq
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y jq
+          wget https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 -O /usr/local/bin/yq && chmod +x /usr/local/bin/yq
+          yq --version
+          jq --version
+      
+      - name: update docker-compose
+        run: |
+          set -euo pipefail
+          
+          IMAGE_REPO="${{ needs.build-and-push.outputs.image_repo }}"
+          DIGEST="${{ needs.build-and-push.outputs.digest }}"
+          
+          export IMAGE_REPO
+          export PULSEGUARD_IMAGE="${IMAGE_REPO}@${DIGEST}"
+          
+          if [ -f docker-compose.yml ]; then
+            yq -i ".services.pulseguard.image = \"${PULSEGUARD_IMAGE}\"" docker-compose.yml
+          else
+            echo "docker-compose.yml not found"
+            exit 1
+          fi
+          
+          if ! git diff --quiet docker-compose.yml; then
+            echo "Changes detected:"
+            git diff docker-compose.yml
+          else
+            echo "No changes detected, skipping commit"
+            exit 0
+          fi
+          
+      - name: Commit and push changes
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "ci: update image digest for pulseguard [skip ci]"
+          branch: main
+          file_pattern: docker-compose.yml
