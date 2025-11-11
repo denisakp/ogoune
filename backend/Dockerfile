@@ -47,8 +47,8 @@ ENV DATABASE_URL= \
     APP_PORT=8080
 
 RUN apk --no-cache add ca-certificates tzdata && \
-    addgroup -g 1001 -S pulsguard && \
-    adduser -u 1001 -S pulsguard -G pulsguard
+    addgroup -g 1001 -S pulseguard && \
+    adduser -u 1001 -S pulseguard -G pulseguard
 
 WORKDIR /app
 
@@ -58,8 +58,8 @@ COPY --from=go-builder /build/pulseguard .
 # Copy the built Vue.js frontend static files from frontend-builder stage
 COPY --from=frontend-builder /build/frontend/dist ./static
 
-RUN chown -R pulsguard:pulsguard /app
-USER pulsguard
+RUN chown -R pulseguard:pulseguard /app
+USER pulseguard
 
 EXPOSE ${PORT}
 
