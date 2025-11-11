@@ -4,3 +4,4 @@
 specs
 .idea/
 .env
+.vite/
