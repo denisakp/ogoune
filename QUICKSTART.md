@@ -27,7 +27,7 @@ Welcome to **Pulseguard**, an open-source monitoring platform for websites, APIs
   - Running instructions
   - Developer notes
 
-- **[backend/docs/ARCHITECTURE.md](./backend/docs/ARCHITECTURE.md)** - Backend Architecture
+- **[backend/docs/ARCHITECTURE.md](./backend/ARCHITECTURE.md)** - Backend Architecture
 
   - Core architecture (API + Worker)
   - Scheduling engine

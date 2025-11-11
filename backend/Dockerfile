@@ -10,7 +10,6 @@ ENV VITE_API_BASE_URL=/api
 RUN corepack enable
 
 COPY frontend/package.json frontend/pnpm-lock.yaml frontend/pnpm-workspace.yaml ./
-#RUN npm install -g pnpm && pnpm install --frozen-lockfile
 
 RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --frozen-lockfile
 

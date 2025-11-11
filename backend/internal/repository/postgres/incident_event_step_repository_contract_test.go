@@ -17,28 +17,19 @@ func TestIncidentEventStepRepository_Contract(t *testing.T) {
 	repo := fake.NewIncidentEventStepFake()
 
 	t.Run("Create", func(t *testing.T) {
-		message := "Incident detected"
 		step := &domain.IncidentEventStep{
-			Base: domain.Base{
-				ID:        "test-step-1",
-				CreatedAt: time.Now(),
-			},
-			IncidentID: "incident-123",
+			IncidentID: "incident-1",
 			Step:       domain.IncidentEventStepDetected,
-			Message:    &message,
+			Message:    nil,
 		}
 
-		_, err := repo.Create(context.Background(), step)
+		created, err := repo.Create(context.Background(), step)
 		require.NoError(t, err)
+		assert.NotEmpty(t, created.ID)
 
 		// Test duplicate creation
-		_, err = repo.Create(context.Background(), step)
+		_, err = repo.Create(context.Background(), created)
 		assert.ErrorIs(t, err, fake.ErrDuplicate)
-
-		// Test invalid input (empty ID)
-		invalidStep := &domain.IncidentEventStep{IncidentID: "incident-123"}
-		_, err = repo.Create(context.Background(), invalidStep)
-		assert.ErrorIs(t, err, fake.ErrInvalidInput)
 	})
 
 	t.Run("FindByID", func(t *testing.T) {

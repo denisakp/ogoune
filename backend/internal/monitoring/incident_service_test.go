@@ -121,7 +121,7 @@ func TestExtractCause(t *testing.T) {
 // ============================================================
 
 func TestIncidentService_CreateIncident_Success(t *testing.T) {
-	service, incidentRepo, eventStepRepo, notificationRepo, asynqClient := setupTestService(false, "admin@example.com", "noreply@example.com")
+	service, incidentRepo, eventStepRepo, _, asynqClient := setupTestService(false, "admin@example.com", "noreply@example.com")
 	defer asynqClient.Close()
 
 	ctx := context.Background()
@@ -325,7 +325,7 @@ func TestIncidentService_CreateIncident_WithSMTPEnabled(t *testing.T) {
 }
 
 func TestIncidentService_ResolveIncident_WithSMTPEnabled(t *testing.T) {
-	service, incidentRepo, eventStepRepo, notificationRepo, asynqClient := setupTestService(true, "admin@example.com", "noreply@example.com")
+	service, _, eventStepRepo, notificationRepo, asynqClient := setupTestService(true, "admin@example.com", "noreply@example.com")
 	defer asynqClient.Close()
 
 	ctx := context.Background()

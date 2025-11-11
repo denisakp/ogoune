@@ -16,27 +16,18 @@ func TestIncidentRepository_Contract(t *testing.T) {
 		repo := fake.NewIncidentFake()
 
 		incident := &domain.Incident{
-			Base: domain.Base{
-				ID:        "test-incident-1",
-				CreatedAt: time.Now(),
-			},
-			ResourceID: "resource-1",
-			Cause:      "Server timeout",
+			ResourceID: "test-resource-1",
+			Cause:      "test_cause",
 			StartedAt:  time.Now(),
-			ResolvedAt: nil, // Active incident
 		}
 
-		_, err := repo.Create(context.Background(), incident)
+		created, err := repo.Create(context.Background(), incident)
 		require.NoError(t, err)
+		assert.NotEmpty(t, created.ID)
 
 		// Test duplicate creation
-		_, err = repo.Create(context.Background(), incident)
+		_, err = repo.Create(context.Background(), created)
 		assert.ErrorIs(t, err, fake.ErrDuplicate)
-
-		// Test invalid input (empty ID)
-		invalidIncident := &domain.Incident{ResourceID: "resource-1"}
-		_, err = repo.Create(context.Background(), invalidIncident)
-		assert.ErrorIs(t, err, fake.ErrInvalidInput)
 	})
 
 	t.Run("FindByID", func(t *testing.T) {

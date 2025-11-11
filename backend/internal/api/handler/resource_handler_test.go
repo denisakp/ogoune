@@ -19,23 +19,37 @@ import (
 
 // mockResourceService is a test double for ResourceService
 type mockResourceService struct {
-	createResourceFunc        func(ctx context.Context, r *domain.Resource) error
-	updateResourceFunc        func(ctx context.Context, id string, payload *dto.UpdateResourcePayload) (*domain.Resource, error)
-	listAllFunc               func(ctx context.Context) ([]*domain.Resource, error)
-	deleteResourceFunc        func(ctx context.Context, id string) error
-	pauseMonitoringFunc       func(ctx context.Context, resourceID string) error
-	resumeMonitoringFunc      func(ctx context.Context, resourceID string) error
-	addTagsToResourceFunc     func(ctx context.Context, resourceID string, tagIDs []string) error
-	removeTagFromResourceFunc func(ctx context.Context, resourceID, tagID string) error
+	createResourceFunc                   func(ctx context.Context, payload *dto.CreateResourcePayload) error
+	updateResourceFunc                   func(ctx context.Context, id string, payload *dto.UpdateResourcePayload) (*domain.Resource, error)
+	listAllFunc                          func(ctx context.Context) ([]*domain.Resource, error)
+	deleteResourceFunc                   func(ctx context.Context, id string) error
+	pauseMonitoringFunc                  func(ctx context.Context, resourceID string) error
+	resumeMonitoringFunc                 func(ctx context.Context, resourceID string) error
+	addTagsToResourceFunc                func(ctx context.Context, resourceID string, tagIDs []string) error
+	removeTagFromResourceFunc            func(ctx context.Context, resourceID, tagID string) error
+	getResourceByIDFunc                  func(ctx context.Context, id string) (*domain.Resource, error)
+	getResourceByIDWithResponseTimesFunc func(ctx context.Context, id string, limit int) (*dto.ResourceResponse, error)
 }
 
-func (m *mockResourceService) CreateResource(ctx context.Context, r *domain.Resource) error {
+func (m *mockResourceService) CreateResource(ctx context.Context, payload *dto.CreateResourcePayload) error {
 	if m.createResourceFunc != nil {
-		return m.createResourceFunc(ctx, r)
+		return m.createResourceFunc(ctx, payload)
 	}
-	// Default: set an ID to simulate persistence
-	r.ID = "test-id-123"
 	return nil
+}
+
+func (m *mockResourceService) GetResourceByID(ctx context.Context, id string) (*domain.Resource, error) {
+	if m.getResourceByIDFunc != nil {
+		return m.getResourceByIDFunc(ctx, id)
+	}
+	return &domain.Resource{Base: domain.Base{ID: id}}, nil
+}
+
+func (m *mockResourceService) GetResourceByIDWithResponseTimes(ctx context.Context, id string, limit int) (*dto.ResourceResponse, error) {
+	if m.getResourceByIDWithResponseTimesFunc != nil {
+		return m.getResourceByIDWithResponseTimesFunc(ctx, id, limit)
+	}
+	return &dto.ResourceResponse{}, nil
 }
 
 func (m *mockResourceService) ListAll(ctx context.Context) ([]*domain.Resource, error) {
@@ -104,12 +118,12 @@ func TestCreateResource_Success(t *testing.T) {
 	mockService := &mockResourceService{}
 	handler := NewResourceHandler(mockService)
 
-	resource := domain.Resource{
+	resource := dto.CreateResourcePayload{
 		Name:     "Test Monitor",
 		Target:   "https://example.com",
 		Type:     domain.ResourceHTTP,
-		Interval: 60,
 		Timeout:  30,
+		Interval: 60,
 	}
 	body, _ := json.Marshal(resource)
 
@@ -120,12 +134,12 @@ func TestCreateResource_Success(t *testing.T) {
 
 	assert.Equal(t, http.StatusCreated, rec.Code)
 
-	var result domain.Resource
-	err := json.NewDecoder(rec.Body).Decode(&result)
+	var created dto.CreateResourcePayload
+	err := json.NewDecoder(rec.Body).Decode(&created)
 	require.NoError(t, err)
 
-	assert.NotEmpty(t, result.ID, "Expected resource ID to be set")
-	assert.Equal(t, "Test Monitor", result.Name)
+	assert.Equal(t, "Test Monitor", created.Name)
+	assert.Equal(t, "https://example.com", created.Target)
 }
 
 func TestCreateResource_ValidationErrors(t *testing.T) {
@@ -180,16 +194,18 @@ func TestCreateResource_ValidationErrors(t *testing.T) {
 
 func TestCreateResource_ServiceError(t *testing.T) {
 	mockService := &mockResourceService{
-		createResourceFunc: func(ctx context.Context, r *domain.Resource) error {
+		createResourceFunc: func(ctx context.Context, payload *dto.CreateResourcePayload) error {
 			return errors.New("database connection failed")
 		},
 	}
 	handler := NewResourceHandler(mockService)
 
-	resource := domain.Resource{
-		Name:   "Test Monitor",
-		Target: "https://example.com",
-		Type:   domain.ResourceHTTP,
+	resource := dto.CreateResourcePayload{
+		Name:     "Test Monitor",
+		Target:   "https://example.com",
+		Type:     domain.ResourceHTTP,
+		Interval: 60,
+		Timeout:  5,
 	}
 	body, _ := json.Marshal(resource)
 
@@ -457,7 +473,7 @@ func TestUpdateResource_Success(t *testing.T) {
 	interval := 120
 
 	mockService := &mockResourceService{
-		updateResourceFunc: func(ctx context.Context, id string, payload *service.UpdateResourcePayload) (*domain.Resource, error) {
+		updateResourceFunc: func(ctx context.Context, id string, payload *dto.UpdateResourcePayload) (*domain.Resource, error) {
 			assert.Equal(t, "test-resource-id", id)
 			assert.NotNil(t, payload.Name)
 			assert.Equal(t, name, *payload.Name)
@@ -504,11 +520,9 @@ func TestUpdateResource_Success(t *testing.T) {
 }
 
 func TestUpdateResource_PartialUpdate(t *testing.T) {
-	// Test updating only one field
-	newInterval := 300
-
+	newInterval := 240
 	mockService := &mockResourceService{
-		updateResourceFunc: func(ctx context.Context, id string, payload *service.UpdateResourcePayload) (*domain.Resource, error) {
+		updateResourceFunc: func(ctx context.Context, id string, payload *dto.UpdateResourcePayload) (*domain.Resource, error) {
 			assert.Equal(t, "test-resource-id", id)
 			assert.NotNil(t, payload.Interval)
 			assert.Equal(t, newInterval, *payload.Interval)
@@ -520,7 +534,6 @@ func TestUpdateResource_PartialUpdate(t *testing.T) {
 				Type:     domain.ResourceHTTP,
 				Target:   "https://example.com",
 				Interval: newInterval,
-				Timeout:  30,
 				IsActive: true,
 			}, nil
 		},
@@ -532,28 +545,27 @@ func TestUpdateResource_PartialUpdate(t *testing.T) {
 	}
 	body, _ := json.Marshal(payload)
 
-	req := httptest.NewRequest(http.MethodPatch, "/resources/test-resource-id", bytes.NewReader(body))
+	req := httptest.NewRequest(http.MethodPut, "/resources/test-resource-id", bytes.NewReader(body))
 	ctx := chi.NewRouteContext()
 	ctx.URLParams.Add("id", "test-resource-id")
 	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, ctx))
-
 	rec := httptest.NewRecorder()
 
 	handler.UpdateResource(rec, req)
 
 	assert.Equal(t, http.StatusOK, rec.Code)
 
-	var result domain.Resource
-	err := json.NewDecoder(rec.Body).Decode(&result)
+	var updated domain.Resource
+	err := json.NewDecoder(rec.Body).Decode(&updated)
 	require.NoError(t, err)
 
-	assert.Equal(t, newInterval, result.Interval)
-	assert.Equal(t, "Original Name", result.Name)
+	assert.Equal(t, "Original Name", updated.Name)
+	assert.Equal(t, newInterval, updated.Interval)
 }
 
 func TestUpdateResource_ValidationFailed(t *testing.T) {
 	mockService := &mockResourceService{
-		updateResourceFunc: func(ctx context.Context, id string, payload *service.UpdateResourcePayload) (*domain.Resource, error) {
+		updateResourceFunc: func(ctx context.Context, id string, payload *dto.UpdateResourcePayload) (*domain.Resource, error) {
 			return nil, service.ErrValidationFailed
 		},
 	}
@@ -584,7 +596,7 @@ func TestUpdateResource_ValidationFailed(t *testing.T) {
 
 func TestUpdateResource_NotFound(t *testing.T) {
 	mockService := &mockResourceService{
-		updateResourceFunc: func(ctx context.Context, id string, payload *service.UpdateResourcePayload) (*domain.Resource, error) {
+		updateResourceFunc: func(ctx context.Context, id string, payload *dto.UpdateResourcePayload) (*domain.Resource, error) {
 			return nil, service.ErrResourceNotFound
 		},
 	}
@@ -664,7 +676,7 @@ func TestUpdateResource_InvalidJSON(t *testing.T) {
 
 func TestUpdateResource_ServiceError(t *testing.T) {
 	mockService := &mockResourceService{
-		updateResourceFunc: func(ctx context.Context, id string, payload *service.UpdateResourcePayload) (*domain.Resource, error) {
+		updateResourceFunc: func(ctx context.Context, id string, payload *dto.UpdateResourcePayload) (*domain.Resource, error) {
 			return nil, errors.New("database connection failed")
 		},
 	}
@@ -694,10 +706,9 @@ func TestUpdateResource_ServiceError(t *testing.T) {
 }
 
 func TestUpdateResource_UpdateTargetWithValidation(t *testing.T) {
-	newTarget := "https://new-api.example.com/health"
-
+	newTarget := "https://api.newexample.com"
 	mockService := &mockResourceService{
-		updateResourceFunc: func(ctx context.Context, id string, payload *service.UpdateResourcePayload) (*domain.Resource, error) {
+		updateResourceFunc: func(ctx context.Context, id string, payload *dto.UpdateResourcePayload) (*domain.Resource, error) {
 			assert.Equal(t, "test-resource-id", id)
 			assert.NotNil(t, payload.Target)
 			assert.Equal(t, newTarget, *payload.Target)
@@ -707,8 +718,6 @@ func TestUpdateResource_UpdateTargetWithValidation(t *testing.T) {
 				Name:     "API Monitor",
 				Type:     domain.ResourceHTTP,
 				Target:   newTarget,
-				Interval: 60,
-				Timeout:  30,
 				IsActive: true,
 			}, nil
 		},
@@ -740,9 +749,8 @@ func TestUpdateResource_UpdateTargetWithValidation(t *testing.T) {
 
 func TestUpdateResource_PauseViaIsActive(t *testing.T) {
 	isActive := false
-
 	mockService := &mockResourceService{
-		updateResourceFunc: func(ctx context.Context, id string, payload *service.UpdateResourcePayload) (*domain.Resource, error) {
+		updateResourceFunc: func(ctx context.Context, id string, payload *dto.UpdateResourcePayload) (*domain.Resource, error) {
 			assert.Equal(t, "test-resource-id", id)
 			assert.NotNil(t, payload.IsActive)
 			assert.Equal(t, isActive, *payload.IsActive)
@@ -752,9 +760,7 @@ func TestUpdateResource_PauseViaIsActive(t *testing.T) {
 				Name:     "API Monitor",
 				Type:     domain.ResourceHTTP,
 				Target:   "https://example.com",
-				Interval: 60,
-				Timeout:  30,
-				IsActive: false,
+				IsActive: isActive,
 			}, nil
 		},
 	}

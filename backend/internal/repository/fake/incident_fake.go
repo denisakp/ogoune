@@ -5,7 +5,7 @@ import (
 	"sort"
 	"sync"
 
-	"github.com/denisakp/pulseguard/internal/domain"
+	domain "github.com/denisakp/pulseguard/internal/domain"
 )
 
 // IncidentFake provides an in-memory implementation of IncidentRepository for testing.
@@ -25,7 +25,8 @@ func (r *IncidentFake) Create(ctx context.Context, incident *domain.Incident) (*
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	if incident.ID == "" {
+	// Call BeforeCreate hook like GORM does - generates ID if not set
+	if err := incident.BeforeCreate(nil); err != nil {
 		return nil, ErrInvalidInput
 	}
 

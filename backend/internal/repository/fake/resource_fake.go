@@ -5,7 +5,7 @@ import (
 	"sort"
 	"sync"
 
-	"github.com/denisakp/pulseguard/internal/domain"
+	domain "github.com/denisakp/pulseguard/internal/domain"
 )
 
 // ResourceFake provides an in-memory implementation of ResourceRepository for testing.
@@ -27,7 +27,8 @@ func (r *ResourceFake) Create(ctx context.Context, resource *domain.Resource) (*
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	if resource.ID == "" {
+	// Call BeforeCreate hook like GORM does - generates ID if not set
+	if err := resource.BeforeCreate(nil); err != nil {
 		return nil, ErrInvalidInput
 	}
 
