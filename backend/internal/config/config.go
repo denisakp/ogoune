@@ -23,6 +23,9 @@ type Config struct {
 	WebHookUrl            string
 	WebHookSignature      string
 	WebHookIsEnabled      bool
+	AuthEmail             string
+	AuthPassword          string
+	JWTSecret             string
 }
 
 // Load reads configuration from environment variables.
@@ -59,6 +62,9 @@ func Load() Config {
 		WebHookSignature:      GetEnv("WEBHOOK_SIGNATURE", ""),
 		WebHookIsEnabled:      webhookIsEnabled,
 		StaticDir:             GetEnv("STATIC_DIR", "./static"),
+		AuthEmail:             GetEnv("AUTH_EMAIL", "admin@pulseguard.test"),
+		AuthPassword:          GetEnv("AUTH_PASSWORD", "puls3gu@rd"),
+		JWTSecret:             GetEnv("JWT_SECRET", "pulseguard-secret-key-change-in-production"),
 	}
 	return cfg
 }

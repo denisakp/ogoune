@@ -74,6 +74,9 @@ func main() {
 
 	log.Println("✓ Database connection established successfully")
 
+	log.Printf("[auth] Authentication enabled with email: %s", cfg.AuthEmail)
+	log.Println("[auth] JWT-based authentication configured")
+
 	// Get database instance
 	db, err := database.Instance()
 	if err != nil {
@@ -235,6 +238,7 @@ func main() {
 		cfg.SMTPPassword,
 	)
 	statsService := service.NewStatsService(monitoringActivityRepo, incidentRepo)
+	authService := service.NewAuthService(cfg.AuthEmail, cfg.AuthPassword, cfg.JWTSecret)
 
 	// Initialize JSON API handlers (no template dependencies)
 	resourceHandler := handler.NewResourceHandler(resourceService)
@@ -244,9 +248,10 @@ func main() {
 	incidentHandler := handler.NewIncidentHandler(incidentAPIService)
 	notificationHandler := handler.NewNotificationHandler(notificationService)
 	statsHandler := handler.NewStatsHandler(statsService)
+	authHandler := handler.NewAuthHandler(authService)
 
 	// Create router with injected handlers
-	apiHandler := api.NewRouter(resourceHandler, activityHandler, tagHandler, statusPageHandler, incidentHandler, notificationHandler, statsHandler)
+	apiHandler := api.NewRouter(resourceHandler, activityHandler, tagHandler, statusPageHandler, incidentHandler, notificationHandler, statsHandler, authHandler, authService)
 
 	// Root router: mount JSON API under /api
 	rootRouter := chi.NewRouter()
