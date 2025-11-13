@@ -12,6 +12,7 @@ require (
 require (
 	filippo.io/edwards25519 v1.1.0 // indirect
 	github.com/go-sql-driver/mysql v1.8.1 // indirect
+	github.com/golang-jwt/jwt/v5 v5.3.0 // indirect
 	github.com/kr/pretty v0.3.1 // indirect
 	github.com/likexian/gokit v0.25.15 // indirect
 	github.com/likexian/whois v1.15.6 // indirect

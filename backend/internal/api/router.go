@@ -4,8 +4,10 @@ import (
 	"net/http"
 
 	"github.com/denisakp/pulseguard/internal/api/handler"
+	"github.com/denisakp/pulseguard/internal/api/middleware"
+	"github.com/denisakp/pulseguard/internal/service"
 	"github.com/go-chi/chi/v5"
-	"github.com/go-chi/chi/v5/middleware"
+	chimiddleware "github.com/go-chi/chi/v5/middleware"
 )
 
 // NewRouter creates and configures the main HTTP router with all JSON API routes.
@@ -18,15 +20,17 @@ func NewRouter(
 	incidentHandler *handler.IncidentHandler,
 	notificationHandler *handler.NotificationHandler,
 	statsHandler *handler.StatsHandler,
+	authHandler *handler.AuthHandler,
+	authService *service.AuthService,
 ) http.Handler {
 	r := chi.NewRouter()
 
 	// Standard middleware stack for logging, recovery, and request tracking
-	r.Use(middleware.RequestID)
-	r.Use(middleware.RealIP)
-	r.Use(middleware.Logger)
-	r.Use(middleware.Recoverer)
-	r.Use(middleware.SetHeader("Content-Type", "application/json"))
+	r.Use(chimiddleware.RequestID)
+	r.Use(chimiddleware.RealIP)
+	r.Use(chimiddleware.Logger)
+	r.Use(chimiddleware.Recoverer)
+	r.Use(chimiddleware.SetHeader("Content-Type", "application/json"))
 
 	// CORS middleware
 	r.Use(corsMiddleware)
@@ -39,54 +43,68 @@ func NewRouter(
 	})
 
 	// ========================================
-	// JSON REST API Routes
-	// All endpoints return JSON only
+	// Public Routes (no authentication required)
 	// ========================================
+
+	// Authentication endpoints
+	r.Route("/auth", func(r chi.Router) {
+		r.Post("/login", authHandler.Login)  // POST /auth/login - authenticate user
+		r.Get("/verify", authHandler.Verify) // GET /auth/verify - verify JWT token
+	})
 
 	// Public status page (returns JSON status data)
 	r.Get("/status", statusPageHandler.HandleStatusPage)
 	r.Get("/status/{resourceId}", statusPageHandler.HandleResourceDetailStatus) // GET /status/{resourceId} - get detailed status for a specific resource
 
-	// Resources (Monitors) API
-	r.Route("/resources", func(r chi.Router) {
-		r.Get("/", resourceHandler.ListResources)                                     // GET /resources - list all resources
-		r.Post("/", resourceHandler.CreateResource)                                   // POST /resources - create new resource
-		r.Get("/{id}", resourceHandler.GetResourceByID)                               // GET /resources/{id} - get resource details
-		r.Patch("/{id}", resourceHandler.UpdateResource)                              // PATCH /resources/{id} - update resource
-		r.Delete("/{id}", resourceHandler.DeleteResource)                             // DELETE /resources/{id} - delete resource
-		r.Post("/{id}/pause", resourceHandler.PauseResourceMonitoring)                // POST /resources/{id}/pause - pause monitoring
-		r.Post("/{id}/resume", resourceHandler.ResumeResourceMonitoring)              // POST /resources/{id}/resume - resume monitoring
-		r.Post("/{resourceID}/tags", resourceHandler.AddTagsToResource)               // POST /resources/{resourceID}/tags - add tags
-		r.Delete("/{resourceID}/tags/{tagID}", resourceHandler.RemoveTagFromResource) // DELETE /resources/{resourceID}/tags/{tagID} - remove tag
-		r.Get("/{resourceId}/uptime-stats", activityHandler.GetUptimeStats)           // GET /resources/{resourceId}/uptime-stats - get hourly uptime stats
-	})
+	// ========================================
+	// Protected Routes (authentication required)
+	// All routes below require valid JWT token
+	// ========================================
+	r.Group(func(r chi.Router) {
+		// Apply auth middleware to all routes in this group
+		r.Use(middleware.AuthMiddleware(authService))
 
-	// Tags API
-	r.Route("/tags", func(r chi.Router) {
-		r.Get("/", tagHandler.ListTags)         // GET /tags - list all tags
-		r.Post("/", tagHandler.CreateTag)       // POST /tags - create new tag
-		r.Patch("/{id}", tagHandler.UpdateTag)  // PATCH /tags/{id} - update tag
-		r.Delete("/{id}", tagHandler.DeleteTag) // DELETE /tags/{id} - delete tag
-	})
+		// Resources (Monitors) API
+		r.Route("/resources", func(r chi.Router) {
+			r.Get("/", resourceHandler.ListResources)                                     // GET /resources - list all resources
+			r.Post("/", resourceHandler.CreateResource)                                   // POST /resources - create new resource
+			r.Get("/{id}", resourceHandler.GetResourceByID)                               // GET /resources/{id} - get resource details
+			r.Patch("/{id}", resourceHandler.UpdateResource)                              // PATCH /resources/{id} - update resource
+			r.Delete("/{id}", resourceHandler.DeleteResource)                             // DELETE /resources/{id} - delete resource
+			r.Post("/{id}/pause", resourceHandler.PauseResourceMonitoring)                // POST /resources/{id}/pause - pause monitoring
+			r.Post("/{id}/resume", resourceHandler.ResumeResourceMonitoring)              // POST /resources/{id}/resume - resume monitoring
+			r.Post("/{resourceID}/tags", resourceHandler.AddTagsToResource)               // POST /resources/{resourceID}/tags - add tags
+			r.Delete("/{resourceID}/tags/{tagID}", resourceHandler.RemoveTagFromResource) // DELETE /resources/{resourceID}/tags/{tagID} - remove tag
+			r.Get("/{resourceId}/uptime-stats", activityHandler.GetUptimeStats)           // GET /resources/{resourceId}/uptime-stats - get hourly uptime stats
+		})
 
-	// Monitoring Activities API
-	r.Get("/monitoring-activities", activityHandler.ListActivities) // GET /monitoring-activities - list activities (supports ?resource_id=xxx)
+		// Tags API
+		r.Route("/tags", func(r chi.Router) {
+			r.Get("/", tagHandler.ListTags)         // GET /tags - list all tags
+			r.Post("/", tagHandler.CreateTag)       // POST /tags - create new tag
+			r.Patch("/{id}", tagHandler.UpdateTag)  // PATCH /tags/{id} - update tag
+			r.Delete("/{id}", tagHandler.DeleteTag) // DELETE /tags/{id} - delete tag
+		})
 
-	// Incidents API
-	r.Route("/incidents", func(r chi.Router) {
-		r.Get("/", incidentHandler.ListIncidents)                         // GET /incidents - list all incidents (supports ?unresolved=true, ?limit=x, ?offset=y)
-		r.Get("/{id}", incidentHandler.GetIncidentDetail)                 // GET /incidents/{id} - get incident details with event steps
-		r.Get("/{id}/event-steps", incidentHandler.GetIncidentEventSteps) // GET /incidents/{id}/event-steps - get event steps for incident
-	})
+		// Monitoring Activities API
+		r.Get("/monitoring-activities", activityHandler.ListActivities) // GET /monitoring-activities - list activities (supports ?resource_id=xxx)
 
-	// Notifications API
-	r.Route("/notifications", func(r chi.Router) {
-		r.Post("/test", notificationHandler.TestNotification) // POST /notifications/test - send test notification for a resource
-	})
+		// Incidents API
+		r.Route("/incidents", func(r chi.Router) {
+			r.Get("/", incidentHandler.ListIncidents)                         // GET /incidents - list all incidents (supports ?unresolved=true, ?limit=x, ?offset=y)
+			r.Get("/{id}", incidentHandler.GetIncidentDetail)                 // GET /incidents/{id} - get incident details with event steps
+			r.Get("/{id}/event-steps", incidentHandler.GetIncidentEventSteps) // GET /incidents/{id}/event-steps - get event steps for incident
+		})
 
-	// Stats API
-	r.Route("/stats", func(r chi.Router) {
-		r.Get("/summary", statsHandler.GetSummary) // GET /stats/summary?range=24h - get aggregated statistics for all monitors
+		// Notifications API
+		r.Route("/notifications", func(r chi.Router) {
+			r.Post("/test", notificationHandler.TestNotification) // POST /notifications/test - send test notification for a resource
+		})
+
+		// Stats API
+		r.Route("/stats", func(r chi.Router) {
+			r.Get("/summary", statsHandler.GetSummary) // GET /stats/summary?range=24h - get aggregated statistics for all monitors
+		})
 	})
 
 	return r

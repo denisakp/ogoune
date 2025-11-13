@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, h } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
+import { useAuthStore } from '@/stores/authStore'
 import {
   MenuFoldOutlined,
   MenuUnfoldOutlined,
@@ -12,6 +13,8 @@ import {
 } from '@ant-design/icons-vue'
 
 const route = useRoute()
+const router = useRouter()
+const authStore = useAuthStore()
 const isSidebarOpen = ref(false)
 
 const navigation = [
@@ -37,7 +40,8 @@ const menuItems = computed(() =>
 const isDektop = computed(() => window.innerWidth >= 1024)
 
 const handleLogout = () => {
-  console.log('Logout clicked')
+  authStore.logout()
+  router.push('/login')
 }
 </script>
 

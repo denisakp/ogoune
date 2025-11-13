@@ -2,6 +2,8 @@ import axios, { AxiosError } from 'axios'
 import type { AxiosInstance, AxiosResponse, InternalAxiosRequestConfig } from 'axios'
 import { message } from 'ant-design-vue'
 
+const TOKEN_KEY = 'pulseguard_auth_token'
+
 const SUCCESS_TOAST_METHODS = ['post', 'put', 'patch', 'delete']
 
 interface CustomRequestConfig {
@@ -21,9 +23,14 @@ const axiosClient: AxiosInstance = axios.create({
   },
 })
 
-// Request interceptor - allows configuring toast options per request
+// Request interceptor - adds auth token and allows configuring toast options per request
 axiosClient.interceptors.request.use(
   (config: InternalAxiosRequestConfig & CustomRequestConfig) => {
+    // Add JWT token to Authorization header if available
+    const token = localStorage.getItem(TOKEN_KEY)
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`
+    }
     return config
   },
   (error: AxiosError) => {
@@ -67,6 +74,10 @@ axiosClient.interceptors.response.use(
             break
           case 401:
             message.error('Unauthorized. Please log in again.')
+            // Clear auth state and redirect to login
+            localStorage.removeItem(TOKEN_KEY)
+            localStorage.removeItem('pulseguard_user_email')
+            window.location.href = '/login'
             break
           case 403:
             message.error('Access forbidden.')
