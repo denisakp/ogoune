@@ -26,8 +26,6 @@ An open-source monitoring tool for websites, APIs, TCP services, and cron jobs â
 - [ ] Advanced analytics and performance insights
 - [ ] User authentication and multi-user support
 - [ ] SSL certificate monitoring and renewal alerts
-- [ ] Mobile app for iOS and Android
-- [ ] Custom alert rules and workflows
 
 ---
 
