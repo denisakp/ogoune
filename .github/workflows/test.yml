@@ -4,9 +4,15 @@ on:
   push:
     branches:
       - dev
+    paths:
+      - 'backend/**'
+      - '.github/workflows/test.yml'
   pull_request:
     branches:
       - dev
+    paths:
+      - 'backend/**'
+      - '.github/workflows/test.yml'
 
 jobs:
   test:
@@ -30,4 +36,4 @@ jobs:
             ${{ runner.os }}-go-
       
       - name: run tests
-        run: go test -v -race ./...
+        run: go test -C ./backend -v -race ./...
