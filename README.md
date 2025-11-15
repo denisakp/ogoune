@@ -24,7 +24,6 @@ An open-source monitoring tool for websites, APIs, TCP services, and cron jobs â
 ### Planned Features
 - [ ] Real-time status updates via Server-Sent Events (SSE)
 - [ ] Advanced analytics and performance insights
-- [ ] User authentication and multi-user support
 - [ ] SSL certificate monitoring and renewal alerts
 
 ---
