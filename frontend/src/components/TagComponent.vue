@@ -18,12 +18,29 @@ const isSubmitting = ref(false)
 // Form state
 const formState = reactive({
   name: '',
+  color: '',
   description: '',
 })
+
+// Predefined color options
+const predefinedColors = [
+  { label: 'Gray (Default)', value: '#6B7280' },
+  { label: 'Red', value: '#EF4444' },
+  { label: 'Orange', value: '#F97316' },
+  { label: 'Yellow', value: '#EAB308' },
+  { label: 'Green', value: '#22C55E' },
+  { label: 'Emerald', value: '#10B981' },
+  { label: 'Teal', value: '#14B8A6' },
+  { label: 'Cyan', value: '#06B6D4' },
+  { label: 'Sky', value: '#0EA5E9' },
+  { label: 'Blue', value: '#3B82F6' },
+  { label: 'Rose', value: '#F43F5E' },
+]
 
 // Table columns
 const columns = [
   { title: 'Name', dataIndex: 'name', key: 'name' },
+  { title: 'Color', dataIndex: 'color', key: 'color', width: 100 },
   { title: 'Description', dataIndex: 'description', key: 'description' },
   { title: 'Actions', key: 'actions', width: 150 },
 ]
@@ -40,6 +57,7 @@ const openCreateModal = () => {
   isEditMode.value = false
   currentTag.value = null
   formState.name = ''
+  formState.color = ''
   formState.description = ''
   isModalVisible.value = true
 }
@@ -51,6 +69,7 @@ const openEditModal = (tag: Tag) => {
   isEditMode.value = true
   currentTag.value = tag
   formState.name = tag.name
+  formState.color = tag.color || ''
   formState.description = tag.description || ''
   isModalVisible.value = true
 }
@@ -69,6 +88,7 @@ const handleOk = async () => {
   try {
     const payload: CreateTag = {
       name: formState.name.trim(),
+      color: formState.color.trim() || undefined,
       description: formState.description.trim() || undefined,
     }
 
@@ -98,6 +118,7 @@ const handleCancel = () => {
   isModalVisible.value = false
   currentTag.value = null
   formState.name = ''
+  formState.color = ''
   formState.description = ''
 }
 
@@ -148,6 +169,19 @@ const handleDelete = (tag: Tag) => {
       :scroll="{ x: 800 }"
     >
       <template #bodyCell="{ column, record }">
+        <!-- Color Column -->
+        <template v-if="column.key === 'color'">
+          <div
+            :style="{
+              width: '24px',
+              height: '24px',
+              borderRadius: '4px',
+              backgroundColor: record.color || '#6B7280',
+              border: '1px solid #e5e7eb',
+            }"
+          />
+        </template>
+
         <!-- Actions Column -->
         <template v-if="column.key === 'actions'">
           <a-space size="small">
@@ -181,6 +215,53 @@ const handleDelete = (tag: Tag) => {
         <!-- Name Field -->
         <a-form-item label="Name" name="name" :required="true">
           <a-input v-model:value="formState.name" placeholder="Enter tag name" :maxlength="255" />
+        </a-form-item>
+
+        <!-- Color Field -->
+        <a-form-item label="Color (Optional)" name="color">
+          <a-space direction="vertical" style="width: 100%">
+            <a-input
+              v-model:value="formState.color"
+              placeholder="Type hex color (e.g., #e2666e) or select below"
+              allow-clear
+              style="width: 100%"
+            />
+            <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px">
+              <a-tooltip
+                v-for="color in predefinedColors"
+                :key="color.value"
+                :title="color.label"
+              >
+                <div
+                  :style="{
+                    width: '32px',
+                    height: '32px',
+                    borderRadius: '4px',
+                    backgroundColor: color.value,
+                    border:
+                      formState.color === color.value
+                        ? '2px solid #1890ff'
+                        : '1px solid #e5e7eb',
+                    cursor: 'pointer',
+                  }"
+                  @click="formState.color = color.value"
+                />
+              </a-tooltip>
+            </div>
+            <div v-if="formState.color" style="display: flex; align-items: center; gap: 8px">
+              <span style="font-size: 12px; color: #6b7280">Preview:</span>
+              <div
+                :style="{
+                  width: '32px',
+                  height: '32px',
+                  borderRadius: '4px',
+                  backgroundColor: formState.color || '#6B7280',
+                  border: '1px solid #e5e7eb',
+                }"
+              />
+              <span style="font-size: 12px; color: #6b7280">{{ formState.color }}</span>
+            </div>
+          </a-space>
         </a-form-item>
 
         <!-- Description Field -->

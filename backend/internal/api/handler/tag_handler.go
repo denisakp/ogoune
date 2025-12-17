@@ -18,7 +18,7 @@ type TagServiceInterface interface {
 	CreateTag(ctx context.Context, tag *domain.Tags) error
 	ListTags(ctx context.Context, limit, offset int) ([]*domain.Tags, error)
 	GetTagByID(ctx context.Context, id string) (*domain.Tags, error)
-	UpdateTag(ctx context.Context, id string, name string) (*domain.Tags, error)
+	UpdateTag(ctx context.Context, id string, name string, color *string, description *string) (*domain.Tags, error)
 	DeleteTag(ctx context.Context, id string) error
 }
 
@@ -99,7 +99,9 @@ func (h *TagHandler) UpdateTag(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var payload struct {
-		Name string `json:"name"`
+		Name        *string `json:"name,omitempty"`
+		Color       *string `json:"color,omitempty"`
+		Description *string `json:"description,omitempty"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
@@ -107,12 +109,34 @@ func (h *TagHandler) UpdateTag(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if payload.Name == "" {
-		response.Error(w, http.StatusBadRequest, "Tag name is required")
+	// Get existing tag to merge with updates
+	existingTag, err := h.tagService.GetTagByID(r.Context(), tagID)
+	if err != nil {
+		if errors.Is(err, service.ErrResourceNotFound) {
+			response.Error(w, http.StatusNotFound, "Tag not found")
+			return
+		}
+		response.Error(w, http.StatusInternalServerError, "Failed to fetch tag: "+err.Error())
 		return
 	}
 
-	updatedTag, err := h.tagService.UpdateTag(r.Context(), tagID, payload.Name)
+	// Merge updates with existing values
+	name := existingTag.Name
+	if payload.Name != nil && *payload.Name != "" {
+		name = *payload.Name
+	}
+
+	color := existingTag.Color
+	if payload.Color != nil {
+		color = payload.Color
+	}
+
+	description := existingTag.Description
+	if payload.Description != nil {
+		description = payload.Description
+	}
+
+	updatedTag, err := h.tagService.UpdateTag(r.Context(), tagID, name, color, description)
 	if err != nil {
 		if errors.Is(err, service.ErrValidationFailed) {
 			response.Error(w, http.StatusBadRequest, err.Error())

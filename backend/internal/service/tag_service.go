@@ -62,7 +62,7 @@ func (s *TagService) GetTagByID(ctx context.Context, id string) (*domain.Tags, e
 }
 
 // UpdateTag updates an existing tag.
-func (s *TagService) UpdateTag(ctx context.Context, id string, name string) (*domain.Tags, error) {
+func (s *TagService) UpdateTag(ctx context.Context, id string, name string, color *string, description *string) (*domain.Tags, error) {
 	if name == "" {
 		return nil, fmt.Errorf("%w: tag name is required", ErrValidationFailed)
 	}
@@ -84,8 +84,10 @@ func (s *TagService) UpdateTag(ctx context.Context, id string, name string) (*do
 		}
 	}
 
-	// Update tag name
+	// Update tag fields
 	tag.Name = name
+	tag.Color = color
+	tag.Description = description
 
 	if err := s.tags.Update(ctx, tag); err != nil {
 		return nil, fmt.Errorf("failed to update tag: %w", err)

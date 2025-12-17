@@ -30,6 +30,7 @@ func (base *Base) BeforeCreate(tx *gorm.DB) (err error) {
 type Tags struct {
 	Base
 	Name        string      `json:"name" gorm:"uniqueIndex"`
+	Color       *string     `json:"color,omitempty"`
 	Description *string     `json:"description,omitempty"`
 	Resources   []*Resource `json:"resources" gorm:"many2many:resource_tags;"`
 }
