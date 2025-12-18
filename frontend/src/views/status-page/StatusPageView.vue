@@ -2,7 +2,7 @@
 import { onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import StatusPage from '@/components/status-page/StatusPage.vue'
-import { useStatusPage } from '@/composables/useStatusPage'
+import { useStatusPage } from '@/composables/useStatusPage.ts'
 
 const router = useRouter()
 const { statusPageData, loading, loadStatusPageData } = useStatusPage()

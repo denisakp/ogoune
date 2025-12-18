@@ -4,7 +4,7 @@ import { useRouter, useRoute } from 'vue-router'
 import { ArrowLeftOutlined } from '@ant-design/icons-vue'
 
 import StatusPageDetail from '@/components/status-page/StatusPageDetail.vue'
-import { useStatusPage } from '@/composables/useStatusPage'
+import { useStatusPage } from '@/composables/useStatusPage.ts'
 
 const router = useRouter()
 const route = useRoute()

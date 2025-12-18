@@ -2,13 +2,13 @@ import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router'
 import { useAuthStore } from '@/stores/authStore'
 
 const MonitorsView = () => import('@/views/MonitorsView.vue')
-const ResourceDetailView = () => import('@/views/ResourceDetailView.vue')
+const ResourceView = () => import('@/views/resources/ResourceView.vue')
 const SettingsView = () => import('@/views/SettingsView.vue')
-const IncidentsView = () => import('@/views/IncidentsView.vue')
-const IncidentDetailView = () => import('@/views/IncidentDetailView.vue')
-const StatusPageView = () => import('@/views/StatusPageView.vue')
-const StatusPageDetailView = () => import('@/views/StatusPageDetailView.vue')
-const LoginView = () => import('@/views/LoginView.vue')
+const IncidentsView = () => import('@/views/incidents/IncidentsView.vue')
+const IncidentView = () => import('@/views/incidents/IncidentView.vue')
+const StatusPageView = () => import('@/views/status-page/StatusPageView.vue')
+const StatusPageDetailView = () => import('@/views/status-page/StatusPageDetailView.vue')
+const LoginView = () => import('@/views/auth/LoginView.vue')
 
 const routes: RouteRecordRaw[] = [
   {
@@ -30,7 +30,7 @@ const routes: RouteRecordRaw[] = [
   {
     path: '/monitors/:id',
     name: 'ResourceDetail',
-    component: ResourceDetailView,
+    component: ResourceView,
     meta: { requiresAuth: true, requiresLayout: true },
   },
   {
@@ -42,7 +42,7 @@ const routes: RouteRecordRaw[] = [
   {
     path: '/incidents/:id',
     name: 'IncidentDetail',
-    component: IncidentDetailView,
+    component: IncidentView,
     meta: { requiresAuth: true, requiresLayout: true },
   },
   {

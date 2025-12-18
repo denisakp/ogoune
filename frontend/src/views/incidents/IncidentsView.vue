@@ -3,7 +3,7 @@ import { onMounted, ref, reactive, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { message } from 'ant-design-vue'
 
-import { useIncidents } from '@/composables/useIncidents'
+import { useIncidents } from '@/composables/useIncidents.ts'
 import type { Incident, IncidentsQueryParams } from '@/types'
 
 const router = useRouter()

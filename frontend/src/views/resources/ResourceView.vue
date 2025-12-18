@@ -19,8 +19,8 @@ import {
   EllipsisOutlined,
 } from '@ant-design/icons-vue'
 
-import { useResources } from '@/composables/useResources'
-import { useDateTime } from '@/composables/useDateTime'
+import { useResources } from '@/composables/useResources.ts'
+import { useDateTime } from '@/composables/useDateTime.ts'
 import ResourceModal from '@/components/ResourceModal.vue'
 import ResponseTimeChart from '@/components/ResponseTimeChart.vue'
 import type { Resource, Incident, ExpirationStatus } from '@/types'

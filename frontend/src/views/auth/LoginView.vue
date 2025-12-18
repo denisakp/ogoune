@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { reactive, computed } from 'vue'
 import { useRouter } from 'vue-router'
-import { useAuthStore } from '@/stores/authStore'
+import { useAuthStore } from '@/stores/authStore.ts'
 import { MailOutlined, LockOutlined } from '@ant-design/icons-vue'
 import type { Rule } from 'ant-design-vue/es/form'
 
