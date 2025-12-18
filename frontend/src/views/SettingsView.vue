@@ -3,8 +3,9 @@ import { ref } from 'vue'
 import { message } from 'ant-design-vue'
 import { EyeOutlined, SaveOutlined } from '@ant-design/icons-vue'
 
-import TagComponent from '@/components/TagComponent.vue'
-import StatusPageSettings from '@/components/status-page/StatusPageSettings.vue'
+import TagSettings from '@/components/settings/TagSettings.vue'
+import StatusPageSettings from '@/components/settings/StatusPageSettings.vue'
+import NotificationSettings from '@/components/settings/NotificationSettings.vue'
 
 const activeKey = ref('1')
 const saving = ref(false)
@@ -91,9 +92,13 @@ const handlePreviewStatusPage = () => {
           </a-alert>
         </div>
       </a-tab-pane>
-      
+
       <a-tab-pane key="2" tab="Tags" force-render>
-        <TagComponent />
+        <TagSettings />
+      </a-tab-pane>
+
+      <a-tab-pane key="3" tab="Notifications">
+        <NotificationSettings />
       </a-tab-pane>
     </a-tabs>
   </div>

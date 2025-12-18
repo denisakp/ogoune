@@ -28,7 +28,7 @@ const rules: Record<string, Rule[]> = {
 
 const handleLogin = async () => {
   const success = await authStore.login(formState.email, formState.password)
-  
+
   if (success) {
     // Redirect to monitors page after successful login
     router.push('/monitors')
@@ -43,7 +43,7 @@ const handleLogin = async () => {
         <h1>PulseGuard</h1>
         <p>Monitor your infrastructure with confidence</p>
       </div>
-      
+
       <a-form
         :model="formState"
         :rules="rules"
@@ -78,13 +78,7 @@ const handleLogin = async () => {
         </a-form-item>
 
         <a-form-item>
-          <a-button
-            type="primary"
-            html-type="submit"
-            size="large"
-            block
-            :loading="isLoading"
-          >
+          <a-button type="primary" html-type="submit" size="large" block :loading="isLoading">
             Sign In
           </a-button>
         </a-form-item>

@@ -227,11 +227,7 @@ const handleDelete = (tag: Tag) => {
               style="width: 100%"
             />
             <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px">
-              <a-tooltip
-                v-for="color in predefinedColors"
-                :key="color.value"
-                :title="color.label"
-              >
+              <a-tooltip v-for="color in predefinedColors" :key="color.value" :title="color.label">
                 <div
                   :style="{
                     width: '32px',
@@ -239,9 +235,7 @@ const handleDelete = (tag: Tag) => {
                     borderRadius: '4px',
                     backgroundColor: color.value,
                     border:
-                      formState.color === color.value
-                        ? '2px solid #1890ff'
-                        : '1px solid #e5e7eb',
+                      formState.color === color.value ? '2px solid #1890ff' : '1px solid #e5e7eb',
                     cursor: 'pointer',
                   }"
                   @click="formState.color = color.value"

@@ -69,8 +69,8 @@ declare module 'vue' {
     StatusBadge: typeof import('./src/components/StatusBadge.vue')['default']
     StatusPage: typeof import('./src/components/status-page/StatusPage.vue')['default']
     StatusPageDetail: typeof import('./src/components/status-page/StatusPageDetail.vue')['default']
-    StatusPageSettings: typeof import('./src/components/status-page/StatusPageSettings.vue')['default']
-    TagComponent: typeof import('./src/components/TagComponent.vue')['default']
+    StatusPageSettings: typeof import('./src/components/settings/StatusPageSettings.vue')['default']
+    TagSettings: typeof import('./src/components/settings/TagSettings.vue')['default']
     UptimeSparkline: typeof import('./src/components/UptimeSparkline.vue')['default']
   }
 }

@@ -20,14 +20,14 @@ export const useAuthStore = defineStore('auth', () => {
     isLoading.value = true
     try {
       const response = await authService.login(emailInput, password)
-      
+
       // Store token and email
       token.value = response.token
       email.value = response.email
-      
+
       localStorage.setItem(TOKEN_KEY, response.token)
       localStorage.setItem(EMAIL_KEY, response.email)
-      
+
       message.success('Successfully logged in!')
       return true
     } catch (error) {
@@ -72,10 +72,10 @@ export const useAuthStore = defineStore('auth', () => {
     token,
     email,
     isLoading,
-    
+
     // Getters
     isAuthenticated,
-    
+
     // Actions
     login,
     verify,

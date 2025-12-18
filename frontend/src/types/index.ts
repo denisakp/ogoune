@@ -94,7 +94,6 @@ export interface CreateTag {
  */
 export type EventType = 'down' | 'up' | 'expiry'
 
-
 /**
  * MonitoringActivity represents a health check result
  */
@@ -269,4 +268,76 @@ export interface PublicMonitorDetail {
   uptime_summary: MonitorUptimeSummary
   response_time_summary_7_days: MonitorResponseTimeSummary
   recent_events: MonitorRecentEvent[]
+}
+
+/**
+ * Notification Channel Types
+ */
+export type NotificationChannelType = 'smtp' | 'slack' | 'sms'
+
+/**
+ * SMTP Configuration for notification channel
+ */
+export interface SMTPConfig {
+  host: string
+  port: number
+  username: string
+  password: string
+  sender: string
+  recipients: string[]
+  cc?: string[]
+  bcc?: string[]
+  subject?: string
+}
+
+/**
+ * Slack Configuration for notification channel
+ */
+export interface SlackConfig {
+  webhook_url: string
+  channel?: string
+  username?: string
+}
+
+/**
+ * SMS Configuration for notification channel
+ */
+export interface SMSConfig {
+  provider: string // e.g., twilio, nexmo
+  account_sid?: string
+  auth_token?: string
+  from_number: string
+  to_numbers: string[]
+}
+
+/**
+ * Generic notification configuration
+ */
+export type NotificationConfig = SMTPConfig | SlackConfig | SMSConfig
+
+/**
+ * Notification Channel
+ */
+export interface NotificationChannel {
+  id: string
+  name: string
+  type: NotificationChannelType
+  config: Record<string, any>
+  enabled_by_default: boolean
+  created_at: string
+  updated_at: string
+}
+
+export interface CreateNotificationChannel {
+  name: string
+  type: NotificationChannelType
+  config: Record<string, any>
+  enabled_by_default: boolean
+}
+
+export type UpdateNotificationChannel = Partial<CreateNotificationChannel>
+
+export interface TestNotificationChannelConfig {
+  type: NotificationChannelType
+  config: Record<string, any>
 }

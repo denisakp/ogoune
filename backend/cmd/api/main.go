@@ -88,6 +88,7 @@ func main() {
 	incidentRepo := postgres.NewIncidentRepository(db)
 	incidentEventStepRepo := postgres.NewIncidentEventStepRepository(db)
 	notificationRepo := postgres.NewNotificationRepository(db)
+	notificationChannelRepo := postgres.NewNotificationChannelRepository(db)
 	monitoringActivityRepo := postgres.NewMonitoringActivityRepository(db)
 	tagsRepo := postgres.NewTagsRepository(db)
 
@@ -229,6 +230,7 @@ func main() {
 	incidentAPIService := service.NewIncidentService(incidentRepo, incidentEventStepRepo)
 	notificationService := service.NewNotificationService(
 		resourceRepo,
+		notificationChannelRepo,
 		cfg.SMTPIsEnabled,
 		cfg.DefaultRecipientEmail,
 		cfg.SMTPSender,

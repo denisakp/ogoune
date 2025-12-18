@@ -101,6 +101,17 @@ func NewRouter(
 			r.Post("/test", notificationHandler.TestNotification) // POST /notifications/test - send test notification for a resource
 		})
 
+		// Notification Channels API
+		r.Route("/notification-channels", func(r chi.Router) {
+			r.Get("/", notificationHandler.ListNotificationChannels)                 // GET /notification-channels - list all channels
+			r.Post("/", notificationHandler.CreateNotificationChannel)               // POST /notification-channels - create new channel
+			r.Post("/test-config", notificationHandler.ValidateAndTestChannelConfig) // POST /notification-channels/test-config - test config without saving
+			r.Get("/{id}", notificationHandler.GetNotificationChannel)               // GET /notification-channels/{id} - get channel by ID
+			r.Patch("/{id}", notificationHandler.UpdateNotificationChannel)          // PATCH /notification-channels/{id} - update channel
+			r.Delete("/{id}", notificationHandler.DeleteNotificationChannel)         // DELETE /notification-channels/{id} - delete channel
+			r.Post("/{id}/test", notificationHandler.TestNotificationChannelConfig)  // POST /notification-channels/{id}/test - test channel config
+		})
+
 		// Stats API
 		r.Route("/stats", func(r chi.Router) {
 			r.Get("/summary", statsHandler.GetSummary) // GET /stats/summary?range=24h - get aggregated statistics for all monitors

@@ -9,16 +9,16 @@ import (
 
 // AuthService handles authentication logic
 type AuthService struct {
-	email       string
-	password    string
-	jwtManager  *jwt.Manager
+	email      string
+	password   string
+	jwtManager *jwt.Manager
 }
 
 // NewAuthService creates a new authentication service with hardcoded credentials
 func NewAuthService(email, password, jwtSecret string) *AuthService {
 	// JWT token valid for 24 hours
 	jwtManager := jwt.NewManager(jwtSecret, "pulseguard", 24*time.Hour)
-	
+
 	return &AuthService{
 		email:      email,
 		password:   password,

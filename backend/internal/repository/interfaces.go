@@ -89,3 +89,14 @@ type Scheduler interface {
 	Schedule(ctx context.Context, r *domain.Resource) error
 	Unschedule(ctx context.Context, resourceID string) error
 }
+
+// NotificationChannelRepository manages notification channels
+type NotificationChannelRepository interface {
+	Create(ctx context.Context, channel *domain.NotificationChannel) error
+	FindByID(ctx context.Context, id string) (*domain.NotificationChannel, error)
+	List(ctx context.Context, limit, offset int) ([]*domain.NotificationChannel, error)
+	Update(ctx context.Context, channel *domain.NotificationChannel) error
+	Delete(ctx context.Context, id string) error
+	FindByType(ctx context.Context, channelType domain.NotificationChannelType) ([]*domain.NotificationChannel, error)
+	FindDefaultChannels(ctx context.Context) ([]*domain.NotificationChannel, error)
+}

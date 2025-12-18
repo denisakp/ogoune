@@ -112,3 +112,12 @@ func isValidHostname(hostname string) bool {
 
 	return true
 }
+
+// isValidNotificationChannelType checks if the provided channel type is valid.
+func isValidNotificationChannelType(channelType NotificationChannelType) bool {
+	switch channelType {
+	case NotificationChannelTypeSMTP, NotificationChannelTypeSlack, NotificationChannelTypeSMS:
+		return true
+	}
+	return false
+}

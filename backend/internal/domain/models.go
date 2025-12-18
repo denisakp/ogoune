@@ -187,3 +187,32 @@ type GlobalStats struct {
 	WithoutIncidentsDuration int64   // Duration in seconds without any incidents
 	AffectedMonitors         int     // Number of distinct resources with incidents
 }
+
+// NotificationChannelType represents the type of notification channel
+type NotificationChannelType string
+
+const (
+	NotificationChannelTypeSMTP  NotificationChannelType = "smtp"
+	NotificationChannelTypeSlack NotificationChannelType = "slack"
+	NotificationChannelTypeSMS   NotificationChannelType = "sms"
+)
+
+// IsValid checks if the notification channel type is valid
+func (t NotificationChannelType) IsValid() bool {
+	switch t {
+	case NotificationChannelTypeSMTP, NotificationChannelTypeSlack, NotificationChannelTypeSMS:
+		return true
+	}
+	return false
+}
+
+// NotificationChannel represents a configured notification channel
+type NotificationChannel struct {
+	Base
+	Name             string                  `json:"name" gorm:"not null"`
+	Type             NotificationChannelType `json:"type" gorm:"not null;index"`
+	Config           []byte                  `json:"config" gorm:"type:jsonb;not null"` // JSON configuration specific to channel type
+	EnabledByDefault bool                    `json:"enabled_by_default" gorm:"default:false"`
+}
+
+func (NotificationChannel) TableName() string { return "notification_channels" }

@@ -17,11 +17,11 @@ import (
 )
 
 var (
-	mu              sync.RWMutex
-	db              *gorm.DB
-	initErr         error
-	initialized     bool
-	
+	mu          sync.RWMutex
+	db          *gorm.DB
+	initErr     error
+	initialized bool
+
 	// modelsToMigrate holds domain models for auto-migration
 	modelsToMigrate = []any{
 		// Core domain models introduced by feature 002
@@ -29,6 +29,7 @@ var (
 		&domain.Incident{},
 		&domain.IncidentEventStep{},
 		&domain.NotificationEvent{},
+		&domain.NotificationChannel{},
 		&domain.Tags{},
 		&domain.MonitoringActivity{},
 	}
@@ -132,7 +133,7 @@ func Instance() (*gorm.DB, error) {
 
 	mu.RLock()
 	defer mu.RUnlock()
-	
+
 	if db == nil {
 		return nil, fmt.Errorf("db instance: database not initialized")
 	}
@@ -167,14 +168,14 @@ func Ping(ctx context.Context) error {
 func Reset() {
 	mu.Lock()
 	defer mu.Unlock()
-	
+
 	if db != nil {
 		sqlDB, _ := db.DB()
 		if sqlDB != nil {
 			sqlDB.Close()
 		}
 	}
-	
+
 	db = nil
 	initErr = nil
 	initialized = false
