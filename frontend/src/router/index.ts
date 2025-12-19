@@ -9,6 +9,7 @@ const IncidentView = () => import('@/views/incidents/IncidentView.vue')
 const StatusPageView = () => import('@/views/status-page/StatusPageView.vue')
 const StatusPageDetailView = () => import('@/views/status-page/StatusPageDetailView.vue')
 const LoginView = () => import('@/views/auth/LoginView.vue')
+const MaintenanceView = () => import('@/views/maintenance/MaintenanceView.vue')
 
 const routes: RouteRecordRaw[] = [
   {
@@ -49,6 +50,12 @@ const routes: RouteRecordRaw[] = [
     path: '/settings',
     name: 'Settings',
     component: SettingsView,
+    meta: { requiresAuth: true, requiresLayout: true },
+  },
+  {
+    path: '/maintenance',
+    name: 'Maintenance',
+    component: MaintenanceView,
     meta: { requiresAuth: true, requiresLayout: true },
   },
   // Public status page routes (no app layout)

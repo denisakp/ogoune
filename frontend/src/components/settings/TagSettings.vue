@@ -146,6 +146,14 @@ const handleDelete = (tag: Tag) => {
 
 <template>
   <div style="padding: 24px">
+    <!-- Header -->
+    <div style="margin-bottom: 24px">
+      <h2>Tags</h2>
+      <p style="color: #666; margin-top: 8px">
+        Configure tags to categorize and organize your resources.
+      </p>
+    </div>
+
     <!-- Add Button -->
     <div style="margin-bottom: 16px">
       <a-button type="primary" @click="openCreateModal">
@@ -273,4 +281,10 @@ const handleDelete = (tag: Tag) => {
   </div>
 </template>
 
-<style scoped></style>
+<style scoped>
+h2 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 600;
+}
+</style>

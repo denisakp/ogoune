@@ -15,6 +15,7 @@ import (
 	"github.com/denisakp/pulseguard/internal/api/handler"
 	"github.com/denisakp/pulseguard/internal/config"
 	"github.com/denisakp/pulseguard/internal/domain"
+	"github.com/denisakp/pulseguard/internal/maintenance"
 	"github.com/denisakp/pulseguard/internal/monitoring"
 	"github.com/denisakp/pulseguard/internal/monitoring/strategy"
 	"github.com/denisakp/pulseguard/internal/repository/postgres"
@@ -88,6 +89,7 @@ func main() {
 	incidentRepo := postgres.NewIncidentRepository(db)
 	incidentEventStepRepo := postgres.NewIncidentEventStepRepository(db)
 	notificationRepo := postgres.NewNotificationRepository(db)
+	maintenanceRepo := postgres.NewMaintenanceRepository(db)
 	notificationChannelRepo := postgres.NewNotificationChannelRepository(db)
 	monitoringActivityRepo := postgres.NewMonitoringActivityRepository(db)
 	tagsRepo := postgres.NewTagsRepository(db)
@@ -115,8 +117,14 @@ func main() {
 	}()
 	defer asynqScheduler.Shutdown()
 
-	// Initialize scheduler service
+	// Initialize monitoring scheduler service
 	schedulerService := monitoring.NewSchedulerService(asynqClient, asynqInspector, asynqScheduler)
+
+	// Initialize maintenance scheduler and ensure schedules are registered
+	maintenanceScheduler := maintenance.NewSchedulerService(asynqClient, asynqInspector, asynqScheduler, maintenanceRepo)
+	if err := maintenanceScheduler.EnsureScheduled(context.Background()); err != nil {
+		log.Printf("⚠️  Failed to ensure maintenance schedules: %v", err)
+	}
 
 	// Initialize enrichment service for resource metadata collection
 	enrichmentService := service.NewEnrichmentService(30 * time.Second)
@@ -199,10 +207,11 @@ func main() {
 	)
 
 	// Initialize task handlers
-	monitoringHandler := worker.NewMonitoringTaskHandler(resourceRepo, monitoringActivityRepo, executor, incidentService)
+	monitoringHandler := worker.NewMonitoringTaskHandler(resourceRepo, monitoringActivityRepo, maintenanceRepo, executor, incidentService)
+	maintenanceTaskHandler := maintenance.NewTaskHandler(maintenanceRepo, asynqClient)
 
 	// Create the Asynq worker processor
-	processor := worker.NewProcessor(redisOpt, monitoringHandler)
+	processor := worker.NewProcessor(redisOpt, monitoringHandler, maintenanceTaskHandler)
 
 	// Start worker in a goroutine (non-blocking)
 	go func() {
@@ -239,6 +248,7 @@ func main() {
 		cfg.SMTPUser,
 		cfg.SMTPPassword,
 	)
+	maintenanceAPIService := service.NewMaintenanceService(maintenanceRepo, maintenanceScheduler)
 	statsService := service.NewStatsService(monitoringActivityRepo, incidentRepo)
 	authService := service.NewAuthService(cfg.AuthEmail, cfg.AuthPassword, cfg.JWTSecret)
 
@@ -249,11 +259,12 @@ func main() {
 	statusPageHandler := handler.NewStatusPageHandler(statusPageService)
 	incidentHandler := handler.NewIncidentHandler(incidentAPIService)
 	notificationHandler := handler.NewNotificationHandler(notificationService)
+	maintenanceHandler := handler.NewMaintenanceHandler(maintenanceAPIService)
 	statsHandler := handler.NewStatsHandler(statsService)
 	authHandler := handler.NewAuthHandler(authService)
 
 	// Create router with injected handlers
-	apiHandler := api.NewRouter(resourceHandler, activityHandler, tagHandler, statusPageHandler, incidentHandler, notificationHandler, statsHandler, authHandler, authService)
+	apiHandler := api.NewRouter(resourceHandler, activityHandler, tagHandler, statusPageHandler, incidentHandler, notificationHandler, maintenanceHandler, statsHandler, authHandler, authService)
 
 	// Root router: mount JSON API under /api
 	rootRouter := chi.NewRouter()

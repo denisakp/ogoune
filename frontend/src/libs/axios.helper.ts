@@ -1,5 +1,10 @@
 import axios, { AxiosError } from 'axios'
-import type { AxiosInstance, AxiosResponse, InternalAxiosRequestConfig } from 'axios'
+import type {
+  AxiosInstance,
+  AxiosResponse,
+  InternalAxiosRequestConfig,
+  AxiosRequestConfig,
+} from 'axios'
 import { message } from 'ant-design-vue'
 
 const TOKEN_KEY = 'pulseguard_auth_token'
@@ -169,3 +174,5 @@ export default axiosClient
 
 // Export types to allow custom configuration
 export type { CustomRequestConfig }
+// Helper type to use when passing config objects to axios methods
+export type CustomAxiosConfig<D = any> = AxiosRequestConfig<D> & CustomRequestConfig

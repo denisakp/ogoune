@@ -12,4 +12,7 @@ var (
 
 	// ErrSchedulerSync indicates scheduler synchronization failed
 	ErrSchedulerSync = errors.New("scheduler synchronization failed")
+
+	// ErrMaintenanceNotFound indicates the requested maintenance was not found
+	ErrMaintenanceNotFound = errors.New("maintenance not found")
 )

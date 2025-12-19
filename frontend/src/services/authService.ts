@@ -1,5 +1,5 @@
 import axiosClient from '@/libs/axios.helper'
-import type { CustomRequestConfig } from '@/libs/axios.helper'
+import type { CustomAxiosConfig } from '@/libs/axios.helper'
 
 export interface LoginRequest {
   email: string
@@ -20,7 +20,7 @@ const authService = {
    * Authenticate user with email and password
    */
   async login(email: string, password: string): Promise<LoginResponse> {
-    const config: CustomRequestConfig = {
+    const config: CustomAxiosConfig = {
       skipSuccessToast: true, // Don't show success toast for login
       skipErrorToast: false,
     }
@@ -38,7 +38,7 @@ const authService = {
    * Verify current JWT token
    */
   async verify(): Promise<VerifyResponse> {
-    const config: CustomRequestConfig = {
+    const config: CustomAxiosConfig = {
       skipSuccessToast: true,
       skipErrorToast: true, // Don't show error toast for token verification
     }

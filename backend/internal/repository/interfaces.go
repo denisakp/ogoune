@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"errors"
+	"time"
 
 	"github.com/denisakp/pulseguard/internal/domain"
 )
@@ -99,4 +100,15 @@ type NotificationChannelRepository interface {
 	Delete(ctx context.Context, id string) error
 	FindByType(ctx context.Context, channelType domain.NotificationChannelType) ([]*domain.NotificationChannel, error)
 	FindDefaultChannels(ctx context.Context) ([]*domain.NotificationChannel, error)
+}
+
+// MaintenanceRepository manages maintenance windows
+type MaintenanceRepository interface {
+	Create(ctx context.Context, m *domain.Maintenance) (*domain.Maintenance, error)
+	FindByID(ctx context.Context, id string) (*domain.Maintenance, error)
+	List(ctx context.Context, status string, limit, offset int) ([]*domain.Maintenance, error)
+	Update(ctx context.Context, m *domain.Maintenance) error
+	Delete(ctx context.Context, id string) error
+	// Returns maintenances currently active for a resource at the provided time
+	FindActiveForResource(ctx context.Context, resourceID string, now time.Time) ([]*domain.Maintenance, error)
 }

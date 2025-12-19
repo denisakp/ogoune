@@ -19,6 +19,7 @@ func NewRouter(
 	statusPageHandler *handler.StatusPageHandler,
 	incidentHandler *handler.IncidentHandler,
 	notificationHandler *handler.NotificationHandler,
+	maintenanceHandler *handler.MaintenanceHandler,
 	statsHandler *handler.StatsHandler,
 	authHandler *handler.AuthHandler,
 	authService *service.AuthService,
@@ -110,6 +111,15 @@ func NewRouter(
 			r.Patch("/{id}", notificationHandler.UpdateNotificationChannel)          // PATCH /notification-channels/{id} - update channel
 			r.Delete("/{id}", notificationHandler.DeleteNotificationChannel)         // DELETE /notification-channels/{id} - delete channel
 			r.Post("/{id}/test", notificationHandler.TestNotificationChannelConfig)  // POST /notification-channels/{id}/test - test channel config
+		})
+
+		// Maintenances API
+		r.Route("/maintenances", func(r chi.Router) {
+			r.Get("/", maintenanceHandler.ListMaintenances)              // GET /maintenances
+			r.Post("/", maintenanceHandler.CreateMaintenance)            // POST /maintenances
+			r.Patch("/{id}", maintenanceHandler.UpdateMaintenance)       // PATCH /maintenances/{id}
+			r.Delete("/{id}", maintenanceHandler.DeleteMaintenance)      // DELETE /maintenances/{id}
+			r.Post("/{id}/finish", maintenanceHandler.FinishMaintenance) // POST /maintenances/{id}/finish
 		})
 
 		// Stats API

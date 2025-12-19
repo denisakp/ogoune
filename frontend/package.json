@@ -23,6 +23,7 @@
     "@ant-design/icons-vue": "7.0.1",
     "ant-design-vue": "~4.2.6",
     "axios": "1.12.2",
+    "dayjs": "^1.11.19",
     "install": "0.13.0",
     "pinia": "^3.0.3",
     "vue": "^3.5.22",

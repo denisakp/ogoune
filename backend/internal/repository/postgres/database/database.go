@@ -30,6 +30,7 @@ var (
 		&domain.IncidentEventStep{},
 		&domain.NotificationEvent{},
 		&domain.NotificationChannel{},
+		&domain.Maintenance{},
 		&domain.Tags{},
 		&domain.MonitoringActivity{},
 	}

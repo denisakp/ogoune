@@ -10,6 +10,7 @@ import {
   AlertOutlined,
   SettingOutlined,
   ApiOutlined,
+  ToolOutlined,
 } from '@ant-design/icons-vue'
 
 const route = useRoute()
@@ -21,7 +22,8 @@ const navigation = [
   { name: 'Monitoring', path: '/monitors', key: '1', icon: DashboardOutlined },
   { name: 'Incidents', path: '/incidents', key: '2', icon: AlertOutlined },
   { name: 'Status Page', path: '/status', key: '3', icon: ApiOutlined },
-  { name: 'Settings', path: '/settings', key: '4', icon: SettingOutlined },
+  { name: 'Maintenance', path: '/maintenance', key: '4', icon: ToolOutlined },
+  { name: 'Settings', path: '/settings', key: '5', icon: SettingOutlined },
 ]
 
 // Check if current route requires layout

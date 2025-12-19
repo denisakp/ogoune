@@ -15,24 +15,27 @@ import (
 // MonitoringTaskHandler processes monitoring tasks from the Asynq queue.
 // It executes health checks and handles status changes with direct service calls.
 type MonitoringTaskHandler struct {
-	resources  repository.ResourceRepository
-	activities repository.MonitoringActivityRepository
-	executor   *domain.CheckExecutor
-	incidents  *monitoring.IncidentService
+	resources    repository.ResourceRepository
+	activities   repository.MonitoringActivityRepository
+	maintenances repository.MaintenanceRepository
+	executor     *domain.CheckExecutor
+	incidents    *monitoring.IncidentService
 }
 
 // NewMonitoringTaskHandler creates a new monitoring task handler.
 func NewMonitoringTaskHandler(
 	resources repository.ResourceRepository,
 	activities repository.MonitoringActivityRepository,
+	maintenances repository.MaintenanceRepository,
 	executor *domain.CheckExecutor,
 	incidents *monitoring.IncidentService,
 ) *MonitoringTaskHandler {
 	return &MonitoringTaskHandler{
-		resources:  resources,
-		activities: activities,
-		executor:   executor,
-		incidents:  incidents,
+		resources:    resources,
+		activities:   activities,
+		maintenances: maintenances,
+		executor:     executor,
+		incidents:    incidents,
 	}
 }
 
@@ -77,6 +80,16 @@ func (h *MonitoringTaskHandler) ProcessTask(ctx context.Context, task *asynq.Tas
 		Success:      result.Status == string(domain.StatusUp),
 		ResponseTime: int(result.ResponseTime.Milliseconds()),
 		ResponseData: []byte(result.ResponseData),
+	}
+	// Maintenance override: if resource under maintenance, mark activity and skip business transitions
+	activeMaintenances, _ := h.maintenances.FindActiveForResource(ctx, resource.ID, time.Now())
+	if len(activeMaintenances) > 0 {
+		activity.IsMaintenance = true
+		if err := h.activities.Create(ctx, activity); err != nil {
+			fmt.Printf("Warning: failed to persist monitoring activity (maintenance): %v\n", err)
+		}
+		// Do not update resource status, failure counts, or incidents during maintenance
+		return nil
 	}
 	if err := h.activities.Create(ctx, activity); err != nil {
 		// Log error but continue processing - we don't want to block incident logic

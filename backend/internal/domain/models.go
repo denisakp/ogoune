@@ -156,12 +156,13 @@ func (NotificationEvent) TableName() string { return "notification_events" }
 
 type MonitoringActivity struct {
 	Base
-	ResourceID   string   `json:"resource_id" gorm:"index"`
-	Resource     Resource `json:"resource" gorm:"foreignKey:ResourceID"`
-	Message      string   `json:"message"`
-	Success      bool     `json:"success"`
-	ResponseTime int      `json:"response_time"`
-	ResponseData []byte   `json:"response_data"`
+	ResourceID    string   `json:"resource_id" gorm:"index"`
+	Resource      Resource `json:"resource" gorm:"foreignKey:ResourceID"`
+	Message       string   `json:"message"`
+	Success       bool     `json:"success"`
+	ResponseTime  int      `json:"response_time"`
+	ResponseData  []byte   `json:"response_data"`
+	IsMaintenance bool     `json:"is_maintenance" gorm:"default:false"`
 }
 
 func (MonitoringActivity) TableName() string { return "monitoring_activities" }
@@ -216,3 +217,33 @@ type NotificationChannel struct {
 }
 
 func (NotificationChannel) TableName() string { return "notification_channels" }
+
+type MaintenanceStrategy string
+
+const (
+	OneTime MaintenanceStrategy = "one_time"
+	Cron    MaintenanceStrategy = "cron"
+)
+
+type Maintenance struct {
+	Base
+	Title       string              `json:"title" gorm:"not null"`
+	Description *string             `json:"description,omitempty"`
+	Strategy    MaintenanceStrategy `json:"strategy" gorm:"not null;index"`
+	Status      string              `json:"status" gorm:"index"` // scheduled | active | finished | cancelled
+	// One-time window
+	StartAt *time.Time `json:"start_at" gorm:"index"`
+	EndAt   *time.Time `json:"end_at" gorm:"index"`
+	// Cron-based window
+	CronExpr      *string `json:"cron_expr" gorm:"index"`
+	WindowMinutes *int    `json:"window_minutes"`
+	Timezone      *string `json:"timezone"`
+	// Optional: restricts when recurring maintenance can execute
+	EffectiveFrom  *time.Time  `json:"effective_from" gorm:"index"`
+	EffectiveUntil *time.Time  `json:"effective_until" gorm:"index"`
+	StartedAt      *time.Time  `json:"started_at" gorm:"index"`
+	EndedAt        *time.Time  `json:"ended_at" gorm:"index"`
+	Resources      []*Resource `json:"resources" gorm:"many2many:maintenance_resources;"`
+}
+
+func (Maintenance) TableName() string { return "maintenances" }

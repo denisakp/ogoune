@@ -21,6 +21,7 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url))
+      , 'ant-design-vue/es/time-picker/style': fileURLToPath(new URL('./src/antdv-timepicker-style-shim.ts', import.meta.url))
     },
   }
 })

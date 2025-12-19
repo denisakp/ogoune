@@ -341,3 +341,41 @@ export interface TestNotificationChannelConfig {
   type: NotificationChannelType
   config: Record<string, any>
 }
+
+// Maintenance windows
+export type MaintenanceStrategy = 'one_time' | 'cron'
+export type MaintenanceStatus = 'scheduled' | 'active' | 'finished' | 'cancelled'
+
+export interface Maintenance {
+  id: string
+  title: string
+  description?: string | null
+  strategy: MaintenanceStrategy
+  status: MaintenanceStatus
+  start_at?: string | null
+  end_at?: string | null
+  cron_expr?: string | null
+  window_minutes?: number | null
+  timezone?: string | null
+  effective_from?: string | null
+  effective_until?: string | null
+  resources?: Resource[]
+  created_at?: string
+  updated_at?: string
+}
+
+export interface CreateMaintenance {
+  title: string
+  description?: string | null
+  strategy: MaintenanceStrategy
+  start_at?: string
+  end_at?: string
+  cron_expr?: string
+  window_minutes?: number
+  timezone?: string
+  effective_from?: string
+  effective_until?: string
+  resource_ids: string[]
+}
+
+export type UpdateMaintenance = Partial<CreateMaintenance>

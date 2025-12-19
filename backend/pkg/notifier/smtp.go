@@ -157,8 +157,6 @@ func (n *SMTPNotifier) generateUpEmailHTML(incident domain.Incident) string {
 	return buf.String()
 }
 
-func generateSmtpTestNotification() {}
-
 // formatDuration formats a duration into a human-readable string.
 func formatDuration(d time.Duration) string {
 	hours := int(d.Hours())
