@@ -30,6 +30,7 @@ export interface Resource {
   hourly_uptime?: HourlyUptimeStat[] // Hourly uptime data for sparklines
   response_times?: ResponseTime[] // Response time history
   metadata?: ResourceMetadata // SSL and domain metadata
+  metadata_pending?: boolean // true when backend enrichment is in progress
 }
 
 /**

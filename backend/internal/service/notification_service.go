@@ -271,7 +271,7 @@ func (s *NotificationService) validateChannelConfig(channelType domain.Notificat
 			return fmt.Errorf("invalid Slack config format: %w", err)
 		}
 		if config.WebhookURL == "" {
-			return errors.New("Slack webhook URL is required")
+			return errors.New("slack webhook URL is required")
 		}
 		return nil
 

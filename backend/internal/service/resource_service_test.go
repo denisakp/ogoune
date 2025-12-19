@@ -30,7 +30,7 @@ func TestResourceService_CreateResource(t *testing.T) {
 		Tags:     []string{},
 	}
 
-	err := service.CreateResource(context.Background(), payload)
+	_, err := service.CreateResource(context.Background(), payload)
 	require.NoError(t, err)
 
 	// Verify resource was created (find by name or filter by recent creation)

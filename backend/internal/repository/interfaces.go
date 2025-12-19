@@ -41,6 +41,8 @@ type ResourceRepository interface {
 	Delete(ctx context.Context, id string) error // soft delete (active=false)
 	FindActive(ctx context.Context, limit, offset int) ([]*domain.Resource, error)
 	FindByTag(ctx context.Context, tagName string, limit, offset int) ([]*domain.Resource, error)
+	// UpdateMetadata updates only the metadata fields for a resource, leaving associations intact
+	UpdateMetadata(ctx context.Context, id string, metadata *domain.ResourceMetaData) error
 }
 
 // IncidentRepository manages incidents (unresolved vs resolved)

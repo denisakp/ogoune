@@ -17,7 +17,7 @@ import (
 // ResourceServiceInterface defines the methods required by ResourceHandler.
 // This interface allows for better testing by enabling mock implementations.
 type ResourceServiceInterface interface {
-	CreateResource(ctx context.Context, payload *dto.CreateResourcePayload) error
+	CreateResource(ctx context.Context, payload *dto.CreateResourcePayload) (*domain.Resource, error)
 	GetResourceByID(ctx context.Context, id string) (*domain.Resource, error)
 	GetResourceByIDWithResponseTimes(ctx context.Context, id string, limit int) (*dto.ResourceResponse, error)
 	UpdateResource(ctx context.Context, id string, payload *dto.UpdateResourcePayload) (*domain.Resource, error)
@@ -84,13 +84,14 @@ func (h *ResourceHandler) CreateResource(w http.ResponseWriter, r *http.Request)
 	}
 
 	// Call service layer to create resource (which will also schedule monitoring)
-	if err := h.resourceService.CreateResource(r.Context(), &resource); err != nil {
+	created, err := h.resourceService.CreateResource(r.Context(), &resource)
+	if err != nil {
 		respondError(w, http.StatusInternalServerError, "Failed to create resource: "+err.Error())
 		return
 	}
 
-	// Respond with created resource (now includes generated ID from database)
-	respondJSON(w, http.StatusCreated, resource)
+	// Respond with created resource (includes generated ID and metadata_pending)
+	respondJSON(w, http.StatusCreated, created)
 }
 
 // GetResourceByID handles GET /resources/{id} - retrieves a monitoring resource by ID with response times.

@@ -19,7 +19,7 @@ import (
 
 // mockResourceService is a test double for ResourceService
 type mockResourceService struct {
-	createResourceFunc                   func(ctx context.Context, payload *dto.CreateResourcePayload) error
+	createResourceFunc                   func(ctx context.Context, payload *dto.CreateResourcePayload) (*domain.Resource, error)
 	updateResourceFunc                   func(ctx context.Context, id string, payload *dto.UpdateResourcePayload) (*domain.Resource, error)
 	listAllFunc                          func(ctx context.Context) ([]*domain.Resource, error)
 	deleteResourceFunc                   func(ctx context.Context, id string) error
@@ -31,11 +31,11 @@ type mockResourceService struct {
 	getResourceByIDWithResponseTimesFunc func(ctx context.Context, id string, limit int) (*dto.ResourceResponse, error)
 }
 
-func (m *mockResourceService) CreateResource(ctx context.Context, payload *dto.CreateResourcePayload) error {
+func (m *mockResourceService) CreateResource(ctx context.Context, payload *dto.CreateResourcePayload) (*domain.Resource, error) {
 	if m.createResourceFunc != nil {
 		return m.createResourceFunc(ctx, payload)
 	}
-	return nil
+	return &domain.Resource{Base: domain.Base{ID: "res-123"}, Name: payload.Name, Type: payload.Type, Target: payload.Target}, nil
 }
 
 func (m *mockResourceService) GetResourceByID(ctx context.Context, id string) (*domain.Resource, error) {
@@ -134,7 +134,7 @@ func TestCreateResource_Success(t *testing.T) {
 
 	assert.Equal(t, http.StatusCreated, rec.Code)
 
-	var created dto.CreateResourcePayload
+	var created domain.Resource
 	err := json.NewDecoder(rec.Body).Decode(&created)
 	require.NoError(t, err)
 
@@ -194,8 +194,8 @@ func TestCreateResource_ValidationErrors(t *testing.T) {
 
 func TestCreateResource_ServiceError(t *testing.T) {
 	mockService := &mockResourceService{
-		createResourceFunc: func(ctx context.Context, payload *dto.CreateResourcePayload) error {
-			return errors.New("database connection failed")
+		createResourceFunc: func(ctx context.Context, payload *dto.CreateResourcePayload) (*domain.Resource, error) {
+			return nil, errors.New("database connection failed")
 		},
 	}
 	handler := NewResourceHandler(mockService)

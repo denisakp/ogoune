@@ -80,6 +80,7 @@ type Resource struct {
 	Incidents            []Incident             `json:"incidents"`
 	Tags                 []*Tags                `json:"tags" gorm:"many2many:resource_tags;"`
 	NotificationChannels []*NotificationChannel `json:"notification_channels" gorm:"many2many:resource_notification_channels;"`
+	MetadataPending      bool                   `json:"metadata_pending" gorm:"-"`
 }
 
 func (Resource) TableName() string { return "resources" }

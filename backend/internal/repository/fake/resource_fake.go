@@ -100,6 +100,24 @@ func (r *ResourceFake) Update(ctx context.Context, resource *domain.Resource) er
 	return nil
 }
 
+func (r *ResourceFake) UpdateMetadata(ctx context.Context, id string, metadata *domain.ResourceMetaData) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	res, exists := r.resources[id]
+	if !exists {
+		return ErrNotFound
+	}
+	// Set metadata pointer to a copy to avoid external mutation
+	if metadata != nil {
+		mdCopy := *metadata
+		res.Metadata = &mdCopy
+	} else {
+		res.Metadata = nil
+	}
+	return nil
+}
+
 func (r *ResourceFake) Delete(ctx context.Context, id string) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
