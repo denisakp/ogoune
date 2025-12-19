@@ -12,7 +12,7 @@ import {
 
 import { useResources } from '@/composables/useResources'
 import { useDateTime } from '@/composables/useDateTime'
-import ResourceModal from '@/components/ResourceModal.vue'
+import ResourceModal from '@/components/resources/ResourceModal.vue'
 import UptimeSparkline from '@/components/UptimeSparkline.vue'
 import Last24HoursStatsCard from '@/components/Last24HoursStatsCard.vue'
 import type { Resource } from '@/types'

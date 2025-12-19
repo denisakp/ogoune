@@ -97,3 +97,16 @@ func (r *NotificationChannelRepository) FindDefaultChannels(ctx context.Context)
 	}
 	return channels, nil
 }
+
+// FindByResourceID retrieves all notification channels associated with a specific resource
+// via the many-to-many relationship table (resource_notification_channels)
+func (r *NotificationChannelRepository) FindByResourceID(ctx context.Context, resourceID string) ([]*domain.NotificationChannel, error) {
+	var channels []*domain.NotificationChannel
+	if err := r.db.WithContext(ctx).
+		Joins("JOIN resource_notification_channels ON resource_notification_channels.notification_channel_id = notification_channels.id").
+		Where("resource_notification_channels.resource_id = ?", resourceID).
+		Find(&channels).Error; err != nil {
+		return nil, err
+	}
+	return channels, nil
+}

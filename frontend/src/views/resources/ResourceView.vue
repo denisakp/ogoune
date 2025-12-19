@@ -21,7 +21,7 @@ import {
 
 import { useResources } from '@/composables/useResources.ts'
 import { useDateTime } from '@/composables/useDateTime.ts'
-import ResourceModal from '@/components/ResourceModal.vue'
+import ResourceModal from '@/components/resources/ResourceModal.vue'
 import ResponseTimeChart from '@/components/ResponseTimeChart.vue'
 import type { Resource, Incident, ExpirationStatus } from '@/types'
 

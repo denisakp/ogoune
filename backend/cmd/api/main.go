@@ -183,27 +183,13 @@ func main() {
 	}
 	executor := domain.NewCheckExecutor(strategies)
 
-	// Prepare webhook secret as pointer (nil if not provided)
-	var webhookSecret *string
-	if cfg.WebHookSignature != "" {
-		webhookSecret = &cfg.WebHookSignature
-	}
-
-	// Initialize incident service with SMTP and webhook notification support
+	// Initialize incident service with dynamic notification channel dispatch
 	incidentService := monitoring.NewIncidentService(
 		incidentRepo,
 		incidentEventStepRepo,
 		notificationRepo,
+		notificationChannelRepo,
 		asynqClient,
-		cfg.SMTPIsEnabled,
-		cfg.DefaultRecipientEmail,
-		cfg.SMTPSender,
-		cfg.SMTPHost,
-		cfg.SMTPPort,
-		cfg.SMTPUser,
-		cfg.SMTPPassword,
-		cfg.WebHookUrl,
-		webhookSecret,
 	)
 
 	// Initialize task handlers

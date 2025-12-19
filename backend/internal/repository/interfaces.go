@@ -100,6 +100,8 @@ type NotificationChannelRepository interface {
 	Delete(ctx context.Context, id string) error
 	FindByType(ctx context.Context, channelType domain.NotificationChannelType) ([]*domain.NotificationChannel, error)
 	FindDefaultChannels(ctx context.Context) ([]*domain.NotificationChannel, error)
+	// FindByResourceID returns all notification channels associated with a resource
+	FindByResourceID(ctx context.Context, resourceID string) ([]*domain.NotificationChannel, error)
 }
 
 // MaintenanceRepository manages maintenance windows

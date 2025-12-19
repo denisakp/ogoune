@@ -67,18 +67,19 @@ type ResourceMetaData struct {
 // A Resource is something that can be monitored, such as a website or server.
 type Resource struct {
 	Base
-	Name         string            `json:"name"`
-	Type         ResourceType      `json:"type"  gorm:"index"`
-	Interval     int               `json:"interval" gorm:"default:300"` // in seconds
-	Timeout      int               `json:"timeout" gorm:"default:10"`   // in seconds
-	Target       string            `json:"target"`
-	LastChecked  *time.Time        `json:"last_checked"`
-	Status       ResourceStatus    `json:"status" gorm:"default:pending"`
-	IsActive     bool              `json:"is_active" gorm:"default:true"`
-	FailureCount int               `json:"failure_count" gorm:"default:0"`
-	Metadata     *ResourceMetaData `json:"metadata" gorm:"embedded"`
-	Incidents    []Incident        `json:"incidents"`
-	Tags         []*Tags           `json:"tags" gorm:"many2many:resource_tags;"`
+	Name                 string                 `json:"name"`
+	Type                 ResourceType           `json:"type"  gorm:"index"`
+	Interval             int                    `json:"interval" gorm:"default:300"` // in seconds
+	Timeout              int                    `json:"timeout" gorm:"default:10"`   // in seconds
+	Target               string                 `json:"target"`
+	LastChecked          *time.Time             `json:"last_checked"`
+	Status               ResourceStatus         `json:"status" gorm:"default:pending"`
+	IsActive             bool                   `json:"is_active" gorm:"default:true"`
+	FailureCount         int                    `json:"failure_count" gorm:"default:0"`
+	Metadata             *ResourceMetaData      `json:"metadata" gorm:"embedded"`
+	Incidents            []Incident             `json:"incidents"`
+	Tags                 []*Tags                `json:"tags" gorm:"many2many:resource_tags;"`
+	NotificationChannels []*NotificationChannel `json:"notification_channels" gorm:"many2many:resource_notification_channels;"`
 }
 
 func (Resource) TableName() string { return "resources" }

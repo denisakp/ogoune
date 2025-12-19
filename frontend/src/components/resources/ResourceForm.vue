@@ -2,8 +2,8 @@
 import { ref, watch, onMounted, computed } from 'vue'
 
 import type { Resource, CreateResource } from '@/types'
-import { useResources } from '@/composables/useResources'
-import { useTags } from '@/composables/useTags'
+import { useResources } from '@/composables/useResources.ts'
+import { useTags } from '@/composables/useTags.ts'
 
 interface Props {
   resource?: Resource
