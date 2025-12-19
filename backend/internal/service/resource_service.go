@@ -159,6 +159,22 @@ func (s *ResourceService) GetResourceByIDWithResponseTimes(ctx context.Context, 
 		return nil, err
 	}
 
+	// Normalize tags to include only id, name, and color to keep payload focused
+	if len(resource.Tags) > 0 {
+		trimmed := make([]*domain.Tags, 0, len(resource.Tags))
+		for _, t := range resource.Tags {
+			if t == nil {
+				continue
+			}
+			trimmed = append(trimmed, &domain.Tags{
+				Base:  domain.Base{ID: t.ID},
+				Name:  t.Name,
+				Color: t.Color,
+			})
+		}
+		resource.Tags = trimmed
+	}
+
 	// Get recent response times
 	responsePoints, err := s.monitoringActivity.GetRecentResponseTimes(ctx, id, limit)
 	if err != nil {
@@ -246,14 +262,9 @@ func (s *ResourceService) UpdateResource(ctx context.Context, id string, payload
 		return nil, fmt.Errorf("%w: %v", ErrValidationFailed, err)
 	}
 
-	if metadata, err := s.enrichment.Enrich(ctx, resource); err == nil && metadata != nil {
-		resource.Metadata = &domain.ResourceMetaData{
-			SSLExpirationDate:    metadata.SSLExpirationDate,
-			SSLIssuer:            metadata.SSLIssuer,
-			DomainExpirationDate: metadata.DomainExpirationDate,
-			DomainRegistrar:      metadata.DomainRegistrar,
-		}
-	}
+	// Defer SSL/WHOIS enrichment to avoid blocking the update request
+	resource.MetadataPending = true
+	go s.asyncEnrichAndPersist(resource)
 
 	// Update resource in database
 	if err := s.resources.Update(ctx, resource); err != nil {

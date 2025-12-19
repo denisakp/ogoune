@@ -703,7 +703,16 @@ const goBack = () => {
                 <div style="font-size: 14px; font-weight: 600">Tags</div>
               </template>
               <div style="display: flex; flex-wrap: gap; gap: 8px">
-                <a-tag v-for="tag in resource.tags" :key="tag.id" color="blue" style="margin: 0">
+                <a-tag
+                  v-for="tag in resource.tags"
+                  :key="tag.id"
+                  :style="{
+                    margin: '0',
+                    backgroundColor: tag.color || '#f0f0f0',
+                    color: '#000',
+                    borderColor: 'transparent',
+                  }"
+                >
                   {{ tag.name }}
                 </a-tag>
                 <a-tag v-if="!resource.tags || resource.tags.length === 0" style="margin: 0">
