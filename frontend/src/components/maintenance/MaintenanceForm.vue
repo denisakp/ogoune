@@ -37,8 +37,6 @@ const formState = reactive({
   resource_ids: [] as string[],
 })
 
-const timezoneOptions = [{ label: 'UTC', value: 'UTC' }]
-
 const isCron = computed(() => formState.strategy === 'cron')
 const isOneTime = computed(() => formState.strategy === 'one_time')
 
@@ -176,6 +174,7 @@ function onStrategyChange(e: Event) {
             v-model:value="formState.start_at"
             show-time
             style="width: 100%"
+            format="YYYY-MM-DD HH:mm"
             placeholder="Select start date and time"
           />
         </a-form-item>
@@ -186,6 +185,7 @@ function onStrategyChange(e: Event) {
             v-model:value="formState.end_at"
             show-time
             style="width: 100%"
+            format="YYYY-MM-DD HH:mm"
             placeholder="Select end date and time"
           />
         </a-form-item>
