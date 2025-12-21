@@ -57,7 +57,7 @@ func TestStatusPage_90DayIntegration(t *testing.T) {
 		}
 
 		// Create service and get data
-		service := NewStatusPageService(resourceRepo, incidentRepo, activityRepo)
+		service := NewStatusPageService(resourceRepo, incidentRepo, activityRepo, nil)
 		data, err := service.GetData(ctx)
 
 		// Assertions
@@ -130,7 +130,7 @@ func TestStatusPage_90DayIntegration(t *testing.T) {
 		}
 
 		// Create service and get data
-		service := NewStatusPageService(resourceRepo, incidentRepo, activityRepo)
+		service := NewStatusPageService(resourceRepo, incidentRepo, activityRepo, nil)
 		data, err := service.GetData(ctx)
 
 		// Assertions
@@ -199,7 +199,7 @@ func TestStatusPage_90DayIntegration(t *testing.T) {
 			require.NoError(t, activityRepo.Create(ctx, activity))
 		}
 
-		service := NewStatusPageService(resourceRepo, incidentRepo, activityRepo)
+		service := NewStatusPageService(resourceRepo, incidentRepo, activityRepo, nil)
 		data, err := service.GetData(ctx)
 
 		require.NoError(t, err)
@@ -251,7 +251,7 @@ func TestStatusPage_90DayIntegration(t *testing.T) {
 			require.NoError(t, activityRepo.Create(ctx, activity))
 		}
 
-		service := NewStatusPageService(resourceRepo, incidentRepo, activityRepo)
+		service := NewStatusPageService(resourceRepo, incidentRepo, activityRepo, nil)
 		data, err := service.GetData(ctx)
 
 		require.NoError(t, err)
@@ -322,7 +322,7 @@ func TestStatusPage_90DayIntegration(t *testing.T) {
 			}
 		}
 
-		service := NewStatusPageService(resourceRepo, incidentRepo, activityRepo)
+		service := NewStatusPageService(resourceRepo, incidentRepo, activityRepo, nil)
 		data, err := service.GetData(ctx)
 
 		require.NoError(t, err)
@@ -342,7 +342,7 @@ func TestStatusPage_90DayIntegration(t *testing.T) {
 		incidentRepo := fake.NewIncidentFake()
 		activityRepo := fake.NewMonitoringActivityFake()
 
-		service := NewStatusPageService(resourceRepo, incidentRepo, activityRepo)
+		service := NewStatusPageService(resourceRepo, incidentRepo, activityRepo, nil)
 		data, err := service.GetData(context.Background())
 
 		require.NoError(t, err)
@@ -389,7 +389,7 @@ func TestStatusPage_90DayIntegration(t *testing.T) {
 			require.NoError(t, activityRepo.Create(ctx, activity))
 		}
 
-		service := NewStatusPageService(resourceRepo, incidentRepo, activityRepo)
+		service := NewStatusPageService(resourceRepo, incidentRepo, activityRepo, nil)
 		data, err := service.GetData(ctx)
 
 		require.NoError(t, err)
@@ -441,7 +441,7 @@ func TestStatusPage_90DayIntegration(t *testing.T) {
 			require.NoError(t, activityRepo.Create(ctx, activity))
 		}
 
-		service := NewStatusPageService(resourceRepo, incidentRepo, activityRepo)
+		service := NewStatusPageService(resourceRepo, incidentRepo, activityRepo, nil)
 		data, err := service.GetData(ctx)
 
 		require.NoError(t, err)
@@ -457,7 +457,7 @@ func TestStatusPage_90DayIntegration(t *testing.T) {
 }
 
 func TestStatusPageService_MapResourceStatus(t *testing.T) {
-	service := NewStatusPageService(nil, nil, nil)
+	service := NewStatusPageService(nil, nil, nil, nil)
 
 	tests := []struct {
 		name           string
@@ -482,7 +482,7 @@ func TestStatusPageService_MapResourceStatus(t *testing.T) {
 }
 
 func TestStatusPageService_CalculateDayStatus(t *testing.T) {
-	service := NewStatusPageService(nil, nil, nil)
+	service := NewStatusPageService(nil, nil, nil, nil)
 	now := time.Now()
 	dayStart := now.Truncate(24 * time.Hour)
 	dayEnd := dayStart.Add(24 * time.Hour)

@@ -15,6 +15,7 @@ type StatusPageService struct {
 	resourceRepo           repository.ResourceRepository
 	incidentRepo           repository.IncidentRepository
 	monitoringActivityRepo repository.MonitoringActivityRepository
+	maintenanceRepo        repository.MaintenanceRepository
 }
 
 // NewStatusPageService creates a new StatusPageService instance.
@@ -22,11 +23,13 @@ func NewStatusPageService(
 	resourceRepo repository.ResourceRepository,
 	incidentRepo repository.IncidentRepository,
 	monitoringActivityRepo repository.MonitoringActivityRepository,
+	maintenanceRepo repository.MaintenanceRepository,
 ) *StatusPageService {
 	return &StatusPageService{
 		resourceRepo:           resourceRepo,
 		incidentRepo:           incidentRepo,
 		monitoringActivityRepo: monitoringActivityRepo,
+		maintenanceRepo:        maintenanceRepo,
 	}
 }
 
@@ -311,7 +314,7 @@ func (s *StatusPageService) GetResourceDetailStatus(ctx context.Context, resourc
 		lastUpdated = *resource.LastChecked
 	}
 
-	return &dto.ResourceDetailStatusData{
+	detail := &dto.ResourceDetailStatusData{
 		ID:                    resource.ID,
 		Name:                  resource.Name,
 		CurrentStatus:         currentStatus,
@@ -320,7 +323,62 @@ func (s *StatusPageService) GetResourceDetailStatus(ctx context.Context, resourc
 		UptimeSummary:         uptimeSummary,
 		ResponseTimeSummary7D: responseTimeSummary,
 		RecentEvents:          recentEvents,
-	}, nil
+	}
+
+	// Attach maintenance banner information: active has priority, else upcoming scheduled
+	// Active or currently within window
+	// Maintenance repo may be nil in some test contexts
+	now := time.Now()
+	if s.maintenanceRepo != nil {
+		activeMaintenances, err := s.maintenanceRepo.FindActiveForResource(ctx, resourceID, now)
+		if err == nil && len(activeMaintenances) > 0 {
+			m := activeMaintenances[0]
+			detail.Maintenance = &dto.MaintenanceBanner{
+				Status:   "active",
+				Title:    m.Title,
+				StartAt:  m.StartAt,
+				EndAt:    m.EndAt,
+				Timezone: m.Timezone,
+			}
+			return detail, nil
+		}
+
+		// Upcoming scheduled: pick the nearest future StartAt
+		scheduled, err := s.maintenanceRepo.List(ctx, "scheduled", 100, 0)
+		if err == nil && len(scheduled) > 0 {
+			var candidate *domain.Maintenance
+			for _, m := range scheduled {
+				if m.StartAt == nil || m.StartAt.Before(now) {
+					continue
+				}
+				// ensure the maintenance applies to this resource
+				applies := false
+				for _, r := range m.Resources {
+					if r.ID == resourceID {
+						applies = true
+						break
+					}
+				}
+				if !applies {
+					continue
+				}
+				if candidate == nil || m.StartAt.Before(*candidate.StartAt) {
+					candidate = m
+				}
+			}
+			if candidate != nil {
+				detail.Maintenance = &dto.MaintenanceBanner{
+					Status:   "scheduled",
+					Title:    candidate.Title,
+					StartAt:  candidate.StartAt,
+					EndAt:    candidate.EndAt,
+					Timezone: candidate.Timezone,
+				}
+			}
+		}
+	}
+
+	return detail, nil
 }
 
 // calculateUptimeSummary calculates uptime percentages for different time windows

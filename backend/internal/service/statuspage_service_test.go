@@ -49,7 +49,7 @@ func TestStatusPageService_GetData(t *testing.T) {
 		}
 
 		// Create service
-		service := NewStatusPageService(resourceRepo, incidentRepo, activityRepo)
+		service := NewStatusPageService(resourceRepo, incidentRepo, activityRepo, nil)
 
 		// Execute
 		data, err := service.GetData(ctx)
@@ -104,7 +104,7 @@ func TestStatusPageService_GetData(t *testing.T) {
 			require.NoError(t, activityRepo.Create(ctx, activity))
 		}
 
-		service := NewStatusPageService(resourceRepo, incidentRepo, activityRepo)
+		service := NewStatusPageService(resourceRepo, incidentRepo, activityRepo, nil)
 
 		data, err := service.GetData(ctx)
 
@@ -119,7 +119,7 @@ func TestStatusPageService_GetData(t *testing.T) {
 		incidentRepo := fake.NewIncidentFake()
 		activityRepo := fake.NewMonitoringActivityFake()
 
-		service := NewStatusPageService(resourceRepo, incidentRepo, activityRepo)
+		service := NewStatusPageService(resourceRepo, incidentRepo, activityRepo, nil)
 
 		data, err := service.GetData(context.Background())
 
@@ -169,7 +169,7 @@ func TestStatusPageService_buildResourceStatusInfo(t *testing.T) {
 			require.NoError(t, activityRepo.Create(ctx, activity))
 		}
 
-		service := NewStatusPageService(resourceRepo, incidentRepo, activityRepo)
+		service := NewStatusPageService(resourceRepo, incidentRepo, activityRepo, nil)
 
 		info, err := service.buildResourceStatusInfo(ctx, resource)
 
@@ -190,7 +190,7 @@ func TestStatusPageService_buildResourceStatusInfo(t *testing.T) {
 			Status: domain.StatusUp,
 		}
 
-		service := NewStatusPageService(resourceRepo, incidentRepo, activityRepo)
+		service := NewStatusPageService(resourceRepo, incidentRepo, activityRepo, nil)
 
 		info, err := service.buildResourceStatusInfo(context.Background(), resource)
 
@@ -201,7 +201,7 @@ func TestStatusPageService_buildResourceStatusInfo(t *testing.T) {
 }
 
 func TestStatusPageService_mapResourceStatus(t *testing.T) {
-	service := NewStatusPageService(nil, nil, nil)
+	service := NewStatusPageService(nil, nil, nil, nil)
 
 	tests := []struct {
 		name           string
@@ -254,7 +254,7 @@ func TestStatusPageService_mapResourceStatus(t *testing.T) {
 }
 
 func TestStatusPageService_calculateDayStatus(t *testing.T) {
-	service := NewStatusPageService(nil, nil, nil)
+	service := NewStatusPageService(nil, nil, nil, nil)
 	now := time.Now()
 	dayStart := now.Truncate(24 * time.Hour)
 	dayEnd := dayStart.Add(24 * time.Hour)

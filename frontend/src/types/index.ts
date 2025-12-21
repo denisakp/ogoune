@@ -269,6 +269,7 @@ export interface PublicMonitorDetail {
   uptime_summary: MonitorUptimeSummary
   response_time_summary_7_days: MonitorResponseTimeSummary
   recent_events: MonitorRecentEvent[]
+  maintenance?: MaintenanceBanner
 }
 
 /**
@@ -380,3 +381,12 @@ export interface CreateMaintenance {
 }
 
 export type UpdateMaintenance = Partial<CreateMaintenance>
+
+// Public maintenance banner attached to monitor detail
+export interface MaintenanceBanner {
+  status: MaintenanceStatus // expected: 'active' | 'scheduled'
+  title: string
+  start_at?: string | null
+  end_at?: string | null
+  timezone?: string | null
+}
