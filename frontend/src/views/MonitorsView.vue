@@ -109,14 +109,21 @@ const getStatusColor = (status: string) => {
 
 // Table columns
 const columns = [
-  { title: 'Status', dataIndex: 'status', key: 'status', width: 5 },
-  { title: 'Name', dataIndex: 'name', key: 'name', width: 80 },
-  { title: 'Type', dataIndex: 'type', key: 'type', width: 25 },
-  { title: 'Target', dataIndex: 'target', key: 'target', width: 150 },
-  { title: 'Uptime (24h)', dataIndex: 'uptime', key: 'uptime', width: 120 },
-  { title: 'Last Checked', dataIndex: 'last_checked', key: 'last_checked', width: 100 },
-  { title: 'Actions', key: 'actions', width: 80 },
+  { title: 'Status', dataIndex: 'status', key: 'status', width: 90 },
+  { title: 'Name', dataIndex: 'name', key: 'name' },
+  { title: 'Target', dataIndex: 'target', key: 'target', ellipsis: true },
+  { title: 'Uptime (24h)', dataIndex: 'uptime', key: 'uptime', width: 140 },
+  { title: 'Last Checked', dataIndex: 'last_checked', key: 'last_checked', width: 140 },
+  { title: 'Actions', key: 'actions', width: 90, fixed: 'right' },
 ]
+
+const getTypeColor = (type: string) => {
+  const colors: Record<string, string> = {
+    http: 'blue',
+    tcp: 'cyan',
+  }
+  return colors[type.toLowerCase()] || 'default'
+}
 
 // Handle pagination change
 const handleTableChange = (pag: { current: number; pageSize: number }) => {
@@ -213,7 +220,7 @@ const handleRowClick = (record: Resource) => {
     <!-- Main Content Row -->
     <a-row :gutter="24" style="margin-bottom: 24px">
       <!-- Left: Monitor List -->
-      <a-col :xs="24" :lg="16">
+      <a-col :xs="24" :xl="18">
         <!-- Filters & Search Header -->
         <div style="margin-bottom: 16px; display: flex; gap: 8px; flex-wrap: wrap">
           <!-- Search Input -->
@@ -229,7 +236,7 @@ const handleRowClick = (record: Resource) => {
             v-model:value="filterStatus"
             mode="multiple"
             placeholder="Filter by status"
-            style="flex: 1; min-width: 150px"
+            style="flex: 1; min-width: 90px"
             allow-clear
           >
             <a-select-option value="up">Up</a-select-option>
@@ -260,7 +267,6 @@ const handleRowClick = (record: Resource) => {
             showTotal: (total: number) => `Total ${total} monitors`,
           }"
           row-key="id"
-          :scroll="{ x: 1000 }"
           @change="handleTableChange"
           :row-class-name="() => 'cursor-pointer'"
           :customRow="
@@ -288,6 +294,16 @@ const handleRowClick = (record: Resource) => {
                 ></div>
                 <a-tag :color="getStatusColor(record.status)">
                   {{ record.status.toUpperCase() }}
+                </a-tag>
+              </div>
+            </template>
+
+            <!-- Name Column -->
+            <template v-else-if="column.key === 'name'">
+              <div style="display: flex; align-items: center; gap: 8px">
+                <span>{{ record.name }}</span>
+                <a-tag :color="getTypeColor(record.type)" style="margin: 0">
+                  {{ record.type.toUpperCase() }}
                 </a-tag>
               </div>
             </template>
@@ -352,7 +368,7 @@ const handleRowClick = (record: Resource) => {
       </a-col>
 
       <!-- Right: Stats Panel -->
-      <a-col :xs="24" :lg="8">
+      <a-col :xs="24" :xl="6">
         <!-- Current Status Card -->
         <a-card style="margin-bottom: 16px">
           <template #title>
