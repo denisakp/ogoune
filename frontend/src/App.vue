@@ -45,6 +45,19 @@ const handleLogout = () => {
   authStore.logout()
   router.push('/login')
 }
+
+const handleMenuClick = (key: string) => {
+  const item = navigation[parseInt(key) - 1]
+  if (item) {
+    if (item.path === '/status') {
+      // Open status page in new tab
+      window.open(item.path, '_blank')
+    } else {
+      // Navigate normally
+      router.push(item.path)
+    }
+  }
+}
 </script>
 
 <template>
@@ -70,11 +83,8 @@ const handleLogout = () => {
         theme="dark"
         @click="
           (e: any) => {
-            const item = navigation[parseInt(e.key) - 1]
-            if (item) {
-              $router.push(item.path)
-              isSidebarOpen = false
-            }
+            handleMenuClick(e.key)
+            isSidebarOpen = false
           }
         "
       />
@@ -117,10 +127,7 @@ const handleLogout = () => {
         style="border: none; background: transparent"
         @click="
           (e: any) => {
-            const item = navigation[parseInt(e.key) - 1]
-            if (item) {
-              $router.push(item.path)
-            }
+            handleMenuClick(e.key)
           }
         "
       />
