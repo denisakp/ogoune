@@ -116,3 +116,9 @@ type MaintenanceRepository interface {
 	// Returns maintenances currently active for a resource at the provided time
 	FindActiveForResource(ctx context.Context, resourceID string, now time.Time) ([]*domain.Maintenance, error)
 }
+
+// StatusPageSettingsRepository manages status page configuration
+type StatusPageSettingsRepository interface {
+	Get(ctx context.Context) (*domain.StatusPageSettings, error)
+	Upsert(ctx context.Context, settings *domain.StatusPageSettings) error
+}

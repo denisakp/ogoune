@@ -184,6 +184,17 @@ export interface ExpirationStatus {
  */
 
 /**
+ * Status page settings
+ */
+export interface StatusPageSettings {
+  name: string
+  homepage_url?: string
+  google_analytics_id?: string
+  enable_details_page: boolean
+  show_uptime_percentage: boolean
+}
+
+/**
  * Daily status for a single day in the 90-day window
  */
 export type DailyStatus = 'up' | 'degraded' | 'down' | 'no_data'
@@ -216,6 +227,7 @@ export interface StatusPageData {
   global_status: GlobalStatus
   generated_at: string
   resources: ResourceStatusInfo[]
+  settings?: StatusPageSettings
 }
 
 /**
@@ -389,4 +401,30 @@ export interface MaintenanceBanner {
   start_at?: string | null
   end_at?: string | null
   timezone?: string | null
+}
+
+// Status Page Settings Management
+export interface StatusPageSettingsRequest {
+  name: string
+  homepage_url: string
+  custom_domain: string
+  google_analytics_id: string
+  enable_details_page: boolean
+  show_uptime_percentage: boolean
+  hide_paused_monitors: boolean
+  show_incident_history: boolean
+}
+
+export interface StatusPageSettingsResponse {
+  id: string
+  name: string
+  homepage_url: string
+  custom_domain: string
+  google_analytics_id: string
+  enable_details_page: boolean
+  show_uptime_percentage: boolean
+  hide_paused_monitors: boolean
+  show_incident_history: boolean
+  created_at: string
+  updated_at: string
 }

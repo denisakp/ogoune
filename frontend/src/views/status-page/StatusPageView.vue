@@ -1,11 +1,13 @@
 <script setup lang="ts">
-import { onMounted } from 'vue'
+import { onMounted, computed, watch } from 'vue'
 import { useRouter } from 'vue-router'
+import { useGtag } from 'vue-gtag-next'
 import StatusPage from '@/components/status-page/StatusPage.vue'
 import { useStatusPage } from '@/composables/useStatusPage.ts'
 
 const router = useRouter()
 const { statusPageData, loading, loadStatusPageData } = useStatusPage()
+const gtag = useGtag()
 
 // Load status page data on mount
 onMounted(async () => {
@@ -16,15 +18,36 @@ onMounted(async () => {
   }
 })
 
+// Watch for settings and initialize Google Analytics if configured
+watch(
+  () => statusPageData.value?.settings?.google_analytics_id,
+  (gaId) => {
+    if (gaId && gtag?.event) {
+      // Track pageview
+      gtag.event('page_view', {
+        page_path: window.location.pathname,
+      })
+    }
+  },
+  { immediate: true },
+)
+
 const handleServiceClick = (serviceId: string) => {
-  router.push(`/status/${serviceId}`)
+  // Check if details page is enabled
+  const enableDetailsPage = statusPageData.value?.settings?.enable_details_page ?? true
+  if (enableDetailsPage) {
+    router.push(`/status/${serviceId}`)
+  }
 }
 
-// Page configuration (can be made dynamic later if needed)
-const pageConfig = {
+// Page configuration from settings
+const pageConfig = computed(() => ({
   showLogo: true,
-  companyName: 'PulseGuard',
-}
+  companyName: statusPageData.value?.settings?.name || 'Status Page',
+  homepageUrl: statusPageData.value?.settings?.homepage_url,
+  showUptimePercentage: statusPageData.value?.settings?.show_uptime_percentage ?? true,
+  enableDetailsPage: statusPageData.value?.settings?.enable_details_page ?? true,
+}))
 </script>
 
 <template>
@@ -32,8 +55,19 @@ const pageConfig = {
     <!-- Header -->
     <div class="status-header">
       <div class="container">
-        <div v-if="pageConfig.showLogo" class="logo">
-          {{ pageConfig.companyName }}
+        <div class="header-content">
+          <div v-if="pageConfig.showLogo" class="logo">
+            {{ pageConfig.companyName }}
+          </div>
+          <a
+            v-if="pageConfig.homepageUrl"
+            :href="pageConfig.homepageUrl"
+            target="_blank"
+            rel="noopener"
+            class="homepage-link"
+          >
+            ← Back to Homepage
+          </a>
         </div>
       </div>
     </div>
@@ -46,6 +80,8 @@ const pageConfig = {
           :global-status="statusPageData.global_status"
           :resources="statusPageData.resources"
           :loading="loading"
+          :show-uptime-percentage="pageConfig.showUptimePercentage"
+          :enable-details-page="pageConfig.enableDetailsPage"
           @service-click="handleServiceClick"
         />
         <div v-else-if="loading" class="loading-container">
@@ -63,7 +99,7 @@ const pageConfig = {
         <div class="footer-content">
           <p>
             Powered by
-            <a href="https://github.com/denisakp/go-pulse" target="_blank" rel="noopener">
+            <a href="https://github.com/denisakp/pulseguard" target="_blank" rel="noopener">
               PulseGuard
             </a>
           </p>
@@ -98,11 +134,34 @@ const pageConfig = {
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
 }
 
+.header-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
 .logo {
   font-size: 24px;
   font-weight: 700;
   color: #1890ff;
   letter-spacing: -0.5px;
+}
+
+.homepage-link {
+  color: #1890ff;
+  text-decoration: none;
+  font-weight: 500;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  transition: color 0.2s ease;
+}
+
+.homepage-link:hover {
+  color: #40a9ff;
+  text-decoration: underline;
 }
 
 .status-content {

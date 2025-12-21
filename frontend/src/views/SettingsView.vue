@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { message } from 'ant-design-vue'
 import { EyeOutlined, SaveOutlined } from '@ant-design/icons-vue'
 
@@ -8,18 +8,25 @@ import StatusPageSettings from '@/components/settings/StatusPageSettings.vue'
 import NotificationSettings from '@/components/settings/NotificationSettings.vue'
 
 const activeKey = ref('1')
-const saving = ref(false)
+// Exposed API from StatusPageSettings: handleSave, saving, formData (ref)
+const settingsRef = ref<{
+  handleSave: () => Promise<void>
+  saving: boolean
+  formData: { value: { customDomain: string } }
+} | null>(null)
+
+// Compute the public status page URL from custom domain if set
+const publicStatusUrl = computed(() => {
+  const domain = settingsRef.value?.formData?.value?.customDomain?.trim()
+  if (!domain) return 'https://status.domain.tld'
+  return domain.startsWith('http://') || domain.startsWith('https://')
+    ? domain
+    : `https://${domain}`
+})
 
 const handleSaveStatusPage = async () => {
-  saving.value = true
-  try {
-    // Simulate API call - replace with actual API call
-    await new Promise((resolve) => setTimeout(resolve, 1000))
-    message.success('Status page settings saved successfully!')
-  } catch {
-    message.error('Failed to save settings')
-  } finally {
-    saving.value = false
+  if (settingsRef.value) {
+    await settingsRef.value.handleSave()
   }
 }
 
@@ -55,7 +62,12 @@ const handlePreviewStatusPage = () => {
               </template>
               Preview
             </a-button>
-            <a-button type="primary" size="large" :loading="saving" @click="handleSaveStatusPage">
+            <a-button
+              type="primary"
+              size="large"
+              :loading="settingsRef?.saving"
+              @click="handleSaveStatusPage"
+            >
               <template #icon>
                 <SaveOutlined />
               </template>
@@ -65,26 +77,22 @@ const handlePreviewStatusPage = () => {
         </div>
 
         <!-- Status Page Settings Component -->
-        <StatusPageSettings />
+        <StatusPageSettings ref="settingsRef" />
 
         <!-- Info Alert -->
         <div class="info-section">
           <a-alert type="info" show-icon>
             <template #message>
-              <strong>How to access your status page</strong>
+              <strong>How the status page works</strong>
             </template>
             <template #description>
               <div class="info-content">
                 <p>
-                  Your public status page will be accessible at:
-                  <strong>/status</strong>
-                </p>
-                <p>
-                  For production deployments, you can configure a custom domain (Pro feature) like
-                  <strong>status.yourdomain.com</strong> in the White-label section above.
+                  Your status page is accessible for end users at:
+                  <strong>{{ publicStatusUrl }}</strong>
                 </p>
                 <p class="info-note">
-                  💡 The status page is completely independent from your admin dashboard and can be
+                  💡 The status page is completely independent from the admin dashboard and can be
                   accessed by anyone without authentication.
                 </p>
               </div>

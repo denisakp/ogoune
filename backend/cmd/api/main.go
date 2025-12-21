@@ -93,6 +93,7 @@ func main() {
 	notificationChannelRepo := postgres.NewNotificationChannelRepository(db)
 	monitoringActivityRepo := postgres.NewMonitoringActivityRepository(db)
 	tagsRepo := postgres.NewTagsRepository(db)
+	statusPageSettingsRepo := postgres.NewStatusPageSettingsRepository(db)
 
 	// Initialize Redis connection for Asynq
 	redisOpt := asynq.RedisClientOpt{
@@ -221,7 +222,8 @@ func main() {
 	resourceService := service.NewResourceService(resourceRepo, incidentRepo, tagsRepo, schedulerService, monitoringActivityRepo, enrichmentService)
 	activityService := service.NewMonitoringActivityService(monitoringActivityRepo)
 	tagService := service.NewTagService(tagsRepo)
-	statusPageService := service.NewStatusPageService(resourceRepo, incidentRepo, monitoringActivityRepo, maintenanceRepo)
+	statusPageSettingsService := service.NewStatusPageSettingsService(statusPageSettingsRepo)
+	statusPageService := service.NewStatusPageService(resourceRepo, incidentRepo, monitoringActivityRepo, maintenanceRepo, statusPageSettingsRepo)
 	incidentAPIService := service.NewIncidentService(incidentRepo, incidentEventStepRepo)
 	notificationService := service.NewNotificationService(
 		resourceRepo,
@@ -243,6 +245,7 @@ func main() {
 	activityHandler := handler.NewMonitoringActivityHandler(activityService)
 	tagHandler := handler.NewTagHandler(tagService)
 	statusPageHandler := handler.NewStatusPageHandler(statusPageService)
+	statusPageSettingsHandler := handler.NewStatusPageSettingsHandler(statusPageSettingsService)
 	incidentHandler := handler.NewIncidentHandler(incidentAPIService)
 	notificationHandler := handler.NewNotificationHandler(notificationService)
 	maintenanceHandler := handler.NewMaintenanceHandler(maintenanceAPIService)
@@ -250,7 +253,7 @@ func main() {
 	authHandler := handler.NewAuthHandler(authService)
 
 	// Create router with injected handlers
-	apiHandler := api.NewRouter(resourceHandler, activityHandler, tagHandler, statusPageHandler, incidentHandler, notificationHandler, maintenanceHandler, statsHandler, authHandler, authService)
+	apiHandler := api.NewRouter(resourceHandler, activityHandler, tagHandler, statusPageHandler, statusPageSettingsHandler, incidentHandler, notificationHandler, maintenanceHandler, statsHandler, authHandler, authService)
 
 	// Root router: mount JSON API under /api
 	rootRouter := chi.NewRouter()

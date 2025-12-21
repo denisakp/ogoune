@@ -33,6 +33,7 @@ var (
 		&domain.Maintenance{},
 		&domain.Tags{},
 		&domain.MonitoringActivity{},
+		&domain.StatusPageSettings{},
 	}
 )
 

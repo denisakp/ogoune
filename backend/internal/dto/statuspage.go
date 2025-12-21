@@ -7,6 +7,16 @@ type StatusPageData struct {
 	GlobalStatus string               `json:"global_status"`
 	GeneratedAt  time.Time            `json:"generated_at"`
 	Resources    []ResourceStatusInfo `json:"resources"`
+	Settings     *StatusPageSettings  `json:"settings,omitempty"`
+}
+
+// StatusPageSettings contains configurable settings for the status page
+type StatusPageSettings struct {
+	Name                 string `json:"name"`
+	HomepageURL          string `json:"homepage_url,omitempty"`
+	GoogleAnalyticsID    string `json:"google_analytics_id,omitempty"`
+	EnableDetailsPage    bool   `json:"enable_details_page"`
+	ShowUptimePercentage bool   `json:"show_uptime_percentage"`
 }
 
 // ResourceStatusInfo represents a monitored resource's current status and uptime metrics.

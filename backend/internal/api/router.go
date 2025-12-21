@@ -17,6 +17,7 @@ func NewRouter(
 	activityHandler *handler.MonitoringActivityHandler,
 	tagHandler *handler.TagHandler,
 	statusPageHandler *handler.StatusPageHandler,
+	statusPageSettingsHandler *handler.StatusPageSettingsHandler,
 	incidentHandler *handler.IncidentHandler,
 	notificationHandler *handler.NotificationHandler,
 	maintenanceHandler *handler.MaintenanceHandler,
@@ -126,6 +127,9 @@ func NewRouter(
 		r.Route("/stats", func(r chi.Router) {
 			r.Get("/summary", statsHandler.GetSummary) // GET /stats/summary?range=24h - get aggregated statistics for all monitors
 		})
+
+		// Status Page Settings API
+		statusPageSettingsHandler.RegisterRoutes(r)
 	})
 
 	return r

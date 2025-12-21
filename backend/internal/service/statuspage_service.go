@@ -16,6 +16,7 @@ type StatusPageService struct {
 	incidentRepo           repository.IncidentRepository
 	monitoringActivityRepo repository.MonitoringActivityRepository
 	maintenanceRepo        repository.MaintenanceRepository
+	settingsRepo           repository.StatusPageSettingsRepository
 }
 
 // NewStatusPageService creates a new StatusPageService instance.
@@ -24,21 +25,45 @@ func NewStatusPageService(
 	incidentRepo repository.IncidentRepository,
 	monitoringActivityRepo repository.MonitoringActivityRepository,
 	maintenanceRepo repository.MaintenanceRepository,
+	settingsRepo repository.StatusPageSettingsRepository,
 ) *StatusPageService {
 	return &StatusPageService{
 		resourceRepo:           resourceRepo,
 		incidentRepo:           incidentRepo,
 		monitoringActivityRepo: monitoringActivityRepo,
 		maintenanceRepo:        maintenanceRepo,
+		settingsRepo:           settingsRepo,
 	}
 }
 
 // GetData fetches and aggregates all data needed for the status page.
 func (s *StatusPageService) GetData(ctx context.Context) (*dto.StatusPageData, error) {
+	// Get settings to check if paused monitors should be hidden
+	var settings *domain.StatusPageSettings
+	if s.settingsRepo != nil {
+		var err error
+		settings, err = s.settingsRepo.Get(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("failed to fetch settings: %w", err)
+		}
+	}
+
 	// Fetch all active resources
 	resources, err := s.resourceRepo.FindActive(ctx, 1000, 0)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch resources: %w", err)
+	}
+
+	// Filter paused resources if setting is enabled (default: hide paused)
+	hidePaused := settings == nil || settings.HidePausedMonitors
+	if hidePaused {
+		filteredResources := make([]*domain.Resource, 0, len(resources))
+		for _, r := range resources {
+			if r.Status != domain.StatusPaused {
+				filteredResources = append(filteredResources, r)
+			}
+		}
+		resources = filteredResources
 	}
 
 	// Build resource status info with 90-day data
@@ -65,10 +90,23 @@ func (s *StatusPageService) GetData(ctx context.Context) (*dto.StatusPageData, e
 		globalStatus = "some_systems_down"
 	}
 
+	// Build settings DTO (only include public-facing fields)
+	var settingsDTO *dto.StatusPageSettings
+	if settings != nil {
+		settingsDTO = &dto.StatusPageSettings{
+			Name:                 settings.Name,
+			HomepageURL:          settings.HomepageURL,
+			GoogleAnalyticsID:    settings.GoogleAnalyticsID,
+			EnableDetailsPage:    settings.EnableDetailsPage,
+			ShowUptimePercentage: settings.ShowUptimePercentage,
+		}
+	}
+
 	return &dto.StatusPageData{
 		GlobalStatus: globalStatus,
 		GeneratedAt:  time.Now(),
 		Resources:    resourceInfos,
+		Settings:     settingsDTO,
 	}, nil
 }
 
