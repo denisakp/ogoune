@@ -23,6 +23,7 @@ func NewRouter(
 	maintenanceHandler *handler.MaintenanceHandler,
 	statsHandler *handler.StatsHandler,
 	authHandler *handler.AuthHandler,
+	accountHandler *handler.AccountHandler,
 	authService *service.AuthService,
 ) http.Handler {
 	r := chi.NewRouter()
@@ -50,8 +51,10 @@ func NewRouter(
 
 	// Authentication endpoints
 	r.Route("/auth", func(r chi.Router) {
-		r.Post("/login", authHandler.Login)  // POST /auth/login - authenticate user
-		r.Get("/verify", authHandler.Verify) // GET /auth/verify - verify JWT token
+		r.Post("/login", authHandler.Login)                            // POST /auth/login - authenticate user
+		r.Post("/initialize-password", authHandler.InitializePassword) // POST /auth/initialize-password
+		r.Post("/verify-2fa", authHandler.Verify2FA)                   // POST /auth/verify-2fa
+		r.Get("/verify", authHandler.Verify)                           // GET /auth/verify - verify JWT token
 	})
 
 	// Public status page (returns JSON status data)
@@ -65,6 +68,17 @@ func NewRouter(
 	r.Group(func(r chi.Router) {
 		// Apply auth middleware to all routes in this group
 		r.Use(middleware.AuthMiddleware(authService))
+
+		// Account Management API
+		r.Route("/account", func(r chi.Router) {
+			r.Get("/profile", accountHandler.GetProfile)              // GET /account/profile
+			r.Patch("/profile", accountHandler.UpdateProfile)         // PATCH /account/profile
+			r.Post("/change-password", accountHandler.ChangePassword) // POST /account/change-password
+			r.Post("/reset-password", accountHandler.ResetPassword)   // POST /account/reset-password
+			r.Post("/2fa/enable", accountHandler.Enable2FA)           // POST /account/2fa/enable
+			r.Post("/2fa/confirm", accountHandler.Confirm2FA)         // POST /account/2fa/confirm
+			r.Post("/2fa/disable", accountHandler.Disable2FA)         // POST /account/2fa/disable
+		})
 
 		// Resources (Monitors) API
 		r.Route("/resources", func(r chi.Router) {

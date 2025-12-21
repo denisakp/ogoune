@@ -32,6 +32,12 @@ const handleLogin = async () => {
   if (success) {
     // Redirect to monitors page after successful login
     router.push('/monitors')
+  } else if (authStore.requiresPasswordInit) {
+    // Redirect to password initialization
+    router.push('/auth/initialize-password')
+  } else if (authStore.requires2FA) {
+    // Redirect to 2FA verification
+    router.push('/auth/verify-2fa')
   }
 }
 </script>
@@ -140,7 +146,7 @@ const handleLogin = async () => {
 }
 
 .hint {
-  font-size: 12px;
+  font-size: 20px;
   color: #718096;
   margin: 0;
 }
@@ -150,7 +156,7 @@ const handleLogin = async () => {
   padding: 2px 6px;
   border-radius: 4px;
   font-family: 'Courier New', monospace;
-  color: #667eea;
+  color: #000000;
 }
 
 /* Responsive */

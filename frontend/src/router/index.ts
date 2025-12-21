@@ -4,11 +4,13 @@ import { useAuthStore } from '@/stores/authStore'
 const MonitorsView = () => import('@/views/MonitorsView.vue')
 const ResourceView = () => import('@/views/resources/ResourceView.vue')
 const SettingsView = () => import('@/views/SettingsView.vue')
+const Verify2FAView = () => import('@/views/auth/Verify2FAView.vue')
 const IncidentsView = () => import('@/views/incidents/IncidentsView.vue')
 const IncidentView = () => import('@/views/incidents/IncidentView.vue')
 const StatusPageView = () => import('@/views/status-page/StatusPageView.vue')
 const StatusPageDetailView = () => import('@/views/status-page/StatusPageDetailView.vue')
 const LoginView = () => import('@/views/auth/LoginView.vue')
+const InitializePasswordView = () => import('@/views/auth/InitializePasswordView.vue')
 const MaintenanceView = () => import('@/views/maintenance/MaintenanceView.vue')
 
 const routes: RouteRecordRaw[] = [
@@ -20,6 +22,18 @@ const routes: RouteRecordRaw[] = [
     path: '/login',
     name: 'Login',
     component: LoginView,
+    meta: { public: true, requiresLayout: false },
+  },
+  {
+    path: '/auth/initialize-password',
+    name: 'InitializePassword',
+    component: InitializePasswordView,
+    meta: { public: true, requiresLayout: false },
+  },
+  {
+    path: '/auth/verify-2fa',
+    name: 'Verify2FA',
+    component: Verify2FAView,
     meta: { public: true, requiresLayout: false },
   },
   {

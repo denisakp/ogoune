@@ -34,6 +34,7 @@ var (
 		&domain.Tags{},
 		&domain.MonitoringActivity{},
 		&domain.StatusPageSettings{},
+		&domain.User{},
 	}
 )
 

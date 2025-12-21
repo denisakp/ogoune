@@ -94,6 +94,7 @@ func main() {
 	monitoringActivityRepo := postgres.NewMonitoringActivityRepository(db)
 	tagsRepo := postgres.NewTagsRepository(db)
 	statusPageSettingsRepo := postgres.NewStatusPageSettingsRepository(db)
+	userRepo := postgres.NewUserRepository(db)
 
 	// Initialize Redis connection for Asynq
 	redisOpt := asynq.RedisClientOpt{
@@ -238,7 +239,19 @@ func main() {
 	)
 	maintenanceAPIService := service.NewMaintenanceService(maintenanceRepo, maintenanceScheduler)
 	statsService := service.NewStatsService(monitoringActivityRepo, incidentRepo)
-	authService := service.NewAuthService(cfg.AuthEmail, cfg.AuthPassword, cfg.JWTSecret)
+
+	// New auth service with database support
+	jwtManager := service.NewJWTManager(cfg.JWTSecret, "pulseguard", 24*time.Hour)
+	authService := service.NewAuthService(userRepo, jwtManager)
+
+	// Create default admin user on first startup
+	if cfg.AuthEmail == "" {
+		cfg.AuthEmail = "admin@pulseguard.test"
+	}
+	if cfg.AuthPassword == "" {
+		cfg.AuthPassword = "puls3gu@rd"
+	}
+	_, _ = authService.CreateDefaultUser(context.Background(), cfg.AuthEmail, cfg.AuthPassword)
 
 	// Initialize JSON API handlers (no template dependencies)
 	resourceHandler := handler.NewResourceHandler(resourceService)
@@ -250,10 +263,11 @@ func main() {
 	notificationHandler := handler.NewNotificationHandler(notificationService)
 	maintenanceHandler := handler.NewMaintenanceHandler(maintenanceAPIService)
 	statsHandler := handler.NewStatsHandler(statsService)
-	authHandler := handler.NewAuthHandler(authService)
+	authHandler := handler.NewAuthHandler(authService, jwtManager)
+	accountHandler := handler.NewAccountHandler(authService)
 
 	// Create router with injected handlers
-	apiHandler := api.NewRouter(resourceHandler, activityHandler, tagHandler, statusPageHandler, statusPageSettingsHandler, incidentHandler, notificationHandler, maintenanceHandler, statsHandler, authHandler, authService)
+	apiHandler := api.NewRouter(resourceHandler, activityHandler, tagHandler, statusPageHandler, statusPageSettingsHandler, incidentHandler, notificationHandler, maintenanceHandler, statsHandler, authHandler, accountHandler, authService)
 
 	// Root router: mount JSON API under /api
 	rootRouter := chi.NewRouter()

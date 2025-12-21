@@ -122,3 +122,15 @@ type StatusPageSettingsRepository interface {
 	Get(ctx context.Context) (*domain.StatusPageSettings, error)
 	Upsert(ctx context.Context, settings *domain.StatusPageSettings) error
 }
+
+// UserRepository manages user accounts and authentication
+type UserRepository interface {
+	Create(ctx context.Context, user *domain.User) (*domain.User, error)
+	FindByID(ctx context.Context, id string) (*domain.User, error)
+	FindByEmail(ctx context.Context, email string) (*domain.User, error)
+	Update(ctx context.Context, user *domain.User) error
+	Delete(ctx context.Context, id string) error
+	UpdatePassword(ctx context.Context, userID string, hashedPassword string) error
+	UpdateLastLogin(ctx context.Context, userID string) error
+	UpdateTwoFactorSecret(ctx context.Context, userID string, secret string, enabled bool) error
+}

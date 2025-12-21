@@ -9,10 +9,22 @@ export interface LoginRequest {
 export interface LoginResponse {
   token: string
   email: string
+  force_password_change?: boolean
+  requires_2fa?: boolean
+  password_initialized?: boolean
+}
+
+export interface Verify2FARequest {
+  email: string
+  otp: string
 }
 
 export interface VerifyResponse {
   email: string
+  user_id: string
+  name: string
+  force_password_change: boolean
+  two_factor_enabled: boolean
 }
 
 const authService = {
@@ -44,6 +56,37 @@ const authService = {
     }
 
     const response = await axiosClient.get<VerifyResponse>('/auth/verify', config)
+    return response.data
+  },
+
+  /**
+   * Verify 2FA OTP and issue token
+   */
+  async verify2FA(payload: Verify2FARequest): Promise<LoginResponse> {
+    const config: CustomAxiosConfig = {
+      skipSuccessToast: true,
+      skipErrorToast: false,
+    }
+
+    const response = await axiosClient.post<LoginResponse>('/auth/verify-2fa', payload, config)
+    return response.data
+  },
+
+  /**
+   * Initialize password for first-time users
+   */
+  async initializePassword(email: string, newPassword: string): Promise<LoginResponse> {
+    const config: CustomAxiosConfig = {
+      skipSuccessToast: true,
+      skipErrorToast: false,
+    }
+
+    const response = await axiosClient.post<LoginResponse>(
+      '/auth/initialize-password',
+      { email, new_password: newPassword },
+      config,
+    )
+
     return response.data
   },
 }

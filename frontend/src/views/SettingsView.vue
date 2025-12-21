@@ -1,11 +1,14 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import { EyeOutlined, SaveOutlined } from '@ant-design/icons-vue'
+import { useRouter } from 'vue-router'
+import { EyeOutlined, SaveOutlined, RightOutlined } from '@ant-design/icons-vue'
 
 import TagSettings from '@/components/settings/TagSettings.vue'
 import StatusPageSettings from '@/components/settings/StatusPageSettings.vue'
 import NotificationSettings from '@/components/settings/NotificationSettings.vue'
+import AccountSettings from '@/components/settings/AccountSettings.vue'
 
+const router = useRouter()
 const activeKey = ref('1')
 // Exposed API from StatusPageSettings: handleSave, saving, formData (ref)
 const settingsRef = ref<{
@@ -44,7 +47,13 @@ const handlePreviewStatusPage = () => {
       </div>
     </div>
     <a-tabs v-model:activeKey="activeKey">
-      <a-tab-pane key="1" tab="Status Page">
+      <a-tab-pane key="1" tab="Account">
+        <div class="account-tab">
+          <AccountSettings />
+        </div>
+      </a-tab-pane>
+
+      <a-tab-pane key="2" tab="Status Page">
         <!-- Status Page Header with Actions -->
         <div class="status-page-header">
           <div class="header-info">
@@ -99,11 +108,11 @@ const handlePreviewStatusPage = () => {
         </div>
       </a-tab-pane>
 
-      <a-tab-pane key="2" tab="Tags" force-render>
+      <a-tab-pane key="3" tab="Tags" force-render>
         <TagSettings />
       </a-tab-pane>
 
-      <a-tab-pane key="3" tab="Notifications">
+      <a-tab-pane key="4" tab="Notifications">
         <NotificationSettings />
       </a-tab-pane>
     </a-tabs>
@@ -111,6 +120,29 @@ const handlePreviewStatusPage = () => {
 </template>
 
 <style scoped>
+.account-tab {
+  margin-bottom: 24px;
+}
+
+.account-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 24px;
+}
+
+.account-info h3 {
+  font-size: 18px;
+  font-weight: 600;
+  margin: 0 0 8px 0;
+}
+
+.account-info p {
+  color: rgba(0, 0, 0, 0.65);
+  margin: 0;
+  line-height: 1.6;
+}
+
 .settings {
   display: flex;
   justify-content: space-between;

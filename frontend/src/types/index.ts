@@ -428,3 +428,14 @@ export interface StatusPageSettingsResponse {
   created_at: string
   updated_at: string
 }
+
+/**
+ * User profile
+ */
+export interface User {
+  email: string
+  name: string
+  user_id: string
+  force_password_change: boolean
+  two_factor_enabled: boolean
+}

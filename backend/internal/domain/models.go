@@ -249,3 +249,45 @@ type Maintenance struct {
 }
 
 func (Maintenance) TableName() string { return "maintenances" }
+
+type StatusPageSettings struct {
+	Base
+	Name                 string `json:"name" gorm:"default:'Status Page'"`
+	HomepageURL          string `json:"homepage_url"`
+	CustomDomain         string `json:"custom_domain"`
+	GoogleAnalyticsID    string `json:"google_analytics_id"`
+	EnableDetailsPage    bool   `json:"enable_details_page" gorm:"default:true"`
+	ShowUptimePercentage bool   `json:"show_uptime_percentage" gorm:"default:true"`
+	HidePausedMonitors   bool   `json:"hide_paused_monitors" gorm:"default:true"`
+	ShowIncidentHistory  bool   `json:"show_incident_history" gorm:"default:true"`
+}
+
+func (StatusPageSettings) TableName() string { return "status_page_settings" }
+
+// User represents a user account with authentication credentials
+type User struct {
+	Base
+	Email                string     `json:"email" gorm:"uniqueIndex;not null"`
+	Name                 string     `json:"name"`
+	HashedPassword       string     `json:"-" gorm:"not null"` // Never serialize
+	PasswordInitialized  bool       `json:"password_initialized" gorm:"default:false"`
+	ForcePasswordChange  bool       `json:"force_password_change" gorm:"default:false"`
+	TwoFactorEnabled     bool       `json:"two_factor_enabled" gorm:"default:false"`
+	TwoFactorSecret      string     `json:"-" gorm:"default:null"`            // TOTP secret, never serialize
+	TwoFactorBackupCodes []byte     `json:"-" gorm:"type:jsonb;default:null"` // Encrypted backup codes
+	LastLoginAt          *time.Time `json:"last_login_at"`
+	CreatedAt            time.Time  `json:"created_at" gorm:"index"`
+	UpdatedAt            time.Time  `json:"updated_at"`
+}
+
+func (User) TableName() string { return "users" }
+
+// IsPasswordInitialized returns true if the user has set a custom password
+func (u *User) IsPasswordInitialized() bool {
+	return u.PasswordInitialized
+}
+
+// HasTwoFactor returns true if the user has 2FA enabled
+func (u *User) HasTwoFactor() bool {
+	return u.TwoFactorEnabled && u.TwoFactorSecret != ""
+}

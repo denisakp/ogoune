@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 
@@ -24,7 +25,7 @@ func AuthMiddleware(authService *service.AuthService) func(http.Handler) http.Ha
 			}
 
 			// Validate token
-			_, err := authService.ValidateToken(token)
+			email, userID, err := authService.ValidateToken(token)
 			if err != nil {
 				w.Header().Set("Content-Type", "application/json")
 				w.WriteHeader(http.StatusUnauthorized)
@@ -35,8 +36,12 @@ func AuthMiddleware(authService *service.AuthService) func(http.Handler) http.Ha
 				return
 			}
 
-			// Token is valid, proceed to next handler
-			next.ServeHTTP(w, r)
+			// Add email and userID to request context
+			ctx := context.WithValue(r.Context(), "email", email)
+			ctx = context.WithValue(ctx, "user_id", userID)
+
+			// Token is valid, proceed to next handler with enriched context
+			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	}
 }
