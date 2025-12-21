@@ -65,8 +65,6 @@ watch(
     >
       <a-select v-model:value="form.provider" style="width: 100%">
         <a-select-option value="twilio">Twilio</a-select-option>
-        <a-select-option value="nexmo">Nexmo</a-select-option>
-        <a-select-option value="aws-sns">AWS SNS</a-select-option>
       </a-select>
     </a-form-item>
 
@@ -79,7 +77,7 @@ watch(
       />
     </a-form-item>
 
-    <!-- Auth Token (for Twilio/Nexmo) -->
+    <!-- Auth Token (for Twilio) -->
     <a-form-item label="Auth Token / API Secret" :name="['config', 'auth_token']">
       <a-input-password
         v-model:value="form.auth_token"
@@ -110,3 +108,5 @@ watch(
     </a-form-item>
   </div>
 </template>
+
+<style scoped></style>

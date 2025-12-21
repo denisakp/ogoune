@@ -15,7 +15,6 @@ import { useNotificationChannels } from '@/composables/useNotificationChannels'
 const {
   channels,
   loading,
-  error,
   loadChannels,
   addChannel,
   updateChannel,

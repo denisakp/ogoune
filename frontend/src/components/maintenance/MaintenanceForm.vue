@@ -273,3 +273,5 @@ function onStrategyChange(e: Event) {
     </div>
   </a-form>
 </template>
+
+<style scoped></style>

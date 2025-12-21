@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import { message } from 'ant-design-vue'
 import { EyeOutlined, SaveOutlined } from '@ant-design/icons-vue'
 
 import TagSettings from '@/components/settings/TagSettings.vue'
@@ -51,8 +50,7 @@ const handlePreviewStatusPage = () => {
           <div class="header-info">
             <h2>Status Page Configuration</h2>
             <p class="header-description">
-              Configure your public-facing status page accessible at
-              <code class="domain-code">/status</code>
+              Configure your public-facing status page accessible to your users
             </p>
           </div>
           <div class="header-actions">

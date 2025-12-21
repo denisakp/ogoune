@@ -56,3 +56,5 @@ watch(
     </a-form-item>
   </div>
 </template>
+
+<style scoped></style>

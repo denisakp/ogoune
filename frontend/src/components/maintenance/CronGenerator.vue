@@ -288,3 +288,5 @@ const manualEdit = reactive({ enabled: false })
     </div>
   </div>
 </template>
+
+<style scoped></style>

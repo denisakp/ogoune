@@ -86,3 +86,5 @@ const formatDate = (value?: string | null) => {
     </a-table-column>
   </a-table>
 </template>
+
+<style scoped></style>

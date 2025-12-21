@@ -171,3 +171,5 @@ const bccInput = useEmailInput(toRef(form, 'bcc'))
     </a-form-item>
   </div>
 </template>
+
+<style scoped></style>
