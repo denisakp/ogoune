@@ -103,6 +103,7 @@ func (h *MonitoringTaskHandler) ProcessTask(ctx context.Context, task *asynq.Tas
 		// Resource is UP
 		if previousStatus == domain.StatusDown {
 			// This is a RECOVERY - resource was down, now it's up
+			fmt.Printf("[RECOVERY] Resource %s recovered from DOWN to UP (failure_count was: %d)\n", resource.ID, resource.FailureCount)
 			if err := h.incidents.ResolveIncident(ctx, resource, result); err != nil {
 				fmt.Printf("Warning: failed to resolve incident: %v\n", err)
 			}
@@ -120,6 +121,7 @@ func (h *MonitoringTaskHandler) ProcessTask(ctx context.Context, task *asynq.Tas
 	case domain.StatusDown:
 		// Resource is DOWN - increment failure count
 		resource.FailureCount++
+		fmt.Printf("[FAILURE] Resource %s failed (failure_count: %d, previous_status: %s)\n", resource.ID, resource.FailureCount, previousStatus)
 		resource.Status = domain.StatusDown
 		resource.LastChecked = &[]time.Time{time.Now()}[0]
 
@@ -129,8 +131,15 @@ func (h *MonitoringTaskHandler) ProcessTask(ctx context.Context, task *asynq.Tas
 
 		// Only create incident on the 3rd consecutive failure
 		if resource.FailureCount == 3 {
+			fmt.Printf("[INCIDENT_TRIGGER] Resource %s reached threshold (3 failures), attempting incident creation\n", resource.ID)
 			if err := h.incidents.CreateIncident(ctx, resource, result); err != nil {
 				fmt.Printf("Warning: failed to create incident on 3rd failure: %v\n", err)
+			}
+			// Cap the counter at 3 to avoid confusing accumulationn during incidents
+			// The counter will reset to 0 when the resource recovers
+			resource.FailureCount = 3
+			if err := h.resources.Update(ctx, resource); err != nil {
+				fmt.Printf("Warning: failed to update resource failure count: %v\n", err)
 			}
 		}
 	default:

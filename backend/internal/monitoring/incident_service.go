@@ -57,10 +57,13 @@ func (s *IncidentService) CreateIncident(ctx context.Context, r *domain.Resource
 	// Look for unresolved incidents (where ResolvedAt is nil)
 	for _, incident := range incidents {
 		if incident.ResolvedAt == nil {
-			log.Printf("Active incident already exists for resource %s, skipping creation", r.ID)
+			log.Printf("[INCIDENT] Active incident %s already exists for resource %s (started: %s), skipping creation to avoid duplicates",
+				incident.ID, r.ID, incident.StartedAt.Format(time.RFC3339))
 			return nil // Active incident already exists, avoid duplicates
 		}
 	}
+
+	log.Printf("[INCIDENT] Creating NEW incident for resource %s after %d consecutive failures", r.ID, r.FailureCount)
 
 	// Extract cause from result - this is the structured failure reason
 	cause := extractCause(result)
@@ -164,9 +167,12 @@ func (s *IncidentService) ResolveIncident(ctx context.Context, r *domain.Resourc
 
 	// No active incident to resolve
 	if activeIncident == nil {
-		log.Printf("No active incident found for resource %s", r.ID)
+		log.Printf("[INCIDENT] No active incident found for resource %s (recovery without prior incident)", r.ID)
 		return nil
 	}
+
+	duration := time.Since(activeIncident.StartedAt)
+	log.Printf("[INCIDENT] Resolving incident %s for resource %s (duration: %v)", activeIncident.ID, r.ID, duration)
 
 	// Resolve the incident by setting ResolvedAt timestamp
 	now := time.Now()
@@ -176,7 +182,7 @@ func (s *IncidentService) ResolveIncident(ctx context.Context, r *domain.Resourc
 		return fmt.Errorf("failed to resolve incident: %w", err)
 	}
 
-	log.Printf("Resolved incident %s for resource %s", activeIncident.ID, r.ID)
+	log.Printf("[INCIDENT] Successfully resolved incident %s for resource %s", activeIncident.ID, r.ID)
 
 	// Step 1: Create "resolved" event step
 	resolvedStep := &domain.IncidentEventStep{

@@ -2,6 +2,7 @@
 import { ref, computed, h } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/authStore'
+import FeedbackModal from '@/components/FeedbackModal.vue'
 import {
   MenuFoldOutlined,
   MenuUnfoldOutlined,
@@ -63,11 +64,13 @@ const handleMenuClick = (key: string) => {
 <template>
   <!-- Public routes (no layout) -->
   <div v-if="!requiresLayout">
+    <FeedbackModal />
     <router-view />
   </div>
 
   <!-- Admin routes (with layout) -->
   <a-layout v-else style="min-height: 100vh">
+    <FeedbackModal />
     <!-- Mobile Drawer Sidebar -->
     <a-drawer
       v-model:open="isSidebarOpen"
@@ -181,6 +184,13 @@ const handleMenuClick = (key: string) => {
       <a-layout-footer style="text-align: center; background: #fff; padding: 16px">
         Pulse Guard ©{{ new Date().getUTCFullYear() }} By
         <a target="_blank" href="https://github.com/denisakp">Denis Yaovi</a>
+        ·
+        <a
+          target="_blank"
+          href="https://kawa-bunga.notion.site/2d1e5ad0a17d80dc8859e77817d901e3"
+          rel="noopener"
+          >Share Feedback</a
+        >
       </a-layout-footer>
     </a-layout>
   </a-layout>

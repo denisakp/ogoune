@@ -115,18 +115,22 @@ const formatHour = (hour: string): string => {
   display: inline-flex;
   align-items: center;
   gap: 8px;
+  max-width: 100%;
+  overflow: hidden;
 }
 
 .sparkline-container {
   display: flex;
   align-items: center;
   gap: 8px;
+  flex-wrap: nowrap;
 }
 
 .sparkline-bars {
   display: flex;
   align-items: flex-end;
   gap: 0;
+  flex-shrink: 0;
 }
 
 .sparkline-bar {
@@ -140,11 +144,12 @@ const formatHour = (hour: string): string => {
 }
 
 .sparkline-percentage {
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 600;
   color: rgba(0, 0, 0, 0.85);
-  min-width: 45px;
-  text-align: right;
+  white-space: nowrap;
+  flex-shrink: 0;
+  padding: 0 2px;
 }
 
 .sparkline-empty {

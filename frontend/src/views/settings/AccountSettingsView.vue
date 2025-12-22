@@ -46,7 +46,7 @@ const displayOtp = computed({
   },
   set: (value: string) => {
     confirm2FAForm.otp = value.replace(/\D/g, '').slice(0, 6)
-  }
+  },
 })
 
 const profileRules: Record<string, Rule[]> = {
