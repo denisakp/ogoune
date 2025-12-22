@@ -120,6 +120,18 @@ All options in `.env.example`
 
 ---
 
+---
+
+## 💭 Feedback & Testing
+
+We're actively developing PulseGuard and value your input! Help us improve by:
+
+- **[Share Your Feedback](https://kawa-bunga.notion.site/2d1e5ad0a17d80dc8859e77817d901e3)** (Anonymous form) – Tell us what you think about the UI, features, and user experience
+- **Report Bugs** – Found something broken? Open an [issue](https://github.com/denisakp/pulseguard/issues)
+- **Suggest Features** – Have ideas? Start a [discussion](https://github.com/denisakp/pulseguard/discussions)
+
+Your feedback helps shape the future of PulseGuard. The feedback form is completely anonymous and takes about 2 minutes.
+
 ## 💬 Contributing
 
 Found a bug? Have an idea? Let us know!

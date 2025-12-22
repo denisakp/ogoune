@@ -20,7 +20,7 @@ const displayOtp = computed({
   },
   set: (value: string) => {
     formState.otp = value.replace(/\D/g, '').slice(0, 6)
-  }
+  },
 })
 
 const isLoading = computed(() => authStore.isLoading)
