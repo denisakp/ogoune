@@ -33,7 +33,7 @@ services:
       retries: 3
       timeout: 5s
   pulseguard:
-    image: ghcr.io/denisakp/pulseguard@sha256:82486ef14514193e4643eeb7a18194dd65c87f3dda20b507729836a1a8624451
+    image: ghcr.io/denisakp/pulseguard@sha256:de54cd21ca0414beb0a14b1f4030019a10bab510f63c8f6fa28e6a33548cfcc4
     depends_on:
       postgres:
         condition: service_healthy
