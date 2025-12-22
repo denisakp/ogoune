@@ -23,7 +23,7 @@ No complex setup. No overwhelming dashboards. Just pure uptime monitoring.
 
 I started exploring monitoring stacks like Prometheus, Grafana, Tempo, and AlertManager. But configuring dozens of config files just to check if my websites were up seemed crazy.
 
-So I built this during my internship using Node.js. Later, I rewrote it in Go while learning the language. Now it's a simple, straightforward monitoring tool that just works.
+So I built this during my internship in 2023 with TypeScript and NestJS. Later, I rewrote it in Go while learning the language. Now it's a simple, straightforward monitoring tool that just works.
 
 ---
 
