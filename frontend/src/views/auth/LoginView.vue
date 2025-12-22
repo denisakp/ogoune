@@ -105,17 +105,18 @@ const handleLogin = async () => {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: white;
   padding: 20px;
 }
 
 .login-card {
   background: white;
   border-radius: 12px;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   padding: 40px;
   width: 100%;
   max-width: 420px;
+  border: 1px solid #e5e5e5;
 }
 
 .login-header {
@@ -126,13 +127,13 @@ const handleLogin = async () => {
 .login-header h1 {
   font-size: 32px;
   font-weight: 700;
-  color: #1a202c;
+  color: #000000;
   margin: 0 0 8px 0;
 }
 
 .login-header p {
   font-size: 14px;
-  color: #718096;
+  color: #000000;
   margin: 0;
 }
 
@@ -147,12 +148,12 @@ const handleLogin = async () => {
 
 .hint {
   font-size: 20px;
-  color: #718096;
+  color: #000000;
   margin: 0;
 }
 
 .hint code {
-  background: #f7fafc;
+  background: #f5f5f5;
   padding: 2px 6px;
   border-radius: 4px;
   font-family: 'Courier New', monospace;

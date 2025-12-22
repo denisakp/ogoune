@@ -1,15 +1,26 @@
 <script setup lang="ts">
 import { computed, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { useAuthStore } from '@/stores/authStore.ts'
 import { SafetyOutlined } from '@ant-design/icons-vue'
 import type { Rule } from 'ant-design-vue/es/form'
+import { useAuthStore } from '@/stores/authStore.ts'
 
 const router = useRouter()
 const authStore = useAuthStore()
 
 const formState = reactive({
   otp: '',
+})
+
+const displayOtp = computed({
+  get: () => {
+    const value = formState.otp.replace(/\D/g, '')
+    if (value.length <= 3) return value
+    return `${value.slice(0, 3)}-${value.slice(3, 6)}`
+  },
+  set: (value: string) => {
+    formState.otp = value.replace(/\D/g, '').slice(0, 6)
+  }
 })
 
 const isLoading = computed(() => authStore.isLoading)
@@ -55,10 +66,10 @@ const handleVerify = async () => {
       >
         <a-form-item label="Verification Code" name="otp">
           <a-input
-            v-model:value="formState.otp"
-            placeholder="000000"
+            v-model:value="displayOtp"
+            placeholder="000-000"
             size="large"
-            :maxlength="6"
+            :maxlength="7"
             :disabled="isLoading"
           />
         </a-form-item>
@@ -79,19 +90,18 @@ const handleVerify = async () => {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, #1d1f2f 0%, #293046 100%);
+  background: white;
   padding: 20px;
 }
 
 .verify-card {
-  background: #0f172a;
-  color: #e2e8f0;
+  background: white;
   border-radius: 14px;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   padding: 36px;
   width: 100%;
   max-width: 420px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid #e5e5e5;
 }
 
 .verify-header {
@@ -103,46 +113,27 @@ const handleVerify = async () => {
   margin: 12px 0 8px;
   font-size: 24px;
   font-weight: 700;
+  color: #000000;
 }
 
 .verify-header p {
   margin: 0;
-  color: #cbd5e1;
+  color: #000000;
 }
 
 .verify-header .email {
   margin-top: 8px;
   font-size: 13px;
-  color: #a5b4fc;
+  color: #000000;
 }
 
 .icon {
   font-size: 32px;
-  color: #34d399;
+  color: #000000;
 }
 
 .verify-form {
   margin-top: 12px;
-}
-
-:deep(.ant-input) {
-  background: #111827;
-  border-color: #1f2937;
-  color: #e2e8f0;
-}
-
-:deep(.ant-input:focus) {
-  border-color: #34d399;
-  box-shadow: 0 0 0 2px rgba(52, 211, 153, 0.25);
-}
-
-:deep(.ant-btn-primary) {
-  background: linear-gradient(135deg, #34d399, #10b981);
-  border: none;
-}
-
-:deep(.ant-btn-primary:hover) {
-  filter: brightness(1.05);
 }
 
 @media (max-width: 480px) {
