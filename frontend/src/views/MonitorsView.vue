@@ -112,7 +112,7 @@ const columns = [
   { title: 'Status', dataIndex: 'status', key: 'status', width: 90 },
   { title: 'Name', dataIndex: 'name', key: 'name' },
   { title: 'Target', dataIndex: 'target', key: 'target', ellipsis: true },
-  { title: 'Uptime (24h)', dataIndex: 'uptime', key: 'uptime', width: 140 },
+  { title: 'Uptime (24h)', dataIndex: 'uptime', key: 'uptime' },
   { title: 'Last Checked', dataIndex: 'last_checked', key: 'last_checked', width: 140 },
   { title: 'Actions', key: 'actions', width: 90, fixed: 'right' },
 ]
