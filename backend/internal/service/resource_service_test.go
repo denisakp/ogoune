@@ -17,7 +17,9 @@ func TestResourceService_CreateResource(t *testing.T) {
 	incidentRepo := fake.NewIncidentFake()
 	tagsRepo := fake.NewTagsFake()
 	schedulerFake := fake.NewSchedulerFake()
-	service := NewResourceService(resourceRepo, incidentRepo, tagsRepo, schedulerFake)
+	monitoringActivityRepo := fake.NewMonitoringActivityFake()
+	enrichmentService := NewEnrichmentService(30 * time.Second)
+	service := NewResourceService(resourceRepo, incidentRepo, tagsRepo, schedulerFake, monitoringActivityRepo, enrichmentService)
 
 	payload := &dto.CreateResourcePayload{
 		Name:     "Test Resource",
@@ -28,7 +30,7 @@ func TestResourceService_CreateResource(t *testing.T) {
 		Tags:     []string{},
 	}
 
-	err := service.CreateResource(context.Background(), payload)
+	_, err := service.CreateResource(context.Background(), payload)
 	require.NoError(t, err)
 
 	// Verify resource was created (find by name or filter by recent creation)
@@ -46,7 +48,9 @@ func TestResourceService_ListAll(t *testing.T) {
 	incidentRepo := fake.NewIncidentFake()
 	tagsRepo := fake.NewTagsFake()
 	schedulerFake := fake.NewSchedulerFake()
-	service := NewResourceService(resourceRepo, incidentRepo, tagsRepo, schedulerFake)
+	monitoringActivityRepo := fake.NewMonitoringActivityFake()
+	enrichmentService := NewEnrichmentService(30 * time.Second)
+	service := NewResourceService(resourceRepo, incidentRepo, tagsRepo, schedulerFake, monitoringActivityRepo, enrichmentService)
 
 	// Create some test resources
 	resource1 := &domain.Resource{
@@ -99,7 +103,9 @@ func TestResourceService_ListAll_EmptyRepository(t *testing.T) {
 	incidentRepo := fake.NewIncidentFake()
 	tagsRepo := fake.NewTagsFake()
 	schedulerFake := fake.NewSchedulerFake()
-	service := NewResourceService(resourceRepo, incidentRepo, tagsRepo, schedulerFake)
+	monitoringActivityRepo := fake.NewMonitoringActivityFake()
+	enrichmentService := NewEnrichmentService(30 * time.Second)
+	service := NewResourceService(resourceRepo, incidentRepo, tagsRepo, schedulerFake, monitoringActivityRepo, enrichmentService)
 
 	// List all resources from empty repository
 	resources, err := service.ListAll(context.Background())

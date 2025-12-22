@@ -7,8 +7,8 @@ The backend is a unified Go service that monitors resources (HTTP/TCP), detects 
 - **Setup & Configuration** – See "Running Locally" and "Configuration" sections below
 - **API Reference** – See "REST API" section below
 - **Troubleshooting** – See "Troubleshooting" section below
-- **Technical Deep Dive** – See [Backend Architecture](./docs/ARCHITECTURE.md)
-- **Developer Overview** – See [Backend Overview](./docs/BACKEND_OVERVIEW.md)
+- **Technical Deep Dive** – See [Backend Architecture](./ARCHITECTURE.md)
+- **Developer Overview** – See [Backend Overview](./BACKEND_OVERVIEW.md)
 
 ---
 

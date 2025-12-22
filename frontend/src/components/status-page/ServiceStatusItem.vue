@@ -12,10 +12,12 @@ interface Props {
   uptimePercentage: number
   status: 'Operational' | 'Down' | 'Partial Outage'
   uptimeData?: UptimeBar[]
+  showUptimePercentage?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
   uptimeData: () => [],
+  showUptimePercentage: true,
 })
 
 // Generate default uptime data if not provided (90 bars representing 90 days)
@@ -77,7 +79,9 @@ const getBarTooltipText = (bar: UptimeBar): string => {
       </div>
 
       <div class="service-stats">
-        <div class="uptime-percentage">{{ uptimePercentage.toFixed(3) }}%</div>
+        <div v-if="showUptimePercentage" class="uptime-percentage">
+          {{ uptimePercentage.toFixed(3) }}%
+        </div>
 
         <div class="status-indicator">
           <span class="status-dot" :style="{ backgroundColor: statusColor }"></span>

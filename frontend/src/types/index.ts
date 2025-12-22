@@ -30,6 +30,7 @@ export interface Resource {
   hourly_uptime?: HourlyUptimeStat[] // Hourly uptime data for sparklines
   response_times?: ResponseTime[] // Response time history
   metadata?: ResourceMetadata // SSL and domain metadata
+  metadata_pending?: boolean // true when backend enrichment is in progress
 }
 
 /**
@@ -77,6 +78,7 @@ export type UpdateResource = Partial<CreateResource>
 export interface Tag {
   id: string
   name: string
+  color?: string
   description?: string
   created_at: string
   updated_at: string
@@ -84,6 +86,7 @@ export interface Tag {
 
 export interface CreateTag {
   name: string
+  color?: string
   description?: string
 }
 
@@ -91,7 +94,6 @@ export interface CreateTag {
  * Event types for notifications
  */
 export type EventType = 'down' | 'up' | 'expiry'
-
 
 /**
  * MonitoringActivity represents a health check result
@@ -182,6 +184,17 @@ export interface ExpirationStatus {
  */
 
 /**
+ * Status page settings
+ */
+export interface StatusPageSettings {
+  name: string
+  homepage_url?: string
+  google_analytics_id?: string
+  enable_details_page: boolean
+  show_uptime_percentage: boolean
+}
+
+/**
  * Daily status for a single day in the 90-day window
  */
 export type DailyStatus = 'up' | 'degraded' | 'down' | 'no_data'
@@ -214,6 +227,7 @@ export interface StatusPageData {
   global_status: GlobalStatus
   generated_at: string
   resources: ResourceStatusInfo[]
+  settings?: StatusPageSettings
 }
 
 /**
@@ -267,4 +281,161 @@ export interface PublicMonitorDetail {
   uptime_summary: MonitorUptimeSummary
   response_time_summary_7_days: MonitorResponseTimeSummary
   recent_events: MonitorRecentEvent[]
+  maintenance?: MaintenanceBanner
+}
+
+/**
+ * Notification Channel Types
+ */
+export type NotificationChannelType = 'smtp' | 'slack' | 'sms'
+
+/**
+ * SMTP Configuration for notification channel
+ */
+export interface SMTPConfig {
+  host: string
+  port: number
+  username: string
+  password: string
+  sender: string
+  recipients: string[]
+  cc?: string[]
+  bcc?: string[]
+  subject?: string
+}
+
+/**
+ * Slack Configuration for notification channel
+ */
+export interface SlackConfig {
+  webhook_url: string
+  channel?: string
+  username?: string
+}
+
+/**
+ * SMS Configuration for notification channel
+ */
+export interface SMSConfig {
+  provider: string // e.g., twilio, nexmo
+  account_sid?: string
+  auth_token?: string
+  from_number: string
+  to_numbers: string[]
+}
+
+/**
+ * Generic notification configuration
+ */
+export type NotificationConfig = SMTPConfig | SlackConfig | SMSConfig
+
+/**
+ * Notification Channel
+ */
+export interface NotificationChannel {
+  id: string
+  name: string
+  type: NotificationChannelType
+  config: Record<string, any>
+  enabled_by_default: boolean
+  created_at: string
+  updated_at: string
+}
+
+export interface CreateNotificationChannel {
+  name: string
+  type: NotificationChannelType
+  config: Record<string, any>
+  enabled_by_default: boolean
+}
+
+export type UpdateNotificationChannel = Partial<CreateNotificationChannel>
+
+export interface TestNotificationChannelConfig {
+  type: NotificationChannelType
+  config: Record<string, any>
+}
+
+// Maintenance windows
+export type MaintenanceStrategy = 'one_time' | 'cron'
+export type MaintenanceStatus = 'scheduled' | 'active' | 'finished' | 'cancelled'
+
+export interface Maintenance {
+  id: string
+  title: string
+  description?: string | null
+  strategy: MaintenanceStrategy
+  status: MaintenanceStatus
+  start_at?: string | null
+  end_at?: string | null
+  cron_expr?: string | null
+  window_minutes?: number | null
+  timezone?: string | null
+  effective_from?: string | null
+  effective_until?: string | null
+  resources?: Resource[]
+  created_at?: string
+  updated_at?: string
+}
+
+export interface CreateMaintenance {
+  title: string
+  description?: string | null
+  strategy: MaintenanceStrategy
+  start_at?: string
+  end_at?: string
+  cron_expr?: string
+  window_minutes?: number
+  timezone?: string
+  effective_from?: string
+  effective_until?: string
+  resource_ids: string[]
+}
+
+export type UpdateMaintenance = Partial<CreateMaintenance>
+
+// Public maintenance banner attached to monitor detail
+export interface MaintenanceBanner {
+  status: MaintenanceStatus // expected: 'active' | 'scheduled'
+  title: string
+  start_at?: string | null
+  end_at?: string | null
+  timezone?: string | null
+}
+
+// Status Page Settings Management
+export interface StatusPageSettingsRequest {
+  name: string
+  homepage_url: string
+  custom_domain: string
+  google_analytics_id: string
+  enable_details_page: boolean
+  show_uptime_percentage: boolean
+  hide_paused_monitors: boolean
+  show_incident_history: boolean
+}
+
+export interface StatusPageSettingsResponse {
+  id: string
+  name: string
+  homepage_url: string
+  custom_domain: string
+  google_analytics_id: string
+  enable_details_page: boolean
+  show_uptime_percentage: boolean
+  hide_paused_monitors: boolean
+  show_incident_history: boolean
+  created_at: string
+  updated_at: string
+}
+
+/**
+ * User profile
+ */
+export interface User {
+  email: string
+  name: string
+  user_id: string
+  force_password_change: boolean
+  two_factor_enabled: boolean
 }

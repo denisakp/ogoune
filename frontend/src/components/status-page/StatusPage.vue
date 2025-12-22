@@ -17,10 +17,14 @@ interface Props {
   globalStatus: GlobalStatus
   resources: ResourceStatusInfo[]
   loading?: boolean
+  showUptimePercentage?: boolean
+  enableDetailsPage?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
   loading: false,
+  showUptimePercentage: true,
+  enableDetailsPage: true,
 })
 
 // Define emits
@@ -28,6 +32,11 @@ const emit = defineEmits<{
   'service-click': [serviceId: string]
 }>()
 
+const handleServiceClick = (serviceId: string) => {
+  if (props.enableDetailsPage) {
+    emit('service-click', serviceId)
+  }
+}
 // Map global status to display text
 const overallStatus = computed<'Operational' | 'Some systems down' | 'All systems down'>(() => {
   if (props.globalStatus === 'all_systems_operational') {
@@ -93,10 +102,6 @@ const getOverallStatusColor = () => {
       return '#d9d9d9'
   }
 }
-
-const handleServiceClick = (serviceId: string) => {
-  emit('service-click', serviceId)
-}
 </script>
 
 <template>
@@ -145,6 +150,7 @@ const handleServiceClick = (serviceId: string) => {
               v-for="service in services"
               :key="service.id"
               class="service-item-wrapper"
+              :class="{ clickable: enableDetailsPage }"
               @click="handleServiceClick(service.id)"
             >
               <ServiceStatusItem
@@ -152,6 +158,7 @@ const handleServiceClick = (serviceId: string) => {
                 :uptime-percentage="service.uptimePercentage"
                 :status="service.status"
                 :uptime-data="service.uptimeData"
+                :show-uptime-percentage="showUptimePercentage"
               />
             </div>
           </div>
@@ -260,11 +267,14 @@ const handleServiceClick = (serviceId: string) => {
 }
 
 .service-item-wrapper {
-  cursor: pointer;
   transition: transform 0.2s ease;
 }
 
-.service-item-wrapper:hover {
+.service-item-wrapper.clickable {
+  cursor: pointer;
+}
+
+.service-item-wrapper.clickable:hover {
   transform: translateX(4px);
 }
 

@@ -4,7 +4,6 @@ import (
 	"context"
 	"os"
 	"strings"
-	"sync"
 	"testing"
 	"time"
 
@@ -13,7 +12,7 @@ import (
 
 func TestSingletonReturnsSameInstance(t *testing.T) {
 	// Reset singleton state for clean test
-	once = sync.Once{}
+	//once = sync.Once{}
 	db = nil
 
 	// First call to Instance should return error since Init not called
@@ -25,9 +24,9 @@ func TestSingletonReturnsSameInstance(t *testing.T) {
 		t.Error("Expected nil instance when Instance called before Init")
 	}
 
-	// Initialize with valid config (will use env var fallback in test)
-	cfg := &config.Config{DatabaseUrl: "postgres://user:pass@localhost/testdb?sslmode=disable"}
-	if err := Init(context.Background(), &cfg.DatabaseUrl); err != nil {
+	// Initialize with a valid but non-connecting DSN for testing singleton logic
+	dsn := "postgres://test:test@localhost:5432/testdb?sslmode=disable"
+	if err := Init(context.Background(), &dsn); err != nil {
 		t.Skipf("Skipping test due to DB connection error: %v", err)
 	}
 
@@ -53,7 +52,7 @@ func TestSingletonReturnsSameInstance(t *testing.T) {
 
 func TestInitWithInvalidDSNReturnsError(t *testing.T) {
 	// Reset singleton state
-	once = sync.Once{}
+	//once = sync.Once{}
 	db = nil
 
 	// Use clearly invalid DSN
@@ -71,7 +70,7 @@ func TestInitWithInvalidDSNReturnsError(t *testing.T) {
 
 func TestPingSkippedWithoutRealDB(t *testing.T) {
 	// Reset state
-	once = sync.Once{}
+	//once = sync.Once{}
 	db = nil
 
 	// If no DATABASE_URL set, skip this test

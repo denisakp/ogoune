@@ -12,32 +12,25 @@ import (
 )
 
 // Test helpers
-func setupTestService(smtpEnabled bool, smtpRecipient, smtpSender string) (*IncidentService, *fake.IncidentFake, *fake.IncidentEventStepFake, *fake.NotificationFake, *asynq.Client) {
+func setupTestService() (*IncidentService, *fake.IncidentFake, *fake.IncidentEventStepFake, *fake.NotificationFake, *fake.NotificationChannelFake, *asynq.Client) {
 	incidentRepo := fake.NewIncidentFake()
 	eventStepRepoInterface := fake.NewIncidentEventStepFake()
 	notificationRepo := fake.NewNotificationFake()
+	notificationChannelRepo := fake.NewNotificationChannelFake()
 	asynqClient := asynq.NewClient(asynq.RedisClientOpt{Addr: "localhost:6379"})
 
 	service := NewIncidentService(
 		incidentRepo,
 		eventStepRepoInterface,
 		notificationRepo,
+		notificationChannelRepo,
 		asynqClient,
-		smtpEnabled,
-		smtpRecipient,
-		smtpSender,
-		"smtp.example.com", // SMTP host for testing
-		"587",              // SMTP port
-		"testuser",         // SMTP user
-		"testpass",         // SMTP password
-		"",                 // webhook URL (disabled for tests)
-		nil,                // webhook secret (disabled for tests)
 	)
 
 	// Type assert to concrete types for test access
 	eventStepRepo := eventStepRepoInterface.(*fake.IncidentEventStepFake)
 
-	return service, incidentRepo, eventStepRepo, notificationRepo, asynqClient
+	return service, incidentRepo, eventStepRepo, notificationRepo, notificationChannelRepo, asynqClient
 }
 
 // ============================================================
@@ -121,7 +114,7 @@ func TestExtractCause(t *testing.T) {
 // ============================================================
 
 func TestIncidentService_CreateIncident_Success(t *testing.T) {
-	service, incidentRepo, eventStepRepo, notificationRepo, asynqClient := setupTestService(false, "admin@example.com", "noreply@example.com")
+	service, incidentRepo, eventStepRepo, _, _, asynqClient := setupTestService()
 	defer asynqClient.Close()
 
 	ctx := context.Background()
@@ -164,7 +157,7 @@ func TestIncidentService_CreateIncident_Success(t *testing.T) {
 }
 
 func TestIncidentService_CreateIncident_DuplicatePrevention(t *testing.T) {
-	service, incidentRepo, _, _, asynqClient := setupTestService(false, "", "")
+	service, incidentRepo, _, _, _, asynqClient := setupTestService()
 	defer asynqClient.Close()
 
 	ctx := context.Background()
@@ -199,7 +192,7 @@ func TestIncidentService_CreateIncident_DuplicatePrevention(t *testing.T) {
 }
 
 func TestIncidentService_ResolveIncident_Success(t *testing.T) {
-	service, incidentRepo, eventStepRepo, _, asynqClient := setupTestService(false, "", "")
+	service, incidentRepo, eventStepRepo, _, _, asynqClient := setupTestService()
 	defer asynqClient.Close()
 
 	ctx := context.Background()
@@ -252,7 +245,7 @@ func TestIncidentService_ResolveIncident_Success(t *testing.T) {
 }
 
 func TestIncidentService_ResolveIncident_NoActiveIncident(t *testing.T) {
-	service, _, _, _, asynqClient := setupTestService(false, "", "")
+	service, _, _, _, _, asynqClient := setupTestService()
 	defer asynqClient.Close()
 
 	ctx := context.Background()
@@ -277,7 +270,7 @@ func TestIncidentService_ResolveIncident_NoActiveIncident(t *testing.T) {
 }
 
 func TestIncidentService_CreateIncident_WithSMTPEnabled(t *testing.T) {
-	service, incidentRepo, eventStepRepo, notificationRepo, asynqClient := setupTestService(true, "admin@example.com", "noreply@example.com")
+	service, incidentRepo, eventStepRepo, notificationRepo, notificationChannelRepo, asynqClient := setupTestService()
 	defer asynqClient.Close()
 
 	ctx := context.Background()
@@ -292,13 +285,24 @@ func TestIncidentService_CreateIncident_WithSMTPEnabled(t *testing.T) {
 		Status:       domain.StatusUp,
 	}
 
+	// Create a notification channel for this resource
+	channel := &domain.NotificationChannel{
+		Base:   domain.Base{ID: "channel-smtp-1"},
+		Name:   "Test SMTP Channel",
+		Type:   domain.NotificationChannelTypeSMTP,
+		Config: []byte(`{"recipient":"admin@example.com","sender":"noreply@example.com","host":"smtp.example.com","port":"587","user":"testuser","password":"testpass"}`),
+	}
+	err := notificationChannelRepo.Create(ctx, channel)
+	require.NoError(t, err)
+	notificationChannelRepo.AssociateChannelWithResource(resource.ID, channel.ID)
+
 	result := domain.CheckResult{
 		Status:       "down",
 		ResponseData: "connection refused",
 	}
 
-	// Create incident with SMTP enabled
-	err := service.CreateIncident(ctx, resource, result)
+	// Create incident with notification channel configured
+	err = service.CreateIncident(ctx, resource, result)
 	require.NoError(t, err)
 
 	// Verify incident was created
@@ -325,7 +329,7 @@ func TestIncidentService_CreateIncident_WithSMTPEnabled(t *testing.T) {
 }
 
 func TestIncidentService_ResolveIncident_WithSMTPEnabled(t *testing.T) {
-	service, incidentRepo, eventStepRepo, notificationRepo, asynqClient := setupTestService(true, "admin@example.com", "noreply@example.com")
+	service, _, eventStepRepo, notificationRepo, notificationChannelRepo, asynqClient := setupTestService()
 	defer asynqClient.Close()
 
 	ctx := context.Background()
@@ -340,12 +344,23 @@ func TestIncidentService_ResolveIncident_WithSMTPEnabled(t *testing.T) {
 		Status:       domain.StatusDown,
 	}
 
+	// Create a notification channel for this resource
+	channel := &domain.NotificationChannel{
+		Base:   domain.Base{ID: "channel-resolve-1"},
+		Name:   "Test SMTP Channel for Resolve",
+		Type:   domain.NotificationChannelTypeSMTP,
+		Config: []byte(`{"recipient":"admin@example.com","sender":"noreply@example.com","host":"smtp.example.com","port":"587","user":"testuser","password":"testpass"}`),
+	}
+	err := notificationChannelRepo.Create(ctx, channel)
+	require.NoError(t, err)
+	notificationChannelRepo.AssociateChannelWithResource(resource.ID, channel.ID)
+
 	// Create incident
 	downResult := domain.CheckResult{
 		Status:       "down",
 		ResponseData: "timeout",
 	}
-	err := service.CreateIncident(ctx, resource, downResult)
+	err = service.CreateIncident(ctx, resource, downResult)
 	require.NoError(t, err)
 
 	// Resolve incident

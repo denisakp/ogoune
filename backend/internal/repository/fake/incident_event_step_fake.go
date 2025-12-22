@@ -24,7 +24,8 @@ func (f *IncidentEventStepFake) Create(ctx context.Context, s *domain.IncidentEv
 	f.mu.Lock()
 	defer f.mu.Unlock()
 
-	if s.ID == "" {
+	// Call BeforeCreate hook like GORM does - generates ID if not set
+	if err := s.BeforeCreate(nil); err != nil {
 		return nil, ErrInvalidInput
 	}
 

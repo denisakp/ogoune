@@ -64,6 +64,22 @@ func (r *TagsFake) FindByID(ctx context.Context, id string) (*domain.Tags, error
 	return &copy, nil
 }
 
+// FindByIDs returns copies of tags by their IDs.
+func (r *TagsFake) FindByIDs(ctx context.Context, ids []string) ([]*domain.Tags, error) { //nolint:revive
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	var result []*domain.Tags
+	for _, id := range ids {
+		tag, ok := r.tags[id]
+		if ok {
+			copy := *tag
+			result = append(result, &copy)
+		}
+	}
+	return result, nil
+}
+
 // FindByName returns a copy of the tag by name.
 func (r *TagsFake) FindByName(ctx context.Context, name string) (*domain.Tags, error) { //nolint:revive
 	r.mu.RLock()

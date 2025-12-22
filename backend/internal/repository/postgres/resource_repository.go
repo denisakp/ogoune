@@ -134,3 +134,30 @@ func (r *ResourceRepositoryImpl) FindByTag(ctx context.Context, tagName string, 
 	}
 	return resources, nil
 }
+
+// UpdateMetadata updates only the metadata fields of a resource to avoid touching associations.
+func (r *ResourceRepositoryImpl) UpdateMetadata(ctx context.Context, id string, metadata *domain.ResourceMetaData) error {
+	if metadata == nil {
+		return fmt.Errorf("metadata cannot be nil")
+	}
+
+	updates := map[string]interface{}{
+		"ssl_expiration_date":    metadata.SSLExpirationDate,
+		"ssl_issuer":             metadata.SSLIssuer,
+		"domain_expiration_date": metadata.DomainExpirationDate,
+		"domain_registrar":       metadata.DomainRegistrar,
+	}
+
+	result := r.db.WithContext(ctx).
+		Model(&domain.Resource{}).
+		Where("id = ?", id).
+		Updates(updates)
+
+	if result.Error != nil {
+		return fmt.Errorf("failed to update resource metadata: %w", result.Error)
+	}
+	if result.RowsAffected == 0 {
+		return repository.ErrNotFound
+	}
+	return nil
+}

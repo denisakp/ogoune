@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, h } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
+import { useAuthStore } from '@/stores/authStore'
 import {
   MenuFoldOutlined,
   MenuUnfoldOutlined,
@@ -9,16 +10,20 @@ import {
   AlertOutlined,
   SettingOutlined,
   ApiOutlined,
+  ToolOutlined,
 } from '@ant-design/icons-vue'
 
 const route = useRoute()
+const router = useRouter()
+const authStore = useAuthStore()
 const isSidebarOpen = ref(false)
 
 const navigation = [
   { name: 'Monitoring', path: '/monitors', key: '1', icon: DashboardOutlined },
   { name: 'Incidents', path: '/incidents', key: '2', icon: AlertOutlined },
   { name: 'Status Page', path: '/status', key: '3', icon: ApiOutlined },
-  { name: 'Settings', path: '/settings', key: '4', icon: SettingOutlined },
+  { name: 'Maintenance', path: '/maintenance', key: '4', icon: ToolOutlined },
+  { name: 'Settings', path: '/settings', key: '5', icon: SettingOutlined },
 ]
 
 // Check if current route requires layout
@@ -37,7 +42,21 @@ const menuItems = computed(() =>
 const isDektop = computed(() => window.innerWidth >= 1024)
 
 const handleLogout = () => {
-  console.log('Logout clicked')
+  authStore.logout()
+  router.push('/login')
+}
+
+const handleMenuClick = (key: string) => {
+  const item = navigation[parseInt(key) - 1]
+  if (item) {
+    if (item.path === '/status') {
+      // Open status page in new tab
+      window.open(item.path, '_blank')
+    } else {
+      // Navigate normally
+      router.push(item.path)
+    }
+  }
 }
 </script>
 
@@ -64,11 +83,8 @@ const handleLogout = () => {
         theme="dark"
         @click="
           (e: any) => {
-            const item = navigation[parseInt(e.key) - 1]
-            if (item) {
-              $router.push(item.path)
-              isSidebarOpen = false
-            }
+            handleMenuClick(e.key)
+            isSidebarOpen = false
           }
         "
       />
@@ -111,10 +127,7 @@ const handleLogout = () => {
         style="border: none; background: transparent"
         @click="
           (e: any) => {
-            const item = navigation[parseInt(e.key) - 1]
-            if (item) {
-              $router.push(item.path)
-            }
+            handleMenuClick(e.key)
           }
         "
       />

@@ -1,24 +1,34 @@
 <script setup lang="ts">
-import { ref } from 'vue'
-import { message } from 'ant-design-vue'
-import { EyeOutlined, SaveOutlined } from '@ant-design/icons-vue'
+import { ref, computed } from 'vue'
+import { useRouter } from 'vue-router'
+import { EyeOutlined, SaveOutlined, RightOutlined } from '@ant-design/icons-vue'
 
-import TagComponent from '@/components/TagComponent.vue'
-import StatusPageSettings from '@/components/status-page/StatusPageSettings.vue'
+import TagSettings from '@/components/settings/TagSettings.vue'
+import StatusPageSettings from '@/components/settings/StatusPageSettings.vue'
+import NotificationSettings from '@/components/settings/NotificationSettings.vue'
+import AccountSettings from '@/components/settings/AccountSettings.vue'
 
+const router = useRouter()
 const activeKey = ref('1')
-const saving = ref(false)
+// Exposed API from StatusPageSettings: handleSave, saving, formData (ref)
+const settingsRef = ref<{
+  handleSave: () => Promise<void>
+  saving: boolean
+  formData: { value: { customDomain: string } }
+} | null>(null)
+
+// Compute the public status page URL from custom domain if set
+const publicStatusUrl = computed(() => {
+  const domain = settingsRef.value?.formData?.value?.customDomain?.trim()
+  if (!domain) return 'https://status.domain.tld'
+  return domain.startsWith('http://') || domain.startsWith('https://')
+    ? domain
+    : `https://${domain}`
+})
 
 const handleSaveStatusPage = async () => {
-  saving.value = true
-  try {
-    // Simulate API call - replace with actual API call
-    await new Promise((resolve) => setTimeout(resolve, 1000))
-    message.success('Status page settings saved successfully!')
-  } catch {
-    message.error('Failed to save settings')
-  } finally {
-    saving.value = false
+  if (settingsRef.value) {
+    await settingsRef.value.handleSave()
   }
 }
 
@@ -37,14 +47,19 @@ const handlePreviewStatusPage = () => {
       </div>
     </div>
     <a-tabs v-model:activeKey="activeKey">
-      <a-tab-pane key="1" tab="Status Page">
+      <a-tab-pane key="1" tab="Account">
+        <div class="account-tab">
+          <AccountSettings />
+        </div>
+      </a-tab-pane>
+
+      <a-tab-pane key="2" tab="Status Page">
         <!-- Status Page Header with Actions -->
         <div class="status-page-header">
           <div class="header-info">
             <h2>Status Page Configuration</h2>
             <p class="header-description">
-              Configure your public-facing status page accessible at
-              <code class="domain-code">/status</code>
+              Configure your public-facing status page accessible to your users
             </p>
           </div>
           <div class="header-actions">
@@ -54,7 +69,12 @@ const handlePreviewStatusPage = () => {
               </template>
               Preview
             </a-button>
-            <a-button type="primary" size="large" :loading="saving" @click="handleSaveStatusPage">
+            <a-button
+              type="primary"
+              size="large"
+              :loading="settingsRef?.saving"
+              @click="handleSaveStatusPage"
+            >
               <template #icon>
                 <SaveOutlined />
               </template>
@@ -64,26 +84,22 @@ const handlePreviewStatusPage = () => {
         </div>
 
         <!-- Status Page Settings Component -->
-        <StatusPageSettings />
+        <StatusPageSettings ref="settingsRef" />
 
         <!-- Info Alert -->
         <div class="info-section">
           <a-alert type="info" show-icon>
             <template #message>
-              <strong>How to access your status page</strong>
+              <strong>How the status page works</strong>
             </template>
             <template #description>
               <div class="info-content">
                 <p>
-                  Your public status page will be accessible at:
-                  <strong>/status</strong>
-                </p>
-                <p>
-                  For production deployments, you can configure a custom domain (Pro feature) like
-                  <strong>status.yourdomain.com</strong> in the White-label section above.
+                  Your status page is accessible for end users at:
+                  <strong>{{ publicStatusUrl }}</strong>
                 </p>
                 <p class="info-note">
-                  💡 The status page is completely independent from your admin dashboard and can be
+                  💡 The status page is completely independent from the admin dashboard and can be
                   accessed by anyone without authentication.
                 </p>
               </div>
@@ -91,15 +107,42 @@ const handlePreviewStatusPage = () => {
           </a-alert>
         </div>
       </a-tab-pane>
-      
-      <a-tab-pane key="2" tab="Tags" force-render>
-        <TagComponent />
+
+      <a-tab-pane key="3" tab="Tags" force-render>
+        <TagSettings />
+      </a-tab-pane>
+
+      <a-tab-pane key="4" tab="Notifications">
+        <NotificationSettings />
       </a-tab-pane>
     </a-tabs>
   </div>
 </template>
 
 <style scoped>
+.account-tab {
+  margin-bottom: 24px;
+}
+
+.account-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 24px;
+}
+
+.account-info h3 {
+  font-size: 18px;
+  font-weight: 600;
+  margin: 0 0 8px 0;
+}
+
+.account-info p {
+  color: rgba(0, 0, 0, 0.65);
+  margin: 0;
+  line-height: 1.6;
+}
+
 .settings {
   display: flex;
   justify-content: space-between;

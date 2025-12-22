@@ -15,6 +15,7 @@ import (
 	"github.com/denisakp/pulseguard/internal/api/handler"
 	"github.com/denisakp/pulseguard/internal/config"
 	"github.com/denisakp/pulseguard/internal/domain"
+	"github.com/denisakp/pulseguard/internal/maintenance"
 	"github.com/denisakp/pulseguard/internal/monitoring"
 	"github.com/denisakp/pulseguard/internal/monitoring/strategy"
 	"github.com/denisakp/pulseguard/internal/repository/postgres"
@@ -74,6 +75,9 @@ func main() {
 
 	log.Println("✓ Database connection established successfully")
 
+	log.Printf("[auth] Authentication enabled with email: %s", cfg.AuthEmail)
+	log.Println("[auth] JWT-based authentication configured")
+
 	// Get database instance
 	db, err := database.Instance()
 	if err != nil {
@@ -85,8 +89,12 @@ func main() {
 	incidentRepo := postgres.NewIncidentRepository(db)
 	incidentEventStepRepo := postgres.NewIncidentEventStepRepository(db)
 	notificationRepo := postgres.NewNotificationRepository(db)
+	maintenanceRepo := postgres.NewMaintenanceRepository(db)
+	notificationChannelRepo := postgres.NewNotificationChannelRepository(db)
 	monitoringActivityRepo := postgres.NewMonitoringActivityRepository(db)
 	tagsRepo := postgres.NewTagsRepository(db)
+	statusPageSettingsRepo := postgres.NewStatusPageSettingsRepository(db)
+	userRepo := postgres.NewUserRepository(db)
 
 	// Initialize Redis connection for Asynq
 	redisOpt := asynq.RedisClientOpt{
@@ -111,8 +119,14 @@ func main() {
 	}()
 	defer asynqScheduler.Shutdown()
 
-	// Initialize scheduler service
+	// Initialize monitoring scheduler service
 	schedulerService := monitoring.NewSchedulerService(asynqClient, asynqInspector, asynqScheduler)
+
+	// Initialize maintenance scheduler and ensure schedules are registered
+	maintenanceScheduler := maintenance.NewSchedulerService(asynqClient, asynqInspector, asynqScheduler, maintenanceRepo)
+	if err := maintenanceScheduler.EnsureScheduled(context.Background()); err != nil {
+		log.Printf("⚠️  Failed to ensure maintenance schedules: %v", err)
+	}
 
 	// Initialize enrichment service for resource metadata collection
 	enrichmentService := service.NewEnrichmentService(30 * time.Second)
@@ -171,34 +185,21 @@ func main() {
 	}
 	executor := domain.NewCheckExecutor(strategies)
 
-	// Prepare webhook secret as pointer (nil if not provided)
-	var webhookSecret *string
-	if cfg.WebHookSignature != "" {
-		webhookSecret = &cfg.WebHookSignature
-	}
-
-	// Initialize incident service with SMTP and webhook notification support
+	// Initialize incident service with dynamic notification channel dispatch
 	incidentService := monitoring.NewIncidentService(
 		incidentRepo,
 		incidentEventStepRepo,
 		notificationRepo,
+		notificationChannelRepo,
 		asynqClient,
-		cfg.SMTPIsEnabled,
-		cfg.DefaultRecipientEmail,
-		cfg.SMTPSender,
-		cfg.SMTPHost,
-		cfg.SMTPPort,
-		cfg.SMTPUser,
-		cfg.SMTPPassword,
-		cfg.WebHookUrl,
-		webhookSecret,
 	)
 
 	// Initialize task handlers
-	monitoringHandler := worker.NewMonitoringTaskHandler(resourceRepo, monitoringActivityRepo, executor, incidentService)
+	monitoringHandler := worker.NewMonitoringTaskHandler(resourceRepo, monitoringActivityRepo, maintenanceRepo, executor, incidentService)
+	maintenanceTaskHandler := maintenance.NewTaskHandler(maintenanceRepo, asynqClient)
 
 	// Create the Asynq worker processor
-	processor := worker.NewProcessor(redisOpt, monitoringHandler)
+	processor := worker.NewProcessor(redisOpt, monitoringHandler, maintenanceTaskHandler)
 
 	// Start worker in a goroutine (non-blocking)
 	go func() {
@@ -222,10 +223,12 @@ func main() {
 	resourceService := service.NewResourceService(resourceRepo, incidentRepo, tagsRepo, schedulerService, monitoringActivityRepo, enrichmentService)
 	activityService := service.NewMonitoringActivityService(monitoringActivityRepo)
 	tagService := service.NewTagService(tagsRepo)
-	statusPageService := service.NewStatusPageService(resourceRepo, incidentRepo, monitoringActivityRepo)
+	statusPageSettingsService := service.NewStatusPageSettingsService(statusPageSettingsRepo)
+	statusPageService := service.NewStatusPageService(resourceRepo, incidentRepo, monitoringActivityRepo, maintenanceRepo, statusPageSettingsRepo)
 	incidentAPIService := service.NewIncidentService(incidentRepo, incidentEventStepRepo)
 	notificationService := service.NewNotificationService(
 		resourceRepo,
+		notificationChannelRepo,
 		cfg.SMTPIsEnabled,
 		cfg.DefaultRecipientEmail,
 		cfg.SMTPSender,
@@ -234,19 +237,37 @@ func main() {
 		cfg.SMTPUser,
 		cfg.SMTPPassword,
 	)
+	maintenanceAPIService := service.NewMaintenanceService(maintenanceRepo, maintenanceScheduler)
 	statsService := service.NewStatsService(monitoringActivityRepo, incidentRepo)
+
+	// New auth service with database support
+	jwtManager := service.NewJWTManager(cfg.JWTSecret, "pulseguard", 24*time.Hour)
+	authService := service.NewAuthService(userRepo, jwtManager)
+
+	// Create default admin user on first startup
+	if cfg.AuthEmail == "" {
+		cfg.AuthEmail = "admin@pulseguard.test"
+	}
+	if cfg.AuthPassword == "" {
+		cfg.AuthPassword = "puls3gu@rd"
+	}
+	_, _ = authService.CreateDefaultUser(context.Background(), cfg.AuthEmail, cfg.AuthPassword)
 
 	// Initialize JSON API handlers (no template dependencies)
 	resourceHandler := handler.NewResourceHandler(resourceService)
 	activityHandler := handler.NewMonitoringActivityHandler(activityService)
 	tagHandler := handler.NewTagHandler(tagService)
 	statusPageHandler := handler.NewStatusPageHandler(statusPageService)
+	statusPageSettingsHandler := handler.NewStatusPageSettingsHandler(statusPageSettingsService)
 	incidentHandler := handler.NewIncidentHandler(incidentAPIService)
 	notificationHandler := handler.NewNotificationHandler(notificationService)
+	maintenanceHandler := handler.NewMaintenanceHandler(maintenanceAPIService)
 	statsHandler := handler.NewStatsHandler(statsService)
+	authHandler := handler.NewAuthHandler(authService, jwtManager)
+	accountHandler := handler.NewAccountHandler(authService)
 
 	// Create router with injected handlers
-	apiHandler := api.NewRouter(resourceHandler, activityHandler, tagHandler, statusPageHandler, incidentHandler, notificationHandler, statsHandler)
+	apiHandler := api.NewRouter(resourceHandler, activityHandler, tagHandler, statusPageHandler, statusPageSettingsHandler, incidentHandler, notificationHandler, maintenanceHandler, statsHandler, authHandler, accountHandler, authService)
 
 	// Root router: mount JSON API under /api
 	rootRouter := chi.NewRouter()

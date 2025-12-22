@@ -141,7 +141,7 @@ func TestTagService_UpdateTag(t *testing.T) {
 		err := service.CreateTag(ctx, tag)
 		require.NoError(t, err)
 
-		updated, err := service.UpdateTag(ctx, "tag-1", "prod")
+		updated, err := service.UpdateTag(ctx, "tag-1", "prod", nil, nil)
 		assert.NoError(t, err)
 		assert.Equal(t, "prod", updated.Name)
 	})
@@ -157,7 +157,7 @@ func TestTagService_UpdateTag(t *testing.T) {
 		err := service.CreateTag(ctx, tag)
 		require.NoError(t, err)
 
-		_, err = service.UpdateTag(ctx, "tag-1", "")
+		_, err = service.UpdateTag(ctx, "tag-1", "", nil, nil)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "tag name is required")
 	})
@@ -166,7 +166,7 @@ func TestTagService_UpdateTag(t *testing.T) {
 		repo := fake.NewTagsFake()
 		service := NewTagService(repo)
 
-		_, err := service.UpdateTag(ctx, "non-existent", "newname")
+		_, err := service.UpdateTag(ctx, "non-existent", "newname", nil, nil)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "not found")
 	})
@@ -188,7 +188,7 @@ func TestTagService_UpdateTag(t *testing.T) {
 		err = service.CreateTag(ctx, tag2)
 		require.NoError(t, err)
 
-		_, err = service.UpdateTag(ctx, "tag-2", "production")
+		_, err = service.UpdateTag(ctx, "tag-2", "production", nil, nil)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "already exists")
 	})

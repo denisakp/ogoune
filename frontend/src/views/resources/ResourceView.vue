@@ -19,9 +19,9 @@ import {
   EllipsisOutlined,
 } from '@ant-design/icons-vue'
 
-import { useResources } from '@/composables/useResources'
-import { useDateTime } from '@/composables/useDateTime'
-import ResourceModal from '@/components/ResourceModal.vue'
+import { useResources } from '@/composables/useResources.ts'
+import { useDateTime } from '@/composables/useDateTime.ts'
+import ResourceModal from '@/components/resources/ResourceModal.vue'
 import ResponseTimeChart from '@/components/ResponseTimeChart.vue'
 import type { Resource, Incident, ExpirationStatus } from '@/types'
 
@@ -703,7 +703,16 @@ const goBack = () => {
                 <div style="font-size: 14px; font-weight: 600">Tags</div>
               </template>
               <div style="display: flex; flex-wrap: gap; gap: 8px">
-                <a-tag v-for="tag in resource.tags" :key="tag.id" color="blue" style="margin: 0">
+                <a-tag
+                  v-for="tag in resource.tags"
+                  :key="tag.id"
+                  :style="{
+                    margin: '0',
+                    backgroundColor: tag.color || '#f0f0f0',
+                    color: '#000',
+                    borderColor: 'transparent',
+                  }"
+                >
                   {{ tag.name }}
                 </a-tag>
                 <a-tag v-if="!resource.tags || resource.tags.length === 0" style="margin: 0">

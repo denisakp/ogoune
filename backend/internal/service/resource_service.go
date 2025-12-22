@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/denisakp/pulseguard/internal/domain"
 	"github.com/denisakp/pulseguard/internal/dto"
@@ -72,11 +73,12 @@ func (s *ResourceService) findOrCreateTags(ctx context.Context, tagNames []strin
 }
 
 // CreateResource creates a new resource using domain validation and persistence.
-// After successful creation, it schedules monitoring for the resource.
-func (s *ResourceService) CreateResource(ctx context.Context, payload *dto.CreateResourcePayload) error {
+// After successful creation, it schedules monitoring for the resource and triggers
+// asynchronous metadata enrichment so the HTTP request is not blocked by SSL/WHOIS lookups.
+func (s *ResourceService) CreateResource(ctx context.Context, payload *dto.CreateResourcePayload) (*domain.Resource, error) {
 	// Validate target format
 	if err := domain.ValidateResourceTarget(payload.Target, payload.Type); err != nil {
-		return fmt.Errorf("%w: %v", ErrValidationFailed, err)
+		return nil, fmt.Errorf("%w: %v", ErrValidationFailed, err)
 	}
 
 	resource := &domain.Resource{
@@ -89,37 +91,35 @@ func (s *ResourceService) CreateResource(ctx context.Context, payload *dto.Creat
 		Status:   domain.StatusPending,
 	}
 
-	if metadata, err := s.enrichment.Enrich(ctx, resource); err == nil && metadata != nil {
-		resource.Metadata = &domain.ResourceMetaData{
-			SSLExpirationDate:    metadata.SSLExpirationDate,
-			SSLIssuer:            metadata.SSLIssuer,
-			DomainExpirationDate: metadata.DomainExpirationDate,
-			DomainRegistrar:      metadata.DomainRegistrar,
-		}
-	}
-
 	// Find or create tags by name if provided
 	if len(payload.Tags) > 0 {
 		tags, err := s.findOrCreateTags(ctx, payload.Tags)
 		if err != nil {
-			return fmt.Errorf("failed to process tags: %w", err)
+			return nil, fmt.Errorf("failed to process tags: %w", err)
 		}
 		resource.Tags = tags
 	}
 
 	// Create resource in database
-	if _, err := s.resources.Create(ctx, resource); err != nil {
-		return err
+	created, err := s.resources.Create(ctx, resource)
+	if err != nil {
+		return nil, err
 	}
 
 	// Schedule monitoring for the newly created resource
-	if err := s.scheduler.Schedule(ctx, resource); err != nil {
+	if err := s.scheduler.Schedule(ctx, created); err != nil {
 		// Log the error but don't fail the entire operation
 		// The resource was created successfully, monitoring scheduling failed
-		return fmt.Errorf("%w: %v", ErrSchedulerSync, err)
+		return created, fmt.Errorf("%w: %v", ErrSchedulerSync, err)
 	}
 
-	return nil
+	// Mark metadata as pending for API consumers until enrichment completes
+	created.MetadataPending = true
+
+	// Kick off async metadata enrichment (SSL/WHOIS) so the HTTP request returns quickly
+	go s.asyncEnrichAndPersist(created)
+
+	return created, nil
 }
 
 // GetResourceByID retrieves a resource by its ID.
@@ -157,6 +157,22 @@ func (s *ResourceService) GetResourceByIDWithResponseTimes(ctx context.Context, 
 	resource, err := s.GetResourceByID(ctx, id)
 	if err != nil {
 		return nil, err
+	}
+
+	// Normalize tags to include only id, name, and color to keep payload focused
+	if len(resource.Tags) > 0 {
+		trimmed := make([]*domain.Tags, 0, len(resource.Tags))
+		for _, t := range resource.Tags {
+			if t == nil {
+				continue
+			}
+			trimmed = append(trimmed, &domain.Tags{
+				Base:  domain.Base{ID: t.ID},
+				Name:  t.Name,
+				Color: t.Color,
+			})
+		}
+		resource.Tags = trimmed
 	}
 
 	// Get recent response times
@@ -246,14 +262,9 @@ func (s *ResourceService) UpdateResource(ctx context.Context, id string, payload
 		return nil, fmt.Errorf("%w: %v", ErrValidationFailed, err)
 	}
 
-	if metadata, err := s.enrichment.Enrich(ctx, resource); err == nil && metadata != nil {
-		resource.Metadata = &domain.ResourceMetaData{
-			SSLExpirationDate:    metadata.SSLExpirationDate,
-			SSLIssuer:            metadata.SSLIssuer,
-			DomainExpirationDate: metadata.DomainExpirationDate,
-			DomainRegistrar:      metadata.DomainRegistrar,
-		}
-	}
+	// Defer SSL/WHOIS enrichment to avoid blocking the update request
+	resource.MetadataPending = true
+	go s.asyncEnrichAndPersist(resource)
 
 	// Update resource in database
 	if err := s.resources.Update(ctx, resource); err != nil {
@@ -267,6 +278,36 @@ func (s *ResourceService) UpdateResource(ctx context.Context, id string, payload
 	}
 
 	return resource, nil
+}
+
+// asyncEnrichAndPersist performs metadata enrichment in the background and updates the resource
+// without blocking the HTTP request lifecycle. It intentionally uses a background context with
+// a bounded timeout to avoid leaking long-running WHOIS/SSL lookups.
+func (s *ResourceService) asyncEnrichAndPersist(r *domain.Resource) {
+	if r == nil || s.enrichment == nil {
+		return
+	}
+
+	// Use a background context with a soft timeout to keep enrichment bounded
+	ctx, cancel := context.WithTimeout(context.Background(), 8*time.Second)
+	defer cancel()
+
+	// Copy the minimal data needed for enrichment to avoid accidental mutation
+	resourceCopy := &domain.Resource{Target: r.Target, Type: r.Type, Timeout: r.Timeout}
+
+	metadata, err := s.enrichment.Enrich(ctx, resourceCopy)
+	if err != nil {
+		// Best-effort enrichment; log and exit without impacting the created resource
+		// (actual logging handled upstream if needed)
+		return
+	}
+
+	if metadata == nil {
+		return
+	}
+
+	// Persist the metadata without touching tags/associations
+	_ = s.resources.UpdateMetadata(context.Background(), r.ID, metadata)
 }
 
 // DeleteResource soft deletes a resource and unschedules its monitoring.

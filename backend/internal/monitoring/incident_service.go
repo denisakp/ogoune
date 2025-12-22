@@ -12,25 +12,15 @@ import (
 	"github.com/hibiken/asynq"
 )
 
-// IncidentService manages incident creation and resolution with refined stateful logic.
+// IncidentService manages incident creation and resolution with dynamic notification dispatch.
 // It creates incidents only after 3 consecutive failures and tracks the full lifecycle.
-// Notifications are sent via:
-// 1. SMTP (if configured via env variables)
-// 2. Webhook (if configured via env variables)
+// Notifications are sent via user-configured notification channels (SMTP, Webhook, etc.).
 type IncidentService struct {
-	incidents     repository.IncidentRepository
-	eventSteps    repository.IncidentEventStepRepository
-	notifications repository.NotificationRepository
-	client        *asynq.Client
-	smtpIsEnabled bool
-	smtpRecipient string
-	smtpSender    string
-	smtpHost      string
-	smtpPort      string
-	smtpUser      string
-	smtpPassword  string
-	webhookUrl    string
-	webhookSecret *string
+	incidents            repository.IncidentRepository
+	eventSteps           repository.IncidentEventStepRepository
+	notifications        repository.NotificationRepository
+	notificationChannels repository.NotificationChannelRepository
+	client               *asynq.Client
 }
 
 // NewIncidentService creates a new incident service with the given dependencies.
@@ -38,37 +28,21 @@ func NewIncidentService(
 	incidents repository.IncidentRepository,
 	eventSteps repository.IncidentEventStepRepository,
 	notifications repository.NotificationRepository,
+	notificationChannels repository.NotificationChannelRepository,
 	client *asynq.Client,
-	smtpIsEnabled bool,
-	smtpRecipient string,
-	smtpSender string,
-	smtpHost string,
-	smtpPort string,
-	smtpUser string,
-	smtpPassword string,
-	webhookUrl string,
-	webhookSecret *string,
 ) *IncidentService {
 	return &IncidentService{
-		incidents:     incidents,
-		eventSteps:    eventSteps,
-		notifications: notifications,
-		client:        client,
-		smtpIsEnabled: smtpIsEnabled,
-		smtpRecipient: smtpRecipient,
-		smtpSender:    smtpSender,
-		smtpHost:      smtpHost,
-		smtpPort:      smtpPort,
-		smtpUser:      smtpUser,
-		smtpPassword:  smtpPassword,
-		webhookUrl:    webhookUrl,
-		webhookSecret: webhookSecret,
+		incidents:            incidents,
+		eventSteps:           eventSteps,
+		notifications:        notifications,
+		notificationChannels: notificationChannels,
+		client:               client,
 	}
 }
 
 // CreateIncident creates a new incident when a resource reaches 3 consecutive failures.
-// It checks for existing active incidents, creates event steps, and triggers notifications.
-// Notifications are sent via SMTP and webhook (if configured).
+// It checks for existing active incidents, creates event steps, and dispatches notifications
+// to all configured notification channels associated with the resource.
 func (s *IncidentService) CreateIncident(ctx context.Context, r *domain.Resource, result domain.CheckResult) error {
 	if r == nil {
 		return fmt.Errorf("resource cannot be nil")
@@ -118,39 +92,47 @@ func (s *IncidentService) CreateIncident(ctx context.Context, r *domain.Resource
 		log.Printf("Warning: Failed to create detected event step: %v", err)
 	}
 
-	// ============================================================
-	// Send SMTP Notification (if enabled)
-	// ============================================================
-	if s.smtpIsEnabled {
-		if err := s.sendDownNotification(ctx, incident); err != nil {
-			log.Printf("Warning: Failed to send SMTP down notification: %v", err)
-			// Continue processing - notification failure should not stop incident creation
-		}
-
-		// Create "resource_down_alert" event step (only if SMTP notification was attempted)
-		downAlertStep := &domain.IncidentEventStep{
-			IncidentID: incident.ID,
-			Step:       domain.IncidentEventStepDownAlert,
-			Message:    stringPtr("Default SMTP resource down alert sent"),
-		}
-
-		if _, err := s.eventSteps.Create(ctx, downAlertStep); err != nil {
-			log.Printf("Warning: Failed to create resource_down_alert event step: %v", err)
-		}
-	} else {
-		log.Println("SMTP notifications disabled, skipping default DOWN notification")
+	// Fetch notification channels associated with this resource
+	channels, err := s.notificationChannels.FindByResourceID(ctx, r.ID)
+	if err != nil {
+		log.Printf("Warning: Failed to fetch notification channels for resource %s: %v", r.ID, err)
+		return nil // Continue even if channel fetch fails
 	}
 
-	// ============================================================
-	// Send Webhook Notification (if enabled)
-	// ============================================================
-	if s.webhookUrl != "" {
-		if err := s.sendWebhookNotification(ctx, incident); err != nil {
-			log.Printf("Warning: Failed to send webhook down notification: %v", err)
-			// Continue processing - notification failure should not stop incident creation
+	// If no channels configured, log and return
+	if len(channels) == 0 {
+		log.Printf("No notification channels configured for resource %s, skipping notifications", r.ID)
+		return nil
+	}
+
+	// Dispatch notifications to all configured channels
+	for _, channel := range channels {
+		err := s.dispatchNotification(ctx, incident, channel)
+
+		// Create event step for notification attempt (regardless of success/failure)
+		statusMsg := "sent"
+		if err != nil {
+			statusMsg = fmt.Sprintf("failed: %v", err)
+			log.Printf("Warning: Failed to dispatch notification via channel %s (%s): %v", channel.ID, channel.Type, err)
 		}
-	} else {
-		log.Println("Webhook notifications disabled (no URL configured)")
+
+		alertStep := &domain.IncidentEventStep{
+			IncidentID: incident.ID,
+			Step:       domain.IncidentEventStepDownAlert,
+			Message:    stringPtr(fmt.Sprintf("Down notification %s via %s (%s)", statusMsg, channel.Type, channel.Name)),
+		}
+		if _, err := s.eventSteps.Create(ctx, alertStep); err != nil {
+			log.Printf("Warning: Failed to create alert event step: %v", err)
+		}
+
+		// Create notification event record for tracking
+		notificationEvent := &domain.NotificationEvent{
+			IncidentID: incident.ID,
+			Type:       domain.NotificationEventTypeDown,
+		}
+		if err := s.notifications.Create(ctx, notificationEvent); err != nil {
+			log.Printf("Warning: Failed to create notification event: %v", err)
+		}
 	}
 
 	return nil
@@ -207,158 +189,50 @@ func (s *IncidentService) ResolveIncident(ctx context.Context, r *domain.Resourc
 		log.Printf("Warning: Failed to create resolved event step: %v", err)
 	}
 
-	// ============================================================
-	// Send SMTP Notification (if enabled)
-	// ============================================================
-	if s.smtpIsEnabled {
-		if err := s.sendUpNotification(ctx, activeIncident); err != nil {
-			log.Printf("Warning: Failed to send SMTP up notification: %v", err)
-			// Continue processing - notification failure should not stop incident resolution
+	// Fetch notification channels associated with this resource
+	channels, err := s.notificationChannels.FindByResourceID(ctx, r.ID)
+	if err != nil {
+		log.Printf("Warning: Failed to fetch notification channels for resource %s: %v", r.ID, err)
+		return nil // Continue even if channel fetch fails
+	}
+
+	// If no channels configured, log and return
+	if len(channels) == 0 {
+		log.Printf("No notification channels configured for resource %s, skipping notifications", r.ID)
+		return nil
+	}
+
+	// Dispatch resolution notifications to all configured channels
+	for _, channel := range channels {
+		err := s.dispatchNotification(ctx, activeIncident, channel)
+
+		// Create event step for notification attempt (regardless of success/failure)
+		statusMsg := "sent"
+		if err != nil {
+			statusMsg = fmt.Sprintf("failed: %v", err)
+			log.Printf("Warning: Failed to dispatch resolution notification via channel %s (%s): %v", channel.ID, channel.Type, err)
 		}
 
-		// Create "resource_up_alert" event step (only if SMTP notification was attempted)
 		upAlertStep := &domain.IncidentEventStep{
 			IncidentID: activeIncident.ID,
 			Step:       domain.IncidentEventStepUpAlert,
-			Message:    stringPtr("Default SMTP resource up alert sent"),
+			Message:    stringPtr(fmt.Sprintf("Up notification %s via %s (%s)", statusMsg, channel.Type, channel.Name)),
 		}
-
 		if _, err := s.eventSteps.Create(ctx, upAlertStep); err != nil {
-			log.Printf("Warning: Failed to create resource_up_alert event step: %v", err)
+			log.Printf("Warning: Failed to create up alert event step: %v", err)
 		}
-	} else {
-		log.Println("SMTP notifications disabled, skipping default UP notification")
-	}
 
-	// ============================================================
-	// Send Webhook Notification (if enabled)
-	// ============================================================
-	if s.webhookUrl != "" {
-		if err := s.sendWebhookNotification(ctx, activeIncident); err != nil {
-			log.Printf("Warning: Failed to send webhook up notification: %v", err)
-			// Continue processing - notification failure should not stop incident resolution
+		// Create notification event record for tracking
+		notificationEvent := &domain.NotificationEvent{
+			IncidentID: activeIncident.ID,
+			Type:       domain.NotificationEventTypeUp,
 		}
-	} else {
-		log.Println("Webhook notifications disabled (no URL configured)")
+		if err := s.notifications.Create(ctx, notificationEvent); err != nil {
+			log.Printf("Warning: Failed to create notification event: %v", err)
+		}
 	}
 
 	return nil
-}
-
-// sendDownNotification sends a "Resource Down" email notification via SMTP.
-func (s *IncidentService) sendDownNotification(ctx context.Context, incident *domain.Incident) error {
-	// Create SMTP notifier with configured credentials
-	smtpNotifier := notifier.NewSMTPNotifier(
-		s.smtpRecipient,
-		s.smtpSender,
-		s.smtpHost,
-		s.smtpPort,
-		s.smtpUser,
-		s.smtpPassword,
-	)
-
-	// Send the notification
-	err := smtpNotifier.Send(ctx, *incident)
-
-	// Create notification record to log the attempt
-	notificationEvent := &domain.NotificationEvent{
-		IncidentID: incident.ID,
-		Type:       domain.NotificationEventTypeDown,
-	}
-
-	if err != nil {
-		// Log error verbosely - this is critical for debugging SMTP issues
-		log.Printf("[SMTP ERROR] Failed to send DOWN notification for incident %s: %v", incident.ID, err)
-		log.Printf("[SMTP ERROR] Configuration - Recipient: %s, Sender: %s", s.smtpRecipient, s.smtpSender)
-		log.Printf("[SMTP ERROR] Resource: %s (%s), Cause: %s", incident.Resource.Name, incident.Resource.Target, incident.Cause)
-
-		// Continue to persist the notification event with failure status
-	} else {
-		log.Printf("[SMTP SUCCESS] Sent DOWN notification for incident %s to %s", incident.ID, s.smtpRecipient)
-	}
-
-	// Persist the notification event (regardless of send success/failure)
-	if err := s.notifications.Create(ctx, notificationEvent); err != nil {
-		log.Printf("Warning: Failed to persist notification event: %v", err)
-	}
-
-	return err
-}
-
-// sendUpNotification sends a "Resource Up" email notification via SMTP.
-func (s *IncidentService) sendUpNotification(ctx context.Context, incident *domain.Incident) error {
-	// Create SMTP notifier with configured credentials
-	smtpNotifier := notifier.NewSMTPNotifier(
-		s.smtpRecipient,
-		s.smtpSender,
-		s.smtpHost,
-		s.smtpPort,
-		s.smtpUser,
-		s.smtpPassword,
-	)
-
-	// Send the notification
-	err := smtpNotifier.Send(ctx, *incident)
-
-	// Create notification record to log the attempt
-	notificationEvent := &domain.NotificationEvent{
-		IncidentID: incident.ID,
-		Type:       domain.NotificationEventTypeUp,
-	}
-
-	if err != nil {
-		// Log error verbosely - this is critical for debugging SMTP issues
-		log.Printf("[SMTP ERROR] Failed to send UP notification for incident %s: %v", incident.ID, err)
-		log.Printf("[SMTP ERROR] Configuration - Recipient: %s, Sender: %s", s.smtpRecipient, s.smtpSender)
-		log.Printf("[SMTP ERROR] Resource: %s (%s), Cause: %s", incident.Resource.Name, incident.Resource.Target, incident.Cause)
-
-		// Continue to persist the notification event with failure status
-	} else {
-		log.Printf("[SMTP SUCCESS] Sent UP notification for incident %s to %s", incident.ID, s.smtpRecipient)
-	}
-
-	// Persist the notification event (regardless of send success/failure)
-	if err := s.notifications.Create(ctx, notificationEvent); err != nil {
-		log.Printf("Warning: Failed to persist notification event: %v", err)
-	}
-
-	return err
-}
-
-// sendWebhookNotification sends a notification via webhook.
-func (s *IncidentService) sendWebhookNotification(ctx context.Context, incident *domain.Incident) error {
-	// Create webhook notifier with configured URL and secret
-	webhookNotifier := notifier.NewWebHookNotifier(s.webhookUrl, s.webhookSecret)
-
-	// Send the notification
-	err := webhookNotifier.Send(ctx, *incident)
-
-	// Determine notification event type based on incident status
-	eventType := domain.NotificationEventTypeDown
-	if incident.ResolvedAt != nil {
-		eventType = domain.NotificationEventTypeUp
-	}
-
-	// Create notification record to log the attempt
-	notificationEvent := &domain.NotificationEvent{
-		IncidentID: incident.ID,
-		Type:       eventType,
-	}
-
-	if err != nil {
-		log.Printf("[WEBHOOK ERROR] Failed to send %s notification for incident %s: %v",
-			eventType, incident.ID, err)
-	} else {
-		log.Printf("[WEBHOOK SUCCESS] Sent %s notification for incident %s to %s",
-			eventType, incident.ID, s.webhookUrl)
-	}
-
-	// Persist the notification event (regardless of send success/failure)
-	if err := s.notifications.Create(ctx, notificationEvent); err != nil {
-		log.Printf("Warning: Failed to persist webhook notification event: %v", err)
-	}
-
-	return err
 }
 
 // extractCause extracts a structured cause from the monitoring result.
@@ -408,6 +282,37 @@ func findSubstring(s, substr string) bool {
 		}
 	}
 	return false
+}
+
+// dispatchNotification sends notifications via the given notification channel.
+// It unmarshals the channel config and instantiates the appropriate notifier.
+func (s *IncidentService) dispatchNotification(ctx context.Context, incident *domain.Incident, channel *domain.NotificationChannel) error {
+	var n notifier.Notifier
+	var err error
+
+	// Instantiate the appropriate notifier based on channel type
+	switch channel.Type {
+	case "smtp":
+		n, err = notifier.NewSMTPNotifierFromConfig(string(channel.Config))
+		if err != nil {
+			return fmt.Errorf("failed to build SMTP notifier: %w", err)
+		}
+	case "webhook":
+		n, err = notifier.NewWebhookNotifierFromConfig(string(channel.Config))
+		if err != nil {
+			return fmt.Errorf("failed to build webhook notifier: %w", err)
+		}
+	default:
+		return fmt.Errorf("unknown notification channel type: %s", channel.Type)
+	}
+
+	// Send the notification
+	if err := n.Send(ctx, *incident); err != nil {
+		return fmt.Errorf("failed to send notification: %w", err)
+	}
+
+	log.Printf("Successfully sent notification via %s channel %s", channel.Type, channel.ID)
+	return nil
 }
 
 // stringPtr is a helper to create string pointers.

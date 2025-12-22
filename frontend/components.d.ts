@@ -60,8 +60,8 @@ declare module 'vue' {
     IntegrationComponent: typeof import('./src/components/IntegrationComponent.vue')['default']
     Last24HoursStatsCard: typeof import('./src/components/Last24HoursStatsCard.vue')['default']
     LoadingSpinner: typeof import('./src/components/LoadingSpinner.vue')['default']
-    ResourceForm: typeof import('./src/components/ResourceForm.vue')['default']
-    ResourceModal: typeof import('./src/components/ResourceModal.vue')['default']
+    ResourceForm: typeof import('./src/components/resources/ResourceForm.vue')['default']
+    ResourceModal: typeof import('./src/components/resources/ResourceModal.vue')['default']
     ResponseTimeChart: typeof import('./src/components/ResponseTimeChart.vue')['default']
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']
@@ -69,8 +69,8 @@ declare module 'vue' {
     StatusBadge: typeof import('./src/components/StatusBadge.vue')['default']
     StatusPage: typeof import('./src/components/status-page/StatusPage.vue')['default']
     StatusPageDetail: typeof import('./src/components/status-page/StatusPageDetail.vue')['default']
-    StatusPageSettings: typeof import('./src/components/status-page/StatusPageSettings.vue')['default']
-    TagComponent: typeof import('./src/components/TagComponent.vue')['default']
+    StatusPageSettings: typeof import('./src/components/settings/StatusPageSettings.vue')['default']
+    TagSettings: typeof import('./src/components/settings/TagSettings.vue')['default']
     UptimeSparkline: typeof import('./src/components/UptimeSparkline.vue')['default']
   }
 }

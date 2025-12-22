@@ -11,6 +11,7 @@ import type {
   MonitorRecentEvent,
   DailyStatus,
   ResourceCurrentStatus,
+  MaintenanceBanner,
 } from '@/types'
 
 interface Props {
@@ -139,6 +140,42 @@ const getEventTitle = (event: MonitorRecentEvent): string => {
   return event.reason || 'Service down'
 }
 
+// Maintenance banner helpers
+const maintenanceBanner = computed<MaintenanceBanner | null>(() => {
+  return props.monitorData?.maintenance ?? null
+})
+
+const formatTimestampWithTimezone = (timestamp: string, tz?: string | null): string => {
+  if (tz) {
+    try {
+      const date = new Date(timestamp)
+      const monthNames = [
+        'January',
+        'February',
+        'March',
+        'April',
+        'May',
+        'June',
+        'July',
+        'August',
+        'September',
+        'October',
+        'November',
+        'December',
+      ]
+      const month = monthNames[date.getMonth()]
+      const day = date.getDate()
+      const year = date.getFullYear()
+      const hours = String(date.getHours()).padStart(2, '0')
+      const minutes = String(date.getMinutes()).padStart(2, '0')
+      return `${month} ${day}, ${year} at ${hours}:${minutes} (${tz})`
+    } catch {
+      return `${timestamp} (${tz})`
+    }
+  }
+  return formatTimestamp(timestamp)
+}
+
 // Uptime bars computed
 const uptimeBars = computed(() => {
   if (!props.monitorData?.uptime_history_90_days) return []
@@ -197,6 +234,28 @@ watch(
 
       <!-- Content -->
       <div v-else>
+        <!-- Maintenance Banner -->
+        <div v-if="maintenanceBanner" class="maintenance-banner">
+          <a-alert
+            :type="maintenanceBanner.status === 'active' ? 'info' : 'warning'"
+            :message="
+              maintenanceBanner.status === 'active'
+                ? 'Maintenance in progress'
+                : 'Scheduled maintenance'
+            "
+            :description="
+              maintenanceBanner.status === 'active'
+                ? maintenanceBanner.end_at
+                  ? `Expected end: ${formatTimestampWithTimezone(maintenanceBanner.end_at, maintenanceBanner.timezone || undefined)}`
+                  : 'Ongoing'
+                : maintenanceBanner.start_at
+                  ? `Planned for ${formatTimestampWithTimezone(maintenanceBanner.start_at, maintenanceBanner.timezone || undefined)}`
+                  : ''
+            "
+            show-icon
+            banner
+          />
+        </div>
         <!-- Header Card -->
         <a-card class="header-card" :bordered="false">
           <div class="header-content">
@@ -409,6 +468,10 @@ watch(
   margin-bottom: 24px;
   border-radius: 8px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.maintenance-banner {
+  margin-bottom: 16px;
 }
 
 .header-content {

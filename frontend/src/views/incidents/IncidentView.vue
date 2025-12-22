@@ -19,7 +19,7 @@ import {
   EllipsisOutlined,
 } from '@ant-design/icons-vue'
 
-import { useIncidents } from '@/composables/useIncidents'
+import { useIncidents } from '@/composables/useIncidents.ts'
 import type { Incident, IncidentEventStep } from '@/types'
 
 const router = useRouter()

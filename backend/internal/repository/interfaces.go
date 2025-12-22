@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"errors"
+	"time"
 
 	"github.com/denisakp/pulseguard/internal/domain"
 )
@@ -40,6 +41,8 @@ type ResourceRepository interface {
 	Delete(ctx context.Context, id string) error // soft delete (active=false)
 	FindActive(ctx context.Context, limit, offset int) ([]*domain.Resource, error)
 	FindByTag(ctx context.Context, tagName string, limit, offset int) ([]*domain.Resource, error)
+	// UpdateMetadata updates only the metadata fields for a resource, leaving associations intact
+	UpdateMetadata(ctx context.Context, id string, metadata *domain.ResourceMetaData) error
 }
 
 // IncidentRepository manages incidents (unresolved vs resolved)
@@ -88,4 +91,46 @@ type MonitoringActivityRepository interface {
 type Scheduler interface {
 	Schedule(ctx context.Context, r *domain.Resource) error
 	Unschedule(ctx context.Context, resourceID string) error
+}
+
+// NotificationChannelRepository manages notification channels
+type NotificationChannelRepository interface {
+	Create(ctx context.Context, channel *domain.NotificationChannel) error
+	FindByID(ctx context.Context, id string) (*domain.NotificationChannel, error)
+	List(ctx context.Context, limit, offset int) ([]*domain.NotificationChannel, error)
+	Update(ctx context.Context, channel *domain.NotificationChannel) error
+	Delete(ctx context.Context, id string) error
+	FindByType(ctx context.Context, channelType domain.NotificationChannelType) ([]*domain.NotificationChannel, error)
+	FindDefaultChannels(ctx context.Context) ([]*domain.NotificationChannel, error)
+	// FindByResourceID returns all notification channels associated with a resource
+	FindByResourceID(ctx context.Context, resourceID string) ([]*domain.NotificationChannel, error)
+}
+
+// MaintenanceRepository manages maintenance windows
+type MaintenanceRepository interface {
+	Create(ctx context.Context, m *domain.Maintenance) (*domain.Maintenance, error)
+	FindByID(ctx context.Context, id string) (*domain.Maintenance, error)
+	List(ctx context.Context, status string, limit, offset int) ([]*domain.Maintenance, error)
+	Update(ctx context.Context, m *domain.Maintenance) error
+	Delete(ctx context.Context, id string) error
+	// Returns maintenances currently active for a resource at the provided time
+	FindActiveForResource(ctx context.Context, resourceID string, now time.Time) ([]*domain.Maintenance, error)
+}
+
+// StatusPageSettingsRepository manages status page configuration
+type StatusPageSettingsRepository interface {
+	Get(ctx context.Context) (*domain.StatusPageSettings, error)
+	Upsert(ctx context.Context, settings *domain.StatusPageSettings) error
+}
+
+// UserRepository manages user accounts and authentication
+type UserRepository interface {
+	Create(ctx context.Context, user *domain.User) (*domain.User, error)
+	FindByID(ctx context.Context, id string) (*domain.User, error)
+	FindByEmail(ctx context.Context, email string) (*domain.User, error)
+	Update(ctx context.Context, user *domain.User) error
+	Delete(ctx context.Context, id string) error
+	UpdatePassword(ctx context.Context, userID string, hashedPassword string) error
+	UpdateLastLogin(ctx context.Context, userID string) error
+	UpdateTwoFactorSecret(ctx context.Context, userID string, secret string, enabled bool) error
 }

@@ -435,7 +435,7 @@ const getYPosition = (value: number): number => {
 }
 
 .chart-point:hover {
-  r: 6;
+  r: 6%;
 }
 
 .axis-label {

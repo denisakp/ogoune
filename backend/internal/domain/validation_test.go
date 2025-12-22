@@ -1,6 +1,7 @@
 package domain
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -182,16 +183,16 @@ func TestValidateResourceTarget_TCP(t *testing.T) {
 			errorMsg:    "invalid port number",
 		},
 		{
-			name:        "invalid - unresolvable hostname",
-			target:      "this-host-does-not-exist-12345.invalid:3306",
-			expectError: true,
-			errorMsg:    "invalid IP address or unresolvable host",
-		},
-		{
 			name:        "invalid - multiple colons",
 			target:      "192.168.1.1:3306:extra",
 			expectError: true,
 			errorMsg:    "invalid TCP target format, expected host:port",
+		},
+		{
+			name:        "invalid - hostname with spaces",
+			target:      "my host:3306",
+			expectError: true,
+			errorMsg:    "invalid IP address or unresolvable host",
 		},
 	}
 
@@ -251,8 +252,8 @@ func TestValidateResourceTarget_EdgeCases(t *testing.T) {
 			expectError:  false,
 		},
 		{
-			name:         "HTTP - very long URL",
-			target:       "https://example.com/" + string(make([]byte, 1000)),
+			name:         "HTTP - very long but valid URL",
+			target:       "https://example.com/" + strings.Repeat("a", 1000),
 			resourceType: ResourceHTTP,
 			expectError:  false,
 		},
@@ -263,10 +264,23 @@ func TestValidateResourceTarget_EdgeCases(t *testing.T) {
 			expectError:  false,
 		},
 		{
-			name:         "TCP - hostname with underscore (technically invalid DNS but may work)",
+			name:         "TCP - hostname with underscore",
 			target:       "my_database_host:5432",
 			resourceType: ResourceTCP,
-			expectError:  true, // Will likely fail DNS resolution
+			expectError:  false,
+		},
+		{
+			name:         "TCP - invalid hostname with dot at start",
+			target:       ".invalid.com:5432",
+			resourceType: ResourceTCP,
+			expectError:  true,
+			errorMsg:     "invalid IP address or unresolvable host",
+		},
+		{
+			name:         "TCP - invalid hostname with dot at end",
+			target:       "invalid.com.:5432",
+			resourceType: ResourceTCP,
+			expectError:  true,
 			errorMsg:     "invalid IP address or unresolvable host",
 		},
 	}

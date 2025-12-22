@@ -185,6 +185,4 @@ const getRangeText = (range: string): string => {
   </a-card>
 </template>
 
-<style scoped>
-/* Component-specific styles if needed */
-</style>
+<style scoped></style>

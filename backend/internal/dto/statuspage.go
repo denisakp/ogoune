@@ -7,6 +7,16 @@ type StatusPageData struct {
 	GlobalStatus string               `json:"global_status"`
 	GeneratedAt  time.Time            `json:"generated_at"`
 	Resources    []ResourceStatusInfo `json:"resources"`
+	Settings     *StatusPageSettings  `json:"settings,omitempty"`
+}
+
+// StatusPageSettings contains configurable settings for the status page
+type StatusPageSettings struct {
+	Name                 string `json:"name"`
+	HomepageURL          string `json:"homepage_url,omitempty"`
+	GoogleAnalyticsID    string `json:"google_analytics_id,omitempty"`
+	EnableDetailsPage    bool   `json:"enable_details_page"`
+	ShowUptimePercentage bool   `json:"show_uptime_percentage"`
 }
 
 // ResourceStatusInfo represents a monitored resource's current status and uptime metrics.
@@ -40,6 +50,16 @@ type ResourceDetailStatusData struct {
 	UptimeSummary         UptimeSummary       `json:"uptime_summary"`
 	ResponseTimeSummary7D ResponseTimeSummary `json:"response_time_summary_7_days"`
 	RecentEvents          []ResourceEvent     `json:"recent_events"`
+	Maintenance           *MaintenanceBanner  `json:"maintenance,omitempty"`
+}
+
+// MaintenanceBanner contains minimal info to display a maintenance notice
+type MaintenanceBanner struct {
+	Status   string     `json:"status"` // scheduled | active
+	Title    string     `json:"title"`
+	StartAt  *time.Time `json:"start_at,omitempty"`
+	EndAt    *time.Time `json:"end_at,omitempty"`
+	Timezone *string    `json:"timezone,omitempty"`
 }
 
 // UptimeSummary represents uptime percentages for different time windows
