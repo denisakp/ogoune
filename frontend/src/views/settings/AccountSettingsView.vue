@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { reactive, ref, onMounted } from 'vue'
+import { reactive, ref, onMounted, computed } from 'vue'
 import { message } from 'ant-design-vue'
 import {
   UserOutlined,
@@ -32,9 +32,21 @@ const is2FAEnabled = ref(false)
 const enable2FALoading = ref(false)
 const showQRCode = ref(false)
 const qrCode = ref('')
+const secret2FA = ref('')
 //const backupCodes = ref<string[]>([])
 const confirm2FAForm = reactive({
   otp: '',
+})
+
+const displayOtp = computed({
+  get: () => {
+    const value = confirm2FAForm.otp.replace(/\D/g, '')
+    if (value.length <= 3) return value
+    return `${value.slice(0, 3)}-${value.slice(3, 6)}`
+  },
+  set: (value: string) => {
+    confirm2FAForm.otp = value.replace(/\D/g, '').slice(0, 6)
+  }
 })
 
 const profileRules: Record<string, Rule[]> = {
@@ -134,6 +146,7 @@ async function handleEnable2FA() {
   try {
     const response = await accountService.enable2FA()
     qrCode.value = response.qr_code
+    secret2FA.value = response.secret
     showQRCode.value = true
     message.info('Please scan the QR code with your authenticator app')
   } catch (error) {
@@ -149,11 +162,17 @@ async function handleConfirm2FA() {
     return
   }
 
+  if (!secret2FA.value) {
+    message.error('2FA secret is missing. Please restart the setup.')
+    return
+  }
+
   try {
-    await accountService.confirm2FA(confirm2FAForm.otp)
+    await accountService.confirm2FA({ otp: confirm2FAForm.otp, secret: secret2FA.value })
     is2FAEnabled.value = true
     showQRCode.value = false
     confirm2FAForm.otp = ''
+    secret2FA.value = ''
     message.success('Two-factor authentication enabled successfully')
   } catch (error) {
     message.error('Invalid OTP. Please try again')
@@ -308,10 +327,10 @@ async function handleDisable2FA() {
                 <a-form :model="confirm2FAForm" :rules="confirm2FARules" layout="vertical">
                   <a-form-item label="Verification Code" name="otp">
                     <a-input
-                      v-model:value="confirm2FAForm.otp"
-                      placeholder="000000"
+                      v-model:value="displayOtp"
+                      placeholder="000-000"
                       size="large"
-                      maxlength="6"
+                      maxlength="7"
                     />
                   </a-form-item>
 
