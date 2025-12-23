@@ -9,62 +9,35 @@ import (
 
 // Config holds all application configuration loaded from environment variables.
 type Config struct {
-	RedisUrl              string
-	DatabaseUrl           string
-	Port                  string
-	SMTPHost              string
-	SMTPPort              string
-	SMTPUser              string
-	SMTPPassword          string
-	SMTPSender            string
-	DefaultRecipientEmail string
-	SMTPIsEnabled         bool
-	StaticDir             string
-	WebHookUrl            string
-	WebHookSignature      string
-	WebHookIsEnabled      bool
-	AuthEmail             string
-	AuthPassword          string
-	JWTSecret             string
+	RedisUrl         string
+	DatabaseUrl      string
+	Port             string
+	StaticDir        string
+	WebHookUrl       string
+	WebHookSignature string
+	WebHookIsEnabled bool
+	AuthEmail        string
+	AuthPassword     string
+	JWTSecret        string
 }
 
 // Load reads configuration from environment variables.
 // It should be called after attempting to load .env file.
 func Load() Config {
-	// Load SMTP configuration
-	smtpHost := GetEnv("SMTP_HOST", "")
-	smtpPort := GetEnv("SMTP_PORT", "")
-	smtpUser := GetEnv("SMTP_USER", "")
-	smtpPassword := GetEnv("SMTP_PASSWORD", "")
-	smtpSender := GetEnv("SMTP_SENDER", "")
-	defaultRecipient := GetEnv("DEFAULT_RECIPIENT_EMAIL", "")
-
-	// SMTP is enabled only if ALL required variables are present and non-empty
-	smtpIsEnabled := smtpHost != "" && smtpPort != "" &&
-		smtpUser != "" && smtpPassword != "" &&
-		smtpSender != "" && defaultRecipient != ""
-
 	webhookUrl := GetEnv("WEBHOOK_URL", "")
 	webhookIsEnabled := webhookUrl != ""
 
 	cfg := Config{
-		RedisUrl:              GetEnv("REDIS_URL", "redis:6379"),
-		DatabaseUrl:           GetEnv("DATABASE_URL", "postgres://pulseguard:EE94PPHGz3TZ@postgres:5432/pulse?sslmode=disable"),
-		Port:                  GetEnv("PORT", "8080"),
-		SMTPHost:              smtpHost,
-		SMTPPort:              smtpPort,
-		SMTPUser:              smtpUser,
-		SMTPPassword:          smtpPassword,
-		SMTPSender:            smtpSender,
-		DefaultRecipientEmail: defaultRecipient,
-		SMTPIsEnabled:         smtpIsEnabled,
-		WebHookUrl:            webhookUrl,
-		WebHookSignature:      GetEnv("WEBHOOK_SIGNATURE", ""),
-		WebHookIsEnabled:      webhookIsEnabled,
-		StaticDir:             GetEnv("STATIC_DIR", "./static"),
-		AuthEmail:             GetEnv("AUTH_EMAIL", "admin@pulseguard.test"),
-		AuthPassword:          GetEnv("AUTH_PASSWORD", "puls3gu@rd"),
-		JWTSecret:             GetEnv("JWT_SECRET", "pulseguard-secret-key-change-in-production"),
+		RedisUrl:         GetEnv("REDIS_URL", "redis:6379"),
+		DatabaseUrl:      GetEnv("DATABASE_URL", "postgres://pulseguard:EE94PPHGz3TZ@postgres:5432/pulse?sslmode=disable"),
+		Port:             GetEnv("PORT", "8080"),
+		WebHookUrl:       webhookUrl,
+		WebHookSignature: GetEnv("WEBHOOK_SIGNATURE", ""),
+		WebHookIsEnabled: webhookIsEnabled,
+		StaticDir:        GetEnv("STATIC_DIR", "./static"),
+		AuthEmail:        GetEnv("AUTH_EMAIL", "admin@pulseguard.test"),
+		AuthPassword:     GetEnv("AUTH_PASSWORD", "puls3gu@rd"),
+		JWTSecret:        GetEnv("JWT_SECRET", "pulseguard-secret-key-change-in-production"),
 	}
 	return cfg
 }
@@ -94,14 +67,6 @@ func MustInit() Config {
 	// Validate critical configuration
 	if cfg.DatabaseUrl == "" {
 		log.Fatalf("[config] DATABASE_URL environment variable is required")
-	}
-
-	// Log SMTP configuration status
-	if cfg.SMTPIsEnabled {
-		log.Printf("[config] SMTP notifications ENABLED (host: %s, sender: %s, recipient: %s)",
-			cfg.SMTPHost, cfg.SMTPSender, cfg.DefaultRecipientEmail)
-	} else {
-		log.Println("[config] SMTP notifications DISABLED (missing required SMTP_* environment variables)")
 	}
 
 	log.Printf("[config] Port: %s", cfg.Port)

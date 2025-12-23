@@ -29,7 +29,7 @@ const router = useRouter()
 const route = useRoute()
 
 // Use the composable following the project architecture
-const { loading, pauseResource, loadResourceWithResponseTimes, testNotification } = useResources()
+const { loading, pauseResource, loadResourceWithResponseTimes } = useResources()
 
 // Local state
 const resource = ref<Resource | null>(null)
@@ -267,15 +267,6 @@ const handlePauseResource = async () => {
   }
 }
 
-// Test notification
-const handleTestNotification = async () => {
-  if (!resource.value) return
-
-  try {
-    await testNotification(resource.value.id)
-  } catch {}
-}
-
 // Handle edit modal
 const openEditModal = () => {
   showEditModal.value = true
@@ -329,12 +320,6 @@ const goBack = () => {
             </div>
           </div>
           <div style="display: flex; gap: 8px">
-            <a-button @click="handleTestNotification">
-              <template #icon>
-                <PlayCircleOutlined />
-              </template>
-              Test Notification
-            </a-button>
             <a-button @click="handlePauseResource">
               <template #icon>
                 <PauseOutlined />

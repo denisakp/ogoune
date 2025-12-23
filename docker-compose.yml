@@ -45,13 +45,7 @@ services:
       - '${APP_PORT:-8080}:8080'
     environment:
       DATABASE_URL: postgres://${PG_USERNAME}:${PG_PASSWORD}@postgres:5432/${PG_DATABASE}
-      REDIS_URL: ${REDIS_URL}
-      SMTP_HOST: ${SMTP_HOST}
-      SMTP_PORT: ${SMTP_PORT}
-      SMTP_USER: ${SMTP_USER}
-      SMTP_PASSWORD: ${SMTP_PASSWORD}
-      SMTP_SENDER: ${SMTP_SENDER}
-      DEFAULT_RECIPIENT_EMAIL: ${DEFAULT_RECIPIENT_EMAIL}
+      REDIS_URL: ${REDIS_URL}D}
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/health"]
       retries: 3

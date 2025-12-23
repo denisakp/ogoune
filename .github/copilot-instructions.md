@@ -17,7 +17,7 @@ Purpose: help AI coding agents be productive immediately in this monorepo. Keep 
 
 - Backend (requires Docker for Postgres + Redis):
   - From repo root: `make docker-up` then `make run` (runs API+worker). Health: `GET /health`.
-  - Env vars: see `backend/.env.example` (PORT, DATABASE*URL, REDIS_URL, SMTP*\*).
+  - Env vars: see `backend/.env.example` (PORT, DATABASE*URL, REDIS_URL*\*).
   - Tests: `make test` (alias for `go test -v ./...`). Build: `make build`.
 - Frontend:
   - `cd frontend && pnpm install && pnpm dev` with `VITE_API_BASE_URL=http://localhost:8080`.

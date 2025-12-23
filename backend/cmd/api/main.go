@@ -229,13 +229,6 @@ func main() {
 	notificationService := service.NewNotificationService(
 		resourceRepo,
 		notificationChannelRepo,
-		cfg.SMTPIsEnabled,
-		cfg.DefaultRecipientEmail,
-		cfg.SMTPSender,
-		cfg.SMTPHost,
-		cfg.SMTPPort,
-		cfg.SMTPUser,
-		cfg.SMTPPassword,
 	)
 	maintenanceAPIService := service.NewMaintenanceService(maintenanceRepo, maintenanceScheduler)
 	statsService := service.NewStatsService(monitoringActivityRepo, incidentRepo)

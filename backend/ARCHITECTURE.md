@@ -20,7 +20,7 @@ Core responsibilities:
 - Periodic health checks (HTTP, TCP).
 - Persisted monitoring activities.
 - Incident lifecycle (create on persistent failures, resolve on recovery).
-- Notifications (SMTP + pluggable integrations).
+- Notifications via user-configured channels (SMTP/Slack/Webhook).
 - Aggregated stats and status endpoints for dashboards/status pages.
 
 Source of truth: PostgreSQL.
@@ -34,7 +34,7 @@ Transport for background work: Redis + Asynq.
 - HTTP: Chi router
 - Persistence: GORM ORM + PostgreSQL
 - Background jobs: Redis + Asynq (periodic scheduler + worker server)
-- Notifications: SMTP (+ Slack, Webhook integrations)
+- Notifications: user-configured channels (SMTP, Slack, Webhook)
 - Configuration: Environment variables (dotenv supported in development)
 
 Key modules and files:
@@ -73,7 +73,7 @@ Note: The current binary starts all three components by default in every instanc
   - `router.go`: route wiring, CORS, content-type.
   - `handler/*`: HTTP handlers for resources, activities, tags, integrations, incidents, status page, stats, notifications.
 - `internal/config`
-  - `config.go`: env loading, dotenv support, SMTP enablement flag.
+  - `config.go`: env loading, dotenv support.
 - `internal/domain`
   - `models.go`: core entities (Resource, Incident, Event Steps, Integration, NotificationEvent, MonitoringActivity, Tags).
   - `check.go`: check strategies interface and executor contract.
@@ -183,9 +183,8 @@ Authentication/authorization: not implemented at present.
    - On recovery (first `up` after a `down`): resolve the most recent active incident.
 
 7. Notifications
-   - Two layers:
-     - System SMTP (optional): if SMTP is enabled via environment variables, send default "down" and "up" emails and record `NotificationEvent`.
-     - User integrations: load active integrations, filter by subscribed event types (`down`, `up`, `expiry`), and send via notifier factory (Slack, Webhook). Record `NotificationEvent` for each attempt.
+   - Channel-based: notification channels (SMTP/Slack/Webhook/SMS) are stored in the database and dispatched via the notifier factory.
+   - Testing: `/notification-channels/{id}/test` for saved channels, `/notification-channels/test-config` to validate before saving.
 
 8. Status and Stats
    - `/status`: pre-aggregated 90‑day uptime and per‑day status array per resource (includes "no_data" days before resource creation). See `docs/STATUS_ENDPOINT.md`.
@@ -224,7 +223,7 @@ Operational notes:
   - Persist activity.
   - Transition resource status and `failure_count`.
   - Create or resolve incident when appropriate.
-  - Trigger notifications (SMTP optional, integrations filtered by event type).
+  - Trigger notifications via configured channels (SMTP/Slack/Webhook) filtered by event type.
 
 Error handling and retries:
 - Handler returns errors for fatal problems (e.g., resource not found). Asynq will retry per its defaults.
@@ -247,13 +246,11 @@ PostgreSQL is the sole source of truth; Redis is used only for job scheduling/tr
 
 ## 11) Notifications
 
-- SMTP (system-level):
-  - Enabled only when all required env vars are non-empty: `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_SENDER`, `DEFAULT_RECIPIENT_EMAIL`.
-  - Uses embedded HTML templates for "down" and "up" messages.
-  - Sends test messages via `POST /notifications/test`.
+  - Channel-based delivery: SMTP/Slack/Webhook/SMS channels are created and stored via `/notification-channels` APIs.
+  - Tests: `/notification-channels/{id}/test` for saved channels; `/notification-channels/test-config` to validate before saving.
 
 - Integrations (user-level):
-  - Providers: Slack, Webhook.
+  - Providers: Slack, Webhook (and SMTP as a channel).
   - Selection: by `Integration.Config.type` and `Integration.EventTypes` (contains the current event type).
   - Dispatch: parallelized per incident event via notifier factory.
   - Audit: each attempt creates a `NotificationEvent` entry.
@@ -298,8 +295,6 @@ Environment variables (examples in parentheses indicate typical local defaults):
   - `DATABASE_URL` (e.g., `postgres://user:password@localhost:5432/pulseguard?sslmode=disable`)
 - Redis:
   - `REDIS_URL` (e.g., `localhost:6379`)
-- SMTP (optional; all required):
-  - `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_SENDER`, `DEFAULT_RECIPIENT_EMAIL`
 
 Dotenv:
 - In development, `.env` is loaded if present.
@@ -340,7 +335,7 @@ Useful endpoints:
   - Increment `failure_count` on each consecutive `down`.
   - On exactly the 3rd consecutive failure: create an incident if none is active.
   - Add an `IncidentEventStep` with `detected`.
-  - Send notifications (SMTP if enabled, plus provider integrations subscribed to `down`).
+  - Send notifications through configured channels subscribed to `down`.
 
 - Resolution:
   - When a `down` resource transitions to `up`, resolve the most recent active incident (set `resolved_at`).

@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log"
 
 	"github.com/denisakp/pulseguard/internal/domain"
 	"github.com/denisakp/pulseguard/internal/dto"
@@ -15,73 +14,19 @@ import (
 
 // NotificationService provides business logic for notification operations.
 type NotificationService struct {
-	resources     repository.ResourceRepository
-	channels      repository.NotificationChannelRepository
-	smtpIsEnabled bool
-	smtpRecipient string
-	smtpSender    string
-	smtpHost      string
-	smtpPort      string
-	smtpUser      string
-	smtpPassword  string
+	resources repository.ResourceRepository
+	channels  repository.NotificationChannelRepository
 }
 
-// NewNotificationService creates a new NotificationService with SMTP configuration.
+// NewNotificationService creates a new NotificationService.
 func NewNotificationService(
 	resources repository.ResourceRepository,
 	channels repository.NotificationChannelRepository,
-	smtpIsEnabled bool,
-	smtpRecipient string,
-	smtpSender string,
-	smtpHost string,
-	smtpPort string,
-	smtpUser string,
-	smtpPassword string,
 ) *NotificationService {
 	return &NotificationService{
-		resources:     resources,
-		channels:      channels,
-		smtpIsEnabled: smtpIsEnabled,
-		smtpRecipient: smtpRecipient,
-		smtpSender:    smtpSender,
-		smtpHost:      smtpHost,
-		smtpPort:      smtpPort,
-		smtpUser:      smtpUser,
-		smtpPassword:  smtpPassword,
+		resources: resources,
+		channels:  channels,
 	}
-}
-
-// TestNotification sends a test notification for a specific resource using SMTP (if enabled).
-// It retrieves the resource and sends a test email notification.
-func (s *NotificationService) TestNotification(ctx context.Context, resourceID string) error {
-	// Fetch the resource
-	resource, err := s.resources.FindByID(ctx, resourceID)
-	if err != nil {
-		return fmt.Errorf("failed to find resource: %w", err)
-	}
-
-	// Check if SMTP is enabled
-	if !s.smtpIsEnabled {
-		return fmt.Errorf("SMTP notifications are not configured")
-	}
-
-	// Create SMTP notifier with configured credentials
-	smtpNotifier := notifier.NewSMTPNotifier(
-		s.smtpRecipient,
-		s.smtpSender,
-		s.smtpHost,
-		s.smtpPort,
-		s.smtpUser,
-		s.smtpPassword,
-	)
-
-	// Send test notification
-	if err := smtpNotifier.SendTestNotification(ctx, *resource); err != nil {
-		return fmt.Errorf("failed to send test notification: %w", err)
-	}
-
-	log.Printf("Successfully sent test notification for resource %s", resourceID)
-	return nil
 }
 
 // CreateNotificationChannel creates a new notification channel

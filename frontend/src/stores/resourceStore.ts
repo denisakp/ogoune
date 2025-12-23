@@ -160,17 +160,6 @@ export const useResourceStore = defineStore('resource', () => {
     }
   }
 
-  const testNotification = async (resourceId: string) => {
-    try {
-      await resourceService.testNotification(resourceId)
-      return true
-    } catch (err) {
-      error.value = err instanceof Error ? err.message : 'Failed to send test notification'
-      // L'intercepteur axios gère déjà l'affichage du toast d'erreur
-      return false
-    }
-  }
-
   return {
     resources,
     loading,
@@ -184,6 +173,5 @@ export const useResourceStore = defineStore('resource', () => {
     updateResourceData,
     pauseMonitoring,
     resumeMonitoring,
-    testNotification,
   }
 })

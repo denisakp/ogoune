@@ -2,22 +2,7 @@
 import { onMounted, ref, computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { message } from 'ant-design-vue'
-import {
-  PauseOutlined,
-  PlayCircleOutlined,
-  ArrowLeftOutlined,
-  DashboardOutlined,
-  RiseOutlined,
-  FallOutlined,
-  SafetyOutlined,
-  GlobalOutlined,
-  CalendarOutlined,
-  CheckCircleOutlined,
-  WarningOutlined,
-  ClockCircleOutlined,
-  EditOutlined,
-  EllipsisOutlined,
-} from '@ant-design/icons-vue'
+import { ArrowLeftOutlined } from '@ant-design/icons-vue'
 
 import { useIncidents } from '@/composables/useIncidents.ts'
 import type { Incident, IncidentEventStep } from '@/types'
