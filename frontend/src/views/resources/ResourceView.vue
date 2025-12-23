@@ -58,6 +58,12 @@ const filteredIncidents = computed(() => {
 const calculateUptime = computed((): number => {
   if (!resource.value) return 0
 
+  // If resource is pending (no checks completed yet), return null-like value
+  // We'll handle this in the display with a special message
+  if (resource.value.status === 'pending' || !resource.value.last_checked) {
+    return -1 // Special marker for pending state
+  }
+
   // If the resource has an overall uptime property, use it as baseline
   if (resource.value.uptime !== undefined && timeRange.value === '24h') {
     return Number(resource.value.uptime.toFixed(1))
@@ -92,8 +98,9 @@ const calculateUptime = computed((): number => {
 
 // Get current stats with real data
 const currentStats = computed(() => {
+  const uptime = calculateUptime.value
   return {
-    uptime: calculateUptime.value,
+    uptime: uptime >= 0 ? uptime : null, // null for pending
     incidents: filteredIncidents.value.length,
   }
 })
@@ -421,11 +428,14 @@ const goBack = () => {
               <a-row :gutter="24" style="margin-bottom: 24px">
                 <a-col :xs="24" :sm="12">
                   <div style="text-align: center; padding: 24px">
-                    <div style="font-size: 48px; font-weight: bold; color: #52c41a">
-                      {{ currentStats.uptime }}%
+                    <div
+                      style="font-size: 48px; font-weight: bold"
+                      :style="{ color: currentStats.uptime === null ? '#d9d9d9' : '#52c41a' }"
+                    >
+                      {{ currentStats.uptime !== null ? currentStats.uptime + '%' : 'Pending' }}
                     </div>
                     <div style="font-size: 14px; color: rgba(0, 0, 0, 0.65); margin-top: 8px">
-                      Uptime
+                      {{ currentStats.uptime === null ? 'Waiting for first check' : 'Uptime' }}
                     </div>
                   </div>
                 </a-col>
