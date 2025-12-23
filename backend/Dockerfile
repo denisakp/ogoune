@@ -20,6 +20,10 @@ RUN pnpm run build
 # Stage 2: Build Go Backend
 FROM golang:1.25.3-alpine3.22 AS go-builder
 
+LABEL org.opencontainers.image.source="https://github.com/denisakp/pulseguard"
+LABEL org.opencontainers.image.description="A monitoring solution offering uptime monitoring, performance tracking, and alerting features."
+LABEL org.opencontainers.image.title="PulseGuard"
+
 WORKDIR /build
 
 COPY backend/go.mod backend/go.sum ./
@@ -37,12 +41,6 @@ FROM alpine:latest
 
 ENV DATABASE_URL= \
     REDIS_URL= \
-    SMTP_HOST= \
-    SMTP_PORT= \
-    SMTP_USER= \
-    SMTP_PASSWORD= \
-    SMTP_SENDER= \
-    DEFAULT_RECIPIENT_EMAIL= \
     STATIC_DIR=/app/static \
     APP_PORT=8080
 
