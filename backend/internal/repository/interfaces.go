@@ -134,3 +134,11 @@ type UserRepository interface {
 	UpdateLastLogin(ctx context.Context, userID string) error
 	UpdateTwoFactorSecret(ctx context.Context, userID string, secret string, enabled bool) error
 }
+
+// IncidentDiagnosticsRepository manages detailed diagnostic information for incidents
+type IncidentDiagnosticsRepository interface {
+	Create(ctx context.Context, d *domain.IncidentDiagnostics) (*domain.IncidentDiagnostics, error)
+	FindByIncidentID(ctx context.Context, incidentID string) (*domain.IncidentDiagnostics, error)
+	Update(ctx context.Context, d *domain.IncidentDiagnostics) error
+	Delete(ctx context.Context, id string) error
+}

@@ -28,6 +28,7 @@ var (
 		&domain.Resource{},
 		&domain.Incident{},
 		&domain.IncidentEventStep{},
+		&domain.IncidentDiagnostics{},
 		&domain.NotificationEvent{},
 		&domain.NotificationChannel{},
 		&domain.Maintenance{},

@@ -132,6 +132,36 @@ export interface IncidentEventStep {
 }
 
 /**
+ * Incident diagnostics containing rich technical context about failures
+ */
+export interface IncidentDiagnostics {
+  id: string
+  incident_id: string
+  // Request details
+  request_method: string
+  request_url: string
+  request_headers?: Record<string, string>
+  request_timeout: number
+  // Response details
+  http_status_code: number
+  response_headers?: Record<string, string>
+  response_body?: string
+  response_size: number
+  // Error context
+  failure_type: string
+  error_message: string
+  error_summary: string
+  // Timing breakdown
+  total_duration: number // milliseconds
+  dns_duration: number
+  tls_duration: number
+  first_byte_duration: number
+  // Flags
+  body_truncated: boolean
+  body_encoded: boolean
+}
+
+/**
  * Incident represents a detected downtime event
  */
 export interface Incident {
@@ -143,6 +173,7 @@ export interface Incident {
   started_at: string
   resolved_at?: string | null
   details?: string
+  diagnostics?: IncidentDiagnostics
   event_steps?: IncidentEventStep[]
   created_at: string
   updated_at: string

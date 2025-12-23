@@ -88,16 +88,46 @@ func (Resource) TableName() string { return "resources" }
 // Incident represents an event where a Resource is down or experiencing issues.
 type Incident struct {
 	Base
-	ResourceID string              `json:"resource_id" gorm:"index"`
-	Resource   Resource            `json:"resource" gorm:"foreignKey:ResourceID"`
-	Cause      string              `json:"cause" gorm:"index;default:unknown_failure"`
-	ResolvedAt *time.Time          `json:"resolved_at" gorm:"index"` // nil = active, timestamp = resolved
-	StartedAt  time.Time           `json:"started_at" gorm:"index"`
-	Details    []byte              `json:"details"`
-	EventStep  []IncidentEventStep `json:"event_steps"`
+	ResourceID          string               `json:"resource_id" gorm:"index"`
+	Resource            Resource             `json:"resource" gorm:"foreignKey:ResourceID"`
+	Cause               string               `json:"cause" gorm:"index;default:unknown_failure"`
+	ResolvedAt          *time.Time           `json:"resolved_at" gorm:"index"` // nil = active, timestamp = resolved
+	StartedAt           time.Time            `json:"started_at" gorm:"index"`
+	Details             []byte               `json:"details"`
+	EventStep           []IncidentEventStep  `json:"event_steps"`
+	IncidentDiagnostics *IncidentDiagnostics `json:"diagnostics" gorm:"foreignKey:IncidentID"`
 }
 
 func (Incident) TableName() string { return "incidents" }
+
+// IncidentDiagnostics contains enriched diagnostic information about an incident
+// including request/response details, failure classification, and timing breakdown.
+// This is populated when an incident is created and provides users with detailed
+// context for debugging and understanding what caused the failure.
+type IncidentDiagnostics struct {
+	Base
+	IncidentID        string            `json:"incident_id" gorm:"uniqueIndex;index"`
+	Incident          Incident          `json:"incident" gorm:"foreignKey:IncidentID;constraint:OnDelete:CASCADE"`
+	RequestMethod     string            `json:"request_method"`                           // GET, HEAD, POST, etc.
+	RequestURL        string            `json:"request_url"`                              // Full URL being checked
+	RequestHeaders    map[string]string `json:"request_headers" gorm:"type:jsonb"`        // Sanitized request headers
+	RequestTimeout    int               `json:"request_timeout"`                          // Timeout in seconds
+	HTTPStatusCode    int               `json:"http_status_code" gorm:"index;default:-1"` // HTTP status code (-1 if N/A)
+	ResponseHeaders   map[string]string `json:"response_headers" gorm:"type:jsonb"`       // Response headers
+	ResponseBody      string            `json:"response_body"`                            // Base64 encoded if needed, truncated to 5KB
+	ResponseSize      int               `json:"response_size"`                            // Actual response size in bytes
+	FailureType       string            `json:"failure_type" gorm:"index"`                // e.g., connection_timeout, invalid_status_code
+	ErrorMessage      string            `json:"error_message"`                            // Machine-readable error from Go
+	ErrorSummary      string            `json:"error_summary"`                            // Human-friendly explanation
+	TotalDuration     int               `json:"total_duration"`                           // Milliseconds
+	DNSDuration       int               `json:"dns_duration"`                             // Milliseconds (0 if not measured)
+	TLSDuration       int               `json:"tls_duration"`                             // Milliseconds (0 if not applicable)
+	FirstByteDuration int               `json:"first_byte_duration"`                      // Milliseconds (0 if body not captured)
+	BodyTruncated     bool              `json:"body_truncated"`                           // true if response body was truncated
+	BodyEncoded       bool              `json:"body_encoded"`                             // true if response body is base64 encoded
+}
+
+func (IncidentDiagnostics) TableName() string { return "incident_diagnostics" }
 
 type IncidentEventStepType string
 

@@ -18,6 +18,7 @@ type MonitoringTaskHandler struct {
 	resources    repository.ResourceRepository
 	activities   repository.MonitoringActivityRepository
 	maintenances repository.MaintenanceRepository
+	diagnostics  repository.IncidentDiagnosticsRepository
 	executor     *domain.CheckExecutor
 	incidents    *monitoring.IncidentService
 }
@@ -27,6 +28,7 @@ func NewMonitoringTaskHandler(
 	resources repository.ResourceRepository,
 	activities repository.MonitoringActivityRepository,
 	maintenances repository.MaintenanceRepository,
+	diagnostics repository.IncidentDiagnosticsRepository,
 	executor *domain.CheckExecutor,
 	incidents *monitoring.IncidentService,
 ) *MonitoringTaskHandler {
@@ -34,6 +36,7 @@ func NewMonitoringTaskHandler(
 		resources:    resources,
 		activities:   activities,
 		maintenances: maintenances,
+		diagnostics:  diagnostics,
 		executor:     executor,
 		incidents:    incidents,
 	}
@@ -134,6 +137,16 @@ func (h *MonitoringTaskHandler) ProcessTask(ctx context.Context, task *asynq.Tas
 			fmt.Printf("[INCIDENT_TRIGGER] Resource %s reached threshold (3 failures), attempting incident creation\n", resource.ID)
 			if err := h.incidents.CreateIncident(ctx, resource, result); err != nil {
 				fmt.Printf("Warning: failed to create incident on 3rd failure: %v\n", err)
+			} else {
+				// If incident was created, also persist diagnostics
+				// Note: We fetch the most recent incident to get its ID
+				incidents, err := h.resources.FindByID(ctx, resource.ID)
+				if err == nil && incidents != nil {
+					if err := h.persistIncidentDiagnostics(ctx, incidents, resource, result); err != nil {
+						fmt.Printf("Warning: failed to persist incident diagnostics: %v\n", err)
+						// Don't fail the entire check if diagnostics fail - they're supplementary
+					}
+				}
 			}
 			// Cap the counter at 3 to avoid confusing accumulationn during incidents
 			// The counter will reset to 0 when the resource recovers
@@ -152,5 +165,38 @@ func (h *MonitoringTaskHandler) ProcessTask(ctx context.Context, task *asynq.Tas
 		}
 	}
 
+	return nil
+}
+
+// persistIncidentDiagnostics builds and stores diagnostic information for an incident.
+// It captures rich context about what failed to help users debug issues.
+// If diagnostics fail to persist, it logs the error but doesn't fail the incident creation.
+func (h *MonitoringTaskHandler) persistIncidentDiagnostics(ctx context.Context, resource *domain.Resource, resourceRecord *domain.Resource, result domain.CheckResult) error {
+	// Fetch the most recent active incident for this resource
+	incidents, err := h.resources.FindByID(ctx, resource.ID)
+	if err != nil {
+		return fmt.Errorf("failed to fetch resource for incident lookup: %w", err)
+	}
+
+	if len(incidents.Incidents) == 0 {
+		return fmt.Errorf("no incidents found for resource %s", resource.ID)
+	}
+
+	// Get the most recent incident (should be the one just created)
+	latestIncident := incidents.Incidents[len(incidents.Incidents)-1]
+	if latestIncident.ResolvedAt != nil {
+		// Skip if already resolved (shouldn't happen, but guard anyway)
+		return nil
+	}
+
+	// Build diagnostics from check result
+	diag := BuildIncidentDiagnostics(latestIncident.ID, result, resourceRecord)
+
+	// Persist to database
+	if _, err := h.diagnostics.Create(ctx, diag); err != nil {
+		return fmt.Errorf("failed to create incident diagnostics: %w", err)
+	}
+
+	fmt.Printf("Persisted diagnostics for incident %s\n", latestIncident.ID)
 	return nil
 }

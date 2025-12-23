@@ -88,6 +88,7 @@ func main() {
 	resourceRepo := postgres.NewResourceRepository(db)
 	incidentRepo := postgres.NewIncidentRepository(db)
 	incidentEventStepRepo := postgres.NewIncidentEventStepRepository(db)
+	incidentDiagnosticsRepo := postgres.NewIncidentDiagnosticsRepository(db)
 	notificationRepo := postgres.NewNotificationRepository(db)
 	maintenanceRepo := postgres.NewMaintenanceRepository(db)
 	notificationChannelRepo := postgres.NewNotificationChannelRepository(db)
@@ -195,7 +196,7 @@ func main() {
 	)
 
 	// Initialize task handlers
-	monitoringHandler := worker.NewMonitoringTaskHandler(resourceRepo, monitoringActivityRepo, maintenanceRepo, executor, incidentService)
+	monitoringHandler := worker.NewMonitoringTaskHandler(resourceRepo, monitoringActivityRepo, maintenanceRepo, incidentDiagnosticsRepo, executor, incidentService)
 	maintenanceTaskHandler := maintenance.NewTaskHandler(maintenanceRepo, asynqClient)
 
 	// Create the Asynq worker processor
