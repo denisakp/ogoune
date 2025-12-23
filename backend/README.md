@@ -34,27 +34,13 @@ The backend is a unified Go service that monitors resources (HTTP/TCP), detects 
 | `APP_ENV` | Environment (development or production) | No | `development` |
 | `STATIC_DIR` | Path to frontend static files | No | `./static` |
 
-#### SMTP Notifications (Email Alerts)
+#### Notification Channels (Email / Slack / Webhook)
 
-**All six variables are required to enable SMTP notifications:**
-
-| Variable | Description | Example |
-|----------|-------------|---------|
-| `SMTP_HOST` | SMTP server hostname | `smtp.gmail.com` |
-| `SMTP_PORT` | SMTP server port | `587` |
-| `SMTP_USER` | SMTP username (usually your email) | `your-email@gmail.com` |
-| `SMTP_PASSWORD` | SMTP password or app-specific password | `your-app-password` |
-| `SMTP_SENDER` | "From" email address | `noreply@example.com` |
-| `DEFAULT_RECIPIENT_EMAIL` | Recipient email for alerts | `admin@example.com` |
+Notifications are now configured entirely through notification channels stored in the database. There is **no default SMTP configuration** from environment variables. Add channels via the UI or API (`/notification-channels`) and test them with `/notification-channels/{id}/test` or `/notification-channels/test-config`.
 
 #### Webhook Notifications (HTTP Callbacks)
 
-**Optional – enabled if `WEBHOOK_URL` is set:**
-
-| Variable | Description | Example |
-|----------|-------------|---------|
-| `WEBHOOK_URL` | Webhook endpoint URL | `https://your-webhook.com/incidents` |
-| `WEBHOOK_SIGNATURE` | HMAC signing secret (optional) | `my-secret-key` |
+If you still want a global webhook fallback, you can keep `WEBHOOK_URL`/`WEBHOOK_SIGNATURE`, but prefer channel-based configuration for consistency with SMTP and Slack.
 
 ### Example .env File
 
@@ -66,15 +52,7 @@ REDIS_URL=localhost:6379
 APP_ENV=development
 STATIC_DIR=./static
 
-# SMTP (all required to enable email notifications)
-SMTP_HOST=smtp.gmail.com
-SMTP_PORT=587
-SMTP_USER=your-email@gmail.com
-SMTP_PASSWORD=your-app-password
-SMTP_SENDER=noreply@example.com
-DEFAULT_RECIPIENT_EMAIL=admin@example.com
-
-# Webhooks (optional)
+# Optional webhook fallback (prefer channel-based configuration)
 WEBHOOK_URL=https://webhook.site/unique-id
 WEBHOOK_SIGNATURE=my-secret-key
 ```
@@ -237,26 +215,12 @@ After 3 consecutive failures, an incident is created and notifications are sent 
 
 ## Testing Notifications
 
-### Test Email (SMTP)
+Use notification channels:
+- Configure a channel via `/notification-channels` (SMTP, Slack, Webhook, SMS).
+- Test a saved channel: `POST /notification-channels/{id}/test`.
+- Validate config before saving: `POST /notification-channels/test-config`.
 
-```bash
-curl -X POST http://localhost:8080/api/notifications/test \
-  -H "Content-Type: application/json" \
-  -d '{
-    "resource_id": "<resource-id-from-above>"
-  }'
-```
-
-### Test Webhook
-
-Use [webhook.site](https://webhook.site) for quick testing:
-
-1. Go to https://webhook.site
-2. Copy your unique URL
-3. Set `WEBHOOK_URL=https://webhook.site/your-unique-id` in `.env`
-4. Restart the backend
-5. Create an incident (let a resource fail 3 times)
-6. Check webhook.site to see the POST request
+For ad-hoc webhook testing, you can still point a channel to a [webhook.site](https://webhook.site) URL.
 
 ---
 
@@ -282,22 +246,12 @@ Use [webhook.site](https://webhook.site) for quick testing:
 - Check network connectivity to the Redis host
 - Check firewall rules if connecting to a remote Redis
 
-### SMTP Notifications Not Sending
+### Notification Channels Not Sending
 
-**Error in logs:** `[SMTP ERROR] Failed to send DOWN notification`
-
-**Solutions:**
-1. Verify all six `SMTP_*` environment variables are set and non-empty:
-   ```bash
-   echo $SMTP_HOST $SMTP_PORT $SMTP_USER $SMTP_PASSWORD $SMTP_SENDER $DEFAULT_RECIPIENT_EMAIL
-   ```
-2. Check credentials with your SMTP provider (Gmail, SendGrid, etc.)
-3. If using Gmail:
-   - Enable 2-factor authentication
-   - Generate an [app-specific password](https://support.google.com/accounts/answer/185833)
-   - Use the app-specific password as `SMTP_PASSWORD`
-4. Ensure firewall allows outbound SMTP (typically port 587)
-5. Check application logs for detailed error messages: `grep SMTP logs`
+- Ensure the channel config is valid (use `POST /notification-channels/test-config`).
+- For SMTP channels, double-check host/port/auth inside the saved channel JSON.
+- For webhook channels, confirm the endpoint returns 2xx and accepts your payload.
+- Review logs for the specific notifier (SMTP/Slack/Webhook) when incidents fire.
 
 ### Webhooks Not Triggering
 

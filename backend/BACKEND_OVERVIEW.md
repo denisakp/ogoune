@@ -36,7 +36,7 @@ The system is a single Go binary that initializes the database, the Redis/Asynq 
 - HTTP router: Chi
 - ORM/DB: GORM + PostgreSQL
 - Background processing: Redis + Asynq (periodic scheduler + worker server)
-- Notifications: SMTP (HTML templates) + Slack, Webhook
+- Notifications: user-configured channels (SMTP with templates, Slack, Webhook)
 - Config: environment variables (dotenv supported in development)
 
 Key packages and files (relative to backend/):
@@ -130,8 +130,8 @@ End‑to‑end flow:
    - Event steps are stored for `detected` and `resolved`, and for notification attempts.
 
 7) Notifications
-   - Layer 1 (system SMTP, optional): if SMTP env vars are fully set, send default “down” and “up” emails and log `NotificationEvent`.
-   - Layer 2 (integrations): fetch active integrations, filter by `event_types` (e.g., ["down","up"]), then dispatch using the notifier factory (Slack, Discord, Google Chat). Each attempt logs a `NotificationEvent`.
+   - Channel-based: notification channels (SMTP/Slack/Webhook/SMS) are stored in the database and dispatched via the notifier factory.
+   - Testing: `/notification-channels/{id}/test` for saved channels; `/notification-channels/test-config` to validate before saving.
 
 ---
 
@@ -194,27 +194,20 @@ Required (typical local defaults in parentheses):
   - DATABASE_URL (postgres://user:password@localhost:5432/pulseguard?sslmode=disable)
 - Redis:
   - REDIS_URL (localhost:6379)
-- SMTP (optional; all required to enable system SMTP notifications):
-  - SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASSWORD, SMTP_SENDER, DEFAULT_RECIPIENT_EMAIL
+
+Notifications are now configured via notification channels (stored in the database). There is no default SMTP configuration from environment variables; add SMTP/Slack/Webhook channels via the UI or `/notification-channels` APIs.
 
 Validation:
 - DATABASE_URL is required; the process exits if missing
-- SMTP notifications are enabled only if all SMTP variables are non‑empty
 
 ---
 
 ## 9) Notifications
 
-Two‑layer fan‑out:
-- System SMTP (optional):
-  - Sends default admin notifications for DOWN and UP
-  - Uses embedded HTML templates for emails (subject and content tailored per event)
-  - A test endpoint is available: POST /notifications/test
-- User integrations (Slack, Discord, Google Chat):
-  - Each `Integration` carries a JSON config (`config`) that includes `"type": "slack"|"webhook"` and any provider settings
-  - Subscriptions are filtered via `event_types` JSON array
-  - A simple factory resolves notifier implementations by type
-  - Every attempt is audited by a `NotificationEvent`
+Channel-based delivery:
+- Channels (SMTP/Slack/Webhook/SMS) are created via `/notification-channels` and stored in the database.
+- Test a saved channel with `POST /notification-channels/{id}/test`; validate before saving with `POST /notification-channels/test-config`.
+- Each attempt is audited by a `NotificationEvent`.
 
 ---
 

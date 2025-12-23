@@ -31,7 +31,10 @@ func (r *IncidentRepositoryImpl) Create(ctx context.Context, incident *domain.In
 // FindByID retrieves an incident by its ID.
 func (r *IncidentRepositoryImpl) FindByID(ctx context.Context, id string) (*domain.Incident, error) {
 	var incident domain.Incident
-	err := r.db.WithContext(ctx).Preload("Resource").First(&incident, "id = ?", id).Error
+	err := r.db.WithContext(ctx).
+		Preload("Resource").
+		Preload("IncidentDiagnostics").
+		First(&incident, "id = ?", id).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, repository.ErrNotFound
@@ -46,6 +49,7 @@ func (r *IncidentRepositoryImpl) List(ctx context.Context, limit, offset int) ([
 	var incidents []*domain.Incident
 	err := r.db.WithContext(ctx).
 		Preload("Resource").
+		Preload("IncidentDiagnostics").
 		Order("created_at DESC").
 		Limit(limit).
 		Offset(offset).
@@ -86,6 +90,7 @@ func (r *IncidentRepositoryImpl) FindUnresolved(ctx context.Context, limit, offs
 	var incidents []*domain.Incident
 	err := r.db.WithContext(ctx).
 		Preload("Resource").
+		Preload("IncidentDiagnostics").
 		Where("resolved_at", nil).
 		Order("started_at DESC").
 		Limit(limit).
@@ -103,6 +108,7 @@ func (r *IncidentRepositoryImpl) FindByResource(ctx context.Context, resourceID 
 	var incidents []*domain.Incident
 	err := r.db.WithContext(ctx).
 		Preload("Resource").
+		Preload("IncidentDiagnostics").
 		Where("resource_id = ?", resourceID).
 		Order("started_at DESC").
 		Limit(limit).

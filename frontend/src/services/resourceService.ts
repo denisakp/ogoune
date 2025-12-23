@@ -105,19 +105,3 @@ export const addTagsToResource = async (resourceId: string, tagIds: string[]): P
 export const removeTagFromResource = async (resourceId: string, tagId: string): Promise<void> => {
   await axiosHelper.delete(`/resources/${resourceId}/tags/${tagId}`)
 }
-
-/**
- *  send test notification for a resource
- * @param resourceId
- */
-export const testNotification = async (resourceId: string) => {
-  const config: CustomAxiosConfig = {
-    successMessage: 'Test notification sent successfully',
-  }
-  const { data } = await axiosHelper.post(
-    `/notifications/test`,
-    { resource_id: resourceId },
-    config,
-  )
-  return data
-}

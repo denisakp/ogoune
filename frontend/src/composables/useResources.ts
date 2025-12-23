@@ -21,6 +21,5 @@ export function useResources() {
     updateResourceData: store.updateResourceData,
     pauseResource: store.pauseMonitoring,
     resumeResource: store.resumeMonitoring,
-    testNotification: store.testNotification,
   }
 }

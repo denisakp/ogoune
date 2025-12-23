@@ -112,11 +112,6 @@ func NewRouter(
 			r.Get("/{id}/event-steps", incidentHandler.GetIncidentEventSteps) // GET /incidents/{id}/event-steps - get event steps for incident
 		})
 
-		// Notifications API
-		r.Route("/notifications", func(r chi.Router) {
-			r.Post("/test", notificationHandler.TestNotification) // POST /notifications/test - send test notification for a resource
-		})
-
 		// Notification Channels API
 		r.Route("/notification-channels", func(r chi.Router) {
 			r.Get("/", notificationHandler.ListNotificationChannels)                 // GET /notification-channels - list all channels

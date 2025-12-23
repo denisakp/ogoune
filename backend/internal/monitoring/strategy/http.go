@@ -33,18 +33,24 @@ func (s *HTTPStrategy) Execute(ctx context.Context, resource *domain.Resource) (
 	req, err := http.NewRequestWithContext(ctx, http.MethodHead, resource.Target, nil)
 	if err != nil {
 		cause := domain.InvalidTarget
+		errorMsg := fmt.Sprintf("failed to create request: %v", err)
 
 		return domain.CheckResult{
-			Status:       string(domain.StatusDown),
-			ResponseTime: time.Since(start),
-			ResponseData: fmt.Sprintf("failed to create request: %v", err),
-			Cause:        &cause,
+			Status:         string(domain.StatusDown),
+			ResponseTime:   time.Since(start),
+			ResponseData:   errorMsg,
+			Cause:          &cause,
+			RequestURL:     resource.Target,
+			RequestMethod:  http.MethodHead,
+			HTTPStatusCode: -1,
+			ErrorMessage:   errorMsg,
 		}, nil
 	}
 
 	resp, err := s.client.Do(req)
 	if err != nil {
 		cause := domain.HTTPRequestFailed
+		duration := time.Since(start)
 
 		if ctx.Err() == context.DeadlineExceeded {
 			cause = domain.ConnectionTimeout
@@ -56,48 +62,61 @@ func (s *HTTPStrategy) Execute(ctx context.Context, resource *domain.Resource) (
 			cause = domain.HTTPSSLError
 		}
 
+		errorMsg := fmt.Sprintf("request error: %v", err)
 		return domain.CheckResult{
-			Status:       string(domain.StatusDown),
-			ResponseTime: time.Since(start),
-			ResponseData: fmt.Sprintf("request error: %v", err),
-			Cause:        &cause,
+			Status:         string(domain.StatusDown),
+			ResponseTime:   duration,
+			ResponseData:   errorMsg,
+			Cause:          &cause,
+			RequestURL:     resource.Target,
+			RequestMethod:  http.MethodHead,
+			HTTPStatusCode: -1,
+			ErrorMessage:   errorMsg,
 		}, nil
 	}
 	defer resp.Body.Close()
 	io.Copy(io.Discard, resp.Body) // there is no need to read the body for HEAD requests but we should close it properly
 
 	isSuccess := resp.StatusCode >= 200 && resp.StatusCode < 400
+	duration := time.Since(start)
 
-	headers := []string{}
+	// Build structured response headers map
+	responseHeadersMap := make(map[string]string)
 	for k, v := range resp.Header {
-		headers = append(headers, fmt.Sprintf("%s: %s", k, strings.Join(v, ",")))
+		responseHeadersMap[k] = strings.Join(v, ",")
+	}
+
+	// Build plain text version for backward compatibility
+	headerLines := []string{}
+	for k, v := range resp.Header {
+		headerLines = append(headerLines, fmt.Sprintf("%s: %s", k, strings.Join(v, ",")))
 	}
 
 	result := domain.CheckResult{
-		ResponseTime: time.Since(start),
-		ResponseData: strings.Join(headers, "\n"),
+		Status: func() string {
+			if isSuccess {
+				return string(domain.StatusUp)
+			}
+			return string(domain.StatusDown)
+		}(),
+		ResponseTime:    duration,
+		ResponseData:    strings.Join(headerLines, "\n"),
+		RequestURL:      resource.Target,
+		RequestMethod:   http.MethodHead,
+		HTTPStatusCode:  resp.StatusCode,
+		ResponseHeaders: responseHeadersMap,
 	}
 
 	if isSuccess {
-		result.Status = string(domain.StatusUp)
+		// No error for success case
+		result.Cause = nil
+		result.ErrorMessage = ""
 	} else {
 		cause := domain.HTTPInvalidStatusCode
-		result.Status = string(domain.StatusDown)
-		result.ResponseData = fmt.Sprintf("HTTP %d\n%s", resp.StatusCode, result.ResponseData)
 		result.Cause = &cause
+		result.ErrorMessage = fmt.Sprintf("HTTP %d returned", resp.StatusCode)
+		result.ResponseData = fmt.Sprintf("HTTP %d\n%s", resp.StatusCode, result.ResponseData)
 	}
 
 	return result, nil
-
-	// return domain.CheckResult{
-	// 	Status: func() string {
-	// 		if isSuccess {
-	// 			return string(domain.StatusUp)
-	// 		}
-	// 		return string(domain.StatusDown)
-	// 	}(),
-	// 	ResponseTime: time.Since(start),
-	// 	ResponseData: strings.Join(headers, "\n"),
-	// 	Cause: &cause,
-	// }, nil
 }

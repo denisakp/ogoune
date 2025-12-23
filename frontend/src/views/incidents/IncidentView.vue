@@ -2,25 +2,14 @@
 import { onMounted, ref, computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { message } from 'ant-design-vue'
-import {
-  PauseOutlined,
-  PlayCircleOutlined,
-  ArrowLeftOutlined,
-  DashboardOutlined,
-  RiseOutlined,
-  FallOutlined,
-  SafetyOutlined,
-  GlobalOutlined,
-  CalendarOutlined,
-  CheckCircleOutlined,
-  WarningOutlined,
-  ClockCircleOutlined,
-  EditOutlined,
-  EllipsisOutlined,
-} from '@ant-design/icons-vue'
+import { ArrowLeftOutlined } from '@ant-design/icons-vue'
 
 import { useIncidents } from '@/composables/useIncidents.ts'
 import type { Incident, IncidentEventStep } from '@/types'
+import DiagnosticsErrorSummary from '@/components/DiagnosticsErrorSummary.vue'
+import DiagnosticsHeadersDisplay from '@/components/DiagnosticsHeadersDisplay.vue'
+import DiagnosticsResponseBody from '@/components/DiagnosticsResponseBody.vue'
+import DiagnosticsTimingBreakdown from '@/components/DiagnosticsTimingBreakdown.vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -139,6 +128,21 @@ const getIncidentDuration = (incident: Incident): string => {
   if (hours > 0) return `${hours}h ${minutes}m ${seconds}s`
   if (minutes > 0) return `${minutes}m ${seconds}s`
   return `${seconds}s`
+}
+
+// Check if diagnostics are available
+const hasDiagnostics = computed(() => {
+  return incident.value?.diagnostics !== null && incident.value?.diagnostics !== undefined
+})
+
+// Copy URL to clipboard
+const copyUrlToClipboard = async (url: string) => {
+  try {
+    await navigator.clipboard.writeText(url)
+    message.success('URL copied to clipboard')
+  } catch {
+    message.error('Failed to copy URL')
+  }
 }
 
 // Handle resolve incident
@@ -373,44 +377,113 @@ const handleDownloadResponse = () => {
                 <div style="font-size: 14px; font-weight: 600">Request</div>
               </template>
 
-              <a-tabs>
-                <a-tab-pane key="url" tab="URL">
-                  <div style="margin: 16px 0">
-                    <div style="font-size: 12px; color: rgba(0, 0, 0, 0.65); margin-bottom: 8px">
-                      METHOD
-                    </div>
-                    <div
-                      style="
-                        background-color: #1f1f1f;
-                        color: #d4d4d4;
-                        padding: 12px;
-                        border-radius: 4px;
-                        font-family: monospace;
-                        font-size: 12px;
-                        word-break: break-all;
-                        display: flex;
-                        justify-content: space-between;
-                        align-items: center;
-                      "
-                    >
-                      <span
-                        >{{ incident.resource?.type?.toUpperCase() }}
-                        {{ incident.resource?.target }}</span
+              <div v-if="hasDiagnostics && incident.diagnostics">
+                <a-tabs>
+                  <!-- URL Tab -->
+                  <a-tab-pane key="url" tab="URL">
+                    <div style="margin: 16px 0">
+                      <div style="font-size: 12px; color: rgba(0, 0, 0, 0.65); margin-bottom: 8px">
+                        METHOD
+                      </div>
+                      <div
+                        style="
+                          background-color: #1f1f1f;
+                          color: #d4d4d4;
+                          padding: 12px;
+                          border-radius: 4px;
+                          font-family: monospace;
+                          font-size: 12px;
+                          word-break: break-all;
+                          margin-bottom: 16px;
+                        "
                       >
-                      <a-button size="small" type="text">
-                        <template #icon>
-                          <a-icon-copy />
-                        </template>
-                      </a-button>
+                        {{ incident.diagnostics.request_method || 'HEAD' }}
+                      </div>
+
+                      <div style="font-size: 12px; color: rgba(0, 0, 0, 0.65); margin-bottom: 8px">
+                        URL
+                      </div>
+                      <div
+                        style="
+                          background-color: #1f1f1f;
+                          color: #d4d4d4;
+                          padding: 12px;
+                          border-radius: 4px;
+                          font-family: monospace;
+                          font-size: 12px;
+                          word-break: break-all;
+                          display: flex;
+                          justify-content: space-between;
+                          align-items: center;
+                        "
+                      >
+                        <span>{{ incident.diagnostics.request_url }}</span>
+                        <a-button
+                          size="small"
+                          type="text"
+                          @click="copyUrlToClipboard(incident.diagnostics?.request_url || '')"
+                        >
+                          <template #icon>
+                            <a-icon-copy />
+                          </template>
+                        </a-button>
+                      </div>
+
+                      <div v-if="incident.diagnostics.request_timeout" style="margin-top: 16px">
+                        <div style="font-size: 12px; color: rgba(0, 0, 0, 0.65); margin-bottom: 8px">
+                          TIMEOUT
+                        </div>
+                        <div style="font-size: 14px; font-weight: 500">
+                          {{ incident.diagnostics.request_timeout }}ms
+                        </div>
+                      </div>
                     </div>
+                  </a-tab-pane>
+
+                  <!-- Headers Tab -->
+                  <a-tab-pane key="headers" tab="Headers">
+                    <div style="margin: 16px 0">
+                      <DiagnosticsHeadersDisplay
+                        :headers="incident.diagnostics.request_headers"
+                        title="Request Headers"
+                        empty-message="No request headers available"
+                      />
+                    </div>
+                  </a-tab-pane>
+                </a-tabs>
+              </div>
+
+              <div v-else>
+                <div style="margin: 16px 0">
+                  <div style="font-size: 12px; color: rgba(0, 0, 0, 0.65); margin-bottom: 8px">
+                    METHOD
                   </div>
-                </a-tab-pane>
-                <a-tab-pane key="headers" tab="Headers">
-                  <div style="margin: 16px 0; color: rgba(0, 0, 0, 0.45); font-size: 12px">
-                    No headers data available
+                  <div
+                    style="
+                      background-color: #1f1f1f;
+                      color: #d4d4d4;
+                      padding: 12px;
+                      border-radius: 4px;
+                      font-family: monospace;
+                      font-size: 12px;
+                      word-break: break-all;
+                      display: flex;
+                      justify-content: space-between;
+                      align-items: center;
+                    "
+                  >
+                    <span
+                      >{{ incident.resource?.type?.toUpperCase() }}
+                      {{ incident.resource?.target }}</span
+                    >
+                    <a-button size="small" type="text">
+                      <template #icon>
+                        <a-icon-copy />
+                      </template>
+                    </a-button>
                   </div>
-                </a-tab-pane>
-              </a-tabs>
+                </div>
+              </div>
             </a-card>
 
             <!-- Response Card -->
@@ -419,85 +492,118 @@ const handleDownloadResponse = () => {
                 <div style="font-size: 14px; font-weight: 600">Response</div>
               </template>
 
-              <a-tabs>
-                <a-tab-pane key="body" tab="Body">
+              <div v-if="hasDiagnostics && incident.diagnostics">
+                <!-- Status Code -->
+                <div v-if="incident.diagnostics.http_status_code" style="margin-bottom: 20px">
+                  <div style="font-size: 12px; color: rgba(0, 0, 0, 0.65); margin-bottom: 8px">
+                    HTTP STATUS CODE
+                  </div>
                   <div
-                    v-if="incident.details"
                     style="
-                      background-color: #1f1f1f;
-                      color: #d4d4d4;
+                      font-size: 24px;
+                      font-weight: bold;
                       padding: 12px;
                       border-radius: 4px;
-                      font-family: monospace;
-                      font-size: 11px;
-                      max-height: 300px;
-                      overflow-y: auto;
-                      white-space: pre-wrap;
-                      word-break: break-all;
-                      margin: 16px 0;
+                      display: inline-block;
                     "
+                    :style="{
+                      color: incident.diagnostics.http_status_code >= 500 ? '#ff4d4f' :
+                             incident.diagnostics.http_status_code >= 400 ? '#faad14' :
+                             incident.diagnostics.http_status_code >= 300 ? '#1890ff' : '#52c41a',
+                      backgroundColor: incident.diagnostics.http_status_code >= 500 ? '#fff1f0' :
+                                      incident.diagnostics.http_status_code >= 400 ? '#fffbe6' :
+                                      incident.diagnostics.http_status_code >= 300 ? '#e6f7ff' : '#f6ffed',
+                    }"
                   >
-                    {{ incident.details }}
+                    {{ incident.diagnostics.http_status_code }}
                   </div>
-                  <div v-else style="margin: 16px 0; color: rgba(0, 0, 0, 0.45); font-size: 12px">
-                    &lt;empty&gt;
-                  </div>
-                </a-tab-pane>
-                <a-tab-pane key="headers" tab="Headers">
-                  <div style="margin: 16px 0; color: rgba(0, 0, 0, 0.45); font-size: 12px">
-                    No headers data available
-                  </div>
-                </a-tab-pane>
-              </a-tabs>
+                </div>
+
+                <a-tabs>
+                  <!-- Body Tab -->
+                  <a-tab-pane key="body" tab="Body">
+                    <div style="margin: 16px 0">
+                      <DiagnosticsResponseBody
+                        :body="incident.diagnostics.response_body"
+                        :is-encoded="incident.diagnostics.body_encoded"
+                        :is-truncated="incident.diagnostics.body_truncated"
+                        :response-size="incident.diagnostics.response_size"
+                      />
+                    </div>
+                  </a-tab-pane>
+
+                  <!-- Headers Tab -->
+                  <a-tab-pane key="headers" tab="Headers">
+                    <div style="margin: 16px 0">
+                      <DiagnosticsHeadersDisplay
+                        :headers="incident.diagnostics.response_headers"
+                        title="Response Headers"
+                        empty-message="No response headers available"
+                      />
+                    </div>
+                  </a-tab-pane>
+                </a-tabs>
+              </div>
+
+              <div v-else>
+                <a-tabs>
+                  <a-tab-pane key="body" tab="Body">
+                    <div
+                      v-if="incident.details"
+                      style="
+                        background-color: #1f1f1f;
+                        color: #d4d4d4;
+                        padding: 12px;
+                        border-radius: 4px;
+                        font-family: monospace;
+                        font-size: 11px;
+                        max-height: 300px;
+                        overflow-y: auto;
+                        white-space: pre-wrap;
+                        word-break: break-all;
+                        margin: 16px 0;
+                      "
+                    >
+                      {{ incident.details }}
+                    </div>
+                    <div v-else style="margin: 16px 0; color: rgba(0, 0, 0, 0.45); font-size: 12px">
+                      &lt;empty&gt;
+                    </div>
+                  </a-tab-pane>
+                  <a-tab-pane key="headers" tab="Headers">
+                    <div style="margin: 16px 0; color: rgba(0, 0, 0, 0.45); font-size: 12px">
+                      No headers data available
+                    </div>
+                  </a-tab-pane>
+                </a-tabs>
+              </div>
             </a-card>
 
-            <!-- Traceroute Card (Optional) -->
-            <a-card>
+            <!-- Error Summary Card (when diagnostics available) -->
+            <a-card v-if="hasDiagnostics && incident.diagnostics" style="margin-bottom: 16px">
               <template #title>
-                <div style="font-size: 14px; font-weight: 600">Traceroute</div>
+                <div style="font-size: 14px; font-weight: 600">Error Summary</div>
               </template>
 
-              <div
-                style="
-                  display: flex;
-                  justify-content: space-between;
-                  align-items: center;
-                  margin-bottom: 16px;
-                "
-              >
-                <div></div>
-                <a-button size="small">
-                  <template #icon>
-                    <a-icon-line-chart />
-                  </template>
-                  Trace analysis
-                </a-button>
-              </div>
+              <DiagnosticsErrorSummary
+                :error-summary="incident.diagnostics.error_summary"
+                :failure-type="incident.diagnostics.failure_type"
+                :error-message="incident.diagnostics.error_message"
+              />
+            </a-card>
 
-              <div
-                v-if="incident.details"
-                style="
-                  background-color: #1f1f1f;
-                  color: #d4d4d4;
-                  padding: 12px;
-                  border-radius: 4px;
-                  font-family: monospace;
-                  font-size: 11px;
-                  max-height: 200px;
-                  overflow-y: auto;
-                  white-space: pre-wrap;
-                  word-break: break-all;
-                "
-              >
-                Tracing route to {{ incident.resource?.target }}<br />
-                hop no - node ip - ms<br />
-                1 - 172.31.1.1(5 ms)<br />
-                2 - 91.99.240.186(0 ms)<br />
-                3 - 212.120.32.138(0 ms)
-              </div>
-              <div v-else style="color: rgba(0, 0, 0, 0.45); font-size: 12px">
-                No traceroute data available
-              </div>
+            <!-- Timing Breakdown Card (when diagnostics available) -->
+            <a-card v-if="hasDiagnostics && incident.diagnostics">
+              <template #title>
+                <div style="font-size: 14px; font-weight: 600">Performance Timing</div>
+              </template>
+
+              <DiagnosticsTimingBreakdown
+                :total-duration="incident.diagnostics.total_duration"
+                :dns-duration="incident.diagnostics.dns_duration"
+                :tls-duration="incident.diagnostics.tls_duration"
+                :first-byte-duration="incident.diagnostics.first_byte_duration"
+              />
             </a-card>
           </a-col>
         </a-row>

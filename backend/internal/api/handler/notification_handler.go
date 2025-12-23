@@ -14,7 +14,6 @@ import (
 
 // NotificationServiceInterface defines the methods required by NotificationHandler.
 type NotificationServiceInterface interface {
-	TestNotification(ctx context.Context, resourceID string) error
 	CreateNotificationChannel(ctx context.Context, payload *dto.CreateNotificationChannelPayload) (*domain.NotificationChannel, error)
 	GetNotificationChannel(ctx context.Context, id string) (*domain.NotificationChannel, error)
 	ListNotificationChannels(ctx context.Context, limit, offset int) ([]*domain.NotificationChannel, error)
@@ -34,32 +33,6 @@ func NewNotificationHandler(notificationService NotificationServiceInterface) *N
 	return &NotificationHandler{
 		notificationService: notificationService,
 	}
-}
-
-// TestNotification handles POST /notifications/test - sends a test notification for a resource.
-func (h *NotificationHandler) TestNotification(w http.ResponseWriter, r *http.Request) {
-	var payload dto.TestNotificationPayload
-
-	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
-		response.Error(w, http.StatusBadRequest, "Invalid request payload: "+err.Error())
-		return
-	}
-
-	if payload.ResourceID == "" {
-		response.Error(w, http.StatusBadRequest, "ResourceID is required")
-		return
-	}
-
-	resourceID := payload.ResourceID
-
-	if err := h.notificationService.TestNotification(r.Context(), resourceID); err != nil {
-		response.Error(w, http.StatusInternalServerError, "Failed to send test notification: "+err.Error())
-		return
-	}
-
-	response.JSON(w, http.StatusOK, map[string]string{
-		"message": "Test notification sent successfully",
-	})
 }
 
 // CreateNotificationChannel handles POST /notification-channels - creates a new notification channel.
