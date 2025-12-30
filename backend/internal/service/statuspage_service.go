@@ -78,9 +78,15 @@ func (s *StatusPageService) GetData(ctx context.Context) (*dto.StatusPageData, e
 		}
 		resourceInfos = append(resourceInfos, info)
 
-		// Check if any resource is not "up"
-		if info.CurrentStatus != "up" {
+		// Check if any resource is not "up", excluding pending/unknown resources
+		// Newly added or unchecked resources should not count as an outage
+		if info.CurrentStatus != "up" && info.CurrentStatus != "degraded" {
 			hasNonOperationalResource = true
+		} else if info.CurrentStatus == "degraded" {
+			// Only count degraded if it's not from pending/unknown status
+			if resource.Status != domain.StatusPending && resource.Status != domain.StatusUnknown {
+				hasNonOperationalResource = true
+			}
 		}
 	}
 

@@ -128,6 +128,110 @@ func TestStatusPageService_GetData(t *testing.T) {
 		assert.Empty(t, data.Resources)
 		assert.Equal(t, "all_systems_operational", data.GlobalStatus)
 	})
+
+	t.Run("pending and unknown resources do not count as outage", func(t *testing.T) {
+		// Setup fake repositories
+		resourceRepo := fake.NewResourceFake()
+		incidentRepo := fake.NewIncidentFake()
+		activityRepo := fake.NewMonitoringActivityFake()
+
+		ctx := context.Background()
+		now := time.Now()
+
+		// Create pending resource (newly added, not yet checked)
+		pendingResource := &domain.Resource{
+			Base:        domain.Base{ID: "resource-pending"},
+			Name:        "New Website",
+			Type:        domain.ResourceHTTP,
+			Target:      "https://new-example.com",
+			Status:      domain.StatusPending,
+			IsActive:    true,
+			Interval:    60,
+			LastChecked: nil,
+		}
+		_, err := resourceRepo.Create(ctx, pendingResource)
+		require.NoError(t, err)
+
+		// Create unknown resource
+		unknownResource := &domain.Resource{
+			Base:        domain.Base{ID: "resource-unknown"},
+			Name:        "Unknown Website",
+			Type:        domain.ResourceHTTP,
+			Target:      "https://unknown-example.com",
+			Status:      domain.StatusUnknown,
+			IsActive:    true,
+			Interval:    60,
+			LastChecked: &now,
+		}
+		_, err = resourceRepo.Create(ctx, unknownResource)
+		require.NoError(t, err)
+
+		// Create an up resource for good measure
+		upResource := &domain.Resource{
+			Base:        domain.Base{ID: "resource-up"},
+			Name:        "Working Website",
+			Type:        domain.ResourceHTTP,
+			Target:      "https://working-example.com",
+			Status:      domain.StatusUp,
+			IsActive:    true,
+			Interval:    60,
+			LastChecked: &now,
+		}
+		_, err = resourceRepo.Create(ctx, upResource)
+		require.NoError(t, err)
+
+		service := NewStatusPageService(resourceRepo, incidentRepo, activityRepo, nil, nil)
+
+		data, err := service.GetData(ctx)
+
+		require.NoError(t, err)
+		assert.Equal(t, "all_systems_operational", data.GlobalStatus, "pending and unknown resources should not cause outage status")
+		assert.Len(t, data.Resources, 3)
+
+		// Verify individual statuses
+		for _, r := range data.Resources {
+			if r.ID == "resource-pending" {
+				assert.Equal(t, "degraded", r.CurrentStatus, "pending maps to degraded")
+			} else if r.ID == "resource-unknown" {
+				assert.Equal(t, "degraded", r.CurrentStatus, "unknown maps to degraded")
+			} else if r.ID == "resource-up" {
+				assert.Equal(t, "up", r.CurrentStatus)
+			}
+		}
+	})
+
+	t.Run("warn status counts as outage", func(t *testing.T) {
+		// Setup fake repositories
+		resourceRepo := fake.NewResourceFake()
+		incidentRepo := fake.NewIncidentFake()
+		activityRepo := fake.NewMonitoringActivityFake()
+
+		ctx := context.Background()
+		now := time.Now()
+
+		// Create warn resource (legitimate degraded state)
+		warnResource := &domain.Resource{
+			Base:        domain.Base{ID: "resource-warn"},
+			Name:        "Warning Website",
+			Type:        domain.ResourceHTTP,
+			Target:      "https://warn-example.com",
+			Status:      domain.StatusWarn,
+			IsActive:    true,
+			Interval:    60,
+			LastChecked: &now,
+		}
+		_, err := resourceRepo.Create(ctx, warnResource)
+		require.NoError(t, err)
+
+		service := NewStatusPageService(resourceRepo, incidentRepo, activityRepo, nil, nil)
+
+		data, err := service.GetData(ctx)
+
+		require.NoError(t, err)
+		assert.Equal(t, "some_systems_down", data.GlobalStatus, "warn status should count as outage")
+		assert.Len(t, data.Resources, 1)
+		assert.Equal(t, "degraded", data.Resources[0].CurrentStatus)
+	})
 }
 
 func TestStatusPageService_buildResourceStatusInfo(t *testing.T) {
