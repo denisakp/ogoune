@@ -102,6 +102,13 @@ func (f *NotificationChannelFake) FindByResourceID(ctx context.Context, resource
 	return channels, nil
 }
 
+// FindByComponentID retrieves all notification channels associated with a specific component.
+// Note: In the fake implementation, we return empty list as component associations are not yet implemented.
+func (f *NotificationChannelFake) FindByComponentID(ctx context.Context, componentID string) ([]*domain.NotificationChannel, error) {
+	// For now, return empty list as component channel associations are not modeled in the fake
+	return []*domain.NotificationChannel{}, nil
+}
+
 // AssociateChannelWithResource links a channel to a resource (test helper).
 func (f *NotificationChannelFake) AssociateChannelWithResource(resourceID, channelID string) {
 	f.resourceChannels[resourceID] = append(f.resourceChannels[resourceID], channelID)

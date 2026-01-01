@@ -21,6 +21,7 @@ type ResourceService struct {
 	scheduler          repository.Scheduler
 	monitoringActivity repository.MonitoringActivityRepository
 	enrichment         *EnrichmentService
+	components         *ComponentService
 }
 
 // NewResourceService creates a new ResourceService with the given repository dependencies.
@@ -31,6 +32,7 @@ func NewResourceService(
 	scheduler repository.Scheduler,
 	monitoringActivity repository.MonitoringActivityRepository,
 	enrichment *EnrichmentService,
+	components *ComponentService,
 ) *ResourceService {
 	return &ResourceService{
 		resources:          resources,
@@ -39,6 +41,7 @@ func NewResourceService(
 		scheduler:          scheduler,
 		monitoringActivity: monitoringActivity,
 		enrichment:         enrichment,
+		components:         components,
 	}
 }
 
@@ -91,6 +94,17 @@ func (s *ResourceService) CreateResource(ctx context.Context, payload *dto.Creat
 		Status:   domain.StatusPending,
 	}
 
+	// Optional component assignment
+	if payload.ComponentID != nil && *payload.ComponentID != "" {
+		if s.components == nil {
+			return nil, fmt.Errorf("%w: component support is not configured", ErrValidationFailed)
+		}
+		if _, err := s.components.GetComponent(ctx, *payload.ComponentID); err != nil {
+			return nil, fmt.Errorf("%w: invalid component reference", ErrValidationFailed)
+		}
+		resource.ComponentID = payload.ComponentID
+	}
+
 	// Find or create tags by name if provided
 	if len(payload.Tags) > 0 {
 		tags, err := s.findOrCreateTags(ctx, payload.Tags)
@@ -118,6 +132,11 @@ func (s *ResourceService) CreateResource(ctx context.Context, payload *dto.Creat
 
 	// Kick off async metadata enrichment (SSL/WHOIS) so the HTTP request returns quickly
 	go s.asyncEnrichAndPersist(created)
+
+	// Sync component state if applicable (best-effort)
+	if created.ComponentID != nil && s.components != nil {
+		_ = s.components.RecalculateAndNotify(ctx, *created.ComponentID)
+	}
 
 	return created, nil
 }
@@ -212,6 +231,7 @@ func (s *ResourceService) UpdateResource(ctx context.Context, id string, payload
 		}
 		return nil, err
 	}
+	previousComponentID := resource.ComponentID
 
 	// Apply updates from payload
 	if payload.Name != nil {
@@ -231,6 +251,20 @@ func (s *ResourceService) UpdateResource(ctx context.Context, id string, payload
 	}
 	if payload.IsActive != nil {
 		resource.IsActive = *payload.IsActive
+	}
+
+	if payload.ComponentID != nil {
+		if s.components == nil {
+			return nil, fmt.Errorf("%w: component support is not configured", ErrValidationFailed)
+		}
+		if *payload.ComponentID == "" {
+			resource.ComponentID = nil
+		} else {
+			if _, err := s.components.GetComponent(ctx, *payload.ComponentID); err != nil {
+				return nil, fmt.Errorf("%w: invalid component reference", ErrValidationFailed)
+			}
+			resource.ComponentID = payload.ComponentID
+		}
 	}
 
 	// Handle tags update: payload.Tags contains tag IDs (not names)
@@ -277,6 +311,32 @@ func (s *ResourceService) UpdateResource(ctx context.Context, id string, payload
 		return nil, fmt.Errorf("%w: %v", ErrSchedulerSync, err)
 	}
 
+	// Re-evaluate impacted components (best-effort)
+	if resource.ComponentID != nil && s.components != nil {
+		_ = s.components.RecalculateAndNotify(ctx, *resource.ComponentID)
+	}
+	if previousComponentID != nil && s.components != nil {
+		if resource.ComponentID == nil {
+			// Resource removed from component - check if component is now empty
+			count, err := s.resources.CountByComponentID(ctx, *previousComponentID)
+			if err == nil && count == 0 {
+				// Auto-cleanup empty component
+				_ = s.components.DeleteComponent(ctx, *previousComponentID)
+			} else if err == nil {
+				// Recalculate status for previous component
+				_ = s.components.RecalculateAndNotify(ctx, *previousComponentID)
+			}
+		} else if *previousComponentID != *resource.ComponentID {
+			// Resource moved to different component - check if old component is now empty
+			count, err := s.resources.CountByComponentID(ctx, *previousComponentID)
+			if err == nil && count == 0 {
+				_ = s.components.DeleteComponent(ctx, *previousComponentID)
+			} else if err == nil {
+				_ = s.components.RecalculateAndNotify(ctx, *previousComponentID)
+			}
+		}
+	}
+
 	return resource, nil
 }
 
@@ -312,6 +372,11 @@ func (s *ResourceService) asyncEnrichAndPersist(r *domain.Resource) {
 
 // DeleteResource soft deletes a resource and unschedules its monitoring.
 func (s *ResourceService) DeleteResource(ctx context.Context, resourceID string) error {
+	var componentID *string
+	if res, err := s.resources.FindByID(ctx, resourceID); err == nil {
+		componentID = res.ComponentID
+	}
+
 	if err := s.resources.Delete(ctx, resourceID); err != nil {
 		return err
 	}
@@ -320,6 +385,18 @@ func (s *ResourceService) DeleteResource(ctx context.Context, resourceID string)
 	if err := s.scheduler.Unschedule(ctx, resourceID); err != nil {
 		// Log the error but don't fail the entire operation
 		return err
+	}
+
+	// Auto-cleanup component if it becomes empty after resource deletion
+	if componentID != nil && s.components != nil {
+		count, err := s.resources.CountByComponentID(ctx, *componentID)
+		if err == nil && count == 0 {
+			// Component is now empty - auto-delete it
+			_ = s.components.DeleteComponent(ctx, *componentID)
+		} else if err == nil {
+			// Component still has resources - recalculate status
+			_ = s.components.RecalculateAndNotify(ctx, *componentID)
+		}
 	}
 
 	return nil

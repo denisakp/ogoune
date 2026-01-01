@@ -11,6 +11,10 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func newStatusPageService(resourceRepo *fake.ResourceFake, incidentRepo *fake.IncidentFake, activityRepo *fake.MonitoringActivityFake) *StatusPageService {
+	return NewStatusPageService(resourceRepo, incidentRepo, activityRepo, nil, nil, nil)
+}
+
 func TestStatusPageService_GetData(t *testing.T) {
 	t.Run("returns data with active resources and 90-day stats", func(t *testing.T) {
 		// Setup fake repositories
@@ -49,7 +53,7 @@ func TestStatusPageService_GetData(t *testing.T) {
 		}
 
 		// Create service
-		service := NewStatusPageService(resourceRepo, incidentRepo, activityRepo, nil, nil)
+		service := newStatusPageService(resourceRepo, incidentRepo, activityRepo)
 
 		// Execute
 		data, err := service.GetData(ctx)
@@ -104,7 +108,7 @@ func TestStatusPageService_GetData(t *testing.T) {
 			require.NoError(t, activityRepo.Create(ctx, activity))
 		}
 
-		service := NewStatusPageService(resourceRepo, incidentRepo, activityRepo, nil, nil)
+		service := newStatusPageService(resourceRepo, incidentRepo, activityRepo)
 
 		data, err := service.GetData(ctx)
 
@@ -119,7 +123,7 @@ func TestStatusPageService_GetData(t *testing.T) {
 		incidentRepo := fake.NewIncidentFake()
 		activityRepo := fake.NewMonitoringActivityFake()
 
-		service := NewStatusPageService(resourceRepo, incidentRepo, activityRepo, nil, nil)
+		service := newStatusPageService(resourceRepo, incidentRepo, activityRepo)
 
 		data, err := service.GetData(context.Background())
 
@@ -180,7 +184,7 @@ func TestStatusPageService_GetData(t *testing.T) {
 		_, err = resourceRepo.Create(ctx, upResource)
 		require.NoError(t, err)
 
-		service := NewStatusPageService(resourceRepo, incidentRepo, activityRepo, nil, nil)
+		service := newStatusPageService(resourceRepo, incidentRepo, activityRepo)
 
 		data, err := service.GetData(ctx)
 
@@ -223,7 +227,7 @@ func TestStatusPageService_GetData(t *testing.T) {
 		_, err := resourceRepo.Create(ctx, warnResource)
 		require.NoError(t, err)
 
-		service := NewStatusPageService(resourceRepo, incidentRepo, activityRepo, nil, nil)
+		service := newStatusPageService(resourceRepo, incidentRepo, activityRepo)
 
 		data, err := service.GetData(ctx)
 
@@ -273,7 +277,7 @@ func TestStatusPageService_buildResourceStatusInfo(t *testing.T) {
 			require.NoError(t, activityRepo.Create(ctx, activity))
 		}
 
-		service := NewStatusPageService(resourceRepo, incidentRepo, activityRepo, nil, nil)
+		service := newStatusPageService(resourceRepo, incidentRepo, activityRepo)
 
 		info, err := service.buildResourceStatusInfo(ctx, resource)
 
@@ -294,7 +298,7 @@ func TestStatusPageService_buildResourceStatusInfo(t *testing.T) {
 			Status: domain.StatusUp,
 		}
 
-		service := NewStatusPageService(resourceRepo, incidentRepo, activityRepo, nil, nil)
+		service := newStatusPageService(resourceRepo, incidentRepo, activityRepo)
 
 		info, err := service.buildResourceStatusInfo(context.Background(), resource)
 
@@ -305,7 +309,7 @@ func TestStatusPageService_buildResourceStatusInfo(t *testing.T) {
 }
 
 func TestStatusPageService_mapResourceStatus(t *testing.T) {
-	service := NewStatusPageService(nil, nil, nil, nil, nil)
+	service := NewStatusPageService(nil, nil, nil, nil, nil, nil)
 
 	tests := []struct {
 		name           string
@@ -358,7 +362,7 @@ func TestStatusPageService_mapResourceStatus(t *testing.T) {
 }
 
 func TestStatusPageService_calculateDayStatus(t *testing.T) {
-	service := NewStatusPageService(nil, nil, nil, nil, nil)
+	service := NewStatusPageService(nil, nil, nil, nil, nil, nil)
 	now := time.Now()
 	dayStart := now.Truncate(24 * time.Hour)
 	dayEnd := dayStart.Add(24 * time.Hour)

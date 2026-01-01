@@ -25,6 +25,7 @@ var (
 	// modelsToMigrate holds domain models for auto-migration
 	modelsToMigrate = []any{
 		// Core domain models introduced by feature 002
+		&domain.Component{},
 		&domain.Resource{},
 		&domain.Incident{},
 		&domain.IncidentEventStep{},

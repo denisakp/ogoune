@@ -12,14 +12,23 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestResourceService_CreateResource(t *testing.T) {
+func newResourceServiceForTest() (*ResourceService, *fake.ResourceFake, *fake.SchedulerFake) {
 	resourceRepo := fake.NewResourceFake()
 	incidentRepo := fake.NewIncidentFake()
 	tagsRepo := fake.NewTagsFake()
 	schedulerFake := fake.NewSchedulerFake()
 	monitoringActivityRepo := fake.NewMonitoringActivityFake()
+	channelRepo := fake.NewNotificationChannelFake()
+	componentRepo := fake.NewComponentFake()
 	enrichmentService := NewEnrichmentService(30 * time.Second)
-	service := NewResourceService(resourceRepo, incidentRepo, tagsRepo, schedulerFake, monitoringActivityRepo, enrichmentService)
+	componentService := NewComponentService(componentRepo, resourceRepo, channelRepo)
+
+	service := NewResourceService(resourceRepo, incidentRepo, tagsRepo, schedulerFake, monitoringActivityRepo, enrichmentService, componentService)
+	return service, resourceRepo, schedulerFake
+}
+
+func TestResourceService_CreateResource(t *testing.T) {
+	service, resourceRepo, schedulerFake := newResourceServiceForTest()
 
 	payload := &dto.CreateResourcePayload{
 		Name:     "Test Resource",
@@ -44,13 +53,7 @@ func TestResourceService_CreateResource(t *testing.T) {
 }
 
 func TestResourceService_ListAll(t *testing.T) {
-	resourceRepo := fake.NewResourceFake()
-	incidentRepo := fake.NewIncidentFake()
-	tagsRepo := fake.NewTagsFake()
-	schedulerFake := fake.NewSchedulerFake()
-	monitoringActivityRepo := fake.NewMonitoringActivityFake()
-	enrichmentService := NewEnrichmentService(30 * time.Second)
-	service := NewResourceService(resourceRepo, incidentRepo, tagsRepo, schedulerFake, monitoringActivityRepo, enrichmentService)
+	service, resourceRepo, _ := newResourceServiceForTest()
 
 	// Create some test resources
 	resource1 := &domain.Resource{
@@ -99,13 +102,7 @@ func TestResourceService_ListAll(t *testing.T) {
 }
 
 func TestResourceService_ListAll_EmptyRepository(t *testing.T) {
-	resourceRepo := fake.NewResourceFake()
-	incidentRepo := fake.NewIncidentFake()
-	tagsRepo := fake.NewTagsFake()
-	schedulerFake := fake.NewSchedulerFake()
-	monitoringActivityRepo := fake.NewMonitoringActivityFake()
-	enrichmentService := NewEnrichmentService(30 * time.Second)
-	service := NewResourceService(resourceRepo, incidentRepo, tagsRepo, schedulerFake, monitoringActivityRepo, enrichmentService)
+	service, _, _ := newResourceServiceForTest()
 
 	// List all resources from empty repository
 	resources, err := service.ListAll(context.Background())

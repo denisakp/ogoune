@@ -41,8 +41,20 @@ type ResourceRepository interface {
 	Delete(ctx context.Context, id string) error // soft delete (active=false)
 	FindActive(ctx context.Context, limit, offset int) ([]*domain.Resource, error)
 	FindByTag(ctx context.Context, tagName string, limit, offset int) ([]*domain.Resource, error)
+	FindByComponentID(ctx context.Context, componentID string) ([]*domain.Resource, error)
+	CountByComponentID(ctx context.Context, componentID string) (int64, error)
 	// UpdateMetadata updates only the metadata fields for a resource, leaving associations intact
 	UpdateMetadata(ctx context.Context, id string, metadata *domain.ResourceMetaData) error
+}
+
+// ComponentRepository manages logical component groups
+type ComponentRepository interface {
+	Create(ctx context.Context, c *domain.Component) (*domain.Component, error)
+	FindByID(ctx context.Context, id string) (*domain.Component, error)
+	List(ctx context.Context, limit, offset int) ([]*domain.Component, error)
+	Update(ctx context.Context, c *domain.Component) error
+	Delete(ctx context.Context, id string) error
+	UpdateLastNotificationStatus(ctx context.Context, id string, status domain.ComponentStatus) error
 }
 
 // IncidentRepository manages incidents (unresolved vs resolved)
@@ -104,6 +116,8 @@ type NotificationChannelRepository interface {
 	FindDefaultChannels(ctx context.Context) ([]*domain.NotificationChannel, error)
 	// FindByResourceID returns all notification channels associated with a resource
 	FindByResourceID(ctx context.Context, resourceID string) ([]*domain.NotificationChannel, error)
+	// FindByComponentID returns all notification channels associated with a component
+	FindByComponentID(ctx context.Context, componentID string) ([]*domain.NotificationChannel, error)
 }
 
 // MaintenanceRepository manages maintenance windows

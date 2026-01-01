@@ -17,6 +17,7 @@ type StatusPageService struct {
 	monitoringActivityRepo repository.MonitoringActivityRepository
 	maintenanceRepo        repository.MaintenanceRepository
 	settingsRepo           repository.StatusPageSettingsRepository
+	componentRepo          repository.ComponentRepository
 }
 
 // NewStatusPageService creates a new StatusPageService instance.
@@ -26,6 +27,7 @@ func NewStatusPageService(
 	monitoringActivityRepo repository.MonitoringActivityRepository,
 	maintenanceRepo repository.MaintenanceRepository,
 	settingsRepo repository.StatusPageSettingsRepository,
+	componentRepo repository.ComponentRepository,
 ) *StatusPageService {
 	return &StatusPageService{
 		resourceRepo:           resourceRepo,
@@ -33,6 +35,7 @@ func NewStatusPageService(
 		monitoringActivityRepo: monitoringActivityRepo,
 		maintenanceRepo:        maintenanceRepo,
 		settingsRepo:           settingsRepo,
+		componentRepo:          componentRepo,
 	}
 }
 
@@ -54,6 +57,11 @@ func (s *StatusPageService) GetData(ctx context.Context) (*dto.StatusPageData, e
 		return nil, fmt.Errorf("failed to fetch resources: %w", err)
 	}
 
+	components := []*domain.Component{}
+	if s.componentRepo != nil {
+		components, _ = s.componentRepo.List(ctx, 1000, 0)
+	}
+
 	// Filter paused resources if setting is enabled (default: hide paused)
 	hidePaused := settings == nil || settings.HidePausedMonitors
 	if hidePaused {
@@ -68,6 +76,7 @@ func (s *StatusPageService) GetData(ctx context.Context) (*dto.StatusPageData, e
 
 	// Build resource status info with 90-day data
 	resourceInfos := make([]dto.ResourceStatusInfo, 0, len(resources))
+	resourcesByComponent := make(map[string][]dto.ResourceStatusInfo)
 	hasNonOperationalResource := false
 
 	for _, resource := range resources {
@@ -76,7 +85,15 @@ func (s *StatusPageService) GetData(ctx context.Context) (*dto.StatusPageData, e
 			// Log error but continue processing other resources
 			continue
 		}
-		resourceInfos = append(resourceInfos, info)
+
+		// If resource belongs to a component, add it to the component's resource list
+		// but do NOT add it to the standalone resourceInfos list
+		if resource.ComponentID != nil {
+			resourcesByComponent[*resource.ComponentID] = append(resourcesByComponent[*resource.ComponentID], info)
+		} else {
+			// Only standalone resources (no component) go to the main resources list
+			resourceInfos = append(resourceInfos, info)
+		}
 
 		// Check if any resource is not "up", excluding pending/unknown resources
 		// Newly added or unchecked resources should not count as an outage
@@ -108,10 +125,24 @@ func (s *StatusPageService) GetData(ctx context.Context) (*dto.StatusPageData, e
 		}
 	}
 
+	componentInfos := make([]dto.ComponentStatusInfo, 0, len(components))
+	for _, component := range components {
+		infos := resourcesByComponent[component.ID]
+		componentStatus := s.mapComponentStatus(infos)
+		componentInfos = append(componentInfos, dto.ComponentStatusInfo{
+			ID:            component.ID,
+			Name:          component.Name,
+			Description:   component.Description,
+			CurrentStatus: componentStatus,
+			Resources:     infos,
+		})
+	}
+
 	return &dto.StatusPageData{
 		GlobalStatus: globalStatus,
 		GeneratedAt:  time.Now(),
 		Resources:    resourceInfos,
+		Components:   componentInfos,
 		Settings:     settingsDTO,
 	}, nil
 }
@@ -149,6 +180,29 @@ func (s *StatusPageService) mapResourceStatus(status domain.ResourceStatus) stri
 		return "up" // Paused resources are considered operational
 	default:
 		return "degraded"
+	}
+}
+
+func (s *StatusPageService) mapComponentStatus(resources []dto.ResourceStatusInfo) string {
+	hasDown := false
+	hasDegraded := false
+
+	for _, r := range resources {
+		switch r.CurrentStatus {
+		case "down":
+			hasDown = true
+		case "degraded":
+			hasDegraded = true
+		}
+	}
+
+	switch {
+	case hasDown:
+		return "down"
+	case hasDegraded:
+		return "degraded"
+	default:
+		return "up"
 	}
 }
 

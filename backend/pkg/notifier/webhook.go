@@ -10,8 +10,6 @@ import (
 	"fmt"
 	"net/http"
 	"time"
-
-	"github.com/denisakp/pulseguard/internal/domain"
 )
 
 // WebHookNotifier is a notifier that sends notifications via webhook.
@@ -33,20 +31,47 @@ func NewWebHookNotifier(url string, secret *string) *WebHookNotifier {
 }
 
 // Send sends a notification via webhook.
-func (n *WebHookNotifier) Send(ctx context.Context, incident domain.Incident) error {
+func (n *WebHookNotifier) Send(ctx context.Context, payload NotificationPayload) error {
 	if n.url == "" {
 		return fmt.Errorf("webhook url is empty")
 	}
 
-	status := "DOWN"
-	if incident.ResolvedAt != nil {
-		status = "UP"
+	var body map[string]any
+
+	switch {
+	case payload.Component != nil:
+		component := payload.Component
+		impacted := make([]map[string]string, 0, len(component.Impacted))
+		for _, r := range component.Impacted {
+			impacted = append(impacted, map[string]string{
+				"id":     r.ID,
+				"name":   r.Name,
+				"status": string(r.Status),
+			})
+		}
+
+		body = map[string]any{
+			"type":      "component",
+			"component": component.Component.Name,
+			"status":    component.Status,
+			"impacted":  impacted,
+		}
+	case payload.Incident != nil:
+		incident := payload.Incident
+		status := "DOWN"
+		if incident.ResolvedAt != nil {
+			status = "UP"
+		}
+		body = map[string]any{
+			"type":    "incident",
+			"status":  status,
+			"message": incident.Cause,
+		}
+	default:
+		return fmt.Errorf("notification payload missing incident or component")
 	}
 
-	payloadBytes, err := json.Marshal(map[string]interface{}{
-		"status":  status,
-		"message": incident.Cause,
-	})
+	payloadBytes, err := json.Marshal(body)
 	if err != nil {
 		return fmt.Errorf("failed to marshal payload: %w", err)
 	}

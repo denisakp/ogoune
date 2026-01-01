@@ -16,6 +16,7 @@ func NewRouter(
 	resourceHandler *handler.ResourceHandler,
 	activityHandler *handler.MonitoringActivityHandler,
 	tagHandler *handler.TagHandler,
+	componentHandler *handler.ComponentHandler,
 	statusPageHandler *handler.StatusPageHandler,
 	statusPageSettingsHandler *handler.StatusPageSettingsHandler,
 	incidentHandler *handler.IncidentHandler,
@@ -92,6 +93,17 @@ func NewRouter(
 			r.Post("/{resourceID}/tags", resourceHandler.AddTagsToResource)               // POST /resources/{resourceID}/tags - add tags
 			r.Delete("/{resourceID}/tags/{tagID}", resourceHandler.RemoveTagFromResource) // DELETE /resources/{resourceID}/tags/{tagID} - remove tag
 			r.Get("/{resourceId}/uptime-stats", activityHandler.GetUptimeStats)           // GET /resources/{resourceId}/uptime-stats - get hourly uptime stats
+		})
+
+		// Components API
+		r.Route("/components", func(r chi.Router) {
+			r.Get("/", componentHandler.ListComponents)
+			r.Post("/", componentHandler.CreateComponent)
+			r.Get("/{id}", componentHandler.GetComponent)
+			r.Patch("/{id}", componentHandler.UpdateComponent)
+			r.Delete("/{id}", componentHandler.DeleteComponent)
+			r.Post("/{id}/resources/bulk-assign", componentHandler.BulkAssignToComponent) // POST /components/{id}/resources/bulk-assign - assign multiple resources
+			r.Post("/resources/bulk-remove", componentHandler.BulkRemoveFromComponent)    // POST /components/resources/bulk-remove - remove resources from components
 		})
 
 		// Tags API

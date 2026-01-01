@@ -4,10 +4,11 @@ import "time"
 
 // StatusPageData represents the complete data structure for rendering the public status page.
 type StatusPageData struct {
-	GlobalStatus string               `json:"global_status"`
-	GeneratedAt  time.Time            `json:"generated_at"`
-	Resources    []ResourceStatusInfo `json:"resources"`
-	Settings     *StatusPageSettings  `json:"settings,omitempty"`
+	GlobalStatus string                `json:"global_status"`
+	GeneratedAt  time.Time             `json:"generated_at"`
+	Resources    []ResourceStatusInfo  `json:"resources"`
+	Components   []ComponentStatusInfo `json:"components,omitempty"`
+	Settings     *StatusPageSettings   `json:"settings,omitempty"`
 }
 
 // StatusPageSettings contains configurable settings for the status page
@@ -26,6 +27,15 @@ type ResourceStatusInfo struct {
 	CurrentStatus              string   `json:"current_status"`
 	UptimePercentageLast90Days float64  `json:"uptime_percentage_last_90_days"`
 	DailyStatusLast90Days      []string `json:"daily_status_last_90_days"`
+}
+
+// ComponentStatusInfo represents a derived component view with nested resources.
+type ComponentStatusInfo struct {
+	ID            string               `json:"id"`
+	Name          string               `json:"name"`
+	Description   *string              `json:"description,omitempty"`
+	CurrentStatus string               `json:"current_status"`
+	Resources     []ResourceStatusInfo `json:"resources"`
 }
 
 // IncidentSummary represents a high-level summary of an incident for public display.

@@ -17,6 +17,7 @@ func setupTestService() (*IncidentService, *fake.IncidentFake, *fake.IncidentEve
 	eventStepRepoInterface := fake.NewIncidentEventStepFake()
 	notificationRepo := fake.NewNotificationFake()
 	notificationChannelRepo := fake.NewNotificationChannelFake()
+	diagnosticsRepo := fake.NewIncidentDiagnosticsFake()
 	asynqClient := asynq.NewClient(asynq.RedisClientOpt{Addr: "localhost:6379"})
 
 	service := NewIncidentService(
@@ -24,6 +25,7 @@ func setupTestService() (*IncidentService, *fake.IncidentFake, *fake.IncidentEve
 		eventStepRepoInterface,
 		notificationRepo,
 		notificationChannelRepo,
+		diagnosticsRepo,
 		asynqClient,
 	)
 

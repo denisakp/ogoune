@@ -20,6 +20,8 @@ type IncidentService struct {
 	eventSteps           repository.IncidentEventStepRepository
 	notifications        repository.NotificationRepository
 	notificationChannels repository.NotificationChannelRepository
+	diagnostics          repository.IncidentDiagnosticsRepository
+	components           repository.ComponentRepository
 	client               *asynq.Client
 }
 
@@ -29,6 +31,7 @@ func NewIncidentService(
 	eventSteps repository.IncidentEventStepRepository,
 	notifications repository.NotificationRepository,
 	notificationChannels repository.NotificationChannelRepository,
+	diagnostics repository.IncidentDiagnosticsRepository,
 	client *asynq.Client,
 ) *IncidentService {
 	return &IncidentService{
@@ -36,8 +39,14 @@ func NewIncidentService(
 		eventSteps:           eventSteps,
 		notifications:        notifications,
 		notificationChannels: notificationChannels,
+		diagnostics:          diagnostics,
 		client:               client,
 	}
+}
+
+// SetComponentRepository sets the component repository for notification resolution
+func (s *IncidentService) SetComponentRepository(repo repository.ComponentRepository) {
+	s.components = repo
 }
 
 // CreateIncident creates a new incident when a resource reaches 3 consecutive failures.
@@ -84,6 +93,16 @@ func (s *IncidentService) CreateIncident(ctx context.Context, r *domain.Resource
 
 	log.Printf("Created incident %s for resource %s (cause: %s)", incident.ID, r.ID, cause)
 
+	// Persist incident diagnostics immediately after creation
+	// This captures error details, network timing, and other technical context
+	diag := s.buildIncidentDiagnostics(incident.ID, result, r)
+	if _, err := s.diagnostics.Create(ctx, diag); err != nil {
+		log.Printf("Warning: Failed to persist incident diagnostics for %s: %v (continuing)", incident.ID, err)
+		// Don't fail incident creation if diagnostics fail - they're supplementary
+	} else {
+		log.Printf("Persisted diagnostic details for incident %s", incident.ID)
+	}
+
 	// Step 1: Create "detected" event step
 	detectedStep := &domain.IncidentEventStep{
 		IncidentID: incident.ID,
@@ -95,22 +114,16 @@ func (s *IncidentService) CreateIncident(ctx context.Context, r *domain.Resource
 		log.Printf("Warning: Failed to create detected event step: %v", err)
 	}
 
-	// Fetch notification channels associated with this resource
-	channels, err := s.notificationChannels.FindByResourceID(ctx, r.ID)
-	if err != nil {
-		log.Printf("Warning: Failed to fetch notification channels for resource %s: %v", r.ID, err)
-		return nil // Continue even if channel fetch fails
-	}
-
-	// If no channels configured, log and return
+	// Fetch notification channels associated with this resource using the resolution hierarchy
+	channels := s.resolveNotificationChannels(ctx, r)
 	if len(channels) == 0 {
-		log.Printf("No notification channels configured for resource %s, skipping notifications", r.ID)
+		log.Printf("[INCIDENT] No notification channels resolved for resource %s (tried: resource -> component -> default)", r.ID)
 		return nil
 	}
 
 	// Dispatch notifications to all configured channels
 	for _, channel := range channels {
-		err := s.dispatchNotification(ctx, incident, channel)
+		err := s.dispatchNotification(ctx, notifier.NotificationPayload{Incident: incident}, channel)
 
 		// Create event step for notification attempt (regardless of success/failure)
 		statusMsg := "sent"
@@ -167,7 +180,7 @@ func (s *IncidentService) ResolveIncident(ctx context.Context, r *domain.Resourc
 
 	// No active incident to resolve
 	if activeIncident == nil {
-		log.Printf("[INCIDENT] No active incident found for resource %s (recovery without prior incident)", r.ID)
+		log.Printf("[DEBUG] No active incident found for resource %s - recovery without prior incident (expected when failures < 3)", r.ID)
 		return nil
 	}
 
@@ -195,22 +208,16 @@ func (s *IncidentService) ResolveIncident(ctx context.Context, r *domain.Resourc
 		log.Printf("Warning: Failed to create resolved event step: %v", err)
 	}
 
-	// Fetch notification channels associated with this resource
-	channels, err := s.notificationChannels.FindByResourceID(ctx, r.ID)
-	if err != nil {
-		log.Printf("Warning: Failed to fetch notification channels for resource %s: %v", r.ID, err)
-		return nil // Continue even if channel fetch fails
-	}
-
-	// If no channels configured, log and return
+	// Fetch notification channels associated with this resource using the resolution hierarchy
+	channels := s.resolveNotificationChannels(ctx, r)
 	if len(channels) == 0 {
-		log.Printf("No notification channels configured for resource %s, skipping notifications", r.ID)
+		log.Printf("[INCIDENT] No notification channels resolved for resource %s (tried: resource -> component -> default)", r.ID)
 		return nil
 	}
 
 	// Dispatch resolution notifications to all configured channels
 	for _, channel := range channels {
-		err := s.dispatchNotification(ctx, activeIncident, channel)
+		err := s.dispatchNotification(ctx, notifier.NotificationPayload{Incident: activeIncident}, channel)
 
 		// Create event step for notification attempt (regardless of success/failure)
 		statusMsg := "sent"
@@ -292,7 +299,7 @@ func findSubstring(s, substr string) bool {
 
 // dispatchNotification sends notifications via the given notification channel.
 // It unmarshals the channel config and instantiates the appropriate notifier.
-func (s *IncidentService) dispatchNotification(ctx context.Context, incident *domain.Incident, channel *domain.NotificationChannel) error {
+func (s *IncidentService) dispatchNotification(ctx context.Context, payload notifier.NotificationPayload, channel *domain.NotificationChannel) error {
 	var n notifier.Notifier
 	var err error
 
@@ -313,7 +320,7 @@ func (s *IncidentService) dispatchNotification(ctx context.Context, incident *do
 	}
 
 	// Send the notification
-	if err := n.Send(ctx, *incident); err != nil {
+	if err := n.Send(ctx, payload); err != nil {
 		return fmt.Errorf("failed to send notification: %w", err)
 	}
 
@@ -321,7 +328,81 @@ func (s *IncidentService) dispatchNotification(ctx context.Context, incident *do
 	return nil
 }
 
+// resolveNotificationChannels implements the notification channel resolution hierarchy:
+// 1. Resource-specific channels (highest priority)
+// 2. Component-level channels (if resource belongs to a component)
+// 3. Global default channels (lowest priority, fallback)
+func (s *IncidentService) resolveNotificationChannels(ctx context.Context, r *domain.Resource) []*domain.NotificationChannel {
+	var channels []*domain.NotificationChannel
+
+	// Step 1: Try resource-specific channels
+	resourceChannels, err := s.notificationChannels.FindByResourceID(ctx, r.ID)
+	if err == nil && len(resourceChannels) > 0 {
+		log.Printf("[NOTIFICATION] Resolved %d notification channel(s) from resource %s", len(resourceChannels), r.ID)
+		return resourceChannels
+	}
+
+	// Step 2: If resource belongs to a component, try component-level channels
+	if r.ComponentID != nil && s.components != nil {
+		component, err := s.components.FindByID(ctx, *r.ComponentID)
+		if err == nil && component != nil {
+			componentChannels, err := s.notificationChannels.FindByComponentID(ctx, component.ID)
+			if err == nil && len(componentChannels) > 0 {
+				log.Printf("[NOTIFICATION] Resolved %d notification channel(s) from component %s", len(componentChannels), component.ID)
+				return componentChannels
+			}
+		}
+	}
+
+	// Step 3: Fall back to default/global channels
+	// TODO: Implement global default channels once NotificationChannelRepository supports it
+	// defaultChannels, err := s.notificationChannels.FindDefault(ctx)
+	// if err == nil && len(defaultChannels) > 0 {
+	// 	log.Printf("[NOTIFICATION] Resolved %d global default notification channel(s)", len(defaultChannels))
+	// 	return defaultChannels
+	// }
+
+	log.Printf("[NOTIFICATION] No notification channels found for resource %s (tried: resource -> component -> default)", r.ID)
+	return channels
+}
+
 // stringPtr is a helper to create string pointers.
 func stringPtr(s string) *string {
 	return &s
+}
+
+// buildIncidentDiagnostics constructs an IncidentDiagnostics record from a CheckResult.
+// This captures rich diagnostic information to help users debug issues.
+// Note: This mirrors the logic in worker/diagnostics_builder.go but is kept here for convenience.
+func (s *IncidentService) buildIncidentDiagnostics(incidentID string, result domain.CheckResult, resource *domain.Resource) *domain.IncidentDiagnostics {
+	diag := &domain.IncidentDiagnostics{
+		IncidentID:        incidentID,
+		RequestMethod:     result.RequestMethod,
+		RequestURL:        result.RequestURL,
+		RequestHeaders:    result.RequestHeaders,
+		RequestTimeout:    resource.Timeout,
+		HTTPStatusCode:    result.HTTPStatusCode,
+		ResponseHeaders:   result.ResponseHeaders,
+		TotalDuration:     int(result.ResponseTime.Milliseconds()),
+		DNSDuration:       int(result.DNSDuration.Milliseconds()),
+		TLSDuration:       int(result.TLSDuration.Milliseconds()),
+		FirstByteDuration: int(result.FirstByteDuration.Milliseconds()),
+	}
+
+	// Set error context if available
+	if result.Cause != nil {
+		diag.FailureType = string(*result.Cause)
+	}
+
+	if result.ErrorMessage != "" {
+		diag.ErrorMessage = result.ErrorMessage
+	}
+
+	// Store response data for context (response body is captured separately)
+	if result.ResponseBody != "" {
+		diag.ResponseBody = result.ResponseBody
+		diag.ResponseSize = len(result.ResponseBody)
+	}
+
+	return diag
 }

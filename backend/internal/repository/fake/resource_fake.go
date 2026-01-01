@@ -118,6 +118,37 @@ func (r *ResourceFake) UpdateMetadata(ctx context.Context, id string, metadata *
 	return nil
 }
 
+// FindByComponentID returns resources associated with a component.
+func (r *ResourceFake) FindByComponentID(ctx context.Context, componentID string) ([]*domain.Resource, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	var resources []*domain.Resource
+	for _, res := range r.resources {
+		if res.ComponentID != nil && *res.ComponentID == componentID {
+			copy := *res
+			resources = append(resources, &copy)
+		}
+	}
+
+	return resources, nil
+}
+
+// CountByComponentID returns number of resources for a component.
+func (r *ResourceFake) CountByComponentID(ctx context.Context, componentID string) (int64, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	var count int64
+	for _, res := range r.resources {
+		if res.ComponentID != nil && *res.ComponentID == componentID {
+			count++
+		}
+	}
+
+	return count, nil
+}
+
 func (r *ResourceFake) Delete(ctx context.Context, id string) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()

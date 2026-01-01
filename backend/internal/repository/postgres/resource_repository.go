@@ -31,7 +31,10 @@ func (r *ResourceRepositoryImpl) Create(ctx context.Context, resource *domain.Re
 // FindByID retrieves a resource by its ID.
 func (r *ResourceRepositoryImpl) FindByID(ctx context.Context, id string) (*domain.Resource, error) {
 	var resource domain.Resource
-	err := r.db.WithContext(ctx).Preload("Tags").First(&resource, "id = ?", id).Error
+	err := r.db.WithContext(ctx).
+		Preload("Tags").
+		Preload("Component").
+		First(&resource, "id = ?", id).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, repository.ErrNotFound
@@ -46,6 +49,7 @@ func (r *ResourceRepositoryImpl) List(ctx context.Context, limit, offset int) ([
 	var resources []*domain.Resource
 	err := r.db.WithContext(ctx).
 		Preload("Tags").
+		Preload("Component").
 		Order("created_at DESC").
 		Limit(limit).
 		Offset(offset).
@@ -104,6 +108,7 @@ func (r *ResourceRepositoryImpl) FindActive(ctx context.Context, limit, offset i
 	var resources []*domain.Resource
 	err := r.db.WithContext(ctx).
 		Preload("Tags").
+		Preload("Component").
 		Where("is_active = ?", true).
 		Order("created_at DESC").
 		Limit(limit).
@@ -121,6 +126,7 @@ func (r *ResourceRepositoryImpl) FindByTag(ctx context.Context, tagName string, 
 	var resources []*domain.Resource
 	err := r.db.WithContext(ctx).
 		Preload("Tags").
+		Preload("Component").
 		Joins("JOIN resource_tags ON resources.id = resource_tags.resource_id").
 		Joins("JOIN tags ON resource_tags.tag_id = tags.id").
 		Where("tags.name = ? AND resources.is_active = ?", tagName, true).
@@ -133,6 +139,33 @@ func (r *ResourceRepositoryImpl) FindByTag(ctx context.Context, tagName string, 
 		return nil, fmt.Errorf("failed to find resources by tag: %w", err)
 	}
 	return resources, nil
+}
+
+// FindByComponentID returns resources assigned to a component.
+func (r *ResourceRepositoryImpl) FindByComponentID(ctx context.Context, componentID string) ([]*domain.Resource, error) {
+	var resources []*domain.Resource
+	err := r.db.WithContext(ctx).
+		Preload("Tags").
+		Preload("Component").
+		Where("component_id = ?", componentID).
+		Order("created_at DESC").
+		Find(&resources).Error
+	if err != nil {
+		return nil, fmt.Errorf("failed to find resources by component: %w", err)
+	}
+	return resources, nil
+}
+
+// CountByComponentID returns how many resources are assigned to a component.
+func (r *ResourceRepositoryImpl) CountByComponentID(ctx context.Context, componentID string) (int64, error) {
+	var count int64
+	if err := r.db.WithContext(ctx).
+		Model(&domain.Resource{}).
+		Where("component_id = ?", componentID).
+		Count(&count).Error; err != nil {
+		return 0, fmt.Errorf("failed to count resources for component: %w", err)
+	}
+	return count, nil
 }
 
 // UpdateMetadata updates only the metadata fields of a resource to avoid touching associations.

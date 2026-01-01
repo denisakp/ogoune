@@ -56,6 +56,15 @@ const (
 	StatusWarn    ResourceStatus = "warning"
 )
 
+// ComponentStatus represents the derived health of a logical group of resources.
+type ComponentStatus string
+
+const (
+	ComponentStatusUp       ComponentStatus = "up"
+	ComponentStatusDegraded ComponentStatus = "degraded"
+	ComponentStatusDown     ComponentStatus = "down"
+)
+
 // ResourceMetaData collect domain and ssl metadata form resource
 type ResourceMetaData struct {
 	SSLExpirationDate    *time.Time `json:"ssl_expiration_date" gorm:"column:ssl_expiration_date"`
@@ -80,10 +89,23 @@ type Resource struct {
 	Incidents            []Incident             `json:"incidents"`
 	Tags                 []*Tags                `json:"tags" gorm:"many2many:resource_tags;"`
 	NotificationChannels []*NotificationChannel `json:"notification_channels" gorm:"many2many:resource_notification_channels;"`
+	ComponentID          *string                `json:"component_id" gorm:"index"`
+	Component            *Component             `json:"component" gorm:"foreignKey:ComponentID"`
 	MetadataPending      bool                   `json:"metadata_pending" gorm:"-"`
 }
 
 func (Resource) TableName() string { return "resources" }
+
+// Component is a logical grouping of resources. Its status is derived from member resources.
+type Component struct {
+	Base
+	Name                   string          `json:"name" gorm:"uniqueIndex"`
+	Description            *string         `json:"description,omitempty"`
+	Resources              []*Resource     `json:"resources,omitempty" gorm:"foreignKey:ComponentID"`
+	LastNotificationStatus ComponentStatus `json:"last_notification_status" gorm:"default:'up'"`
+}
+
+func (Component) TableName() string { return "components" }
 
 // Incident represents an event where a Resource is down or experiencing issues.
 type Incident struct {

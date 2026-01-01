@@ -95,6 +95,7 @@ func main() {
 	monitoringActivityRepo := postgres.NewMonitoringActivityRepository(db)
 	tagsRepo := postgres.NewTagsRepository(db)
 	statusPageSettingsRepo := postgres.NewStatusPageSettingsRepository(db)
+	componentRepo := postgres.NewComponentRepository(db)
 	userRepo := postgres.NewUserRepository(db)
 
 	// Initialize Redis connection for Asynq
@@ -192,11 +193,13 @@ func main() {
 		incidentEventStepRepo,
 		notificationRepo,
 		notificationChannelRepo,
+		incidentDiagnosticsRepo,
 		asynqClient,
 	)
 
 	// Initialize task handlers
-	monitoringHandler := worker.NewMonitoringTaskHandler(resourceRepo, monitoringActivityRepo, maintenanceRepo, incidentDiagnosticsRepo, executor, incidentService)
+	componentService := service.NewComponentService(componentRepo, resourceRepo, notificationChannelRepo)
+	monitoringHandler := worker.NewMonitoringTaskHandler(resourceRepo, monitoringActivityRepo, maintenanceRepo, incidentDiagnosticsRepo, executor, incidentService, componentService)
 	maintenanceTaskHandler := maintenance.NewTaskHandler(maintenanceRepo, asynqClient)
 
 	// Create the Asynq worker processor
@@ -221,11 +224,11 @@ func main() {
 	log.Println("Initializing API server...")
 
 	// Initialize API services
-	resourceService := service.NewResourceService(resourceRepo, incidentRepo, tagsRepo, schedulerService, monitoringActivityRepo, enrichmentService)
+	resourceService := service.NewResourceService(resourceRepo, incidentRepo, tagsRepo, schedulerService, monitoringActivityRepo, enrichmentService, componentService)
 	activityService := service.NewMonitoringActivityService(monitoringActivityRepo)
 	tagService := service.NewTagService(tagsRepo)
 	statusPageSettingsService := service.NewStatusPageSettingsService(statusPageSettingsRepo)
-	statusPageService := service.NewStatusPageService(resourceRepo, incidentRepo, monitoringActivityRepo, maintenanceRepo, statusPageSettingsRepo)
+	statusPageService := service.NewStatusPageService(resourceRepo, incidentRepo, monitoringActivityRepo, maintenanceRepo, statusPageSettingsRepo, componentRepo)
 	incidentAPIService := service.NewIncidentService(incidentRepo, incidentEventStepRepo)
 	notificationService := service.NewNotificationService(
 		resourceRepo,
@@ -259,9 +262,10 @@ func main() {
 	statsHandler := handler.NewStatsHandler(statsService)
 	authHandler := handler.NewAuthHandler(authService, jwtManager)
 	accountHandler := handler.NewAccountHandler(authService)
+	componentHandler := handler.NewComponentHandler(componentService)
 
 	// Create router with injected handlers
-	apiHandler := api.NewRouter(resourceHandler, activityHandler, tagHandler, statusPageHandler, statusPageSettingsHandler, incidentHandler, notificationHandler, maintenanceHandler, statsHandler, authHandler, accountHandler, authService)
+	apiHandler := api.NewRouter(resourceHandler, activityHandler, tagHandler, componentHandler, statusPageHandler, statusPageSettingsHandler, incidentHandler, notificationHandler, maintenanceHandler, statsHandler, authHandler, accountHandler, authService)
 
 	// Root router: mount JSON API under /api
 	rootRouter := chi.NewRouter()

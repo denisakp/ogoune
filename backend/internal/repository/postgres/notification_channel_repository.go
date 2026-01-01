@@ -110,3 +110,16 @@ func (r *NotificationChannelRepository) FindByResourceID(ctx context.Context, re
 	}
 	return channels, nil
 }
+
+// FindByComponentID retrieves all notification channels associated with a specific component
+// via the many-to-many relationship table (component_notification_channels)
+func (r *NotificationChannelRepository) FindByComponentID(ctx context.Context, componentID string) ([]*domain.NotificationChannel, error) {
+	var channels []*domain.NotificationChannel
+	if err := r.db.WithContext(ctx).
+		Joins("JOIN component_notification_channels ON component_notification_channels.notification_channel_id = notification_channels.id").
+		Where("component_notification_channels.component_id = ?", componentID).
+		Find(&channels).Error; err != nil {
+		return nil, err
+	}
+	return channels, nil
+}
