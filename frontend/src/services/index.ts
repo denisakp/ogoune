@@ -1,4 +1,5 @@
 export * from './activityService'
+export * from './componentService'
 export * from './incidentService'
 export * from './resourceService'
 export * from './statsService'

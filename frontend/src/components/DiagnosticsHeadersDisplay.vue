@@ -32,12 +32,8 @@ const headersList = computed(() => {
     <table v-else style="width: 100%; border-collapse: collapse">
       <thead>
         <tr style="border-bottom: 1px solid #f0f0f0">
-          <th style="text-align: left; padding: 8px 0; font-weight: 600; font-size: 12px">
-            Name
-          </th>
-          <th style="text-align: left; padding: 8px 0; font-weight: 600; font-size: 12px">
-            Value
-          </th>
+          <th style="text-align: left; padding: 8px 0; font-weight: 600; font-size: 12px">Name</th>
+          <th style="text-align: left; padding: 8px 0; font-weight: 600; font-size: 12px">Value</th>
         </tr>
       </thead>
       <tbody>

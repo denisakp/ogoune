@@ -1,9 +1,15 @@
 <script setup lang="ts">
-import { computed } from 'vue'
-import { CheckCircleOutlined, WarningOutlined, CloseCircleOutlined } from '@ant-design/icons-vue'
+import { computed, ref } from 'vue'
+import {
+  CheckCircleOutlined,
+  WarningOutlined,
+  CloseCircleOutlined,
+  DownOutlined,
+  UpOutlined,
+} from '@ant-design/icons-vue'
 
 import ServiceStatusItem from './ServiceStatusItem.vue'
-import type { GlobalStatus, ResourceStatusInfo, DailyStatus } from '@/types'
+import type { GlobalStatus, ResourceStatusInfo, ComponentStatusInfo, DailyStatus } from '@/types'
 
 interface Service {
   id: string
@@ -16,21 +22,38 @@ interface Service {
 interface Props {
   globalStatus: GlobalStatus
   resources: ResourceStatusInfo[]
+  components?: ComponentStatusInfo[]
   loading?: boolean
   showUptimePercentage?: boolean
   enableDetailsPage?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
+  components: () => [],
   loading: false,
   showUptimePercentage: true,
   enableDetailsPage: true,
 })
 
+// Track expanded component groups
+const expandedComponents = ref<Set<string>>(new Set())
+
 // Define emits
 const emit = defineEmits<{
   'service-click': [serviceId: string]
 }>()
+
+const toggleComponentExpand = (componentId: string) => {
+  if (expandedComponents.value.has(componentId)) {
+    expandedComponents.value.delete(componentId)
+  } else {
+    expandedComponents.value.add(componentId)
+  }
+}
+
+const isComponentExpanded = (componentId: string) => {
+  return expandedComponents.value.has(componentId)
+}
 
 const handleServiceClick = (serviceId: string) => {
   if (props.enableDetailsPage) {
@@ -74,6 +97,26 @@ const services = computed<Service[]>(() => {
     uptimePercentage: resource.uptime_percentage_last_90_days,
     status: mapStatusToDisplay(resource.current_status),
     uptimeData: mapDailyStatusToBar(resource.daily_status_last_90_days),
+  }))
+})
+
+// Convert components with nested resources to component view
+const componentGroups = computed(() => {
+  if (!props.components || props.components.length === 0) {
+    return []
+  }
+
+  return props.components.map((component) => ({
+    id: component.id,
+    name: component.name,
+    status: mapStatusToDisplay(component.status),
+    resources: component.resources.map((resource) => ({
+      id: resource.id,
+      name: resource.name,
+      status: mapStatusToDisplay(resource.current_status),
+      uptimePercentage: resource.uptime_percentage_last_90_days,
+      uptimeData: mapDailyStatusToBar(resource.daily_status_last_90_days),
+    })),
   }))
 })
 
@@ -134,11 +177,79 @@ const getOverallStatusColor = () => {
         </div>
       </a-card>
 
+      <!-- Components Section (if available) -->
+      <div v-if="componentGroups.length > 0" class="components-section">
+        <div class="section-header">
+          <h2 class="section-title">Components</h2>
+          <p class="section-subtitle">Service groups and their status</p>
+        </div>
+
+        <a-spin :spinning="loading">
+          <div class="components-list">
+            <a-card
+              v-for="component in componentGroups"
+              :key="component.id"
+              class="component-card"
+              :bordered="false"
+            >
+              <div class="component-header">
+                <a-button
+                  type="text"
+                  size="small"
+                  class="expand-btn"
+                  @click="toggleComponentExpand(component.id)"
+                >
+                  <component :is="isComponentExpanded(component.id) ? UpOutlined : DownOutlined" />
+                </a-button>
+
+                <a-badge :status="component.status.toLowerCase()" />
+                <h3 class="component-name">{{ component.name }}</h3>
+                <span class="component-status" :class="component.status.toLowerCase()">
+                  {{ component.status }}
+                </span>
+                <span class="component-resource-count">
+                  {{ component.resources.length }} service(s)
+                </span>
+              </div>
+
+              <div v-if="isComponentExpanded(component.id)" class="component-resources">
+                <div v-if="component.resources.length === 0" class="no-resources">
+                  <p>No services in this component</p>
+                </div>
+                <div
+                  v-for="resource in component.resources"
+                  :key="resource.id"
+                  class="resource-item-wrapper"
+                  :class="{ clickable: enableDetailsPage }"
+                  @click="handleServiceClick(resource.id)"
+                >
+                  <ServiceStatusItem
+                    :name="resource.name"
+                    :uptime-percentage="resource.uptimePercentage"
+                    :status="resource.status"
+                    :uptime-data="resource.uptimeData"
+                    :show-uptime-percentage="showUptimePercentage"
+                  />
+                </div>
+              </div>
+            </a-card>
+          </div>
+        </a-spin>
+      </div>
+
       <!-- Services Section -->
       <div class="services-section">
         <div class="section-header">
-          <h2 class="section-title">Services</h2>
-          <p class="section-subtitle">Monitor the status of all services</p>
+          <h2 class="section-title">
+            {{ componentGroups.length > 0 ? 'Other Services' : 'Services' }}
+          </h2>
+          <p class="section-subtitle">
+            {{
+              componentGroups.length > 0
+                ? 'Standalone services (not grouped into components)'
+                : 'Monitor the status of all services'
+            }}
+          </p>
         </div>
 
         <a-spin :spinning="loading">
@@ -242,6 +353,116 @@ const getOverallStatusColor = () => {
 
 .services-section {
   margin-bottom: 32px;
+}
+
+.components-section {
+  margin-bottom: 32px;
+}
+
+.components-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.component-card {
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.component-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 0;
+  padding: 12px 0;
+  border-bottom: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.component-header:hover {
+  background-color: #fafafa;
+  border-radius: 4px;
+  padding: 12px 8px;
+  margin: -12px 0 0 -8px;
+  padding-bottom: 12px;
+}
+
+.expand-btn {
+  flex-shrink: 0;
+  font-size: 14px;
+}
+
+.component-name {
+  flex: 1;
+  font-size: 16px;
+  font-weight: 600;
+  margin: 0;
+  color: rgba(0, 0, 0, 0.85);
+  min-width: 0;
+}
+
+.component-status {
+  padding: 4px 12px;
+  border-radius: 4px;
+  font-weight: 500;
+  font-size: 12px;
+  text-transform: uppercase;
+  flex-shrink: 0;
+}
+
+.component-status.operational {
+  background-color: #f6ffed;
+  color: #52c41a;
+}
+
+.component-status.down {
+  background-color: #fff1f0;
+  color: #ff4d4f;
+}
+
+.component-status.partial-outage {
+  background-color: #fffbe6;
+  color: #faad14;
+}
+
+.component-resource-count {
+  font-size: 12px;
+  color: #666;
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+.component-resources {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid #f0f0f0;
+}
+
+.no-resources {
+  text-align: center;
+  color: #999;
+  padding: 20px 0;
+  font-size: 13px;
+}
+
+.resource-item-wrapper {
+  padding: 12px;
+  background-color: #fafafa;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+  margin-left: 12px;
+  border-left: 3px solid #f0f0f0;
+}
+
+.resource-item-wrapper.clickable:hover {
+  transform: translateX(4px);
+  background-color: #f5f5f5;
+  border-left-color: #1890ff;
 }
 
 .section-header {

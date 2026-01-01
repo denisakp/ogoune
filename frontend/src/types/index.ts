@@ -24,6 +24,7 @@ export interface Resource {
   last_checked?: string
   created_at: string
   updated_at: string
+  component_id?: string // Optional component assignment
   tags?: Tag[]
   incidents?: Incident[]
   uptime?: number // Overall uptime percentage
@@ -68,6 +69,7 @@ export interface CreateResource {
   interval: number
   timeout: number
   tags: string[]
+  component_id?: string // Optional component assignment
 }
 
 export type UpdateResource = Partial<CreateResource>
@@ -251,6 +253,15 @@ export interface ResourceStatusInfo {
  */
 export type GlobalStatus = 'all_systems_operational' | 'some_systems_down'
 
+/**\n * Component status info for status page
+ */
+export interface ComponentStatusInfo {
+  id: string
+  name: string
+  status: 'up' | 'degraded' | 'down'
+  resources: ResourceStatusInfo[]
+}
+
 /**
  * Complete status page data response
  */
@@ -258,6 +269,7 @@ export interface StatusPageData {
   global_status: GlobalStatus
   generated_at: string
   resources: ResourceStatusInfo[]
+  components?: ComponentStatusInfo[]
   settings?: StatusPageSettings
 }
 
@@ -469,4 +481,47 @@ export interface User {
   user_id: string
   force_password_change: boolean
   two_factor_enabled: boolean
+}
+
+/**
+ * Component represents a logical grouping of resources
+ * Component status is derived from member resource statuses
+ */
+export interface Component {
+  id: string
+  name: string
+  description?: string
+  status: 'up' | 'degraded' | 'down'
+  impacted_resources: ComponentResourceSnapshot[]
+  resources: ComponentResourceSnapshot[]
+  created_at: string
+  updated_at: string
+}
+
+/**
+ * Snapshot of a resource within a component context
+ */
+export interface ComponentResourceSnapshot {
+  id: string
+  name: string
+  status: ResourceCurrentStatus
+}
+
+export interface CreateComponent {
+  name: string
+  description?: string
+  resource_ids: string[] // Required: at least one resource
+}
+
+export type UpdateComponent = Partial<Omit<CreateComponent, 'resource_ids'>>
+
+/**
+ * Bulk operation payloads for component management
+ */
+export interface BulkAssignPayload {
+  resource_ids: string[]
+}
+
+export interface BulkRemovePayload {
+  resource_ids: string[]
 }

@@ -14,12 +14,14 @@ const props = withDefaults(defineProps<Props>(), {
 // Get icon and color based on failure type
 const getFailureIcon = (failureType: string | null | undefined) => {
   if (!failureType) return { icon: 'exclamation-circle', color: 'red' }
-  
+
   const type = failureType.toLowerCase()
   if (type.includes('timeout')) return { icon: 'clock-circle', color: 'orange' }
-  if (type.includes('connection') || type.includes('refused')) return { icon: 'disconnect', color: 'red' }
+  if (type.includes('connection') || type.includes('refused'))
+    return { icon: 'disconnect', color: 'red' }
   if (type.includes('dns')) return { icon: 'global', color: 'volcano' }
-  if (type.includes('ssl') || type.includes('certificate')) return { icon: 'lock', color: 'volcano' }
+  if (type.includes('ssl') || type.includes('certificate'))
+    return { icon: 'lock', color: 'volcano' }
   if (type.includes('http') || type.includes('status')) return { icon: 'alert', color: 'orange' }
   return { icon: 'exclamation-circle', color: 'red' }
 }
@@ -32,12 +34,9 @@ const failureIcon = getFailureIcon(props.failureType)
     <div style="display: flex; gap: 12px; align-items: flex-start">
       <!-- Icon -->
       <div style="flex-shrink: 0; margin-top: 2px">
-        <a-icon
-          :type="failureIcon.icon"
-          :style="{ fontSize: '20px', color: failureIcon.color }"
-        />
+        <a-icon :type="failureIcon.icon" :style="{ fontSize: '20px', color: failureIcon.color }" />
       </div>
-      
+
       <!-- Content -->
       <div style="flex: 1">
         <!-- Error Summary (prominent) -->

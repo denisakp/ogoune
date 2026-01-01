@@ -79,6 +79,7 @@ const pageConfig = computed(() => ({
           v-if="statusPageData"
           :global-status="statusPageData.global_status"
           :resources="statusPageData.resources"
+          :components="statusPageData.components"
           :loading="loading"
           :show-uptime-percentage="pageConfig.showUptimePercentage"
           :enable-details-page="pageConfig.enableDetailsPage"

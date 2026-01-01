@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import { ref, watch, onMounted, computed } from 'vue'
+import { FolderOutlined } from '@ant-design/icons-vue'
 
 import type { Resource, CreateResource } from '@/types'
 import { useResources } from '@/composables/useResources.ts'
 import { useTags } from '@/composables/useTags.ts'
+import { useComponents } from '@/composables/useComponents.ts'
 
 interface Props {
   resource?: Resource
@@ -14,13 +16,14 @@ const emit = defineEmits<{ submit: [] }>()
 
 const { addResource, updateResourceData } = useResources()
 
-const form = ref<CreateResource>({
+const form = ref<CreateResource & { component_id?: string }>({
   name: '',
   type: 'http',
   target: '',
   interval: 300,
   timeout: 10,
   tags: [],
+  component_id: undefined,
 })
 
 const loading = ref(false)
@@ -36,6 +39,7 @@ watch(
         interval: resource.interval,
         timeout: resource.timeout,
         tags: (resource.tags ?? []).map((t) => t.id),
+        component_id: resource.component_id || undefined,
       }
     } else {
       form.value = {
@@ -45,6 +49,7 @@ watch(
         interval: 300,
         timeout: 10,
         tags: [],
+        component_id: undefined,
       }
     }
   },
@@ -76,6 +81,7 @@ const handleSubmit = async () => {
         interval: form.value.interval,
         timeout: form.value.timeout,
         tags: form.value.tags,
+        component_id: form.value.component_id,
       }
       await updateResourceData(props.resource.id, updateData)
     } else {
@@ -89,12 +95,19 @@ const handleSubmit = async () => {
 }
 
 const { tags, loadTags } = useTags()
+const { components, loadComponents } = useComponents()
 
 onMounted(() => {
   loadTags()
+  loadComponents()
 })
 
 const tagsOptions = computed(() => tags.value.map((tag) => ({ value: tag.id, label: tag.name })))
+
+const componentOptions = computed(() => [
+  { value: undefined, label: '⊘ No component (standalone resource)' },
+  ...components.value.map((c) => ({ value: c.id, label: c.name })),
+])
 </script>
 
 <template>
@@ -171,6 +184,25 @@ const tagsOptions = computed(() => tags.value.map((tag) => ({ value: tag.id, lab
         :options="tagsOptions"
       >
       </a-select>
+    </a-form-item>
+
+    <!-- Component Assignment -->
+    <a-form-item label="Component (Optional)">
+      <a-select
+        v-model:value="form.component_id"
+        allow-clear
+        style="width: 100%"
+        placeholder="Assign to a component group"
+        :options="componentOptions"
+      >
+        <template #suffixIcon>
+          <FolderOutlined />
+        </template>
+      </a-select>
+      <div style="margin-top: 8px; font-size: 12px; color: rgba(0, 0, 0, 0.45)">
+        💡 Group related resources together (e.g., "Frontend Services", "API Servers"). A resource
+        can belong to only one component.
+      </div>
     </a-form-item>
 
     <!-- Submit Buttons -->

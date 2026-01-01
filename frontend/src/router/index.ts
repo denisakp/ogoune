@@ -3,6 +3,7 @@ import { useAuthStore } from '@/stores/authStore'
 
 const MonitorsView = () => import('@/views/MonitorsView.vue')
 const ResourceView = () => import('@/views/resources/ResourceView.vue')
+const ComponentsView = () => import('@/views/ComponentsView.vue')
 const SettingsView = () => import('@/views/SettingsView.vue')
 const Verify2FAView = () => import('@/views/auth/Verify2FAView.vue')
 const IncidentsView = () => import('@/views/incidents/IncidentsView.vue')
@@ -46,6 +47,12 @@ const routes: RouteRecordRaw[] = [
     path: '/monitors/:id',
     name: 'ResourceDetail',
     component: ResourceView,
+    meta: { requiresAuth: true, requiresLayout: true },
+  },
+  {
+    path: '/components',
+    name: 'Components',
+    component: ComponentsView,
     meta: { requiresAuth: true, requiresLayout: true },
   },
   {

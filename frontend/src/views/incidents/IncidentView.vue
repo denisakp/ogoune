@@ -430,7 +430,9 @@ const handleDownloadResponse = () => {
                       </div>
 
                       <div v-if="incident.diagnostics.request_timeout" style="margin-top: 16px">
-                        <div style="font-size: 12px; color: rgba(0, 0, 0, 0.65); margin-bottom: 8px">
+                        <div
+                          style="font-size: 12px; color: rgba(0, 0, 0, 0.65); margin-bottom: 8px"
+                        >
                           TIMEOUT
                         </div>
                         <div style="font-size: 14px; font-weight: 500">
@@ -507,12 +509,22 @@ const handleDownloadResponse = () => {
                       display: inline-block;
                     "
                     :style="{
-                      color: incident.diagnostics.http_status_code >= 500 ? '#ff4d4f' :
-                             incident.diagnostics.http_status_code >= 400 ? '#faad14' :
-                             incident.diagnostics.http_status_code >= 300 ? '#1890ff' : '#52c41a',
-                      backgroundColor: incident.diagnostics.http_status_code >= 500 ? '#fff1f0' :
-                                      incident.diagnostics.http_status_code >= 400 ? '#fffbe6' :
-                                      incident.diagnostics.http_status_code >= 300 ? '#e6f7ff' : '#f6ffed',
+                      color:
+                        incident.diagnostics.http_status_code >= 500
+                          ? '#ff4d4f'
+                          : incident.diagnostics.http_status_code >= 400
+                            ? '#faad14'
+                            : incident.diagnostics.http_status_code >= 300
+                              ? '#1890ff'
+                              : '#52c41a',
+                      backgroundColor:
+                        incident.diagnostics.http_status_code >= 500
+                          ? '#fff1f0'
+                          : incident.diagnostics.http_status_code >= 400
+                            ? '#fffbe6'
+                            : incident.diagnostics.http_status_code >= 300
+                              ? '#e6f7ff'
+                              : '#f6ffed',
                     }"
                   >
                     {{ incident.diagnostics.http_status_code }}

@@ -21,7 +21,7 @@ const showDecoded = ref(false)
 // Decode base64 body if needed
 const decodedBody = computed(() => {
   if (!props.body) return null
-  
+
   if (props.isEncoded) {
     try {
       // Decode base64
@@ -38,7 +38,7 @@ const decodedBody = computed(() => {
       return '[Failed to decode base64]'
     }
   }
-  
+
   return props.body
 })
 
@@ -55,14 +55,16 @@ const isJsonContent = computed(() => {
   const body = displayBody.value
   if (!body) return false
   const trimmed = body.trim()
-  return (trimmed.startsWith('{') && trimmed.endsWith('}')) ||
-         (trimmed.startsWith('[') && trimmed.endsWith(']'))
+  return (
+    (trimmed.startsWith('{') && trimmed.endsWith('}')) ||
+    (trimmed.startsWith('[') && trimmed.endsWith(']'))
+  )
 })
 
 // Format JSON for display
 const formattedBody = computed(() => {
   if (!displayBody.value) return ''
-  
+
   if (isJsonContent.value) {
     try {
       const parsed = JSON.parse(displayBody.value)
@@ -71,7 +73,7 @@ const formattedBody = computed(() => {
       return displayBody.value
     }
   }
-  
+
   return displayBody.value
 })
 
@@ -92,9 +94,7 @@ const copyToClipboard = async () => {
 <template>
   <div>
     <!-- Empty State -->
-    <div v-if="!body" style="color: rgba(0, 0, 0, 0.45); font-size: 12px">
-      &lt;empty&gt;
-    </div>
+    <div v-if="!body" style="color: rgba(0, 0, 0, 0.45); font-size: 12px">&lt;empty&gt;</div>
 
     <!-- Body Display -->
     <div v-else>
@@ -120,7 +120,10 @@ const copyToClipboard = async () => {
       />
 
       <!-- Size Info -->
-      <div v-if="responseSize" style="font-size: 12px; color: rgba(0, 0, 0, 0.65); margin-bottom: 12px">
+      <div
+        v-if="responseSize"
+        style="font-size: 12px; color: rgba(0, 0, 0, 0.65); margin-bottom: 12px"
+      >
         Response size: {{ (responseSize / 1024).toFixed(2) }} KB
         <span v-if="isTruncated" style="color: #faad14">(truncated)</span>
       </div>
@@ -146,10 +149,7 @@ const copyToClipboard = async () => {
 
       <!-- Copy Button -->
       <div style="margin-top: 12px">
-        <a-button
-          size="small"
-          @click="copyToClipboard"
-        >
+        <a-button size="small" @click="copyToClipboard">
           <template #icon>
             <a-icon-copy />
           </template>

@@ -1,21 +1,25 @@
 <script setup lang="ts">
 import { onMounted, ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
-import { Modal } from 'ant-design-vue'
+import { Modal, message } from 'ant-design-vue'
 import {
   EditOutlined,
   DeleteOutlined,
   PauseOutlined,
   PlayCircleOutlined,
   EllipsisOutlined,
+  FolderOutlined,
 } from '@ant-design/icons-vue'
 
 import { useResources } from '@/composables/useResources'
 import { useDateTime } from '@/composables/useDateTime'
+import { useComponents } from '@/composables/useComponents'
 import ResourceModal from '@/components/resources/ResourceModal.vue'
+import GroupResourcesModal from '@/components/modals/GroupResourcesModal.vue'
 import UptimeSparkline from '@/components/UptimeSparkline.vue'
 import Last24HoursStatsCard from '@/components/Last24HoursStatsCard.vue'
 import type { Resource } from '@/types'
+import { bulkRemoveFromComponent } from '@/services/componentService'
 
 const {
   resources,
@@ -28,11 +32,15 @@ const {
   loadUptimeStats,
 } = useResources()
 
+const { components, loadComponents } = useComponents()
+
 const { timeAgo } = useDateTime()
 const router = useRouter()
 
 const showModal = ref(false)
 const editingResource = ref<Resource | null>(null)
+const showGroupModal = ref(false)
+const selectedRowKeys = ref<string[]>([])
 const paginationState = ref({
   current: 1,
   pageSize: 10,
@@ -42,10 +50,11 @@ const paginationState = ref({
 const searchName = ref('')
 const filterStatus = ref<string[]>([])
 const filterTags = ref<string[]>([])
+const filterComponent = ref<string[]>([])
 const orderBy = ref<'newest' | 'oldest' | 'up_first' | 'down_first'>('newest')
 
 onMounted(async () => {
-  await loadResources()
+  await Promise.all([loadResources(), loadComponents()])
   await loadUptimeStatsForAll()
 })
 
@@ -109,10 +118,11 @@ const getStatusColor = (status: string) => {
 
 // Table columns
 const columns = [
-  { title: 'Status', dataIndex: 'status', key: 'status', width: 90 },
+  { title: 'Status', dataIndex: 'status', key: 'status', width: 100 },
   { title: 'Name', dataIndex: 'name', key: 'name' },
+  { title: 'Component', dataIndex: 'component', key: 'component', width: 150 },
   { title: 'Target', dataIndex: 'target', key: 'target', ellipsis: true },
-  { title: 'Uptime (24h)', dataIndex: 'uptime', key: 'uptime' },
+  { title: 'Uptime (24h)', dataIndex: 'uptime', key: 'uptime', width: 120 },
   { title: 'Last Checked', dataIndex: 'last_checked', key: 'last_checked', width: 140 },
   { title: 'Actions', key: 'actions', width: 90, fixed: 'right' },
 ]
@@ -150,6 +160,16 @@ const filteredResources = computed(() => {
     filtered = filtered.filter((r) => r.tags?.some((tag) => filterTags.value.includes(tag.id)))
   }
 
+  // Filter by component
+  if (filterComponent.value.length > 0) {
+    filtered = filtered.filter((r) => {
+      if (filterComponent.value.includes('ungrouped')) {
+        return !r.component_id
+      }
+      return r.component_id && filterComponent.value.includes(r.component_id)
+    })
+  }
+
   // Sort
   switch (orderBy.value) {
     case 'oldest':
@@ -177,6 +197,43 @@ const filteredResources = computed(() => {
   return filtered
 })
 
+// Bulk selection handlers
+const handleGroupSelected = () => {
+  if (selectedRowKeys.value.length === 0) {
+    message.warning('Please select at least one resource')
+    return
+  }
+  showGroupModal.value = true
+}
+
+const handleRemoveFromComponent = async () => {
+  if (selectedRowKeys.value.length === 0) {
+    message.warning('Please select at least one resource')
+    return
+  }
+
+  Modal.confirm({
+    title: 'Remove from Component',
+    content: `Remove ${selectedRowKeys.value.length} resource(s) from their components?`,
+    okText: 'Remove',
+    okType: 'primary',
+    cancelText: 'Cancel',
+    async onOk() {
+      try {
+        await bulkRemoveFromComponent({
+          resource_ids: selectedRowKeys.value,
+        })
+        message.success('Resources removed from components')
+        selectedRowKeys.value = []
+        await loadResources()
+      } catch (error) {
+        console.error('Failed to remove resources:', error)
+        message.error('Failed to remove resources from components')
+      }
+    },
+  })
+}
+
 // Handle row click to navigate to detail view
 const handleRowClick = (record: Resource) => {
   router.push({ name: 'ResourceDetail', params: { id: record.id } })
@@ -195,17 +252,25 @@ const handleRowClick = (record: Resource) => {
       "
     >
       <div>
-        <h1 style="font-size: 28px; font-weight: bold; margin: 0">Monitors.</h1>
+        <h1 style="font-size: 28px; font-weight: bold; margin: 0">Monitors</h1>
         <p style="color: rgba(0, 0, 0, 0.45); margin-top: 8px; font-size: 14px">
-          Track uptime and performance
+          Track uptime and performance of your resources
         </p>
       </div>
-      <a-button type="primary" @click="openCreateModal">
-        <template #icon>
-          <a-icon-plus />
-        </template>
-        New
-      </a-button>
+      <a-space>
+        <a-button type="default" @click="showGroupModal = true">
+          <template #icon>
+            <FolderOutlined />
+          </template>
+          New Component
+        </a-button>
+        <a-button type="primary" @click="openCreateModal">
+          <template #icon>
+            <a-icon-plus />
+          </template>
+          New Monitor
+        </a-button>
+      </a-space>
     </div>
 
     <a-alert
@@ -216,6 +281,51 @@ const handleRowClick = (record: Resource) => {
       show-icon
       style="margin-bottom: 16px"
     />
+
+    <!-- Bulk Selection Toolbar (shown when resources selected) -->
+    <div v-if="selectedRowKeys.length > 0" style="margin-bottom: 16px">
+      <a-alert
+        :message="`${selectedRowKeys.length} resource(s) selected`"
+        type="info"
+        show-icon
+        style="margin-bottom: 8px"
+      >
+        <template #description>
+          <div style="display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap">
+            <a-button size="small" type="primary" @click="handleGroupSelected">
+              <template #icon>
+                <FolderOutlined />
+              </template>
+              Group into Component
+            </a-button>
+            <a-button size="small" @click="handleRemoveFromComponent">
+              Remove from Component
+            </a-button>
+            <a-button size="small" @click="selectedRowKeys = []"> Clear Selection </a-button>
+          </div>
+        </template>
+      </a-alert>
+    </div>
+
+    <!-- Component Info Card (shown when resources exist but nothing selected) -->
+    <a-alert
+      v-else-if="resources.length > 0 && components.length === 0"
+      message="💡 Organize with Components"
+      type="info"
+      closable
+      style="margin-bottom: 16px"
+    >
+      <template #description>
+        <div style="margin-top: 4px">
+          Group related resources together using <strong>Components</strong> (e.g., "Frontend
+          Services", "API Servers").
+          <div style="margin-top: 8px">
+            <strong>Quick start:</strong> Select resources below → Click "Group into Component" →
+            Name your component
+          </div>
+        </div>
+      </template>
+    </a-alert>
 
     <!-- Main Content Row -->
     <a-row :gutter="24" style="margin-bottom: 24px">
@@ -244,6 +354,27 @@ const handleRowClick = (record: Resource) => {
             <a-select-option value="paused">Paused</a-select-option>
           </a-select>
 
+          <!-- Component Filter -->
+          <a-select
+            v-model:value="filterComponent"
+            mode="multiple"
+            placeholder="Filter by component"
+            style="flex: 1; min-width: 100px"
+            allow-clear
+          >
+            <a-select-option value="ungrouped">
+              <span style="color: rgba(0, 0, 0, 0.45)">⊘ Not in any component</span>
+            </a-select-option>
+            <a-select-option
+              v-for="component in components"
+              :key="component.id"
+              :value="component.id"
+            >
+              <FolderOutlined style="margin-right: 6px" />
+              {{ component.name }}
+            </a-select-option>
+          </a-select>
+
           <!-- Order Select -->
           <a-select v-model:value="orderBy" style="flex: 0 0 150px">
             <a-select-option value="newest">Newest first</a-select-option>
@@ -269,9 +400,24 @@ const handleRowClick = (record: Resource) => {
           row-key="id"
           @change="handleTableChange"
           :row-class-name="() => 'cursor-pointer'"
+          :row-selection="{
+            selectedRowKeys,
+            onChange: (keys: string[]) => (selectedRowKeys = keys),
+          }"
           :customRow="
             (record: Resource) => ({
-              onClick: () => handleRowClick(record),
+              onClick: (e: Event) => {
+                // Only navigate if not clicking on a checkbox or action button
+                const target = e.target as HTMLElement
+                if (
+                  target.closest('.ant-checkbox') ||
+                  target.closest('.ant-btn') ||
+                  target.closest('.ant-dropdown')
+                ) {
+                  return
+                }
+                handleRowClick(record)
+              },
             })
           "
         >
@@ -306,6 +452,19 @@ const handleRowClick = (record: Resource) => {
                   {{ record.type.toUpperCase() }}
                 </a-tag>
               </div>
+            </template>
+
+            <!-- Component Column -->
+            <template v-else-if="column.key === 'component'">
+              <div v-if="record.component" style="display: flex; align-items: center; gap: 6px">
+                <a-tag color="purple" style="margin: 0">
+                  <template #icon>
+                    <FolderOutlined />
+                  </template>
+                  {{ record.component.name }}
+                </a-tag>
+              </div>
+              <span v-else style="color: rgba(0, 0, 0, 0.25); font-size: 12px">—</span>
             </template>
 
             <!-- Uptime Column (Sparkline) -->
@@ -433,6 +592,20 @@ const handleRowClick = (record: Resource) => {
       v-model:open="showModal"
       :resource="editingResource"
       @submit="handleFormSubmit"
+    />
+
+    <!-- Group Resources Modal -->
+    <GroupResourcesModal
+      v-model:visible="showGroupModal"
+      :selected-resource-ids="selectedRowKeys"
+      :resources="resources"
+      @success="
+        () => {
+          showGroupModal = false
+          selectedRowKeys = []
+          loadResources()
+        }
+      "
     />
   </div>
 </template>
