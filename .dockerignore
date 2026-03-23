@@ -7,6 +7,8 @@ CONTRIBUTING.md
 docker-compose.yml
 README.md
 .git/
+Dockerfile*
+.dockerignore
 .env
 .env.*
 node_modules/
@@ -15,3 +17,4 @@ dist/
 build/
 coverage/
 *.log
+*.log*

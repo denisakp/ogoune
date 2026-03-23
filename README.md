@@ -35,7 +35,7 @@ cd pulseguard
 docker compose -f docker-compose.community.yml up -d
 ```
 
-This community path uses embedded SQLite and Redis only. Hosted PostgreSQL deployments still use `docker compose up -d`.
+This community path uses embedded SQLite with the in-process timingwheel scheduler. Hosted PostgreSQL deployments still use `docker compose up -d` with Redis and the Asynq compatibility lane.
 
 Open **http://localhost:8080** and log in with:
 - Email: `admin@pulseguard.test`
@@ -123,7 +123,19 @@ REDIS_URL=localhost:6379
 
 All options in `.env.example`
 
-SQLite removes the external database dependency for Community Edition, but Redis is still required for scheduling and worker execution.
+SQLite removes the external database dependency for Community Edition and timingwheel removes the Redis dependency for scheduling.
+
+Hosted deployments continue to use Redis-backed Asynq scheduling for compatibility. In hosted mode:
+- Set `SCHEDULER_MODE=asynq`
+- Provide a reachable `REDIS_URL`
+- Run the API process and Asynq worker path together
+- Leave `SCHEDULER_MODE` unset only when you want auto-detection based on `DB_DRIVER` (`sqlite` -> timingwheel core lane, `postgres` -> asynq compatibility lane)
+
+Hosted compatibility parity is preserved across:
+- schedule and unschedule semantics
+- monitoring check dispatch behavior
+- notification enqueue behavior
+- incident lifecycle execution through the existing worker and incident services
 
 Automatic PostgreSQL-to-SQLite data migration is out of scope. Switch to SQLite only for fresh community deployments.
 

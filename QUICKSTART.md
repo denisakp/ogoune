@@ -79,6 +79,77 @@ Welcome to **Pulseguard**, an open-source monitoring platform for websites, APIs
 
 ## 🚀 Quick Start (5 Minutes)
 
+### Option A: Community Mode (Recommended for Local Testing)
+
+No Redis required – everything runs in a single process with embedded SQLite:
+
+**Terminal 1: Backend (with embedded scheduler)**
+
+```bash
+# Community mode: SQLite + in-process scheduler
+DB_DRIVER=sqlite SQLITE_PATH=./pulseguard.db SCHEDULER_MODE=timingwheel make run
+```
+
+Or use Docker Compose Community edition:
+
+```bash
+docker compose -f docker-compose.community.yml up
+```
+
+**Terminal 2: Frontend SPA**
+
+```bash
+cd frontend
+pnpm install
+pnpm run dev      # http://localhost:5173
+```
+
+✅ **Done!** Open http://localhost:5173
+
+---
+
+### Option B: Hosted Mode (Full PostgreSQL + Redis Setup)
+
+For production-like multi-container deployments:
+
+**Terminal 1: Hosted/PostgreSQL Backend Services**
+
+```bash
+make docker-up    # Start PostgreSQL + Redis
+```
+
+**Terminal 2: Backend API + Worker**
+
+```bash
+make run          # Start Go API and background worker
+```
+
+**Terminal 3: Frontend SPA**
+
+```bash
+cd frontend
+pnpm install
+pnpm run dev      # http://localhost:5173
+```
+
+---
+
+## Important: Scheduler Modes
+
+- **Community/MVPMode (_timingwheel_)**: In-process scheduler, no Redis required
+  - ✅ Perfect for single-server deployments
+  - ✅ No external dependencies
+  - ✅ All checks run deterministically in-process
+
+- **Hosted Mode (_asynq_)**: Redis-based distributed scheduler
+  - ✅ Scales across multiple instances
+  - ✅ Requires Redis 6+
+  - ✅ Recommended for production SaaS deployments
+
+**Never use `SCHEDULER_MODE=asynq` without Redis**, or the process will fail to start.
+
+---
+
 ### Terminal 1: Community Backend Services
 
 ```bash
@@ -160,6 +231,52 @@ pnpm run dev      # http://localhost:5173
 - Automatic incident creation (3 consecutive failures)
 - Incident resolution tracking
 - Complete incident history
+
+### Monitor Lifecycle Operations
+
+✅ **Pause Monitoring**
+
+Temporarily stop checks for a monitor without deleting it:
+
+```bash
+curl -X POST http://localhost:8080/api/resources/{resourceId}/pause
+```
+
+**Effect**: 
+- Stops all scheduled checks immediately
+- Monitor remains in the database
+- Can be resumed later at any time
+- No incidents or notifications while paused
+
+**Use case**: Maintenance windows, temporary service downtime, testing
+
+✅ **Resume Monitoring**
+
+Resume checks for a paused monitor:
+
+```bash
+curl -X POST http://localhost:8080/api/resources/{resourceId}/resume
+```
+
+**Effect**: 
+- Reactivates monitoring checks
+- Uses the configured interval
+- Checks resume immediately on next scheduler tick
+- Incidents can be created again if threshold met
+
+**Use case**: Resume after maintenance, restart monitoring for troubleshooting
+
+✅ **Update Check Interval**
+
+Change how frequently a monitor runs:
+
+```bash
+curl -X PATCH http://localhost:8080/api/resources/{resourceId} \
+  -H "Content-Type: application/json" \
+  -d '{"interval": 600}'  # 600 seconds = 10 minutes
+```
+
+**Interval** is specified in seconds. Changes take effect on the next scheduler tick.
 
 ## 🏗️ Architecture Overview
 

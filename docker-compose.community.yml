@@ -1,0 +1,24 @@
+name: pulseguard-community
+
+volumes:
+  pulseguard-data:
+
+services:
+  # Community mode: in-process scheduler (no Redis required)
+  pulseguard:
+    image: ghcr.io/denisakp/pulseguard:latest
+    ports:
+      - "${APP_PORT:-8080}:8080"
+    environment:
+      DB_DRIVER: sqlite
+      SQLITE_PATH: /data/pulseguard.db
+      DB_LOG_LEVEL: error
+      # Scheduler runs in-process without Redis
+      SCHEDULER_MODE: timingwheel
+      SCHEDULER_MAX_WORKERS: 10
+      SCHEDULER_TICK_INTERVAL: 1s
+      SCHEDULER_SHUTDOWN_TIMEOUT: 30s
+      STATIC_DIR: /app/static
+      PORT: 8080
+    volumes:
+      - pulseguard-data:/data
