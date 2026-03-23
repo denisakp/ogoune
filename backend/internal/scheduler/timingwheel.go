@@ -295,8 +295,16 @@ func (tw *TimingWheelScheduler) cleanup() {
 	tw.paused = make(map[string]bool)
 	tw.mu.Unlock()
 
+	// Close check queue so external dispatchers can exit cleanly.
+	close(tw.checkQueue)
+
 	// Signal notification worker to exit
 	close(tw.notifQueue)
+}
+
+// CheckJobs exposes the timingwheel check queue for in-process dispatchers.
+func (tw *TimingWheelScheduler) CheckJobs() <-chan *CheckJob {
+	return tw.checkQueue
 }
 
 // EnqueueNotification adds a notification to the queue (non-blocking)

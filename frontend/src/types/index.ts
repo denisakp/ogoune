@@ -14,7 +14,7 @@ export interface ResourceMetadata {
 export interface Resource {
   id: string
   name: string
-  type: 'http' | 'tcp'
+  type: 'http' | 'tcp' | 'dns'
   target: string
   interval: number // in seconds
   timeout: number // in seconds
@@ -64,7 +64,7 @@ export interface StatsSummary {
 
 export interface CreateResource {
   name: string
-  type: 'http' | 'tcp'
+  type: 'http' | 'tcp' | 'dns'
   target: string
   interval: number
   timeout: number

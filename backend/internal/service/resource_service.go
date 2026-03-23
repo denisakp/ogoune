@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/denisakp/pulseguard/internal/domain"
@@ -50,7 +51,22 @@ func NewResourceService(
 func (s *ResourceService) findOrCreateTags(ctx context.Context, tagNames []string) ([]*domain.Tags, error) {
 	var tags []*domain.Tags
 
-	for _, tagName := range tagNames {
+	for _, rawTag := range tagNames {
+		tagName := strings.TrimSpace(rawTag)
+		if tagName == "" {
+			continue
+		}
+
+		// Backward compatibility: if client sends an existing tag ID, resolve it first.
+		tagByID, err := s.tags.FindByID(ctx, tagName)
+		if err == nil {
+			tags = append(tags, tagByID)
+			continue
+		}
+		if err != nil && !errors.Is(err, repository.ErrNotFound) {
+			return nil, fmt.Errorf("failed to find tag by id '%s': %w", tagName, err)
+		}
+
 		// Try to find the tag by name
 		tag, err := s.tags.FindByName(ctx, tagName)
 		if err != nil {
@@ -267,23 +283,14 @@ func (s *ResourceService) UpdateResource(ctx context.Context, id string, payload
 		}
 	}
 
-	// Handle tags update: payload.Tags contains tag IDs (not names)
-	// We fetch existing tags by ID and replace the resource's tag associations
+	// Handle tags update: payload.Tags accepts names (auto-create) and existing IDs.
+	// Replace tag associations with the provided set.
 	if payload.Tags != nil {
 		if len(*payload.Tags) > 0 {
-			// Fetch existing tags by ID (not create new ones)
-			var tags []*domain.Tags
-			for _, tagID := range *payload.Tags {
-				tag, err := s.tags.FindByID(ctx, tagID)
-				if err != nil {
-					if errors.Is(err, repository.ErrNotFound) {
-						return nil, fmt.Errorf("%w: tag with ID '%s' not found", ErrValidationFailed, tagID)
-					}
-					return nil, fmt.Errorf("failed to fetch tag '%s': %w", tagID, err)
-				}
-				tags = append(tags, tag)
+			tags, err := s.findOrCreateTags(ctx, *payload.Tags)
+			if err != nil {
+				return nil, fmt.Errorf("failed to process tags: %w", err)
 			}
-			// Replace tags (clear old ones and set new ones)
 			resource.Tags = tags
 		} else {
 			// Clear all tags if empty slice provided

@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"log"
 	"net/http"
 	"os"
@@ -255,6 +256,55 @@ func main() {
 			log.Printf("✓ TimingWheel loaded %d active resources at startup", len(activeResources))
 		}
 
+		// Start in-process dispatcher that consumes timingwheel check jobs.
+		if tw, ok := runtimeScheduler.(*scheduler.TimingWheelScheduler); ok {
+			strategies := map[domain.ResourceType]domain.CheckStrategy{
+				domain.ResourceHTTP: strategy.NewHTTPStrategy(30 * time.Second),
+				domain.ResourceTCP:  strategy.NewTCPStrategy(30 * time.Second),
+				domain.ResourceDNS:  strategy.NewDNSStrategy(30 * time.Second),
+			}
+			executor := domain.NewCheckExecutor(strategies)
+
+			incidentService := monitoring.NewIncidentService(
+				incidentRepo,
+				incidentEventStepRepo,
+				notificationRepo,
+				notificationChannelRepo,
+				incidentDiagnosticsRepo,
+				nil,
+			)
+
+			monitoringHandler := worker.NewMonitoringTaskHandler(resourceRepo, monitoringActivityRepo, maintenanceRepo, incidentDiagnosticsRepo, executor, incidentService, componentService)
+
+			workers := schedulerCfg.TimingWheel.MaxWorkers
+			if workers <= 0 {
+				workers = 1
+			}
+
+			for i := 0; i < workers; i++ {
+				go func() {
+					for job := range tw.CheckJobs() {
+						if job == nil || job.ResourceID == "" {
+							continue
+						}
+
+						payload, err := json.Marshal(map[string]string{"resource_id": job.ResourceID})
+						if err != nil {
+							log.Printf("⚠️  Failed to marshal timingwheel payload for resource %s: %v", job.ResourceID, err)
+							continue
+						}
+
+						task := asynq.NewTask("monitoring:check", payload)
+						if err := monitoringHandler.ProcessTask(context.Background(), task); err != nil {
+							log.Printf("⚠️  TimingWheel check failed for resource %s: %v", job.ResourceID, err)
+						}
+					}
+				}()
+			}
+
+			log.Printf("✓ TimingWheel check dispatcher started with %d workers", workers)
+		}
+
 	} else {
 		// Asynq path: bootstrap as before
 		log.Println("========================================")
@@ -306,6 +356,7 @@ func main() {
 		strategies := map[domain.ResourceType]domain.CheckStrategy{
 			domain.ResourceHTTP: strategy.NewHTTPStrategy(30 * time.Second),
 			domain.ResourceTCP:  strategy.NewTCPStrategy(30 * time.Second),
+			domain.ResourceDNS:  strategy.NewDNSStrategy(30 * time.Second),
 		}
 		executor := domain.NewCheckExecutor(strategies)
 

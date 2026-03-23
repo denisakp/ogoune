@@ -3,6 +3,9 @@ package postgres
 import (
 	"context"
 	"fmt"
+	"math"
+	"sort"
+	"time"
 
 	"github.com/denisakp/pulseguard/internal/domain"
 	"github.com/denisakp/pulseguard/internal/repository"
@@ -70,25 +73,58 @@ func (r *MonitoringActivityRepositoryImpl) GetUptimeStats(ctx context.Context, r
 		return nil, repository.ErrInvalidInput
 	}
 
-	var stats []domain.UptimeStat
+	type activityPoint struct {
+		CreatedAt time.Time
+		Success   bool
+	}
 
-	// SQL query to calculate hourly uptime percentage for the last 24 hours
-	query := `
-		SELECT
-			DATE_TRUNC('hour', created_at) as hour,
-			ROUND((COUNT(CASE WHEN success = true THEN 1 END)::numeric / COUNT(*)::numeric * 100), 2) as uptime_percent,
-			COUNT(CASE WHEN success = true THEN 1 END) as successful_count,
-			COUNT(*) as total_count
-		FROM monitoring_activities
-		WHERE resource_id = ?
-			AND created_at >= NOW() - INTERVAL '24 hours'
-		GROUP BY DATE_TRUNC('hour', created_at)
-		ORDER BY hour ASC
-	`
-
-	err := r.db.WithContext(ctx).Raw(query, resourceID).Scan(&stats).Error
+	var points []activityPoint
+	since := time.Now().Add(-24 * time.Hour)
+	err := r.db.WithContext(ctx).
+		Model(&domain.MonitoringActivity{}).
+		Select("created_at, success").
+		Where("resource_id = ? AND created_at >= ?", resourceID, since).
+		Order("created_at ASC").
+		Find(&points).Error
 	if err != nil {
 		return nil, fmt.Errorf("failed to get uptime stats for resource %s: %w", resourceID, err)
+	}
+
+	type aggregate struct {
+		success int
+		total   int
+	}
+
+	byHour := make(map[time.Time]aggregate)
+	for _, p := range points {
+		hour := p.CreatedAt.Truncate(time.Hour)
+		current := byHour[hour]
+		if p.Success {
+			current.success++
+		}
+		current.total++
+		byHour[hour] = current
+	}
+
+	hours := make([]time.Time, 0, len(byHour))
+	for h := range byHour {
+		hours = append(hours, h)
+	}
+	sort.Slice(hours, func(i, j int) bool { return hours[i].Before(hours[j]) })
+
+	stats := make([]domain.UptimeStat, 0, len(hours))
+	for _, h := range hours {
+		v := byHour[h]
+		uptime := 0.0
+		if v.total > 0 {
+			uptime = math.Round((float64(v.success)/float64(v.total)*100)*100) / 100
+		}
+		stats = append(stats, domain.UptimeStat{
+			Hour:            h,
+			UptimePercent:   uptime,
+			SuccessfulCount: v.success,
+			TotalCount:      v.total,
+		})
 	}
 
 	return stats, nil
@@ -133,25 +169,30 @@ func (r *MonitoringActivityRepositoryImpl) GetRecentResponseTimes(ctx context.Co
 // GetGlobalUptimeStats calculates the overall uptime percentage across all resources
 // for a given time range in hours.
 func (r *MonitoringActivityRepositoryImpl) GetGlobalUptimeStats(ctx context.Context, hours int) (float64, error) {
-	var result struct {
-		UptimePercent float64
-	}
+	since := time.Now().Add(-time.Duration(hours) * time.Hour)
 
-	// SQL query to calculate overall uptime percentage across all resources
-	query := fmt.Sprintf(`
-		SELECT
-			COALESCE(
-				ROUND((COUNT(CASE WHEN success = true THEN 1 END)::numeric / NULLIF(COUNT(*)::numeric, 0) * 100), 2),
-				0.0
-			) as uptime_percent
-		FROM monitoring_activities
-		WHERE created_at >= NOW() - INTERVAL '%d hours'
-	`, hours)
-
-	err := r.db.WithContext(ctx).Raw(query).Scan(&result).Error
+	var total int64
+	err := r.db.WithContext(ctx).
+		Model(&domain.MonitoringActivity{}).
+		Where("created_at >= ?", since).
+		Count(&total).Error
 	if err != nil {
 		return 0.0, fmt.Errorf("failed to get global uptime stats: %w", err)
 	}
 
-	return result.UptimePercent, nil
+	if total == 0 {
+		return 0.0, nil
+	}
+
+	var successful int64
+	err = r.db.WithContext(ctx).
+		Model(&domain.MonitoringActivity{}).
+		Where("created_at >= ? AND success = ?", since, true).
+		Count(&successful).Error
+	if err != nil {
+		return 0.0, fmt.Errorf("failed to get global uptime stats: %w", err)
+	}
+
+	uptime := math.Round((float64(successful)/float64(total)*100)*100) / 100
+	return uptime, nil
 }

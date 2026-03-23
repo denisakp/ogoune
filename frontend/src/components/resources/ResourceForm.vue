@@ -38,7 +38,7 @@ watch(
         target: resource.target,
         interval: resource.interval,
         timeout: resource.timeout,
-        tags: (resource.tags ?? []).map((t) => t.id),
+        tags: (resource.tags ?? []).map((t) => t.name),
         component_id: resource.component_id || undefined,
       }
     } else {
@@ -102,7 +102,7 @@ onMounted(() => {
   loadComponents()
 })
 
-const tagsOptions = computed(() => tags.value.map((tag) => ({ value: tag.id, label: tag.name })))
+const tagsOptions = computed(() => tags.value.map((tag) => ({ value: tag.name, label: tag.name })))
 
 const componentOptions = computed(() => [
   { value: undefined, label: '⊘ No component (standalone resource)' },
@@ -128,6 +128,7 @@ const componentOptions = computed(() => [
           <a-select v-model:value="form.type">
             <a-select-option value="http">HTTP/HTTPS</a-select-option>
             <a-select-option value="tcp">TCP</a-select-option>
+            <a-select-option value="dns">DNS</a-select-option>
           </a-select>
         </a-form-item>
       </a-col>
@@ -136,7 +137,11 @@ const componentOptions = computed(() => [
         <a-form-item label="Target" required>
           <a-input
             v-model:value="form.target"
-            placeholder="e.g., https://example.com or example.com:8080"
+            :placeholder="
+              form.type === 'dns'
+                ? 'e.g., example.com or 8.8.8.8'
+                : 'e.g., https://example.com or example.com:8080'
+            "
           />
         </a-form-item>
       </a-col>

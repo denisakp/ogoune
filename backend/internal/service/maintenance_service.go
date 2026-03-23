@@ -52,7 +52,9 @@ func (s *MaintenanceService) Create(ctx context.Context, payload *dto.Maintenanc
 	}
 
 	// Ensure schedules (cron or one-time) are registered
-	_ = s.scheduler.EnsureScheduled(ctx)
+	if s.scheduler != nil {
+		_ = s.scheduler.EnsureScheduled(ctx)
+	}
 
 	return created, nil
 }
@@ -100,7 +102,9 @@ func (s *MaintenanceService) Update(ctx context.Context, id string, payload *dto
 	if err := s.repo.Update(ctx, m); err != nil {
 		return nil, err
 	}
-	_ = s.scheduler.EnsureScheduled(ctx)
+	if s.scheduler != nil {
+		_ = s.scheduler.EnsureScheduled(ctx)
+	}
 	return m, nil
 }
 

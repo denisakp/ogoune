@@ -48,7 +48,7 @@ func Load() Config {
 
 	cfg := Config{
 		RedisUrl:         GetEnv("REDIS_URL", "localhost:6379"),
-		DBDriver:         GetEnv("DB_DRIVER", "postgres"),
+		DBDriver:         GetEnv("DB_DRIVER", "sqlite"),
 		DatabaseUrl:      GetEnv("DATABASE_URL", "postgres://pulseguard:EE94PPHGz3TZ@postgres:5432/pulse?sslmode=disable"),
 		SQLitePath:       GetEnv("SQLITE_PATH", "pulseguard.db"),
 		DBLogLevel:       GetEnv("DB_LOG_LEVEL", "error"),
@@ -62,7 +62,7 @@ func Load() Config {
 		JWTSecret:        GetEnv("JWT_SECRET", "pulseguard-secret-key-change-in-production"),
 
 		// Scheduler defaults (mode determined separately)
-		SchedulerMode:                  GetEnv("SCHEDULER_MODE", ""),
+		SchedulerMode:                  GetEnv("SCHEDULER_MODE", "timingwheel"),
 		SchedulerTickInterval:          schedulerTickInterval,
 		SchedulerMaxWorkers:            schedulerMaxWorkers,
 		SchedulerShutdownTimeout:       schedulerShutdownTimeout,

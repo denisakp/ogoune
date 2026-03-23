@@ -17,3 +17,6 @@ coverage/
 *.out
 backend/pulseguard
 backend/*.test
+*.db
+*.db-*
+

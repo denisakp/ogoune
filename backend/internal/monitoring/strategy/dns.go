@@ -12,7 +12,7 @@ import (
 
 type DNSStrategy struct{}
 
-func newDNSStrategy() *DNSStrategy {
+func NewDNSStrategy(timeout time.Duration) *DNSStrategy {
 	return &DNSStrategy{}
 }
 

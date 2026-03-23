@@ -70,8 +70,8 @@ func (h *ResourceHandler) CreateResource(w http.ResponseWriter, r *http.Request)
 	}
 
 	// Validate resource type is one of the allowed values
-	if resource.Type != domain.ResourceHTTP && resource.Type != domain.ResourceTCP {
-		respondError(w, http.StatusBadRequest, "Invalid resource type. Must be 'http' or 'tcp'")
+	if resource.Type != domain.ResourceHTTP && resource.Type != domain.ResourceTCP && resource.Type != domain.ResourceDNS {
+		respondError(w, http.StatusBadRequest, "Invalid resource type. Must be 'http', 'tcp' or 'dns'")
 		return
 	}
 

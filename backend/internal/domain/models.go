@@ -32,7 +32,7 @@ type Tags struct {
 	Name        string      `json:"name" gorm:"uniqueIndex"`
 	Color       *string     `json:"color,omitempty"`
 	Description *string     `json:"description,omitempty"`
-	Resources   []*Resource `json:"resources" gorm:"many2many:resource_tags;"`
+	Resources   []*Resource `json:"resources" gorm:"many2many:resource_tags;joinForeignKey:tag_id;joinReferences:resource_id;"`
 }
 
 func (Tags) TableName() string { return "tags" }
@@ -42,6 +42,7 @@ type ResourceType string
 const (
 	ResourceHTTP ResourceType = "http"
 	ResourceTCP  ResourceType = "tcp"
+	ResourceDNS  ResourceType = "dns"
 )
 
 type ResourceStatus string
@@ -87,7 +88,7 @@ type Resource struct {
 	FailureCount         int                    `json:"failure_count" gorm:"default:0"`
 	Metadata             *ResourceMetaData      `json:"metadata" gorm:"embedded"`
 	Incidents            []Incident             `json:"incidents"`
-	Tags                 []*Tags                `json:"tags" gorm:"many2many:resource_tags;"`
+	Tags                 []*Tags                `json:"tags" gorm:"many2many:resource_tags;joinForeignKey:resource_id;joinReferences:tag_id;"`
 	NotificationChannels []*NotificationChannel `json:"notification_channels" gorm:"many2many:resource_notification_channels;"`
 	ComponentID          *string                `json:"component_id" gorm:"index"`
 	Component            *Component             `json:"component" gorm:"foreignKey:ComponentID"`

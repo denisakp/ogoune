@@ -34,7 +34,7 @@ func (r *ResourceRepositoryImpl) FindByID(ctx context.Context, id string) (*doma
 	err := r.db.WithContext(ctx).
 		Preload("Tags").
 		Preload("Component").
-		First(&resource, "id = ?", id).Error
+		First(&resource, "id = ? AND is_active = ?", id, true).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, repository.ErrNotFound
@@ -50,6 +50,7 @@ func (r *ResourceRepositoryImpl) List(ctx context.Context, limit, offset int) ([
 	err := r.db.WithContext(ctx).
 		Preload("Tags").
 		Preload("Component").
+		Where("is_active = ?", true).
 		Order("created_at DESC").
 		Limit(limit).
 		Offset(offset).
@@ -91,7 +92,7 @@ func (r *ResourceRepositoryImpl) Delete(ctx context.Context, id string) error {
 	// Soft delete: set IsActive to false
 	result := r.db.WithContext(ctx).
 		Model(&domain.Resource{}).
-		Where("id = ?", id).
+		Where("id = ? AND is_active = ?", id, true).
 		Update("is_active", false)
 
 	if result.Error != nil {
@@ -164,7 +165,7 @@ func (r *ResourceRepositoryImpl) FindByComponentID(ctx context.Context, componen
 	err := r.db.WithContext(ctx).
 		Preload("Tags").
 		Preload("Component").
-		Where("component_id = ?", componentID).
+		Where("component_id = ? AND is_active = ?", componentID, true).
 		Order("created_at DESC").
 		Find(&resources).Error
 	if err != nil {
@@ -178,7 +179,7 @@ func (r *ResourceRepositoryImpl) CountByComponentID(ctx context.Context, compone
 	var count int64
 	if err := r.db.WithContext(ctx).
 		Model(&domain.Resource{}).
-		Where("component_id = ?", componentID).
+		Where("component_id = ? AND is_active = ?", componentID, true).
 		Count(&count).Error; err != nil {
 		return 0, fmt.Errorf("failed to count resources for component: %w", err)
 	}

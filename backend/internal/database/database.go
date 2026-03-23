@@ -240,7 +240,7 @@ func (cfg Config) resolve() (resolvedConfig, error) {
 
 func configFromEnv() Config {
 	return Config{
-		Driver:      Driver(getEnv("DB_DRIVER", string(DriverPostgres))),
+		Driver:      Driver(getEnv("DB_DRIVER", string(DriverSQLite))),
 		DatabaseURL: getEnv("DATABASE_URL", "postgres://pulseguard:EE94PPHGz3TZ@postgres:5432/pulse?sslmode=disable"),
 		SQLitePath:  getEnv("SQLITE_PATH", "pulseguard.db"),
 		LogLevel:    getEnv("DB_LOG_LEVEL", "error"),
