@@ -17,6 +17,10 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+    env:
+      DB_DRIVER: sqlite
+      SQLITE_PATH: /tmp/pulseguard-ci.db
+      DB_LOG_LEVEL: error
     steps:
       - uses: actions/checkout@v5
       

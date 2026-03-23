@@ -5,4 +5,15 @@ specs
 roadmap
 .idea/
 .env
+.env.*
+!.env.example
 .vite/
+node_modules/
+frontend/node_modules/
+dist/
+build/
+coverage/
+*.log
+*.out
+backend/pulseguard
+backend/*.test

@@ -79,7 +79,15 @@ Welcome to **Pulseguard**, an open-source monitoring platform for websites, APIs
 
 ## 🚀 Quick Start (5 Minutes)
 
-### Terminal 1: Backend Services
+### Terminal 1: Community Backend Services
+
+```bash
+docker compose -f docker-compose.community.yml up -d
+```
+
+This starts PulseGuard with embedded SQLite and Redis only.
+
+### Terminal 2: Hosted/PostgreSQL Backend Services
 
 ```bash
 make docker-up    # Start PostgreSQL + Redis
@@ -162,7 +170,7 @@ Backend API (Go + Chi Router)
    ↓ (enqueues jobs)
 Background Worker (Asynq)
    ↓ (executes checks)
-PostgreSQL Database
+SQLite or PostgreSQL Database
    ↓ (stores results)
 Frontend (real-time updates via WebSocket - coming soon)
 ```
@@ -173,7 +181,7 @@ Frontend (real-time updates via WebSocket - coming soon)
 
 - Language: Go 1.25+
 - HTTP Router: Chi
-- Database: PostgreSQL + GORM
+- Database: driver-aware GORM runtime with PostgreSQL or embedded SQLite
 - Queue: Redis + Asynq
 - Real-time: WebSockets (nhooyr.io/websocket)
 

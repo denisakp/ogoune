@@ -132,10 +132,10 @@ type IncidentDiagnostics struct {
 	Incident          Incident          `json:"incident" gorm:"foreignKey:IncidentID;constraint:OnDelete:CASCADE"`
 	RequestMethod     string            `json:"request_method"`                           // GET, HEAD, POST, etc.
 	RequestURL        string            `json:"request_url"`                              // Full URL being checked
-	RequestHeaders    map[string]string `json:"request_headers" gorm:"type:jsonb"`        // Sanitized request headers
+	RequestHeaders    map[string]string `json:"request_headers" gorm:"serializer:json"`   // Sanitized request headers
 	RequestTimeout    int               `json:"request_timeout"`                          // Timeout in seconds
 	HTTPStatusCode    int               `json:"http_status_code" gorm:"index;default:-1"` // HTTP status code (-1 if N/A)
-	ResponseHeaders   map[string]string `json:"response_headers" gorm:"type:jsonb"`       // Response headers
+	ResponseHeaders   map[string]string `json:"response_headers" gorm:"serializer:json"`  // Response headers
 	ResponseBody      string            `json:"response_body"`                            // Base64 encoded if needed, truncated to 5KB
 	ResponseSize      int               `json:"response_size"`                            // Actual response size in bytes
 	FailureType       string            `json:"failure_type" gorm:"index"`                // e.g., connection_timeout, invalid_status_code
@@ -266,7 +266,7 @@ type NotificationChannel struct {
 	Base
 	Name             string                  `json:"name" gorm:"not null"`
 	Type             NotificationChannelType `json:"type" gorm:"not null;index"`
-	Config           []byte                  `json:"config" gorm:"type:jsonb;not null"` // JSON configuration specific to channel type
+	Config           []byte                  `json:"config" gorm:"not null"` // JSON configuration specific to channel type
 	EnabledByDefault bool                    `json:"enabled_by_default" gorm:"default:false"`
 }
 
@@ -325,8 +325,8 @@ type User struct {
 	PasswordInitialized  bool       `json:"password_initialized" gorm:"default:false"`
 	ForcePasswordChange  bool       `json:"force_password_change" gorm:"default:false"`
 	TwoFactorEnabled     bool       `json:"two_factor_enabled" gorm:"default:false"`
-	TwoFactorSecret      string     `json:"-" gorm:"default:null"`            // TOTP secret, never serialize
-	TwoFactorBackupCodes []byte     `json:"-" gorm:"type:jsonb;default:null"` // Encrypted backup codes
+	TwoFactorSecret      string     `json:"-" gorm:"default:null"` // TOTP secret, never serialize
+	TwoFactorBackupCodes []byte     `json:"-" gorm:"default:null"` // Encrypted backup codes
 	LastLoginAt          *time.Time `json:"last_login_at"`
 	CreatedAt            time.Time  `json:"created_at" gorm:"index"`
 	UpdatedAt            time.Time  `json:"updated_at"`

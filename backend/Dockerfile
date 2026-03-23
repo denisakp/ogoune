@@ -39,7 +39,10 @@ RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build \
 # Stage 3: Final Image
 FROM alpine:latest
 
-ENV DATABASE_URL= \
+ENV DB_DRIVER=postgres \
+    DATABASE_URL= \
+    SQLITE_PATH=/data/pulseguard.db \
+    DB_LOG_LEVEL=error \
     REDIS_URL= \
     STATIC_DIR=/app/static \
     APP_PORT=8080
@@ -50,13 +53,15 @@ RUN apk --no-cache add ca-certificates tzdata && \
 
 WORKDIR /app
 
+RUN mkdir -p /data
+
 # Copy the Go binary from go-builder stage
 COPY --from=go-builder /build/pulseguard .
 
 # Copy the built Vue.js frontend static files from frontend-builder stage
 COPY --from=frontend-builder /build/frontend/dist ./static
 
-RUN chown -R pulseguard:pulseguard /app
+RUN chown -R pulseguard:pulseguard /app /data
 USER pulseguard
 
 EXPOSE ${PORT}

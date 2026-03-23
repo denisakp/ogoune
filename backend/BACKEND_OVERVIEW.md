@@ -28,7 +28,7 @@ Pulseguard monitors resources (HTTP/TCP), stores check results, detects incident
 - Provide status page data with pre‑aggregated 90‑day history
 - Provide aggregated statistics across all monitors
 
-The system is a single Go binary that initializes the database, the Redis/Asynq scheduler and worker, and the HTTP server.
+The system is a single Go binary that initializes the configured database runtime, the Redis/Asynq scheduler and worker, and the HTTP server.
 
 ---
 
@@ -36,7 +36,7 @@ The system is a single Go binary that initializes the database, the Redis/Asynq 
 
 - Language/runtime: Go 1.25+
 - HTTP router: Chi
-- ORM/DB: GORM + PostgreSQL
+- ORM/DB: GORM + a driver-aware PostgreSQL/SQLite runtime
 - Background processing: Redis + Asynq (periodic scheduler + worker server)
 - Notifications: user-configured channels (SMTP with templates, Slack, Webhook)
 - Config: environment variables (dotenv supported in development)
@@ -54,7 +54,8 @@ Key packages and files (relative to backend/):
 - internal/monitoring/strategy/{http,tcp}.go: concrete monitoring strategies
 - internal/worker/processor.go: Asynq server and task mux
 - internal/worker/handler_monitoring.go: “monitoring:check” task handler
-- internal/repository/postgres/*: GORM repository implementations + DB setup
+- internal/database/*: driver selection, openers, startup migration runner, authoritative SQL migrations
+- internal/repository/postgres/*: GORM repository implementations + legacy DB wrapper
 - pkg/notifier/*: SMTP + Slack/Webhook providers and factory
 
 ---
@@ -101,8 +102,8 @@ GORM entities (see internal/domain/models.go):
 
 DB initialization:
 
-- On startup, connection pool is configured (MaxOpen=25, MaxIdle=5, Lifetime=30m)
-- Auto‑migrations run for all models
+- On startup, PulseGuard resolves `DB_DRIVER`, opens PostgreSQL or SQLite, configures pool policy, and applies pending versioned SQL migrations before serving requests
+- SQLite mode enables WAL mode and a busy timeout for embedded community deployments
 
 ---
 
@@ -201,7 +202,10 @@ Required (typical local defaults in parentheses):
   - PORT (8080)
   - APP_ENV (development)
 - Database:
-  - DATABASE_URL (postgres://user:password@localhost:5432/pulseguard?sslmode=disable)
+  - DB_DRIVER (postgres or sqlite)
+  - DATABASE_URL (postgres://user:password@localhost:5432/pulseguard?sslmode=disable) when DB_DRIVER=postgres
+  - SQLITE_PATH (pulseguard.db) when DB_DRIVER=sqlite
+  - DB_LOG_LEVEL (silent, error, warn, info)
 - Redis:
   - REDIS_URL (localhost:6379)
 
@@ -209,7 +213,7 @@ Notifications are now configured via notification channels (stored in the databa
 
 Validation:
 
-- DATABASE_URL is required; the process exits if missing
+- DATABASE_URL is required only for PostgreSQL mode; startup fails fast on missing DSN or failed SQL migrations
 
 ---
 
@@ -227,14 +231,15 @@ Channel-based delivery:
 
 Prerequisites:
 
-- A running PostgreSQL instance reachable via DATABASE_URL
+- A running Redis server reachable via REDIS_URL
+- Either a running PostgreSQL instance reachable via DATABASE_URL or a writable SQLite path when DB_DRIVER=sqlite
 - A running Redis server reachable via REDIS_URL
 
 Run:
 
 - From backend/, `go run ./cmd/api`
 - On startup the app:
-  - Connects to PostgreSQL and auto‑migrates
+  - Connects to the configured PostgreSQL or SQLite runtime and applies versioned SQL migrations
   - Connects to Redis and starts:
     - Asynq periodic scheduler
     - Asynq worker server (queue: "monitoring", concurrency: 10)
@@ -253,7 +258,7 @@ Scaling:
 
 Backups and durability:
 
-- PostgreSQL is the source of truth; ensure regular backups
+- PostgreSQL or SQLite is the source of truth depending on DB_DRIVER; ensure regular backups of the active runtime
 - Redis is used for job transport and scheduling; it does not store authoritative data
 
 ---

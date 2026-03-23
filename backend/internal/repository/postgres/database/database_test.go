@@ -12,8 +12,7 @@ import (
 
 func TestSingletonReturnsSameInstance(t *testing.T) {
 	// Reset singleton state for clean test
-	//once = sync.Once{}
-	db = nil
+	Reset()
 
 	// First call to Instance should return error since Init not called
 	instance1, err1 := Instance()
@@ -52,8 +51,7 @@ func TestSingletonReturnsSameInstance(t *testing.T) {
 
 func TestInitWithInvalidDSNReturnsError(t *testing.T) {
 	// Reset singleton state
-	//once = sync.Once{}
-	db = nil
+	Reset()
 
 	// Use clearly invalid DSN
 	cfg := &config.Config{DatabaseUrl: "invalid-dsn-format"}
@@ -70,8 +68,7 @@ func TestInitWithInvalidDSNReturnsError(t *testing.T) {
 
 func TestPingSkippedWithoutRealDB(t *testing.T) {
 	// Reset state
-	//once = sync.Once{}
-	db = nil
+	Reset()
 
 	// If no DATABASE_URL set, skip this test
 	if os.Getenv("DATABASE_URL") == "" {

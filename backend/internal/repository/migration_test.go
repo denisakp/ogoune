@@ -3,6 +3,7 @@ package repository
 import (
 	"testing"
 
+	"github.com/denisakp/pulseguard/internal/domain"
 	"github.com/denisakp/pulseguard/internal/repository/internaltest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -27,22 +28,8 @@ func TestMigration(t *testing.T) {
 		})
 	}
 
-	// Test that key indexes exist (using raw SQL since GORM migrator index introspection is limited)
+	// Test that key indexes exist across supported drivers.
 	t.Run("Key_indexes_exist", func(t *testing.T) {
-		var count int64
-
-		// Check created_at index on resources (common query pattern)
-		err := db.Raw(`
-			SELECT COUNT(*) 
-			FROM pg_indexes 
-			WHERE tablename = 'resources' 
-			AND indexname LIKE '%created_at%'
-		`).Scan(&count).Error
-
-		if err != nil {
-			t.Skip("Could not verify index existence (may not be in PostgreSQL)")
-		} else {
-			require.Greater(t, count, int64(0), "Should have created_at index on resources")
-		}
+		require.True(t, db.Migrator().HasIndex(&domain.Resource{}, "idx_resources_created_at"), "Should have created_at index on resources")
 	})
 }

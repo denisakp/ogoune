@@ -32,8 +32,10 @@ So I built this during my internship in 2023 with TypeScript and NestJS. Later, 
 ```bash
 git clone https://github.com/denisakp/pulseguard.git
 cd pulseguard
-docker compose up -d
+docker compose -f docker-compose.community.yml up -d
 ```
+
+This community path uses embedded SQLite and Redis only. Hosted PostgreSQL deployments still use `docker compose up -d`.
 
 Open **http://localhost:8080** and log in with:
 - Email: `admin@pulseguard.test`
@@ -76,12 +78,12 @@ Change the password on first login.
 git clone https://github.com/denisakp/pulseguard.git
 cd pulseguard
 cp .env.example .env
-docker compose up -d
+docker compose -f docker-compose.community.yml up -d
 ```
 
 Access at **http://localhost:8080**
 
-The docker-compose includes everything: app, database, Redis, and reverse proxy.
+For a hosted PostgreSQL stack, run `docker compose up -d` instead.
 
 ---
 
@@ -111,12 +113,19 @@ That's it. No complexity.
 
 ```env
 # Database
+DB_DRIVER=sqlite
+SQLITE_PATH=/data/pulseguard.db
+DB_LOG_LEVEL=error
 DATABASE_URL=postgres://user:password@host:5432/pulseguard
 REDIS_URL=localhost:6379
 
 ```
 
 All options in `.env.example`
+
+SQLite removes the external database dependency for Community Edition, but Redis is still required for scheduling and worker execution.
+
+Automatic PostgreSQL-to-SQLite data migration is out of scope. Switch to SQLite only for fresh community deployments.
 
 ---
 

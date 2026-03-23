@@ -15,8 +15,8 @@ The backend is a unified Go service that monitors resources (HTTP/TCP), detects 
 ## Prerequisites
 
 - Go 1.24+
-- PostgreSQL 16+
 - Redis 6+
+- PostgreSQL 16+ for hosted deployments, or a writable filesystem for SQLite community deployments
 - Docker Compose (recommended for local development)
 
 ---
@@ -30,7 +30,10 @@ The backend is a unified Go service that monitors resources (HTTP/TCP), detects 
 | Variable | Description | Required | Default |
 |----------|-------------|----------|---------|
 | `PORT` | HTTP server port | No | `8080` |
-| `DATABASE_URL` | PostgreSQL connection string | **Yes** | N/A |
+| `DB_DRIVER` | Database runtime (`postgres` or `sqlite`) | No | `postgres` |
+| `DATABASE_URL` | PostgreSQL connection string | When `DB_DRIVER=postgres` | N/A |
+| `SQLITE_PATH` | SQLite database path | No | `pulseguard.db` |
+| `DB_LOG_LEVEL` | GORM log verbosity (`silent`, `error`, `warn`, `info`) | No | `error` |
 | `REDIS_URL` | Redis connection string | No | `localhost:6379` |
 | `APP_ENV` | Environment (development or production) | No | `development` |
 | `STATIC_DIR` | Path to frontend static files | No | `./static` |
@@ -48,6 +51,9 @@ If you still want a global webhook fallback, you can keep `WEBHOOK_URL`/`WEBHOOK
 ```bash
 # Core
 PORT=8080
+DB_DRIVER=sqlite
+SQLITE_PATH=./pulseguard.db
+DB_LOG_LEVEL=error
 DATABASE_URL=postgres://postgres:password@localhost:5432/pulseguard?sslmode=disable
 REDIS_URL=localhost:6379
 APP_ENV=development
@@ -62,7 +68,17 @@ WEBHOOK_SIGNATURE=my-secret-key
 
 ## Running Locally
 
-### 1. Start PostgreSQL and Redis
+### 1. Choose a database mode
+
+Community / embedded SQLite:
+
+```bash
+DB_DRIVER=sqlite SQLITE_PATH=./pulseguard.db go run ./cmd/api
+```
+
+Hosted / PostgreSQL:
+
+### 2. Start PostgreSQL and Redis
 
 Using Docker Compose (recommended):
 
@@ -84,14 +100,14 @@ docker run --rm \
 docker run --rm -p 6379:6379 redis:7
 ```
 
-### 2. Set Up Environment
+### 3. Set Up Environment
 
 ```bash
 cp .env.example .env
 # Edit .env with your settings
 ```
 
-### 3. Run the Backend
+### 4. Run the Backend
 
 ```bash
 go run ./cmd/api
@@ -106,7 +122,7 @@ Expected output:
 
 The API is now available at `http://localhost:8080/api`
 
-### 4. Verify the Setup
+### 5. Verify the Setup
 
 ```bash
 # Health check
@@ -233,9 +249,23 @@ For ad-hoc webhook testing, you can still point a channel to a [webhook.site](ht
 
 **Solutions:**
 - Verify `DATABASE_URL` format: `postgres://user:password@host:port/dbname?sslmode=disable`
+- Verify `DB_DRIVER` matches the intended runtime (`postgres` or `sqlite`)
+- For SQLite mode, ensure the parent directory of `SQLITE_PATH` is writable
 - Ensure PostgreSQL is running: `docker ps` or `pg_isready -h localhost`
 - Check credentials by connecting directly: `psql postgresql://user:password@localhost:5432/pulseguard`
 - Verify network connectivity to the database host
+
+### SQLite Startup Fails
+
+- Verify `SQLITE_PATH` points to a writable location.
+- Remove any partially created test database and restart after fixing the path or permissions.
+- Review startup logs for migration failure details. The service intentionally fails fast before serving requests.
+
+## Scope Notes
+
+- SQLite support is intended for fresh community deployments with no external database.
+- Automatic PostgreSQL-to-SQLite data migration is out of scope for this feature.
+- Redis remains required for the scheduler and worker even when SQLite is used.
 
 ### Redis Connection Fails
 

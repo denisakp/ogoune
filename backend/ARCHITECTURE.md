@@ -10,7 +10,7 @@ Scope: Backend only (Go). No frontend details are included.
 
 The backend is a single Go binary that, on startup, initializes:
 
-- PostgreSQL (via GORM) and auto-migrates core models.
+- A driver-aware database runtime (`internal/database`) that opens PostgreSQL or embedded SQLite and applies versioned SQL migrations before serving.
 - Redis-backed Asynq components:
   - Periodic scheduler: registers recurring checks per resource.
   - Worker server: processes monitoring jobs from Redis.
@@ -25,7 +25,7 @@ Core responsibilities:
 - Notifications via user-configured channels (SMTP/Slack/Webhook).
 - Aggregated stats and status endpoints for dashboards/status pages.
 
-Source of truth: PostgreSQL.
+Source of truth: the configured SQL database runtime (PostgreSQL or SQLite).
 Transport for background work: Redis + Asynq.
 
 ---
@@ -34,7 +34,7 @@ Transport for background work: Redis + Asynq.
 
 - Language/runtime: Go 1.25+
 - HTTP: Chi router
-- Persistence: GORM ORM + PostgreSQL
+- Persistence: GORM + a driver-aware PostgreSQL/SQLite runtime with versioned SQL migrations
 - Background jobs: Redis + Asynq (periodic scheduler + worker server)
 - Notifications: user-configured channels (SMTP, Slack, Webhook)
 - Configuration: Environment variables (dotenv supported in development)
@@ -43,7 +43,7 @@ Key modules and files:
 
 - Entry point: `backend/cmd/api/main.go`
 - Config: `backend/internal/config/config.go`
-- Database: `backend/internal/repository/postgres/database`
+- Database runtime: `backend/internal/database`
 - API router: `backend/internal/api/router.go`
 - Worker: `backend/internal/worker`
 - Monitoring pipeline: `backend/internal/monitoring`
@@ -62,7 +62,7 @@ Single process with three long‑running components:
 
 Startup sequence (simplified):
 
-1. Load config and init DB (auto-migrations).
+1. Load config, resolve DB driver, open the selected runtime, and apply startup SQL migrations.
 2. Init Redis/Asynq client, inspector, scheduler.
 3. Bootstrap: list active resources and schedule each with Asynq periodic tasks.
 4. Start Asynq worker (consumes monitoring jobs).
@@ -88,7 +88,9 @@ Note: The current binary starts all three components by default in every instanc
   - `strategy/*`: concrete check strategies (HTTP, TCP; DNS file exists but core strategies are HTTP/TCP).
 - `internal/repository`
   - `interfaces.go`: repository interfaces.
-  - `postgres/*`: GORM implementations and DB setup (auto-migrate).
+  - `postgres/*`: GORM repository implementations and legacy DB compatibility wrapper.
+- `internal/database`
+  - Driver selection, startup migration runner, SQLite/PostgreSQL openers, and authoritative SQL migrations.
 - `internal/service`
   - `resource_service.go`, `statuspage_service.go`, `stats_service.go`, etc.: orchestration logic used by handlers.
 - `internal/worker`
@@ -117,7 +119,7 @@ Note: The current binary starts all three components by default in every instanc
 - Tags
   - Labels for resources (many‑to‑many).
 
-GORM auto-migrates all above on startup.
+Versioned SQL migrations in `internal/database/migrations/{postgres,sqlite}` create the authoritative schema. Model registries are used only for validation tests.
 
 ---
 
@@ -241,13 +243,13 @@ Error handling and retries:
 ## 10) Persistence
 
 - Component: `internal/repository/postgres`
-- Initialization: `database.Init(ctx, dsn)` opens the GORM connection, sets pool limits (MaxOpen=25, MaxIdle=5, lifetime=30m), and auto-migrates all registered models.
+- Initialization: `internal/database.Init(ctx, config)` opens the selected driver, configures pool policy, enables SQLite WAL/busy-timeout when needed, and applies pending SQL migrations before the API starts.
 - Repositories expose CRUD and aggregated queries:
   - Activities: global uptime %, per-resource hourly stats, recent response times.
   - Incidents: unresolved filter, per-resource, incident stats (count and affected monitors).
   - Resources, Tags, Integrations, Incident Event Steps, Notification Events.
 
-PostgreSQL is the sole source of truth; Redis is used only for job scheduling/transport.
+The configured SQL database is the source of truth; Redis is used only for job scheduling/transport.
 
 ---
 

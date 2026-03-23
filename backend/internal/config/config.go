@@ -10,7 +10,10 @@ import (
 // Config holds all application configuration loaded from environment variables.
 type Config struct {
 	RedisUrl         string
+	DBDriver         string
 	DatabaseUrl      string
+	SQLitePath       string
+	DBLogLevel       string
 	Port             string
 	StaticDir        string
 	WebHookUrl       string
@@ -29,7 +32,10 @@ func Load() Config {
 
 	cfg := Config{
 		RedisUrl:         GetEnv("REDIS_URL", "redis:6379"),
+		DBDriver:         GetEnv("DB_DRIVER", "postgres"),
 		DatabaseUrl:      GetEnv("DATABASE_URL", "postgres://pulseguard:EE94PPHGz3TZ@postgres:5432/pulse?sslmode=disable"),
+		SQLitePath:       GetEnv("SQLITE_PATH", "pulseguard.db"),
+		DBLogLevel:       GetEnv("DB_LOG_LEVEL", "error"),
 		Port:             GetEnv("PORT", "8080"),
 		WebHookUrl:       webhookUrl,
 		WebHookSignature: GetEnv("WEBHOOK_SIGNATURE", ""),
@@ -64,11 +70,12 @@ func MustInit() Config {
 
 	cfg := Load()
 
-	// Validate critical configuration
-	if cfg.DatabaseUrl == "" {
-		log.Fatalf("[config] DATABASE_URL environment variable is required")
+	// Validate critical configuration for the selected driver.
+	if cfg.DBDriver != "sqlite" && cfg.DatabaseUrl == "" {
+		log.Fatalf("[config] DATABASE_URL environment variable is required when DB_DRIVER is postgres")
 	}
 
 	log.Printf("[config] Port: %s", cfg.Port)
+	log.Printf("[config] DB driver: %s", cfg.DBDriver)
 	return cfg
 }

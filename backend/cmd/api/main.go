@@ -14,12 +14,12 @@ import (
 	"github.com/denisakp/pulseguard/internal/api"
 	"github.com/denisakp/pulseguard/internal/api/handler"
 	"github.com/denisakp/pulseguard/internal/config"
+	dbruntime "github.com/denisakp/pulseguard/internal/database"
 	"github.com/denisakp/pulseguard/internal/domain"
 	"github.com/denisakp/pulseguard/internal/maintenance"
 	"github.com/denisakp/pulseguard/internal/monitoring"
 	"github.com/denisakp/pulseguard/internal/monitoring/strategy"
 	"github.com/denisakp/pulseguard/internal/repository/postgres"
-	"github.com/denisakp/pulseguard/internal/repository/postgres/database"
 	"github.com/denisakp/pulseguard/internal/service"
 	"github.com/denisakp/pulseguard/internal/worker"
 	"github.com/go-chi/chi/v5"
@@ -62,14 +62,19 @@ func main() {
 	cfg := config.MustInit()
 
 	// Initialize database connection
-	if err := database.Init(context.Background(), &cfg.DatabaseUrl); err != nil {
+	if err := dbruntime.Init(context.Background(), dbruntime.Config{
+		Driver:      dbruntime.Driver(cfg.DBDriver),
+		DatabaseURL: cfg.DatabaseUrl,
+		SQLitePath:  cfg.SQLitePath,
+		LogLevel:    cfg.DBLogLevel,
+	}); err != nil {
 		log.Fatalf("Failed to initialize database: %v", err)
 	}
 
 	// Health check
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
-	if err := database.Ping(ctx); err != nil {
+	if err := dbruntime.Ping(ctx); err != nil {
 		log.Fatalf("Database health check failed: %v", err)
 	}
 
@@ -79,7 +84,7 @@ func main() {
 	log.Println("[auth] JWT-based authentication configured")
 
 	// Get database instance
-	db, err := database.Instance()
+	db, err := dbruntime.Instance()
 	if err != nil {
 		log.Fatalf("Failed to get database instance: %v", err)
 	}

@@ -6,3 +6,12 @@ CODE_OF_CONDUCT.md
 CONTRIBUTING.md
 docker-compose.yml
 README.md
+.git/
+.env
+.env.*
+node_modules/
+frontend/node_modules/
+dist/
+build/
+coverage/
+*.log

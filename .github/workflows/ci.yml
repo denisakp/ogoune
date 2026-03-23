@@ -11,7 +11,25 @@ permissions:
   packages: write
 
 jobs:
+  backend-tests:
+    runs-on: ubuntu-latest
+    env:
+      DB_DRIVER: sqlite
+      SQLITE_PATH: /tmp/pulseguard-ci.db
+      DB_LOG_LEVEL: error
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: setup Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: '1.25.1'
+
+      - name: run backend tests
+        run: go test -C ./backend ./...
+
   build-and-push:
+    needs: backend-tests
     if: "!contains(github.event.head_commit.message, '[skip ci]')"
     runs-on: ubuntu-latest
     
@@ -87,10 +105,14 @@ jobs:
             echo "docker-compose.yml not found"
             exit 1
           fi
+
+          if [ -f docker-compose.community.yml ]; then
+            yq -i ".services.pulseguard.image = \"${PULSEGUARD_IMAGE}\"" docker-compose.community.yml
+          fi
           
-          if ! git diff --quiet docker-compose.yml; then
+          if ! git diff --quiet docker-compose.yml docker-compose.community.yml; then
             echo "Changes detected:"
-            git diff docker-compose.yml
+            git diff docker-compose.yml docker-compose.community.yml
           else
             echo "No changes detected, skipping commit"
             exit 0
@@ -101,4 +123,4 @@ jobs:
         with:
           commit_message: "ci: update image digest for pulseguard [skip ci]"
           branch: main
-          file_pattern: docker-compose.yml
+          file_pattern: docker-compose.yml docker-compose.community.yml
