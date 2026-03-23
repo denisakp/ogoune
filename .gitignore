@@ -2,6 +2,7 @@
 .DS_Store
 .specify
 specs
+roadmap
 .idea/
 .env
 .vite/

@@ -258,7 +258,7 @@ func (s *StatusPageService) calculate90DayData(ctx context.Context, resource *do
 
 	// Calculate daily status for each of the last 90 days
 	dailyStatus := make([]string, 90)
-	for i := 0; i < 90; i++ {
+	for i := range 90 {
 		dayStart := startDate.AddDate(0, 0, i)
 		dayEnd := dayStart.AddDate(0, 0, 1)
 

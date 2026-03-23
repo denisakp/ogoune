@@ -9,6 +9,7 @@ Scope: Backend only (Go). No frontend details are included.
 ## 1) High‑Level Overview
 
 The backend is a single Go binary that, on startup, initializes:
+
 - PostgreSQL (via GORM) and auto-migrates core models.
 - Redis-backed Asynq components:
   - Periodic scheduler: registers recurring checks per resource.
@@ -16,6 +17,7 @@ The backend is a single Go binary that, on startup, initializes:
 - HTTP JSON API (Chi router) with CORS enabled.
 
 Core responsibilities:
+
 - CRUD for monitored resources, tags, and integrations.
 - Periodic health checks (HTTP, TCP).
 - Persisted monitoring activities.
@@ -38,6 +40,7 @@ Transport for background work: Redis + Asynq.
 - Configuration: Environment variables (dotenv supported in development)
 
 Key modules and files:
+
 - Entry point: `backend/cmd/api/main.go`
 - Config: `backend/internal/config/config.go`
 - Database: `backend/internal/repository/postgres/database`
@@ -52,11 +55,13 @@ Key modules and files:
 ## 3) Process Topology
 
 Single process with three long‑running components:
+
 - HTTP API server
 - Asynq periodic scheduler
 - Asynq worker server
 
 Startup sequence (simplified):
+
 1. Load config and init DB (auto-migrations).
 2. Init Redis/Asynq client, inspector, scheduler.
 3. Bootstrap: list active resources and schedule each with Asynq periodic tasks.
@@ -203,6 +208,7 @@ Authentication/authorization: not implemented at present.
     - Unregister entry `monitor:<id>`.
 
 Operational notes:
+
 - Rescheduling is idempotent: safe on updates.
 - The scheduler runs in‑process and requires Redis connectivity.
 - At present, every running instance also starts a scheduler; see Scaling (section 12).
@@ -226,6 +232,7 @@ Operational notes:
   - Trigger notifications via configured channels (SMTP/Slack/Webhook) filtered by event type.
 
 Error handling and retries:
+
 - Handler returns errors for fatal problems (e.g., resource not found). Asynq will retry per its defaults.
 - Functional errors (e.g., failing to persist an activity) are logged; incident logic continues to avoid dropping state transitions.
 
@@ -248,12 +255,11 @@ PostgreSQL is the sole source of truth; Redis is used only for job scheduling/tr
 
   - Channel-based delivery: SMTP/Slack/Webhook/SMS channels are created and stored via `/notification-channels` APIs.
   - Tests: `/notification-channels/{id}/test` for saved channels; `/notification-channels/test-config` to validate before saving.
-
-- Integrations (user-level):
-  - Providers: Slack, Webhook (and SMTP as a channel).
-  - Selection: by `Integration.Config.type` and `Integration.EventTypes` (contains the current event type).
-  - Dispatch: parallelized per incident event via notifier factory.
-  - Audit: each attempt creates a `NotificationEvent` entry.
+  - Integrations (user-level):
+    - Providers: Slack, Webhook (and SMTP as a channel).
+    - Selection: by `Integration.Config.type` and `Integration.EventTypes` (contains the current event type).
+    - Dispatch: parallelized per incident event via notifier factory.
+    - Audit: each attempt creates a `NotificationEvent` entry.
 
 ---
 
@@ -288,6 +294,7 @@ PostgreSQL is the sole source of truth; Redis is used only for job scheduling/tr
 ## 13) Configuration
 
 Environment variables (examples in parentheses indicate typical local defaults):
+
 - Server:
   - `PORT` (e.g., `8080`)
   - `APP_ENV` (e.g., `development`)
@@ -297,9 +304,11 @@ Environment variables (examples in parentheses indicate typical local defaults):
   - `REDIS_URL` (e.g., `localhost:6379`)
 
 Dotenv:
+
 - In development, `.env` is loaded if present.
 
 Required:
+
 - `DATABASE_URL` must be set; the process will exit if missing.
 
 ---
@@ -307,10 +316,12 @@ Required:
 ## 14) Local Development
 
 Prerequisites:
+
 - PostgreSQL accessible via `DATABASE_URL`.
 - Redis accessible via `REDIS_URL`.
 
 Typical flow:
+
 - Create and export environment variables (or use a `.env` file).
 - Run the backend:
   - Change directory to `backend` and execute `go run ./cmd/api`.
@@ -321,6 +332,7 @@ Typical flow:
     - Start the JSON API server at `http://localhost:<PORT>`.
 
 Useful endpoints:
+
 - Health: `/health`
 - Status page data: `/status`
 - Stats: `/stats/summary`

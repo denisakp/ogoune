@@ -2,7 +2,8 @@
 
 This document provides a consolidated, developer‑oriented overview of the Pulseguard backend. It explains the core architecture, how checks are scheduled and processed, what the main APIs do (with emphasis on Status and Stats), how data flows through the system, and how to configure and operate the service.
 
-Contents
+Contents:
+
 - What this backend does
 - Stack and layout
 - Endpoints (high level)
@@ -21,6 +22,7 @@ Contents
 ## 1) What this backend does
 
 Pulseguard monitors resources (HTTP/TCP), stores check results, detects incidents, and emits notifications. It exposes a pure JSON API to:
+
 - Manage resources, tags, and integrations
 - Inspect incidents and activities
 - Provide status page data with pre‑aggregated 90‑day history
@@ -40,6 +42,7 @@ The system is a single Go binary that initializes the database, the Redis/Asynq 
 - Config: environment variables (dotenv supported in development)
 
 Key packages and files (relative to backend/):
+
 - cmd/api/main.go: application entrypoint (wires DB, Asynq scheduler/worker, and HTTP server)
 - internal/api/router.go: all JSON routes and CORS
 - internal/api/handler/*: HTTP handlers (resources, incidents, status page, stats, etc.)
@@ -87,6 +90,7 @@ See router for the definitive list and mapping.
 ## 4) Data model and persistence
 
 GORM entities (see internal/domain/models.go):
+
 - Resource: id, name, type (http|tcp), target, interval(s), timeout(s), status, is_active, failure_count, last_checked, created_at, updated_at; relations to tags, incidents, activities
 - MonitoringActivity: resource_id, success(bool), message, response_time(ms), response_data, created_at
 - Incident: resource_id, cause, started_at, resolved_at(NULL while active), details(bytes), event steps
@@ -96,6 +100,7 @@ GORM entities (see internal/domain/models.go):
 - Tags: many‑to‑many with resources
 
 DB initialization:
+
 - On startup, connection pool is configured (MaxOpen=25, MaxIdle=5, Lifetime=30m)
 - Auto‑migrations run for all models
 
@@ -104,6 +109,7 @@ DB initialization:
 ## 5) Monitoring pipeline
 
 End‑to‑end flow:
+
 1) Scheduling
    - On boot, active resources are fetched and each is registered as an Asynq periodic task.
    - A unique entry id `monitor:<resourceID>` is used. Re‑scheduling unregisters then registers the new spec.
@@ -147,15 +153,18 @@ End‑to‑end flow:
     - daily_status_last_90_days: exactly 90 entries, oldest → newest
 
 Daily status values:
+
 - "up", "degraded", "down", "no_data"
 - “no_data” is returned for days before the resource was created (fixed in v2.0.1)
 - Major incident coverage and success rate thresholds influence degraded/down
 
 Important notes:
+
 - The 90‑day array is always length 90 for UI consistency
 - Uptime percentage excludes “no_data” days to avoid penalizing new resources
 
 See:
+
 - docs/STATUS_ENDPOINT.md
 - docs/NO_DATA_STATUS_FIX.md
 - docs/STATUS_ENDPOINT_CHANGELOG.md
@@ -188,6 +197,7 @@ The app reads configuration from environment variables and also supports loading
 
 Required (typical local defaults in parentheses):
 - Server:
+
   - PORT (8080)
   - APP_ENV (development)
 - Database:
@@ -198,6 +208,7 @@ Required (typical local defaults in parentheses):
 Notifications are now configured via notification channels (stored in the database). There is no default SMTP configuration from environment variables; add SMTP/Slack/Webhook channels via the UI or `/notification-channels` APIs.
 
 Validation:
+
 - DATABASE_URL is required; the process exits if missing
 
 ---
@@ -205,6 +216,7 @@ Validation:
 ## 9) Notifications
 
 Channel-based delivery:
+
 - Channels (SMTP/Slack/Webhook/SMS) are created via `/notification-channels` and stored in the database.
 - Test a saved channel with `POST /notification-channels/{id}/test`; validate before saving with `POST /notification-channels/test-config`.
 - Each attempt is audited by a `NotificationEvent`.
@@ -214,10 +226,12 @@ Channel-based delivery:
 ## 10) Local development and operations
 
 Prerequisites:
+
 - A running PostgreSQL instance reachable via DATABASE_URL
 - A running Redis server reachable via REDIS_URL
 
 Run:
+
 - From backend/, `go run ./cmd/api`
 - On startup the app:
   - Connects to PostgreSQL and auto‑migrates
@@ -228,14 +242,17 @@ Run:
   - Starts HTTP server at http://localhost:${PORT}
 
 Observability:
+
 - Logs to stdout; GORM logs slow queries (threshold 200ms)
 - Consider reverse proxy for TLS termination and request logs
 
 Scaling:
+
 - Worker throughput scales horizontally: multiple instances can consume the "monitoring" queue concurrently
 - Scheduler runs in every instance by default (current implementation). To avoid duplicate periodic registrations, prefer running a single instance as the scheduler until a leadership/toggle is introduced.
 
 Backups and durability:
+
 - PostgreSQL is the source of truth; ensure regular backups
 - Redis is used for job transport and scheduling; it does not store authoritative data
 
@@ -244,11 +261,13 @@ Backups and durability:
 ## 11) Performance, scaling, and security notes
 
 Performance/scaling:
+
 - Asynq worker concurrency defaults to 10; tune per instance
 - DB pool defaults are conservative; adjust for production
 - Heavier aggregations (status, 90‑day windows) can be cached via reverse proxy or future Redis TTL caches
 
 Security:
+
 - CORS is permissive by default; restrict origins in production
 - TLS should be terminated by an ingress or reverse proxy
 - Authentication/authorization is not implemented; deploy behind a protected network or add edge auth
@@ -258,6 +277,7 @@ Security:
 ## 12) Pointers to code and docs
 
 Code:
+
 - Entry and wiring: cmd/api/main.go
 - Router and routes: internal/api/router.go
 - DB setup and auto‑migrations: internal/repository/postgres/database
@@ -271,6 +291,7 @@ Code:
 - Notifiers: pkg/notifier/* (+ templates/)
 
 Docs:
+
 - docs/STATUS_ENDPOINT.md (full response shape and semantics)
 - docs/NO_DATA_STATUS_FIX.md (90‑day "no_data" handling)
 - docs/STATUS_ENDPOINT_CHANGELOG.md (breaking changes and v2.0.1 fix)

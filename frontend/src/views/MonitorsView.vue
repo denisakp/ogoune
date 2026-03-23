@@ -118,12 +118,12 @@ const getStatusColor = (status: string) => {
 
 // Table columns
 const columns = [
-  { title: 'Status', dataIndex: 'status', key: 'status', width: 100 },
+  { title: 'Status', dataIndex: 'status', key: 'status', width: 90 },
   { title: 'Name', dataIndex: 'name', key: 'name' },
-  { title: 'Component', dataIndex: 'component', key: 'component', width: 150 },
-  { title: 'Target', dataIndex: 'target', key: 'target', ellipsis: true },
-  { title: 'Uptime (24h)', dataIndex: 'uptime', key: 'uptime', width: 120 },
-  { title: 'Last Checked', dataIndex: 'last_checked', key: 'last_checked', width: 140 },
+  { title: 'Component', dataIndex: 'component', key: 'component' },
+  { title: 'Target', dataIndex: 'target', key: 'target', },
+  { title: 'Uptime (24h)', dataIndex: 'uptime', key: 'uptime'},
+  { title: 'Last Checked', dataIndex: 'last_checked', key: 'last_checked' },
   { title: 'Actions', key: 'actions', width: 90, fixed: 'right' },
 ]
 

@@ -26,6 +26,7 @@ The backend is a unified Go service that monitors resources (HTTP/TCP), detects 
 ### Environment Variables
 
 #### Core Settings
+
 | Variable | Description | Required | Default |
 |----------|-------------|----------|---------|
 | `PORT` | HTTP server port | No | `8080` |

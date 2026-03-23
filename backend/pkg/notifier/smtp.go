@@ -209,6 +209,28 @@ func (n *SMTPNotifier) generateComponentEmailHTML(component *ComponentNotificati
 	return buf.String()
 }
 
+// generateTestEmailHTML creates an HTML email for test notifications.
+func (n *SMTPNotifier) generateTestEmailHTML(resource domain.Resource) string {
+	data := TestTemplateData{
+		Message:   fmt.Sprintf("Test notification for resource: %s (%s)", resource.Name, resource.Target),
+		Timestamp: time.Now().Format("2006-01-02 15:04:05 MST"),
+	}
+
+	tmpl, err := template.ParseFS(emailTemplates, "templates/test.html")
+	if err != nil {
+		log.Printf("[SMTP Notifier] Failed to parse test template: %s", err)
+		return fmt.Sprintf("<!DOCTYPE html><html><body><p>Test notification for resource %s.</p></body></html>", resource.Name)
+	}
+
+	var buf bytes.Buffer
+	if err := tmpl.Execute(&buf, data); err != nil {
+		log.Printf("[SMTP Notifier] Failed to execute test template: %s", err)
+		return fmt.Sprintf("error generating test email content for resource %s", resource.Name)
+	}
+
+	return buf.String()
+}
+
 // formatDuration formats a duration into a human-readable string.
 func formatDuration(d time.Duration) string {
 	hours := int(d.Hours())
@@ -273,26 +295,4 @@ func (n *SMTPNotifier) SendTestNotification(ctx context.Context, resource domain
 
 	log.Printf("[SMTP Notifier] Successfully sent test email to %s\nSubject: %s", n.recipient, subject)
 	return nil
-}
-
-// generateTestEmailHTML creates an HTML email for test notifications.
-func (n *SMTPNotifier) generateTestEmailHTML(resource domain.Resource) string {
-	data := TestTemplateData{
-		Message:   fmt.Sprintf("Test notification for resource: %s (%s)", resource.Name, resource.Target),
-		Timestamp: time.Now().Format("2006-01-02 15:04:05 MST"),
-	}
-
-	tmpl, err := template.ParseFS(emailTemplates, "templates/test.html")
-	if err != nil {
-		log.Printf("[SMTP Notifier] Failed to parse test template: %s", err)
-		return fmt.Sprintf("<!DOCTYPE html><html><body><p>Test notification for resource %s.</p></body></html>", resource.Name)
-	}
-
-	var buf bytes.Buffer
-	if err := tmpl.Execute(&buf, data); err != nil {
-		log.Printf("[SMTP Notifier] Failed to execute test template: %s", err)
-		return fmt.Sprintf("error generating test email content for resource %s", resource.Name)
-	}
-
-	return buf.String()
 }

@@ -29,9 +29,8 @@ const (
 
 // AuthService handles authentication logic with database persistence
 type AuthService struct {
-	userRepo   repository.UserRepository
-	jwtManager *JWTManager
-	// Kept for backwards compatibility during migration
+	userRepo       repository.UserRepository
+	jwtManager     *JWTManager
 	legacyEmail    string
 	legacyPassword string
 }

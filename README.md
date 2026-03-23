@@ -4,14 +4,14 @@
 
 # PulseGuard
 
-**Simple, self-hosted uptime monitoring. Check if your websites and services are up.**
+**Simple, self-hosted uptime monitoring. Check if your resources are up.**
 
 ![License](https://img.shields.io/badge/license-MIT-blue)
 ![Go](https://img.shields.io/badge/go-1.25%2B-00ADD8)
 ![Vue](https://img.shields.io/badge/vue-3.x-4FC08D)
 [![GitHub Stars](https://img.shields.io/github/stars/denisakp/pulseguard?style=flat)](https://github.com/denisakp/pulseguard)
 
-PulseGuard monitors your websites, APIs, and services. If something goes down, you get notified. That's it.
+PulseGuard monitors your resources, including websites, APIs, and services. If something goes down, you get notified. That's it.
 
 No complex setup. No overwhelming dashboards. Just pure uptime monitoring.
 
@@ -21,7 +21,7 @@ No complex setup. No overwhelming dashboards. Just pure uptime monitoring.
 
 ## 🤔 Why PulseGuard?
 
-I started exploring monitoring stacks like Prometheus, Grafana, Tempo, and AlertManager. But configuring dozens of config files just to check if my websites were up seemed crazy.
+I started exploring monitoring stacks like Prometheus, Grafana, Tempo, and AlertManager. But configuring dozens of config files just to check if my resources were up seemed crazy.
 
 So I built this during my internship in 2023 with TypeScript and NestJS. Later, I rewrote it in Go while learning the language. Now it's a simple, straightforward monitoring tool that just works.
 
