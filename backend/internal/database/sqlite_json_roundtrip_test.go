@@ -47,8 +47,8 @@ func TestSQLiteJSONAndBinaryFieldsRoundTrip(t *testing.T) {
 	require.NoError(t, runtime.DB.Create(&channel).Error)
 
 	user := domain.User{
-		Email:               "ops@example.com",
-		HashedPassword:      "hashed-password",
+		Email:                "ops@example.com",
+		HashedPassword:       "hashed-password",
 		TwoFactorBackupCodes: []byte(`["code-1","code-2"]`),
 	}
 	require.NoError(t, runtime.DB.Create(&user).Error)

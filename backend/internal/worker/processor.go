@@ -15,18 +15,36 @@ type Processor struct {
 	maintenanceHandler *mhandler.TaskHandler
 }
 
+// Config controls worker concurrency and queue weights for the hosted Asynq lane.
+type Config struct {
+	Concurrency            int
+	MonitoringQueueWeight  int
+	MaintenanceQueueWeight int
+}
+
 // NewProcessor creates a new worker processor with the given handlers.
 func NewProcessor(
 	redisOpt asynq.RedisConnOpt,
 	monitoringHandler *MonitoringTaskHandler,
 	maintenanceHandler *mhandler.TaskHandler,
+	config Config,
 ) *Processor {
+	if config.Concurrency <= 0 {
+		config.Concurrency = 10
+	}
+	if config.MonitoringQueueWeight <= 0 {
+		config.MonitoringQueueWeight = 10
+	}
+	if config.MaintenanceQueueWeight <= 0 {
+		config.MaintenanceQueueWeight = 5
+	}
+
 	server := asynq.NewServer(redisOpt, asynq.Config{
 		// Configure the server with appropriate settings
-		Concurrency: 10,
+		Concurrency: config.Concurrency,
 		Queues: map[string]int{
-			"monitoring":  10, // All priority to monitoring tasks
-			"maintenance": 5,
+			"monitoring":  config.MonitoringQueueWeight,
+			"maintenance": config.MaintenanceQueueWeight,
 		},
 	})
 

@@ -3,7 +3,10 @@ package config
 import (
 	"log"
 	"os"
+	"strconv"
+	"time"
 
+	"github.com/denisakp/pulseguard/internal/scheduler"
 	"github.com/joho/godotenv"
 )
 
@@ -22,6 +25,13 @@ type Config struct {
 	AuthEmail        string
 	AuthPassword     string
 	JWTSecret        string
+
+	// Scheduler configuration
+	SchedulerMode                  string
+	SchedulerTickInterval          time.Duration
+	SchedulerMaxWorkers            int
+	SchedulerShutdownTimeout       time.Duration
+	SchedulerNotificationQueueSize int
 }
 
 // Load reads configuration from environment variables.
@@ -30,8 +40,14 @@ func Load() Config {
 	webhookUrl := GetEnv("WEBHOOK_URL", "")
 	webhookIsEnabled := webhookUrl != ""
 
+	// Parse scheduler configuration
+	schedulerTickInterval := parseDuration(GetEnv("SCHEDULER_TICK_INTERVAL", "1s"))
+	schedulerMaxWorkers := parseInt(GetEnv("SCHEDULER_MAX_WORKERS", "10"))
+	schedulerShutdownTimeout := parseDuration(GetEnv("SCHEDULER_SHUTDOWN_TIMEOUT", "15s"))
+	schedulerNotificationQueueSize := parseInt(GetEnv("SCHEDULER_NOTIFICATION_QUEUE_SIZE", "100"))
+
 	cfg := Config{
-		RedisUrl:         GetEnv("REDIS_URL", "redis:6379"),
+		RedisUrl:         GetEnv("REDIS_URL", "localhost:6379"),
 		DBDriver:         GetEnv("DB_DRIVER", "postgres"),
 		DatabaseUrl:      GetEnv("DATABASE_URL", "postgres://pulseguard:EE94PPHGz3TZ@postgres:5432/pulse?sslmode=disable"),
 		SQLitePath:       GetEnv("SQLITE_PATH", "pulseguard.db"),
@@ -44,6 +60,13 @@ func Load() Config {
 		AuthEmail:        GetEnv("AUTH_EMAIL", "admin@pulseguard.test"),
 		AuthPassword:     GetEnv("AUTH_PASSWORD", "puls3gu@rd"),
 		JWTSecret:        GetEnv("JWT_SECRET", "pulseguard-secret-key-change-in-production"),
+
+		// Scheduler defaults (mode determined separately)
+		SchedulerMode:                  GetEnv("SCHEDULER_MODE", ""),
+		SchedulerTickInterval:          schedulerTickInterval,
+		SchedulerMaxWorkers:            schedulerMaxWorkers,
+		SchedulerShutdownTimeout:       schedulerShutdownTimeout,
+		SchedulerNotificationQueueSize: schedulerNotificationQueueSize,
 	}
 	return cfg
 }
@@ -55,6 +78,48 @@ func GetEnv(key, defaultValue string) string {
 		return defaultValue
 	}
 	return value
+}
+
+// GetSchedulerConfig returns the resolved scheduler configuration based on environment.
+func (c *Config) GetSchedulerConfig() (*scheduler.Config, error) {
+	// Detect mode based on database driver and explicit configuration
+	mode := scheduler.DetectMode(c.SchedulerMode, c.DBDriver)
+
+	// Validate mode compatibility with Redis
+	if err := scheduler.ValidateSelector(mode, c.RedisUrl); err != nil {
+		return nil, err
+	}
+
+	return &scheduler.Config{
+		Mode: mode,
+		TimingWheel: scheduler.TimingWheelConfig{
+			TickInterval:          c.SchedulerTickInterval,
+			MaxWorkers:            c.SchedulerMaxWorkers,
+			ShutdownTimeout:       c.SchedulerShutdownTimeout,
+			NotificationQueueSize: c.SchedulerNotificationQueueSize,
+		},
+		Asynq: scheduler.AsynqConfig{
+			RedisURL: c.RedisUrl,
+		},
+	}, nil
+}
+
+// parseDuration parses a duration string or returns default on error.
+func parseDuration(s string) time.Duration {
+	d, err := time.ParseDuration(s)
+	if err != nil {
+		return 1 * time.Second // Default fallback
+	}
+	return d
+}
+
+// parseInt parses an integer or returns default on error.
+func parseInt(s string) int {
+	i, err := strconv.Atoi(s)
+	if err != nil {
+		return 0 // Default fallback
+	}
+	return i
 }
 
 // MustInit loads configuration from .env file (if present) and environment variables.
@@ -77,5 +142,10 @@ func MustInit() Config {
 
 	log.Printf("[config] Port: %s", cfg.Port)
 	log.Printf("[config] DB driver: %s", cfg.DBDriver)
+
+	// Log scheduler mode determination
+	mode := scheduler.DetectMode(cfg.SchedulerMode, cfg.DBDriver)
+	log.Printf("[config] Scheduler mode: %s", mode)
+
 	return cfg
 }

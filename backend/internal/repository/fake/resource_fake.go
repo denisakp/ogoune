@@ -195,6 +195,10 @@ func (r *ResourceFake) FindActive(ctx context.Context, limit, offset int) ([]*do
 	return activeResources[offset:end], nil
 }
 
+func (r *ResourceFake) FindScheduledResources(ctx context.Context) ([]*domain.Resource, error) {
+	return r.FindActive(ctx, 1000, 0)
+}
+
 func (r *ResourceFake) FindByTag(ctx context.Context, tagName string, limit, offset int) ([]*domain.Resource, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()

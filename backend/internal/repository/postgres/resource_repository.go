@@ -121,6 +121,23 @@ func (r *ResourceRepositoryImpl) FindActive(ctx context.Context, limit, offset i
 	return resources, nil
 }
 
+// FindScheduledResources retrieves all active resources (for scheduler startup loading).
+// All active resources are assumed to be schedulable.
+func (r *ResourceRepositoryImpl) FindScheduledResources(ctx context.Context) ([]*domain.Resource, error) {
+	var resources []*domain.Resource
+	err := r.db.WithContext(ctx).
+		Preload("Tags").
+		Preload("Component").
+		Where("is_active = ?", true).
+		Order("id ASC").
+		Find(&resources).Error
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to find scheduled resources: %w", err)
+	}
+	return resources, nil
+}
+
 // FindByTag retrieves all resources associated with a specific tag name with pagination.
 func (r *ResourceRepositoryImpl) FindByTag(ctx context.Context, tagName string, limit, offset int) ([]*domain.Resource, error) {
 	var resources []*domain.Resource

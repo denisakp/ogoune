@@ -45,6 +45,8 @@ type ResourceRepository interface {
 	CountByComponentID(ctx context.Context, componentID string) (int64, error)
 	// UpdateMetadata updates only the metadata fields for a resource, leaving associations intact
 	UpdateMetadata(ctx context.Context, id string, metadata *domain.ResourceMetaData) error
+	// FindScheduledResources returns all active resources with a non-nil schedule (used by scheduler startup)
+	FindScheduledResources(ctx context.Context) ([]*domain.Resource, error)
 }
 
 // ComponentRepository manages logical component groups

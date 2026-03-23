@@ -19,12 +19,38 @@ import (
 	"github.com/denisakp/pulseguard/internal/maintenance"
 	"github.com/denisakp/pulseguard/internal/monitoring"
 	"github.com/denisakp/pulseguard/internal/monitoring/strategy"
+	"github.com/denisakp/pulseguard/internal/repository"
 	"github.com/denisakp/pulseguard/internal/repository/postgres"
+	"github.com/denisakp/pulseguard/internal/scheduler"
 	"github.com/denisakp/pulseguard/internal/service"
 	"github.com/denisakp/pulseguard/internal/worker"
 	"github.com/go-chi/chi/v5"
 	"github.com/hibiken/asynq"
 )
+
+// resourceRepositoryAdapter adapts ResourceRepository to implement ActiveResourceRepository
+type resourceRepositoryAdapter struct {
+	repo repository.ResourceRepository
+}
+
+func (a *resourceRepositoryAdapter) FindScheduledResources(ctx context.Context) ([]scheduler.ScheduleItem, error) {
+	resources, err := a.repo.FindScheduledResources(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	items := make([]scheduler.ScheduleItem, 0, len(resources))
+	for _, r := range resources {
+		if r.Interval > 0 { // Only include resources with valid intervals
+			items = append(items, scheduler.ScheduleItem{
+				ResourceID: r.ID,
+				Interval:   time.Duration(r.Interval) * time.Second,
+				Paused:     false, // Pause state is managed at runtime, not persisted
+			})
+		}
+	}
+	return items, nil
+}
 
 func serveStaticFiles(router *chi.Mux, staticDir string) {
 	// Serve files from the static directory
@@ -103,125 +129,236 @@ func main() {
 	componentRepo := postgres.NewComponentRepository(db)
 	userRepo := postgres.NewUserRepository(db)
 
-	// Initialize Redis connection for Asynq
-	redisOpt := asynq.RedisClientOpt{
-		Addr: config.GetEnv("REDIS_URL", "localhost:6379"),
+	// ========================================
+	// Initialize scheduler based on configuration
+	// ========================================
+	schedulerCfg := &scheduler.Config{
+		Mode: scheduler.ScheduleMode(config.GetEnv("SCHEDULER_MODE", "")),
+		TimingWheel: scheduler.TimingWheelConfig{
+			TickInterval:          1 * time.Second,
+			MaxWorkers:            10,
+			ShutdownTimeout:       15 * time.Second,
+			NotificationQueueSize: 100,
+		},
+		Asynq: scheduler.AsynqConfig{
+			RedisURL:    config.GetEnv("REDIS_URL", "localhost:6379"),
+			Concurrency: 10,
+		},
 	}
 
-	// Initialize Asynq client, inspector, and scheduler for periodic tasks
-	asynqClient := asynq.NewClient(redisOpt)
-	defer asynqClient.Close()
-
-	asynqInspector := asynq.NewInspector(redisOpt)
-	defer asynqInspector.Close()
-
-	// Create scheduler for periodic monitoring tasks
-	asynqScheduler := asynq.NewScheduler(redisOpt, nil)
-
-	// Start the scheduler in a goroutine
-	go func() {
-		if err := asynqScheduler.Run(); err != nil {
-			log.Fatalf("Failed to start Asynq scheduler: %v", err)
+	// Default to timingwheel for SQLite, asynq for PostgreSQL
+	if schedulerCfg.Mode == "" {
+		if strings.ToLower(cfg.DBDriver) == "sqlite" {
+			schedulerCfg.Mode = scheduler.ModeTimingWheel
+		} else {
+			schedulerCfg.Mode = scheduler.ModeAsynq
 		}
-	}()
-	defer asynqScheduler.Shutdown()
+	}
 
-	// Initialize monitoring scheduler service
-	schedulerService := monitoring.NewSchedulerService(asynqClient, asynqInspector, asynqScheduler)
+	log.Printf("Starting with scheduler mode: %s", schedulerCfg.Mode)
 
-	// Initialize maintenance scheduler and ensure schedules are registered
-	maintenanceScheduler := maintenance.NewSchedulerService(asynqClient, asynqInspector, asynqScheduler, maintenanceRepo)
-	if err := maintenanceScheduler.EnsureScheduled(context.Background()); err != nil {
-		log.Printf("⚠️  Failed to ensure maintenance schedules: %v", err)
+	// Create adapter for services (implements repository.Scheduler interface)
+	var runtimeScheduler scheduler.Scheduler
+	var schedulerAdapter repository.Scheduler
+	var asynqClient *asynq.Client
+	var asynqInspector *asynq.Inspector
+	var asynqScheduler *asynq.Scheduler
+	var redisOpt asynq.RedisClientOpt
+	var processor *worker.Processor
+	var maintenanceScheduler *maintenance.SchedulerService
+
+	if schedulerCfg.Mode == scheduler.ModeTimingWheel {
+		runtimeScheduler, err = scheduler.New(schedulerCfg)
+		if err != nil {
+			log.Fatalf("Failed to create scheduler: %v", err)
+		}
+
+		log.Println("✓ Using TimingWheel scheduler (Community Edition - no Redis required)")
+		schedulerAdapter = scheduler.NewRepositorySchedulerAdapter(runtimeScheduler)
+
+		// For TimingWheel, no Asynq setup needed, but we need maintenance scheduler
+		// Create a no-op Asynq client for compatibility
+		// Actually, we should handle maintenance differently for non-Asynq
+		maintenanceScheduler = nil
+
+	} else if schedulerCfg.Mode == scheduler.ModeAsynq {
+		log.Println("✓ Using Asynq scheduler (SaaS Edition with Redis)")
+
+		// Initialize Redis connection
+		redisOpt = asynq.RedisClientOpt{
+			Addr: config.GetEnv("REDIS_URL", "localhost:6379"),
+		}
+
+		// Initialize Asynq client, inspector, and scheduler
+		asynqClient = asynq.NewClient(redisOpt)
+		defer asynqClient.Close()
+
+		asynqInspector = asynq.NewInspector(redisOpt)
+		defer asynqInspector.Close()
+
+		// Create scheduler for periodic monitoring tasks
+		asynqScheduler = asynq.NewScheduler(redisOpt, nil)
+
+		// Start the scheduler in a goroutine
+		go func() {
+			if err := asynqScheduler.Run(); err != nil {
+				log.Fatalf("Failed to start Asynq scheduler: %v", err)
+			}
+		}()
+		defer asynqScheduler.Shutdown()
+
+		// Initialize monitoring scheduler service (Asynq-based)
+		schedulerService := monitoring.NewSchedulerService(asynqClient, asynqInspector, asynqScheduler)
+		schedulerCfg.Asynq.ResourceLoader = func(ctx context.Context, resourceID string) (*domain.Resource, error) {
+			return resourceRepo.FindByID(ctx, resourceID)
+		}
+		schedulerCfg.Asynq.SchedulerAdapter = schedulerService
+
+		runtimeScheduler, err = scheduler.New(schedulerCfg)
+		if err != nil {
+			log.Fatalf("Failed to create scheduler: %v", err)
+		}
+
+		schedulerAdapter = scheduler.NewRepositorySchedulerAdapter(runtimeScheduler)
+
+		// Initialize maintenance scheduler
+		maintenanceScheduler = maintenance.NewSchedulerService(asynqClient, asynqInspector, asynqScheduler, maintenanceRepo)
+		if err := maintenanceScheduler.EnsureScheduled(context.Background()); err != nil {
+			log.Printf("⚠️  Failed to ensure maintenance schedules: %v", err)
+		}
+
+	} else {
+		log.Fatalf("Invalid scheduler mode: %s", schedulerCfg.Mode)
 	}
 
 	// Initialize enrichment service for resource metadata collection
 	enrichmentService := service.NewEnrichmentService(30 * time.Second)
 
-	// ========================================
-	// STEP 1: BOOTSTRAP - Schedule all active resources
-	// This runs sequentially and blocks until complete
-	// ========================================
-	log.Println("========================================")
-	log.Println("BOOTSTRAP: Scheduling active resources...")
-	log.Println("========================================")
+	// Initialize component service (used by both worker and API handlers)
+	componentService := service.NewComponentService(componentRepo, resourceRepo, notificationChannelRepo)
 
-	bootstrapCtx := context.Background()
-	activeResources, err := resourceRepo.FindActive(bootstrapCtx, 10000, 0) // Large limit to get all
-	if err != nil {
-		log.Fatalf("Failed to fetch active resources during bootstrap: %v", err)
+	// ========================================
+	// STEP 1: START SCHEDULER AND BOOTSTRAP
+	// ========================================
+
+	if err := runtimeScheduler.Start(context.Background(), &resourceRepositoryAdapter{repo: resourceRepo}); err != nil {
+		log.Fatalf("Failed to start scheduler runtime: %v", err)
 	}
 
-	log.Printf("Found %d active resources to schedule", len(activeResources))
+	if schedulerCfg.Mode == scheduler.ModeTimingWheel {
+		// Start TimingWheel in-process scheduler
+		log.Println("✓ TimingWheel scheduler started")
 
-	successCount := 0
-	failureCount := 0
+		// For TimingWheel, resources are loaded during Start()
+		activeResources, err := resourceRepo.FindActive(context.Background(), 10000, 0)
+		if err == nil {
+			log.Printf("✓ TimingWheel loaded %d active resources at startup", len(activeResources))
+		}
 
-	for _, resource := range activeResources {
-		log.Printf("Scheduling resource: %s (ID: %s)", resource.Name, resource.ID)
+	} else {
+		// Asynq path: bootstrap as before
+		log.Println("========================================")
+		log.Println("BOOTSTRAP: Scheduling active resources with Asynq...")
+		log.Println("========================================")
 
-		if err := schedulerService.Schedule(bootstrapCtx, resource); err != nil {
-			log.Printf("  ⚠️  Failed to schedule resource %s: %v", resource.ID, err)
-			failureCount++
-		} else {
-			log.Printf("  ✓ Successfully scheduled resource %s", resource.ID)
-			successCount++
+		bootstrapCtx := context.Background()
+		activeResources, err := resourceRepo.FindActive(bootstrapCtx, 10000, 0) // Large limit to get all
+		if err != nil {
+			log.Fatalf("Failed to fetch active resources during bootstrap: %v", err)
+		}
+
+		log.Printf("Found %d active resources to schedule", len(activeResources))
+
+		successCount := 0
+		failureCount := 0
+
+		for _, resource := range activeResources {
+			log.Printf("Scheduling resource: %s (ID: %s)", resource.Name, resource.ID)
+
+			if err := schedulerAdapter.Schedule(bootstrapCtx, resource); err != nil {
+				log.Printf("  ⚠️  Failed to schedule resource %s: %v", resource.ID, err)
+				failureCount++
+			} else {
+				log.Printf("  ✓ Successfully scheduled resource %s", resource.ID)
+				successCount++
+			}
+		}
+
+		log.Println("========================================")
+		log.Printf("Bootstrap completed!")
+		log.Printf("  Total resources processed: %d", len(activeResources))
+		log.Printf("  Successfully scheduled: %d", successCount)
+		log.Printf("  Failed to schedule: %d", failureCount)
+		log.Println("========================================")
+
+		if failureCount > 0 {
+			log.Println("⚠️  Some resources failed to schedule. Check logs above for details.")
 		}
 	}
 
-	log.Println("========================================")
-	log.Printf("Bootstrap completed!")
-	log.Printf("  Total resources processed: %d", len(activeResources))
-	log.Printf("  Successfully scheduled: %d", successCount)
-	log.Printf("  Failed to schedule: %d", failureCount)
-	log.Println("========================================")
+	// ========================================
+	// STEP 2: INITIALIZE WORKER (Asynq only)
+	// ========================================
+	if schedulerCfg.Mode == scheduler.ModeAsynq {
+		log.Println("Initializing background worker for Asynq...")
 
-	if failureCount > 0 {
-		log.Println("⚠️  Some resources failed to schedule. Check logs above for details.")
+		// Initialize monitoring services for worker
+		strategies := map[domain.ResourceType]domain.CheckStrategy{
+			domain.ResourceHTTP: strategy.NewHTTPStrategy(30 * time.Second),
+			domain.ResourceTCP:  strategy.NewTCPStrategy(30 * time.Second),
+		}
+		executor := domain.NewCheckExecutor(strategies)
+
+		// Initialize incident service with dynamic notification channel dispatch
+		incidentService := monitoring.NewIncidentService(
+			incidentRepo,
+			incidentEventStepRepo,
+			notificationRepo,
+			notificationChannelRepo,
+			incidentDiagnosticsRepo,
+			asynqClient,
+		)
+
+		// Initialize task handlers
+		monitoringHandler := worker.NewMonitoringTaskHandler(resourceRepo, monitoringActivityRepo, maintenanceRepo, incidentDiagnosticsRepo, executor, incidentService, componentService)
+		maintenanceTaskHandler := maintenance.NewTaskHandler(maintenanceRepo, asynqClient)
+
+		// Create the Asynq worker processor
+		processor = worker.NewProcessor(redisOpt, monitoringHandler, maintenanceTaskHandler, worker.Config{
+			Concurrency: schedulerCfg.Asynq.Concurrency,
+		})
+		defer processor.Stop()
+
+		// Start worker in a goroutine (non-blocking)
+		go func() {
+			log.Println("✓ Starting Asynq worker server...")
+			if err := processor.Start(context.Background()); err != nil {
+				log.Fatalf("Could not run Asynq worker server: %v", err)
+			}
+		}()
+
+		log.Printf("Waiting 10 seconds for the worker to start...")
+		// Wait briefly to ensure worker starts before proceeding | this is a simple approach to ensure the worker is ready before handling tasks
+		time.Sleep(10 * time.Second)
+		log.Println("✓ Background worker started successfully")
+	} else {
+		log.Println("Skipping Asynq worker initialization (TimingWheel mode)")
 	}
 
-	// ========================================
-	// STEP 2: INITIALIZE WORKER - Start Asynq worker in background
-	// ========================================
-	log.Println("Initializing background worker...")
-
-	// Initialize monitoring services for worker
-	strategies := map[domain.ResourceType]domain.CheckStrategy{
-		domain.ResourceHTTP: strategy.NewHTTPStrategy(30 * time.Second),
-		domain.ResourceTCP:  strategy.NewTCPStrategy(30 * time.Second),
-	}
-	executor := domain.NewCheckExecutor(strategies)
-
-	// Initialize incident service with dynamic notification channel dispatch
-	incidentService := monitoring.NewIncidentService(
-		incidentRepo,
-		incidentEventStepRepo,
-		notificationRepo,
-		notificationChannelRepo,
-		incidentDiagnosticsRepo,
-		asynqClient,
-	)
-
-	// Initialize task handlers
-	componentService := service.NewComponentService(componentRepo, resourceRepo, notificationChannelRepo)
-	monitoringHandler := worker.NewMonitoringTaskHandler(resourceRepo, monitoringActivityRepo, maintenanceRepo, incidentDiagnosticsRepo, executor, incidentService, componentService)
-	maintenanceTaskHandler := maintenance.NewTaskHandler(maintenanceRepo, asynqClient)
-
-	// Create the Asynq worker processor
-	processor := worker.NewProcessor(redisOpt, monitoringHandler, maintenanceTaskHandler)
-
-	// Start worker in a goroutine (non-blocking)
 	go func() {
-		log.Println("✓ Starting Asynq worker server...")
-		if err := processor.Start(context.Background()); err != nil {
-			log.Fatalf("Could not run Asynq worker server: %v", err)
+		sigCh := make(chan os.Signal, 1)
+		signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
+		<-sigCh
+		log.Printf("Received shutdown signal, gracefully closing %s scheduler...", schedulerCfg.Mode)
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+		defer cancel()
+		if err := runtimeScheduler.Stop(shutdownCtx); err != nil {
+			log.Printf("⚠️  Error during scheduler shutdown: %v", err)
+		}
+		if processor != nil {
+			processor.Stop()
 		}
 	}()
-
-	log.Printf("Waiting 10 seconds for the worker to start...")
-	// Wait briefly to ensure worker starts before proceeding | this is a simple approach to ensure the worker is ready before handling tasks
-	time.Sleep(10 * time.Second)
-	log.Println("✓ Background worker started successfully")
 
 	// ========================================
 	// STEP 3: INITIALIZE API SERVER
@@ -229,7 +366,7 @@ func main() {
 	log.Println("Initializing API server...")
 
 	// Initialize API services
-	resourceService := service.NewResourceService(resourceRepo, incidentRepo, tagsRepo, schedulerService, monitoringActivityRepo, enrichmentService, componentService)
+	resourceService := service.NewResourceService(resourceRepo, incidentRepo, tagsRepo, schedulerAdapter, monitoringActivityRepo, enrichmentService, componentService)
 	activityService := service.NewMonitoringActivityService(monitoringActivityRepo)
 	tagService := service.NewTagService(tagsRepo)
 	statusPageSettingsService := service.NewStatusPageSettingsService(statusPageSettingsRepo)

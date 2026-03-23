@@ -35,6 +35,11 @@ The backend is a unified Go service that monitors resources (HTTP/TCP), detects 
 | `SQLITE_PATH` | SQLite database path | No | `pulseguard.db` |
 | `DB_LOG_LEVEL` | GORM log verbosity (`silent`, `error`, `warn`, `info`) | No | `error` |
 | `REDIS_URL` | Redis connection string | No | `localhost:6379` |
+| `SCHEDULER_MODE` | Scheduler runtime (`timingwheel` or `asynq`) | No | auto-detected: `timingwheel` when `DB_DRIVER=sqlite`, `asynq` otherwise |
+| `SCHEDULER_TICK_INTERVAL` | Tick resolution for timingwheel scheduler | No | `1s` |
+| `SCHEDULER_MAX_WORKERS` | Max concurrent check workers (timingwheel) | No | `10` |
+| `SCHEDULER_SHUTDOWN_TIMEOUT` | Graceful shutdown timeout (timingwheel) | No | `15s` |
+| `SCHEDULER_NOTIFICATION_QUEUE_SIZE` | Notification dispatch queue size (timingwheel) | No | `100` |
 | `APP_ENV` | Environment (development or production) | No | `development` |
 | `STATIC_DIR` | Path to frontend static files | No | `./static` |
 
@@ -70,11 +75,18 @@ WEBHOOK_SIGNATURE=my-secret-key
 
 ### 1. Choose a database mode
 
-Community / embedded SQLite:
+### Community Mode (No Redis Required)
+
+**Community mode** runs the scheduler in-process without Redis, allowing you to deploy Pulseguard with only SQLite:
 
 ```bash
-DB_DRIVER=sqlite SQLITE_PATH=./pulseguard.db go run ./cmd/api
+# Pure community mode: SQLite + in-process scheduler
+DB_DRIVER=sqlite SQLITE_PATH=./pulseguard.db SCHEDULER_MODE=timingwheel go run ./cmd/api
 ```
+
+**Important**: Do NOT use `SCHEDULER_MODE=asynq` without a Redis instance, or the startup will fail.
+
+### Hosted Mode (With Redis / Asynq Compatibility Lane)
 
 Hosted / PostgreSQL:
 
@@ -112,6 +124,13 @@ cp .env.example .env
 ```bash
 go run ./cmd/api
 ```
+
+Hosted compatibility notes:
+
+- Postgres-backed deployments default to the Redis-backed `asynq` compatibility lane; set `SCHEDULER_MODE=timingwheel` only if you intentionally want the in-process core lane.
+- Hosted mode preserves the existing Asynq monitoring and worker flow through the compatibility adapter.
+- Redis is mandatory in this mode; startup fails fast if it is not configured.
+- Hosted parity is preserved for schedule and unschedule behavior, check dispatch, notification enqueue, and incident lifecycle effects.
 
 Expected output:
 ```
@@ -166,6 +185,44 @@ GET /api/incidents                   List incidents (supports ?unresolved=true)
 GET /api/incidents/{id}              Get incident details
 GET /api/incidents/{id}/event-steps  Get incident event timeline
 ```
+
+---
+
+## Monitor Lifecycle Operations
+
+### Pause Monitoring
+
+Stop monitoring checks for a resource without deleting it:
+
+```bash
+curl -X POST http://localhost:8080/api/resources/{resourceId}/pause
+```
+
+**Effect**: Sets `IsActive=false` and immediately stops scheduled checks. The resource remains in the database and can be resumed later. No incidents are created while paused.
+
+### Resume Monitoring
+
+Resume monitoring checks for a paused resource:
+
+```bash
+curl -X POST http://localhost:8080/api/resources/{resourceId}/resume
+```
+
+**Effect**: Sets `IsActive=true` and reschedules monitoring according to the resource's interval. Checks resume on the next scheduler tick.
+
+### Update Monitor Interval
+
+Change the check interval without deleting and recreating:
+
+```bash
+curl -X PATCH http://localhost:8080/api/resources/{resourceId} \
+  -H "Content-Type: application/json" \
+  -d '{
+    "interval": 120
+  }'
+```
+
+**Effect**: Updates the check interval in the database and reschedules the monitor. The new interval takes effect on the next scheduled check.
 
 ### Monitoring Activities
 
