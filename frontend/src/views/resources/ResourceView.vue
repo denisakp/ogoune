@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref, computed } from 'vue'
+import { onMounted, onUnmounted, ref, computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { message } from 'ant-design-vue'
 import {
@@ -36,6 +36,8 @@ const resource = ref<Resource | null>(null)
 const timeRange = ref<'24h' | '7d' | '30d' | '365d'>('24h')
 const incidentsToShow = ref(3)
 const showEditModal = ref(false)
+const nowTs = ref(Date.now())
+let timer: number | undefined
 
 // Get resource ID from route
 const resourceId = computed(() => route.params.id as string)
@@ -213,7 +215,38 @@ const hasMetadata = computed(() => {
 
 // Fetch resource on mount
 onMounted(async () => {
+  timer = window.setInterval(() => {
+    nowTs.value = Date.now()
+  }, 1000)
   await loadResource()
+})
+
+onUnmounted(() => {
+  if (timer) {
+    window.clearInterval(timer)
+  }
+})
+
+const isConfirming = computed(() => {
+  if (!resource.value) return false
+  return (
+    resource.value.status === 'down' &&
+    resource.value.failure_count > 0 &&
+    resource.value.failure_count < resource.value.confirmation_checks
+  )
+})
+
+const confirmationProgress = computed(() => {
+  if (!resource.value) return ''
+  return `${resource.value.failure_count}/${resource.value.confirmation_checks}`
+})
+
+const nextConfirmationCountdown = computed(() => {
+  if (!resource.value || !resource.value.last_checked) return 'n/a'
+  const nextTs =
+    new Date(resource.value.last_checked).getTime() + resource.value.confirmation_interval * 1000
+  const remainingSec = Math.max(0, Math.ceil((nextTs - nowTs.value) / 1000))
+  return `${remainingSec}s`
 })
 
 // Load resource using the store with response times
@@ -366,6 +399,14 @@ const goBack = () => {
               <template #title>
                 <div style="font-size: 14px; font-weight: 600">Current status</div>
               </template>
+              <a-alert
+                v-if="isConfirming"
+                style="margin-bottom: 16px"
+                type="warning"
+                show-icon
+                :message="`Confirming outage: ${confirmationProgress}`"
+                :description="`Next confirmation check in ${nextConfirmationCountdown}`"
+              />
               <a-row :gutter="16">
                 <a-col :xs="12" :sm="8">
                   <div style="text-align: center">

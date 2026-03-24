@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"time"
 
 	"github.com/denisakp/pulseguard/internal/domain"
 	"github.com/hibiken/asynq"
@@ -66,8 +67,6 @@ func (s *SchedulerService) Schedule(ctx context.Context, r *domain.Resource) err
 	// Create the periodic task
 	task := asynq.NewTask("monitoring:check", payloadBytes)
 
-	// Convert interval from seconds to a cron expression
-	// Use @every syntax for simplicity: @every 60s, @every 5m, etc.
 	cronspec := fmt.Sprintf("@every %ds", r.Interval)
 
 	// Register the periodic task
@@ -82,6 +81,24 @@ func (s *SchedulerService) Schedule(ctx context.Context, r *domain.Resource) err
 	}
 
 	return nil
+}
+
+// ScheduleWithInterval schedules a resource using an explicit interval override.
+func (s *SchedulerService) ScheduleWithInterval(ctx context.Context, r *domain.Resource, interval time.Duration) error {
+	if r == nil {
+		return fmt.Errorf("resource cannot be nil")
+	}
+	if interval <= 0 {
+		return fmt.Errorf("interval must be > 0")
+	}
+
+	resourceCopy := *r
+	resourceCopy.Interval = int(interval / time.Second)
+	if resourceCopy.Interval <= 0 {
+		resourceCopy.Interval = 1
+	}
+
+	return s.Schedule(ctx, &resourceCopy)
 }
 
 // Unschedule removes the periodic monitoring task for the given resource ID.

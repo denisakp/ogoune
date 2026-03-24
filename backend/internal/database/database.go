@@ -18,6 +18,9 @@ type Driver string
 const (
 	DriverPostgres Driver = "postgres"
 	DriverSQLite   Driver = "sqlite"
+
+	DefaultConfirmationChecks   = 2
+	DefaultConfirmationInterval = 30
 )
 
 type PermissionStatus string
@@ -87,6 +90,10 @@ func openRuntime(ctx context.Context, cfg resolvedConfig, migrationFS migrationF
 	}
 
 	if err := runMigrations(ctx, db, cfg.Driver, migrationFS); err != nil {
+		return nil, err
+	}
+
+	if err := ValidateStartupSchema(db); err != nil {
 		return nil, err
 	}
 
@@ -289,4 +296,15 @@ func mergePermissionStatus(current, next PermissionStatus) PermissionStatus {
 		return PermissionStatusEnforced
 	}
 	return PermissionStatusNotApplicable
+}
+
+// ValidateStartupSchema validates required schema columns before the application starts serving traffic.
+func ValidateStartupSchema(db *gorm.DB) error {
+	if !db.Migrator().HasColumn("resources", "confirmation_checks") {
+		return fmt.Errorf("db init: missing required confirmation schema column resources.confirmation_checks; run latest migrations")
+	}
+	if !db.Migrator().HasColumn("resources", "confirmation_interval") {
+		return fmt.Errorf("db init: missing required confirmation schema column resources.confirmation_interval; run latest migrations")
+	}
+	return nil
 }

@@ -186,8 +186,13 @@ Authentication/authorization: not implemented at present.
    - After each check, resource `status` and `last_checked` are updated.
 
 6. Incidents
-   - On exactly the 3rd consecutive failure: create incident if none is active.
-   - On recovery (first `up` after a `down`): resolve the most recent active incident.
+   - Confirmation lifecycle:
+     - If `confirmation_checks > 1`, failures below threshold are treated as confirming state (no incident yet).
+     - On threshold crossing (`failure_count` reaches configured `confirmation_checks`): create incident if none is active.
+     - While still down after threshold, do not create duplicate incidents for the same outage window.
+   - Recovery:
+     - If recovery happens before threshold crossing, treat as false positive: no incident and counter reset.
+     - If recovery happens after a confirmed outage, resolve the most recent active incident.
 
 7. Notifications
    - Channel-based: notification channels (SMTP/Slack/Webhook/SMS) are stored in the database and dispatched via the notifier factory.
@@ -196,6 +201,12 @@ Authentication/authorization: not implemented at present.
 8. Status and Stats
    - `/status`: pre-aggregated 90‑day uptime and per‑day status array per resource (includes "no_data" days before resource creation). See `docs/STATUS_ENDPOINT.md`.
    - `/stats/summary`: global uptime %, incident counts, affected monitors across time windows. See `docs/STATS_API.md`.
+
+Confirmation cadence behavior:
+
+- During confirmation state, scheduler temporarily uses per-resource `confirmation_interval` to accelerate retries.
+- On false-positive recovery or confirmed-incident transition, cadence returns to normal resource `interval`.
+- Both timingwheel and Asynq paths are expected to keep this behavior aligned.
 
 ---
 
@@ -347,12 +358,15 @@ Useful endpoints:
 
 - Creation:
   - Increment `failure_count` on each consecutive `down`.
-  - On exactly the 3rd consecutive failure: create an incident if none is active.
+  - If `confirmation_checks = 1`, first failure behaves as immediate-alert mode.
+  - If `confirmation_checks > 1`, failures below threshold are confirmation-only (no incident, no down alert yet).
+  - On threshold crossing (configured `confirmation_checks`): create an incident if none is active.
   - Add an `IncidentEventStep` with `detected`.
   - Send notifications through configured channels subscribed to `down`.
 
 - Resolution:
-  - When a `down` resource transitions to `up`, resolve the most recent active incident (set `resolved_at`).
+  - When a pre-threshold confirming resource transitions to `up`, reset failure tracking with no incident lifecycle side effects.
+  - When a confirmed `down` resource transitions to `up`, resolve the most recent active incident (set `resolved_at`).
   - Add `IncidentEventStep` with `resolved`.
   - Send notifications for `up`.
 

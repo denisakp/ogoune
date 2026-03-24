@@ -73,6 +73,12 @@ type AsynqSchedulerAdapter interface {
 	Unschedule(ctx context.Context, resourceID string) error
 }
 
+// AsynqSchedulerAdapterWithInterval optionally supports scheduling with a temporary interval override.
+type AsynqSchedulerAdapterWithInterval interface {
+	AsynqSchedulerAdapter
+	ScheduleWithInterval(ctx context.Context, r *domain.Resource, interval time.Duration) error
+}
+
 // ActiveResourceRepository defines the interface for accessing active resources.
 type ActiveResourceRepository interface {
 	FindScheduledResources(ctx context.Context) ([]ScheduleItem, error)

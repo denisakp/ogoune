@@ -161,6 +161,9 @@ func main() {
 	// Create adapter for services (implements repository.Scheduler interface)
 	var runtimeScheduler scheduler.Scheduler
 	var schedulerAdapter repository.Scheduler
+	var confirmationScheduler interface {
+		ScheduleWithInterval(ctx context.Context, resource *domain.Resource, interval time.Duration) error
+	}
 	var asynqClient *asynq.Client
 	var asynqInspector *asynq.Inspector
 	var asynqScheduler *asynq.Scheduler
@@ -176,6 +179,11 @@ func main() {
 
 		log.Println("✓ Using TimingWheel scheduler (Community Edition - no Redis required)")
 		schedulerAdapter = scheduler.NewRepositorySchedulerAdapter(runtimeScheduler)
+		if rs, ok := schedulerAdapter.(interface {
+			ScheduleWithInterval(ctx context.Context, resource *domain.Resource, interval time.Duration) error
+		}); ok {
+			confirmationScheduler = rs
+		}
 
 		// For TimingWheel, no Asynq setup needed, but we need maintenance scheduler
 		// Create a no-op Asynq client for compatibility
@@ -221,6 +229,11 @@ func main() {
 		}
 
 		schedulerAdapter = scheduler.NewRepositorySchedulerAdapter(runtimeScheduler)
+		if rs, ok := schedulerAdapter.(interface {
+			ScheduleWithInterval(ctx context.Context, resource *domain.Resource, interval time.Duration) error
+		}); ok {
+			confirmationScheduler = rs
+		}
 
 		// Initialize maintenance scheduler
 		maintenanceScheduler = maintenance.NewSchedulerService(asynqClient, asynqInspector, asynqScheduler, maintenanceRepo)
@@ -274,7 +287,7 @@ func main() {
 				nil,
 			)
 
-			monitoringHandler := worker.NewMonitoringTaskHandler(resourceRepo, monitoringActivityRepo, maintenanceRepo, incidentDiagnosticsRepo, executor, incidentService, componentService)
+			monitoringHandler := worker.NewMonitoringTaskHandler(resourceRepo, monitoringActivityRepo, maintenanceRepo, incidentDiagnosticsRepo, executor, incidentService, componentService, confirmationScheduler)
 
 			workers := schedulerCfg.TimingWheel.MaxWorkers
 			if workers <= 0 {
@@ -371,7 +384,7 @@ func main() {
 		)
 
 		// Initialize task handlers
-		monitoringHandler := worker.NewMonitoringTaskHandler(resourceRepo, monitoringActivityRepo, maintenanceRepo, incidentDiagnosticsRepo, executor, incidentService, componentService)
+		monitoringHandler := worker.NewMonitoringTaskHandler(resourceRepo, monitoringActivityRepo, maintenanceRepo, incidentDiagnosticsRepo, executor, incidentService, componentService, confirmationScheduler)
 		maintenanceTaskHandler := maintenance.NewTaskHandler(maintenanceRepo, asynqClient)
 
 		// Create the Asynq worker processor

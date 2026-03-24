@@ -32,4 +32,9 @@ func TestMigration(t *testing.T) {
 	t.Run("Key_indexes_exist", func(t *testing.T) {
 		require.True(t, db.Migrator().HasIndex(&domain.Resource{}, "idx_resources_created_at"), "Should have created_at index on resources")
 	})
+
+	t.Run("Resource_confirmation_columns_exist", func(t *testing.T) {
+		require.True(t, db.Migrator().HasColumn("resources", "confirmation_checks"), "resources.confirmation_checks should exist")
+		require.True(t, db.Migrator().HasColumn("resources", "confirmation_interval"), "resources.confirmation_interval should exist")
+	})
 }

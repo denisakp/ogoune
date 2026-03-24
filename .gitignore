@@ -19,4 +19,9 @@ backend/pulseguard
 backend/*.test
 *.db
 *.db-*
+*.exe
+vendor/
+*.tmp
+*.swp
+Thumbs.db
 

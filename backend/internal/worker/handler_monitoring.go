@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/denisakp/pulseguard/internal/domain"
@@ -13,6 +14,20 @@ import (
 	"github.com/hibiken/asynq"
 )
 
+const (
+	defaultConfirmationChecks   = 2
+	defaultConfirmationInterval = 30
+)
+
+type incidentManager interface {
+	CreateIncident(ctx context.Context, r *domain.Resource, result domain.CheckResult) error
+	ResolveIncident(ctx context.Context, r *domain.Resource, result domain.CheckResult) error
+}
+
+type confirmationRescheduler interface {
+	ScheduleWithInterval(ctx context.Context, resource *domain.Resource, interval time.Duration) error
+}
+
 // MonitoringTaskHandler processes monitoring tasks from the Asynq queue.
 // It executes health checks and handles status changes with direct service calls.
 type MonitoringTaskHandler struct {
@@ -21,8 +36,12 @@ type MonitoringTaskHandler struct {
 	maintenances repository.MaintenanceRepository
 	diagnostics  repository.IncidentDiagnosticsRepository
 	executor     *domain.CheckExecutor
-	incidents    *monitoring.IncidentService
+	incidents    incidentManager
 	components   *service.ComponentService
+	scheduler    confirmationRescheduler
+
+	lockMu        sync.Mutex
+	resourceLocks map[string]*sync.Mutex
 }
 
 // NewMonitoringTaskHandler creates a new monitoring task handler.
@@ -34,16 +53,32 @@ func NewMonitoringTaskHandler(
 	executor *domain.CheckExecutor,
 	incidents *monitoring.IncidentService,
 	components *service.ComponentService,
+	scheduler confirmationRescheduler,
 ) *MonitoringTaskHandler {
 	return &MonitoringTaskHandler{
-		resources:    resources,
-		activities:   activities,
-		maintenances: maintenances,
-		diagnostics:  diagnostics,
-		executor:     executor,
-		incidents:    incidents,
-		components:   components,
+		resources:     resources,
+		activities:    activities,
+		maintenances:  maintenances,
+		diagnostics:   diagnostics,
+		executor:      executor,
+		incidents:     incidents,
+		components:    components,
+		scheduler:     scheduler,
+		resourceLocks: map[string]*sync.Mutex{},
 	}
+}
+
+func (h *MonitoringTaskHandler) lockForResource(resourceID string) *sync.Mutex {
+	h.lockMu.Lock()
+	defer h.lockMu.Unlock()
+
+	if lock, exists := h.resourceLocks[resourceID]; exists {
+		return lock
+	}
+
+	lock := &sync.Mutex{}
+	h.resourceLocks[resourceID] = lock
+	return lock
 }
 
 // ProcessTask processes a monitoring task from the queue.
@@ -59,6 +94,10 @@ func (h *MonitoringTaskHandler) ProcessTask(ctx context.Context, task *asynq.Tas
 	if err := json.Unmarshal(task.Payload(), &payload); err != nil {
 		return fmt.Errorf("failed to unmarshal task payload: %w", err)
 	}
+
+	resourceLock := h.lockForResource(payload.ResourceID)
+	resourceLock.Lock()
+	defer resourceLock.Unlock()
 
 	// Get the current resource from the database
 	resource, err := h.resources.FindByID(ctx, payload.ResourceID)
@@ -110,6 +149,15 @@ func (h *MonitoringTaskHandler) ProcessTask(ctx context.Context, task *asynq.Tas
 	}
 
 	currentResultStatus := domain.ResourceStatus(result.Status)
+	now := time.Now()
+	confirmationChecks := resource.ConfirmationChecks
+	if confirmationChecks <= 0 {
+		confirmationChecks = defaultConfirmationChecks
+	}
+	confirmationInterval := resource.ConfirmationInterval
+	if confirmationInterval <= 0 {
+		confirmationInterval = defaultConfirmationInterval
+	}
 
 	switch currentResultStatus {
 	case domain.StatusUp:
@@ -125,40 +173,51 @@ func (h *MonitoringTaskHandler) ProcessTask(ctx context.Context, task *asynq.Tas
 		// Reset failure count and update status to UP
 		resource.FailureCount = 0
 		resource.Status = domain.StatusUp
-		resource.LastChecked = &[]time.Time{time.Now()}[0]
+		resource.LastChecked = &now
 
 		if err := h.resources.Update(ctx, resource); err != nil {
 			return fmt.Errorf("failed to update resource status: %w", err)
 		}
 
+		if h.scheduler != nil {
+			_ = h.scheduler.ScheduleWithInterval(ctx, resource, time.Duration(resource.Interval)*time.Second)
+		}
+
 	case domain.StatusDown:
-		// Resource is DOWN - increment failure count
+		// Resource is DOWN - increment failure count and evaluate confirmation window state.
+		previousFailureCount := resource.FailureCount
 		resource.FailureCount++
 		fmt.Printf("[FAILURE] Resource %s failed (failure_count: %d, previous_status: %s)\n", resource.ID, resource.FailureCount, previousStatus)
 		resource.Status = domain.StatusDown
-		resource.LastChecked = &[]time.Time{time.Now()}[0]
+		resource.LastChecked = &now
 
 		if err := h.resources.Update(ctx, resource); err != nil {
 			return fmt.Errorf("failed to update resource after failure: %w", err)
 		}
 
-		// Only create incident on the 3rd consecutive failure
-		if resource.FailureCount == 3 {
-			fmt.Printf("[INCIDENT_TRIGGER] Resource %s reached threshold (3 failures), attempting incident creation\n", resource.ID)
+		// While below threshold, run fast confirmation retries.
+		if resource.FailureCount < confirmationChecks {
+			if h.scheduler != nil {
+				_ = h.scheduler.ScheduleWithInterval(ctx, resource, time.Duration(confirmationInterval)*time.Second)
+			}
+			break
+		}
+
+		// Create incident only once on threshold crossing.
+		if previousFailureCount < confirmationChecks && resource.FailureCount >= confirmationChecks {
+			fmt.Printf("[INCIDENT_TRIGGER] Resource %s reached confirmation threshold (%d failures), attempting incident creation\n", resource.ID, confirmationChecks)
 			if err := h.incidents.CreateIncident(ctx, resource, result); err != nil {
-				fmt.Printf("Warning: failed to create incident on 3rd failure: %v\n", err)
+				fmt.Printf("Warning: failed to create incident at threshold crossing: %v\n", err)
 			}
-			// Cap the counter at 3 to avoid confusing accumulation during incidents
-			// The counter will reset to 0 when the resource recovers
-			resource.FailureCount = 3
-			if err := h.resources.Update(ctx, resource); err != nil {
-				fmt.Printf("Warning: failed to update resource failure count: %v\n", err)
-			}
+		}
+
+		if h.scheduler != nil {
+			_ = h.scheduler.ScheduleWithInterval(ctx, resource, time.Duration(resource.Interval)*time.Second)
 		}
 	default:
 		// Handle other statuses (error, unknown, etc.)
 		resource.Status = currentResultStatus
-		resource.LastChecked = &[]time.Time{time.Now()}[0]
+		resource.LastChecked = &now
 
 		if err := h.resources.Update(ctx, resource); err != nil {
 			return fmt.Errorf("failed to update resource status: %w", err)

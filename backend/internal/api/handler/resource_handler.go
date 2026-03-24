@@ -82,10 +82,26 @@ func (h *ResourceHandler) CreateResource(w http.ResponseWriter, r *http.Request)
 	if resource.Timeout == 0 {
 		resource.Timeout = 10 // Default to 10 seconds
 	}
+	if resource.ConfirmationChecks != nil && *resource.ConfirmationChecks <= 0 {
+		respondError(w, http.StatusBadRequest, "confirmation_checks must be >= 1")
+		return
+	}
+	if resource.ConfirmationInterval != nil && *resource.ConfirmationInterval <= 0 {
+		respondError(w, http.StatusBadRequest, "confirmation_interval must be > 0")
+		return
+	}
+	if resource.ConfirmationInterval != nil && *resource.ConfirmationInterval >= resource.Interval {
+		respondError(w, http.StatusBadRequest, "confirmation_interval must be < interval")
+		return
+	}
 
 	// Call service layer to create resource (which will also schedule monitoring)
 	created, err := h.resourceService.CreateResource(r.Context(), &resource)
 	if err != nil {
+		if errors.Is(err, service.ErrValidationFailed) {
+			respondError(w, http.StatusBadRequest, err.Error())
+			return
+		}
 		respondError(w, http.StatusInternalServerError, "Failed to create resource: "+err.Error())
 		return
 	}
@@ -161,6 +177,18 @@ func (h *ResourceHandler) UpdateResource(w http.ResponseWriter, r *http.Request)
 	// Decode JSON request body
 	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
 		respondError(w, http.StatusBadRequest, "Invalid request payload: "+err.Error())
+		return
+	}
+	if payload.ConfirmationChecks != nil && *payload.ConfirmationChecks <= 0 {
+		respondError(w, http.StatusBadRequest, "confirmation_checks must be >= 1")
+		return
+	}
+	if payload.ConfirmationInterval != nil && *payload.ConfirmationInterval <= 0 {
+		respondError(w, http.StatusBadRequest, "confirmation_interval must be > 0")
+		return
+	}
+	if payload.Interval != nil && payload.ConfirmationInterval != nil && *payload.ConfirmationInterval >= *payload.Interval {
+		respondError(w, http.StatusBadRequest, "confirmation_interval must be < interval")
 		return
 	}
 

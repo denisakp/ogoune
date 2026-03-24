@@ -86,6 +86,8 @@ type Resource struct {
 	Status               ResourceStatus         `json:"status" gorm:"default:pending"`
 	IsActive             bool                   `json:"is_active" gorm:"default:true"`
 	FailureCount         int                    `json:"failure_count" gorm:"default:0"`
+	ConfirmationChecks   int                    `json:"confirmation_checks" gorm:"default:2"`
+	ConfirmationInterval int                    `json:"confirmation_interval" gorm:"default:30"`
 	Metadata             *ResourceMetaData      `json:"metadata" gorm:"embedded"`
 	Incidents            []Incident             `json:"incidents"`
 	Tags                 []*Tags                `json:"tags" gorm:"many2many:resource_tags;joinForeignKey:resource_id;joinReferences:tag_id;"`

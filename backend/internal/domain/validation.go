@@ -8,6 +8,12 @@ import (
 	"strings"
 )
 
+var (
+	ErrInvalidConfirmationChecks   = errors.New("confirmation_checks must be >= 1")
+	ErrInvalidConfirmationInterval = errors.New("confirmation_interval must be > 0")
+	ErrInvalidConfirmationRelation = errors.New("confirmation_interval must be < interval")
+)
+
 // ValidateResourceTarget validates the target format based on the resource type.
 // For HTTP resources, it validates URL format.
 // For TCP resources, it validates host:port format with basic hostname/IP validation.
@@ -120,4 +126,38 @@ func isValidNotificationChannelType(channelType NotificationChannelType) bool {
 		return true
 	}
 	return false
+}
+
+// ResolveConfirmationDefaults applies defaults when optional values are omitted.
+func ResolveConfirmationDefaults(
+	checks *int,
+	interval *int,
+	defaultChecks int,
+	defaultInterval int,
+) (int, int) {
+	resolvedChecks := defaultChecks
+	resolvedInterval := defaultInterval
+
+	if checks != nil {
+		resolvedChecks = *checks
+	}
+	if interval != nil {
+		resolvedInterval = *interval
+	}
+
+	return resolvedChecks, resolvedInterval
+}
+
+// ValidateConfirmationSettings validates confirmation settings against core constraints.
+func ValidateConfirmationSettings(interval int, confirmationChecks int, confirmationInterval int) error {
+	if confirmationChecks < 1 {
+		return ErrInvalidConfirmationChecks
+	}
+	if confirmationInterval <= 0 {
+		return ErrInvalidConfirmationInterval
+	}
+	if interval > 0 && confirmationInterval >= interval {
+		return ErrInvalidConfirmationRelation
+	}
+	return nil
 }

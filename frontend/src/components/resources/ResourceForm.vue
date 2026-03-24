@@ -22,6 +22,8 @@ const form = ref<CreateResource & { component_id?: string }>({
   target: '',
   interval: 300,
   timeout: 10,
+  confirmation_checks: 2,
+  confirmation_interval: 30,
   tags: [],
   component_id: undefined,
 })
@@ -38,6 +40,8 @@ watch(
         target: resource.target,
         interval: resource.interval,
         timeout: resource.timeout,
+        confirmation_checks: resource.confirmation_checks,
+        confirmation_interval: resource.confirmation_interval,
         tags: (resource.tags ?? []).map((t) => t.name),
         component_id: resource.component_id || undefined,
       }
@@ -48,6 +52,8 @@ watch(
         target: '',
         interval: 300,
         timeout: 10,
+        confirmation_checks: 2,
+        confirmation_interval: 30,
         tags: [],
         component_id: undefined,
       }
@@ -69,6 +75,15 @@ const handleSubmit = async () => {
   if (form.value.timeout < 1) {
     return
   }
+  if ((form.value.confirmation_checks ?? 0) <= 0) {
+    return
+  }
+  if ((form.value.confirmation_interval ?? 0) <= 0) {
+    return
+  }
+  if ((form.value.confirmation_interval ?? 0) >= form.value.interval) {
+    return
+  }
 
   loading.value = true
 
@@ -80,6 +95,8 @@ const handleSubmit = async () => {
         target: form.value.target,
         interval: form.value.interval,
         timeout: form.value.timeout,
+        confirmation_checks: form.value.confirmation_checks,
+        confirmation_interval: form.value.confirmation_interval,
         tags: form.value.tags,
         component_id: form.value.component_id,
       }
@@ -178,6 +195,40 @@ const componentOptions = computed(() => [
         <div style="min-width: 60px; text-align: right; font-weight: bold">{{ form.timeout }}s</div>
       </div>
     </a-form-item>
+
+    <a-row :gutter="16">
+      <a-col :xs="24" :sm="12">
+        <a-form-item label="Confirmation Checks">
+          <a-input-number
+            v-model:value="form.confirmation_checks"
+            :min="1"
+            :max="20"
+            style="width: 100%"
+          />
+        </a-form-item>
+      </a-col>
+      <a-col :xs="24" :sm="12">
+        <a-form-item label="Confirmation Interval (seconds)">
+          <a-input-number
+            v-model:value="form.confirmation_interval"
+            :min="1"
+            :max="3600"
+            style="width: 100%"
+          />
+        </a-form-item>
+      </a-col>
+    </a-row>
+    <a-alert
+      style="margin-bottom: 16px"
+      type="info"
+      show-icon
+      :message="
+        form.confirmation_checks === 1
+          ? 'Immediate mode enabled: incident is created on first failure.'
+          : 'Confirmation mode: incidents trigger only after consecutive failures reach the threshold.'
+      "
+      description="confirmation_interval must be lower than the regular check interval."
+    />
 
     <!-- Tags selection -->
     <a-form-item label="Tags">

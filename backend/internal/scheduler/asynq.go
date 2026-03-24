@@ -70,6 +70,10 @@ func (a *Asynq) Schedule(resourceID string, interval time.Duration) error {
 		resource.Interval = 1
 	}
 
+	if withInterval, ok := a.adapter.(AsynqSchedulerAdapterWithInterval); ok {
+		return withInterval.ScheduleWithInterval(context.Background(), resource, interval)
+	}
+
 	return a.adapter.Schedule(context.Background(), resource)
 }
 

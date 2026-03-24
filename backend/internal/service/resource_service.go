@@ -7,9 +7,15 @@ import (
 	"strings"
 	"time"
 
+	"github.com/denisakp/pulseguard/internal/config"
 	"github.com/denisakp/pulseguard/internal/domain"
 	"github.com/denisakp/pulseguard/internal/dto"
 	"github.com/denisakp/pulseguard/internal/repository"
+)
+
+const (
+	defaultConfirmationChecks   = 2
+	defaultConfirmationInterval = 30
 )
 
 // ResourceService orchestrates resource-related operations using repository interfaces.
@@ -63,7 +69,7 @@ func (s *ResourceService) findOrCreateTags(ctx context.Context, tagNames []strin
 			tags = append(tags, tagByID)
 			continue
 		}
-		if err != nil && !errors.Is(err, repository.ErrNotFound) {
+		if !errors.Is(err, repository.ErrNotFound) {
 			return nil, fmt.Errorf("failed to find tag by id '%s': %w", tagName, err)
 		}
 
@@ -100,14 +106,30 @@ func (s *ResourceService) CreateResource(ctx context.Context, payload *dto.Creat
 		return nil, fmt.Errorf("%w: %v", ErrValidationFailed, err)
 	}
 
+	defaultChecks, defaultInterval := confirmationDefaults()
+	resolvedChecks, resolvedInterval := domain.ResolveConfirmationDefaults(
+		payload.ConfirmationChecks,
+		payload.ConfirmationInterval,
+		defaultChecks,
+		defaultInterval,
+	)
+	if payload.ConfirmationInterval == nil && payload.Interval > 1 && resolvedInterval >= payload.Interval {
+		resolvedInterval = payload.Interval - 1
+	}
+	if err := domain.ValidateConfirmationSettings(payload.Interval, resolvedChecks, resolvedInterval); err != nil {
+		return nil, fmt.Errorf("%w: %v", ErrValidationFailed, err)
+	}
+
 	resource := &domain.Resource{
-		Name:     payload.Name,
-		Type:     payload.Type,
-		Interval: payload.Interval,
-		Timeout:  payload.Timeout,
-		Target:   payload.Target,
-		IsActive: true,
-		Status:   domain.StatusPending,
+		Name:                 payload.Name,
+		Type:                 payload.Type,
+		Interval:             payload.Interval,
+		Timeout:              payload.Timeout,
+		Target:               payload.Target,
+		IsActive:             true,
+		Status:               domain.StatusPending,
+		ConfirmationChecks:   resolvedChecks,
+		ConfirmationInterval: resolvedInterval,
 	}
 
 	// Optional component assignment
@@ -265,6 +287,24 @@ func (s *ResourceService) UpdateResource(ctx context.Context, id string, payload
 	if payload.Timeout != nil {
 		resource.Timeout = *payload.Timeout
 	}
+
+	defaultChecks, defaultInterval := confirmationDefaults()
+	if resource.ConfirmationChecks < 1 {
+		resource.ConfirmationChecks = defaultChecks
+	}
+	if resource.ConfirmationInterval <= 0 {
+		resource.ConfirmationInterval = defaultInterval
+	}
+	if payload.ConfirmationChecks != nil {
+		resource.ConfirmationChecks = *payload.ConfirmationChecks
+	}
+	if payload.ConfirmationInterval != nil {
+		resource.ConfirmationInterval = *payload.ConfirmationInterval
+	}
+	if err := domain.ValidateConfirmationSettings(resource.Interval, resource.ConfirmationChecks, resource.ConfirmationInterval); err != nil {
+		return nil, fmt.Errorf("%w: %v", ErrValidationFailed, err)
+	}
+
 	if payload.IsActive != nil {
 		resource.IsActive = *payload.IsActive
 	}
@@ -417,6 +457,19 @@ func (s *ResourceService) ListActiveResources(ctx context.Context, limit, offset
 // ListResourcesByTag returns resources filtered by a specific tag.
 func (s *ResourceService) ListResourcesByTag(ctx context.Context, tagName string, limit, offset int) ([]*domain.Resource, error) {
 	return s.resources.FindByTag(ctx, tagName, limit, offset)
+}
+
+func confirmationDefaults() (int, int) {
+	cfg := config.Load()
+	checks := cfg.ConfirmationChecks
+	if checks < 1 {
+		checks = defaultConfirmationChecks
+	}
+	interval := cfg.ConfirmationInterval
+	if interval <= 0 {
+		interval = defaultConfirmationInterval
+	}
+	return checks, interval
 }
 
 // ListUnresolvedIncidents returns unresolved incidents for a specific resource.

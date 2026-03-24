@@ -148,6 +148,13 @@ pnpm run dev      # http://localhost:5173
 
 **Never use `SCHEDULER_MODE=asynq` without Redis**, or the process will fail to start.
 
+## Confirmation Window Quick Reference
+
+- Default behavior is controlled by `CONFIRMATION_CHECKS` and `CONFIRMATION_INTERVAL`.
+- New monitors can override these using `confirmation_checks` and `confirmation_interval` in create/update payloads.
+- Incident creation occurs only on threshold crossing (`failure_count == confirmation_checks`).
+- Recovery before threshold is treated as a false positive (no incident, counter resets).
+
 ---
 
 ### Terminal 1: Community Backend Services

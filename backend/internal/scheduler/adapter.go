@@ -16,6 +16,11 @@ type RepositorySchedulerAdapter struct {
 	scheduler Scheduler
 }
 
+// IntervalScheduler provides an optional interval override scheduling path.
+type IntervalScheduler interface {
+	ScheduleWithInterval(ctx context.Context, resource *domain.Resource, interval time.Duration) error
+}
+
 // NewRepositorySchedulerAdapter creates a new adapter wrapping a runtime scheduler.
 func NewRepositorySchedulerAdapter(rtScheduler Scheduler) repository.Scheduler {
 	return &RepositorySchedulerAdapter{
@@ -49,7 +54,25 @@ func (a *RepositorySchedulerAdapter) Schedule(ctx context.Context, resource *dom
 
 	interval := time.Duration(intervalSeconds) * time.Second
 
-	// Schedule via runtime scheduler
+	return a.ScheduleWithInterval(ctx, resource, interval)
+}
+
+// ScheduleWithInterval schedules a resource with an explicit interval override.
+// The override is temporary and not persisted to the resource row.
+func (a *RepositorySchedulerAdapter) ScheduleWithInterval(ctx context.Context, resource *domain.Resource, interval time.Duration) error {
+	if resource == nil {
+		return fmt.Errorf("repository scheduler: resource is nil")
+	}
+
+	if resource.ID == "" {
+		return fmt.Errorf("repository scheduler: resource ID is empty")
+	}
+
+	if interval <= 0 {
+		return fmt.Errorf("repository scheduler: interval must be > 0")
+	}
+
+	// Schedule via runtime scheduler using explicit interval override
 	return a.scheduler.Schedule(resource.ID, interval)
 }
 

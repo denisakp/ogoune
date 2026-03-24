@@ -21,6 +21,8 @@ export interface Resource {
   status: 'up' | 'down' | 'error' | 'unknown' | 'paused' | 'pending'
   is_active: boolean
   failure_count: number
+  confirmation_checks: number
+  confirmation_interval: number
   last_checked?: string
   created_at: string
   updated_at: string
@@ -68,6 +70,8 @@ export interface CreateResource {
   target: string
   interval: number
   timeout: number
+  confirmation_checks?: number
+  confirmation_interval?: number
   tags: string[]
   component_id?: string // Optional component assignment
 }

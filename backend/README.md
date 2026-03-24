@@ -40,8 +40,17 @@ The backend is a unified Go service that monitors resources (HTTP/TCP), detects 
 | `SCHEDULER_MAX_WORKERS` | Max concurrent check workers (timingwheel) | No | `10` |
 | `SCHEDULER_SHUTDOWN_TIMEOUT` | Graceful shutdown timeout (timingwheel) | No | `15s` |
 | `SCHEDULER_NOTIFICATION_QUEUE_SIZE` | Notification dispatch queue size (timingwheel) | No | `100` |
+| `CONFIRMATION_CHECKS` | Default consecutive failures required before incident creation | No | `2` |
+| `CONFIRMATION_INTERVAL` | Default retry interval (seconds) while monitor is in confirming state | No | `30` |
 | `APP_ENV` | Environment (development or production) | No | `development` |
 | `STATIC_DIR` | Path to frontend static files | No | `./static` |
+
+Confirmation window behavior:
+
+- Incidents are created only when failures cross the configured threshold (`failure_count == confirmation_checks`).
+- While `0 < failure_count < confirmation_checks`, checks run on `confirmation_interval` for faster confirmation.
+- If a resource recovers before threshold, failure count resets and no incident is created.
+- `confirmation_interval` must be strictly lower than the resource `interval`.
 
 #### Notification Channels (Email / Slack / Webhook)
 

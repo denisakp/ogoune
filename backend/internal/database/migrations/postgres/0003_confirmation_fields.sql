@@ -1,0 +1,5 @@
+ALTER TABLE resources
+    ADD COLUMN IF NOT EXISTS confirmation_checks INTEGER NOT NULL DEFAULT 2;
+
+ALTER TABLE resources
+    ADD COLUMN IF NOT EXISTS confirmation_interval INTEGER NOT NULL DEFAULT 30;

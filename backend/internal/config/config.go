@@ -32,6 +32,10 @@ type Config struct {
 	SchedulerMaxWorkers            int
 	SchedulerShutdownTimeout       time.Duration
 	SchedulerNotificationQueueSize int
+
+	// Confirmation window defaults
+	ConfirmationChecks   int
+	ConfirmationInterval int
 }
 
 // Load reads configuration from environment variables.
@@ -45,6 +49,8 @@ func Load() Config {
 	schedulerMaxWorkers := parseInt(GetEnv("SCHEDULER_MAX_WORKERS", "10"))
 	schedulerShutdownTimeout := parseDuration(GetEnv("SCHEDULER_SHUTDOWN_TIMEOUT", "15s"))
 	schedulerNotificationQueueSize := parseInt(GetEnv("SCHEDULER_NOTIFICATION_QUEUE_SIZE", "100"))
+	confirmationChecks := parseInt(GetEnv("CONFIRMATION_CHECKS", "2"))
+	confirmationInterval := parseInt(GetEnv("CONFIRMATION_INTERVAL", "30"))
 
 	cfg := Config{
 		RedisUrl:         GetEnv("REDIS_URL", "localhost:6379"),
@@ -67,6 +73,8 @@ func Load() Config {
 		SchedulerMaxWorkers:            schedulerMaxWorkers,
 		SchedulerShutdownTimeout:       schedulerShutdownTimeout,
 		SchedulerNotificationQueueSize: schedulerNotificationQueueSize,
+		ConfirmationChecks:             confirmationChecks,
+		ConfirmationInterval:           confirmationInterval,
 	}
 	return cfg
 }

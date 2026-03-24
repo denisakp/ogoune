@@ -7,6 +7,71 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func intPtr(v int) *int { return &v }
+
+func TestResolveConfirmationDefaults(t *testing.T) {
+	t.Run("uses defaults when omitted", func(t *testing.T) {
+		checks, interval := ResolveConfirmationDefaults(nil, nil, 2, 30)
+		assert.Equal(t, 2, checks)
+		assert.Equal(t, 30, interval)
+	})
+
+	t.Run("uses explicit values when provided", func(t *testing.T) {
+		checks, interval := ResolveConfirmationDefaults(intPtr(5), intPtr(12), 2, 30)
+		assert.Equal(t, 5, checks)
+		assert.Equal(t, 12, interval)
+	})
+}
+
+func TestValidateConfirmationSettings(t *testing.T) {
+	tests := []struct {
+		name                 string
+		interval             int
+		confirmationChecks   int
+		confirmationInterval int
+		expectedErr          error
+	}{
+		{
+			name:                 "valid",
+			interval:             60,
+			confirmationChecks:   2,
+			confirmationInterval: 30,
+		},
+		{
+			name:                 "invalid checks",
+			interval:             60,
+			confirmationChecks:   0,
+			confirmationInterval: 30,
+			expectedErr:          ErrInvalidConfirmationChecks,
+		},
+		{
+			name:                 "invalid confirmation interval",
+			interval:             60,
+			confirmationChecks:   2,
+			confirmationInterval: 0,
+			expectedErr:          ErrInvalidConfirmationInterval,
+		},
+		{
+			name:                 "invalid relation",
+			interval:             30,
+			confirmationChecks:   2,
+			confirmationInterval: 30,
+			expectedErr:          ErrInvalidConfirmationRelation,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := ValidateConfirmationSettings(tt.interval, tt.confirmationChecks, tt.confirmationInterval)
+			if tt.expectedErr != nil {
+				assert.ErrorIs(t, err, tt.expectedErr)
+				return
+			}
+			assert.NoError(t, err)
+		})
+	}
+}
+
 func TestValidateResourceTarget_HTTP(t *testing.T) {
 	tests := []struct {
 		name        string
