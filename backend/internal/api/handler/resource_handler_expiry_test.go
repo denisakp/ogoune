@@ -37,11 +37,11 @@ func TestCreateResource_InvalidExpiryThresholds(t *testing.T) {
 
 			thresholds := tc.thresholds
 			payload := dto.CreateResourcePayload{
-				Name:                 "Test Monitor",
-				Target:               "https://example.com",
-				Type:                 domain.ResourceHTTP,
-				Timeout:              30,
-				Interval:             60,
+				Name:                  "Test Monitor",
+				Target:                "https://example.com",
+				Type:                  domain.ResourceHTTP,
+				Timeout:               30,
+				Interval:              60,
 				ExpiryAlertThresholds: &thresholds,
 			}
 			body, _ := json.Marshal(payload)
@@ -77,11 +77,11 @@ func TestCreateResource_ValidExpiryThresholds(t *testing.T) {
 
 	thresholds := "30,14,7,1"
 	payload := dto.CreateResourcePayload{
-		Name:                 "Test Monitor",
-		Target:               "https://example.com",
-		Type:                 domain.ResourceHTTP,
-		Timeout:              30,
-		Interval:             60,
+		Name:                  "Test Monitor",
+		Target:                "https://example.com",
+		Type:                  domain.ResourceHTTP,
+		Timeout:               30,
+		Interval:              60,
 		ExpiryAlertThresholds: &thresholds,
 	}
 	body, _ := json.Marshal(payload)

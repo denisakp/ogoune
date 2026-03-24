@@ -4,7 +4,6 @@ import { useRouter, useRoute } from 'vue-router'
 import { message } from 'ant-design-vue'
 import {
   PauseOutlined,
-  PlayCircleOutlined,
   ArrowLeftOutlined,
   DashboardOutlined,
   RiseOutlined,
