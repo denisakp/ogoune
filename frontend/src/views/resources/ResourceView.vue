@@ -23,6 +23,7 @@ import { useResources } from '@/composables/useResources.ts'
 import { useDateTime } from '@/composables/useDateTime.ts'
 import ResourceModal from '@/components/resources/ResourceModal.vue'
 import ResponseTimeChart from '@/components/ResponseTimeChart.vue'
+import ExpiryBadge from '@/components/resources/ExpiryBadge.vue'
 import type { Resource, Incident, ExpirationStatus } from '@/types'
 
 const router = useRouter()
@@ -810,7 +811,7 @@ const goBack = () => {
                           {{ formatExpirationDate(resource.metadata.ssl_expiration_date) }}
                         </span>
                       </div>
-                      <div style="margin-top: 8px">
+                      <div style="margin-top: 8px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap">
                         <a-tag
                           :color="getExpirationStatus(resource.metadata.ssl_expiration_date).color"
                         >
@@ -831,6 +832,12 @@ const goBack = () => {
                           </template>
                           {{ getExpirationStatus(resource.metadata.ssl_expiration_date).text }}
                         </a-tag>
+                        <ExpiryBadge
+                          v-if="resource.expiry_status && resource.expiry_status !== 'ok' && resource.metadata?.ssl_days_remaining != null"
+                          type="ssl"
+                          :days-remaining="resource.metadata.ssl_days_remaining"
+                          :status="resource.expiry_status"
+                        />
                       </div>
                     </div>
                   </div>
@@ -883,7 +890,7 @@ const goBack = () => {
                           {{ formatExpirationDate(resource.metadata.domain_expiration_date) }}
                         </span>
                       </div>
-                      <div style="margin-top: 8px">
+                      <div style="margin-top: 8px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap">
                         <a-tag
                           :color="
                             getExpirationStatus(resource.metadata.domain_expiration_date).color
@@ -906,6 +913,12 @@ const goBack = () => {
                           </template>
                           {{ getExpirationStatus(resource.metadata.domain_expiration_date).text }}
                         </a-tag>
+                        <ExpiryBadge
+                          v-if="resource.expiry_status && resource.expiry_status !== 'ok' && resource.metadata?.domain_days_remaining != null"
+                          type="domain"
+                          :days-remaining="resource.metadata.domain_days_remaining"
+                          :status="resource.expiry_status"
+                        />
                       </div>
                     </div>
                   </div>

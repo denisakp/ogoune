@@ -13,6 +13,7 @@ type Processor struct {
 	server             *asynq.Server
 	monitoringHandler  *MonitoringTaskHandler
 	maintenanceHandler *mhandler.TaskHandler
+	expiryHandler      *ExpiryTaskHandler
 }
 
 // Config controls worker concurrency and queue weights for the hosted Asynq lane.
@@ -27,6 +28,7 @@ func NewProcessor(
 	redisOpt asynq.RedisConnOpt,
 	monitoringHandler *MonitoringTaskHandler,
 	maintenanceHandler *mhandler.TaskHandler,
+	expiryHandler *ExpiryTaskHandler,
 	config Config,
 ) *Processor {
 	if config.Concurrency <= 0 {
@@ -52,6 +54,7 @@ func NewProcessor(
 		server:             server,
 		monitoringHandler:  monitoringHandler,
 		maintenanceHandler: maintenanceHandler,
+		expiryHandler:      expiryHandler,
 	}
 }
 
@@ -62,6 +65,7 @@ func (p *Processor) Start(ctx context.Context) error {
 	mux.HandleFunc("monitoring:check", p.monitoringHandler.ProcessTask)
 	mux.HandleFunc("maintenance:start", p.maintenanceHandler.ProcessStart)
 	mux.HandleFunc("maintenance:end", p.maintenanceHandler.ProcessEnd)
+	mux.HandleFunc(TypeExpiryCheck, p.expiryHandler.ProcessTask)
 	// Note: notification:send handler removed - notifications are now sent directly by IncidentService
 
 	// Start the server

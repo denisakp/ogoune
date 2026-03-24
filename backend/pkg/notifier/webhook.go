@@ -56,6 +56,21 @@ func (n *WebHookNotifier) Send(ctx context.Context, payload NotificationPayload)
 			"status":    component.Status,
 			"impacted":  impacted,
 		}
+	case payload.Expiry != nil:
+		expiry := payload.Expiry
+		body = map[string]any{
+			"type":           "expiry",
+			"event_type":     "expiry",
+			"resource_id":    expiry.Resource.ID,
+			"resource_name":  expiry.Resource.Name,
+			"resource_url":   expiry.Resource.Target,
+			"expiry_type":    expiry.ExpiryType,
+			"days_remaining": expiry.DaysRemaining,
+			"expires_at":     expiry.ExpiresAt.Format(time.RFC3339),
+			"issuer":         expiry.Issuer,
+			"threshold":      expiry.Threshold,
+			"triggered_at":   expiry.TriggeredAt.Format(time.RFC3339),
+		}
 	case payload.Incident != nil:
 		incident := payload.Incident
 		status := "DOWN"
@@ -68,7 +83,7 @@ func (n *WebHookNotifier) Send(ctx context.Context, payload NotificationPayload)
 			"message": incident.Cause,
 		}
 	default:
-		return fmt.Errorf("notification payload missing incident or component")
+		return fmt.Errorf("notification payload missing incident, component, or expiry")
 	}
 
 	payloadBytes, err := json.Marshal(body)

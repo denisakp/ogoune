@@ -1,73 +1,398 @@
 # Contributing to PulseGuard
 
-Welcome to PulseGuardra! We appreciate your interest in contributing to our open-source project.
-Your contributions help make our project better and more inclusive. Before you get started, please
-take a moment to review our contribution guidelines.
+First off — thank you. PulseGuard is a small project and every contribution matters.
 
-## Types of Contributions We Welcome
-
-- **Bug Fixes**: Help us identify and fix issues in the project.
-- **New Features**: Contribute new features and enhancements to improve the project.
-- **Documentation**: Improve project documentation, README files, or provide examples.
-- **Bug Reports**: Report any issues, errors, or bugs you encounter.
-- **Feedback**: Share your feedback, ideas, or suggestions for improvement.
-- **Testing**: Help us test the project, identify edge cases, and ensure its reliability.
-- **Code Reviews**: Review pull requests, provide feedback, and help maintain code quality.
-
-## Getting Started
-
-To contribute to PulseGaurd, follow these steps:
-
-1. Fork the repository to your GitHub account.
-2. Clone your forked repository to your local machine.
-3. Create a new branch for your contribution:
-
-   ``` shell
-     git checkout -b feature/your-feature-name
-   ```
-4. Make your changes, additions, or fixes.
-5. Ensure your code adheres to our coding standards and conventions.
-6. Commit your changes with descriptive commit messages.
-7. Push your changes to your forked repository:
-
-   ``` shell
-     git push origin feature/your-feature-name
-   ```
-8. Open a pull request (PR) from your forked repository to this main repository.
-
-## Pull Request Guidelines
-
-When creating a pull request, please follow these guidelines:
-
-- Provide a clear and concise description of your changes.
-- Reference any relevant issues or related pull requests.
-- Ensure your code is well-documented and includes inline comments where necessary.
-- Test your changes thoroughly and provide evidence of successful testing.
-- Be responsive to any feedback or comments on your pull request.
-
-## Code of Conduct
-
-We enforce a Code of Conduct to ensure a welcoming and inclusive environment for all contributors.
-Please review our [Code of Conduct](CODE_OF_CONDUCT.md) to understand our community
-standards.
-
-## Our Commitment
-
-Our project maintainers are committed to responding promptly to issues, pull requests, and inquiries
-from contributors. We appreciate your time and effort in making this project better.
-
-Thank you for contributing to PulseGuardra!
-
-## Attribution
-
-We would like to acknowledge and thank all our contributors for their valuable contributions to 
-this project. Your dedication and support are greatly appreciated.
+This document tells you everything you need to know to go from "I want to help" to "my PR is merged."
 
 ---
-*This CONTRIBUTING.md file is based on best practices and guidelines for open-source contribution.
-Please note that contribution rules may be subject to change over time to better suit the needs 
-of the project.*
 
-[Back to the Top](#contributing-to-pulsegaurd)
+## Table of Contents
+
+- [Ways to contribute](#ways-to-contribute)
+- [Before you start](#before-you-start)
+- [Development setup](#development-setup)
+- [Project structure](#project-structure)
+- [Making a change](#making-a-change)
+- [Pull request guidelines](#pull-request-guidelines)
+- [For Go contributors](#for-go-contributors)
+- [For Vue 3 contributors](#for-vue-3-contributors)
+- [For DevOps / SRE contributors](#for-devops--sre-contributors)
+- [For technical writers](#for-technical-writers)
+- [Issue labels explained](#issue-labels-explained)
+- [Code of conduct](#code-of-conduct)
+
+---
+
+## Ways to contribute
+
+You don't need to write code to contribute.
+
+| Contribution | How |
+|---|---|
+| Report a bug | [Open an issue](https://github.com/denisakp/pulseguard/issues/new) |
+| Request a feature | [Start a discussion](https://github.com/denisakp/pulseguard/discussions/new) |
+| Fix a bug | Pick a [`bug`](https://github.com/denisakp/pulseguard/labels/bug) issue and open a PR |
+| Add a feature | Discuss first, then PR |
+| Improve docs | Edit any `.md` file and open a PR |
+| Share feedback | [Anonymous form](https://kawa-bunga.notion.site/2d1e5ad0a17d80dc8859e77817d901e3) — 2 minutes |
+| Tell others | Star the repo, share on Reddit, write a blog post |
+
+**Not sure where to start?** Look for issues labeled [`good first issue`](https://github.com/denisakp/pulseguard/labels/good%20first%20issue) — these are self-contained and well-documented.
+
+---
+
+## Before you start
+
+### For bug fixes and small improvements
+
+Just open a PR. No need to ask first.
+
+### For new features or significant changes
+
+**Open a discussion or issue first.** Explain what you want to build and why. This avoids wasted effort if the direction doesn't fit the project.
+
+The rule of thumb: if the change takes more than a day to implement, discuss it first.
+
+### For security vulnerabilities
+
+**Do not open a public issue.** See [SECURITY.md](./SECURITY.md) for responsible disclosure instructions.
+
+---
+
+## Development setup
+
+### Prerequisites
+
+| Tool | Version | Install |
+|---|---|---|
+| Go | 1.24+ | [go.dev](https://go.dev/dl/) |
+| Node.js | 22+ | [nodejs.org](https://nodejs.org) |
+| Docker | Latest | [docker.com](https://www.docker.com) |
+| Git | Latest | [git-scm.com](https://git-scm.com) |
+
+### Get started
+
+```bash
+# Clone the repo
+git clone https://github.com/denisakp/pulseguard.git
+cd pulseguard
+
+# Start the full stack (PostgreSQL + Redis)
+cp .env.example .env
+docker compose up -d
+
+# Or start with zero dependencies (SQLite + in-process scheduler)
+docker compose -f docker-compose.community.yml up -d
+```
+
+### Run backend only
+
+```bash
+cd backend
+go mod download
+go run ./cmd/api
+```
+
+### Run frontend only
+
+```bash
+cd frontend
+npm install
+npm run dev
+# → http://localhost:5173
+```
+
+### Run tests
+
+```bash
+# Backend — all tests
+cd backend
+go test ./...
+
+# Backend — with race detector (recommended before opening a PR)
+go test -race ./...
+
+# Frontend
+cd frontend
+npm run test
+```
+
+---
+
+## Project structure
 
 ```
+pulseguard/
+├── backend/
+│   ├── cmd/api/          → main entrypoint (server + worker)
+│   ├── internal/
+│   │   ├── api/          → HTTP router, handlers, middleware
+│   │   ├── domain/       → models, constants (models.go is the source of truth)
+│   │   ├── monitoring/   → check strategies (HTTP, TCP, DNS) + incident logic
+│   │   ├── worker/       → check execution handlers
+│   │   ├── scheduler/    → TimingWheel (Community) + Asynq (production)
+│   │   ├── database/     → SQLite + PostgreSQL drivers
+│   │   ├── service/      → business logic (resource, incident, notification...)
+│   │   └── maintenance/  → maintenance window scheduler
+│   └── pkg/              → reusable packages (notifier, apikey...)
+│
+├── frontend/
+│   └── src/
+│       ├── router/       → Vue Router routes
+│       ├── views/        → page components
+│       ├── components/   → shared UI components
+│       ├── composables/  → Vue 3 composables (useMonitorLive, etc.)
+│       └── stores/       → Pinia state management
+│
+├── docker-compose.yml              → full stack (PostgreSQL + Redis)
+├── docker-compose.community.yml   → zero dependencies (SQLite)
+└── .env.example                    → all available environment variables
+```
+
+The best starting point for understanding the codebase:
+- `backend/internal/domain/models.go` — all data models
+- `backend/internal/api/router.go` — all API routes
+- `backend/cmd/api/main.go` — how everything is wired together
+
+---
+
+## Making a change
+
+```bash
+# 1. Fork the repo and clone your fork
+git clone https://github.com/YOUR_USERNAME/pulseguard.git
+
+# 2. Create a branch — use a descriptive name
+git checkout -b fix/ssl-expiry-nil-panic
+git checkout -b feat/google-chat-notification
+git checkout -b docs/improve-api-key-setup
+
+# 3. Make your changes
+
+# 4. Run tests
+cd backend && go test -race ./...
+cd frontend && npm run test
+
+# 5. Commit with a clear message (see below)
+git commit -m "fix: handle nil SSL expiration date in enrichment service"
+
+# 6. Push and open a PR
+git push origin fix/ssl-expiry-nil-panic
+```
+
+### Commit message format
+
+Follow [Conventional Commits](https://www.conventionalcommits.org/):
+
+```
+<type>: <short description>
+
+Types:
+  feat     → new feature
+  fix      → bug fix
+  docs     → documentation only
+  refactor → code change that neither fixes a bug nor adds a feature
+  test     → adding or updating tests
+  chore    → build process, dependencies, tooling
+```
+
+Examples:
+```
+feat: add Google Chat notification channel
+fix: prevent duplicate expiry alerts on cert renewal
+docs: add webhook configuration example
+test: add flap detection integration tests
+refactor: extract confirmation window logic into service
+```
+
+---
+
+## Pull request guidelines
+
+### What makes a good PR
+
+- **One thing per PR** — a fix and an unrelated refactor in the same PR will be asked to split
+- **Tests included** — bug fixes need a test that reproduces the bug; features need tests covering the happy path
+- **No breaking changes without discussion** — API changes, model changes, config changes — open an issue first
+- **Description explains the why** — not just what changed, but why it matters
+
+### PR description template
+
+```markdown
+## What this does
+Brief description of the change.
+
+## Why
+Why is this needed? Link to the issue if applicable.
+
+## How to test
+Steps to verify the change works.
+
+## Checklist
+- [ ] Tests added or updated
+- [ ] go test -race ./... passes
+- [ ] No unrelated changes
+```
+
+### What to expect
+
+- **Response time** — I try to review PRs within a few days. If you haven't heard back in a week, ping the issue.
+- **Feedback** — I'll leave comments if something needs changing. This is normal — it's not a rejection.
+- **Merging** — once approved, I'll merge it. I may squash commits to keep the history clean.
+
+---
+
+## For Go contributors
+
+### Code style
+
+- Follow standard Go conventions — `gofmt` is mandatory
+- Run `go vet ./...` before submitting
+- Errors are explicit — no silent ignores (`_ = err` needs a comment explaining why)
+- Interfaces are small — define them where they're used, not in a central file
+- No global state — dependencies are injected
+
+### Where to add a new monitor type
+
+1. Create `backend/internal/monitoring/strategy/yourtype.go`
+2. Implement the `Strategy` interface
+3. Add `ResourceYourType ResourceType = "yourtype"` to `domain/models.go`
+4. Register it in `backend/cmd/api/main.go` in the strategies map
+
+### Where to add a new notification channel
+
+1. Create `backend/pkg/notifier/yournotifier.go`
+2. Implement the `Notifier` interface
+3. Add `NotificationChannelTypeYours NotificationChannelType = "yours"` to `domain/models.go`
+4. Add dispatch case in `backend/internal/monitoring/incident_service.go`
+5. Add config validation in `backend/internal/service/notification_service.go`
+
+### Database migrations
+
+- Add migration files to both `database/migrations/postgres/` and `database/migrations/sqlite/`
+- SQLite does not support `ADD COLUMN IF NOT EXISTS` or multiple columns in one `ALTER TABLE`
+- Use `GORM serializer:json` instead of `type:jsonb` for JSON fields — works on both drivers
+- Follow the existing naming convention: `XXXX_description.up.sql` / `.down.sql`
+
+### Testing
+
+- Use `setupTestDB(t)` helper (SQLite in-memory) for DB tests — no external infrastructure
+- Table-driven tests for anything with multiple cases
+- `go test -race ./...` must pass — no data races
+
+---
+
+## For Vue 3 contributors
+
+### Code style
+
+- Composition API only — no Options API
+- `<script setup>` syntax preferred
+- TypeScript for all new files
+- Pinia for shared state — no Vuex, no event bus
+
+### Component conventions
+
+- One component per file
+- Props typed with TypeScript interfaces
+- Emits declared explicitly
+- No direct DOM manipulation — use Vue refs
+
+### API calls
+
+- Follow the existing pattern in `frontend/src/composables/`
+- Use the `useApi()` composable for all HTTP calls — no raw `fetch` or `axios` directly in views
+- Handle loading, error, and empty states explicitly — never leave the user staring at a blank screen
+
+### Styling
+
+- Follow the existing design system — don't introduce new color variables or component libraries
+- Dark mode must work — test it before submitting
+
+### Adding a new page
+
+1. Create the view in `frontend/src/views/`
+2. Add the route in `frontend/src/router/index.ts`
+3. Add navigation entry if needed
+
+---
+
+## For DevOps / SRE contributors
+
+Your perspective is uniquely valuable — you're the target user.
+
+**What we most need from you:**
+
+- **Battle testing** — deploy PulseGuard in your real environment and tell us what breaks, what's confusing, or what's missing
+- **Performance feedback** — how does it behave with 100+ monitors? 500+? What degrades first?
+- **Docker / deployment feedback** — is the `docker-compose.community.yml` actually simple to use? What's missing?
+- **Alert quality feedback** — are there false positives you're still seeing? Edge cases the confirmation window misses?
+
+**How to share this:**
+
+- Open an issue with the `feedback` label
+- Or use the [anonymous feedback form](https://kawa-bunga.notion.site/2d1e5ad0a17d80dc8859e77817d901e3)
+
+You don't need to write code. Detailed feedback about real-world usage is worth more than most PRs.
+
+---
+
+## For technical writers
+
+### What needs documenting
+
+- `QUICKSTART.md` — the detailed setup guide (currently sparse)
+- `backend/ARCHITECTURE.md` — how the backend is designed
+- Inline code comments — especially in `handler_monitoring.go` and `incident_service.go`
+- API reference — the endpoints, request/response shapes
+
+### Style guide
+
+- English only
+- Short sentences — monitoring tool users are in a hurry
+- Show, don't tell — prefer code examples over prose descriptions
+- Second person — "you" not "the user"
+- No filler — "simply", "just", "easily" add no information
+
+### How to submit doc changes
+
+Same as code — fork, branch, PR. Doc-only PRs are reviewed quickly.
+
+---
+
+## Issue labels explained
+
+| Label | Meaning |
+|---|---|
+| `good first issue` | Self-contained, well-scoped, good starting point |
+| `bug` | Something is broken |
+| `enhancement` | New feature or improvement |
+| `help wanted` | Maintainer needs input or a contributor to pick this up |
+| `feedback` | Asking for real-world usage feedback |
+| `documentation` | Docs only |
+| `backend` | Go / backend change |
+| `frontend` | Vue / frontend change |
+| `wontfix` | Out of scope or intentional behavior |
+
+---
+
+## Code of conduct
+
+Be direct. Be respectful. Assume good intent.
+
+- Criticism of code is not criticism of the person
+- If something is unclear, ask — don't assume
+- English is not everyone's first language — be patient
+
+Issues or PRs that are disrespectful will be closed without comment.
+
+---
+
+## Questions?
+
+- **GitHub Discussions** — [ask anything](https://github.com/denisakp/pulseguard/discussions)
+- **GitHub Issues** — [report a bug](https://github.com/denisakp/pulseguard/issues)
+
+---
+
+*Thanks for taking the time to contribute — it means a lot.*

@@ -4,8 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/denisakp/pulseguard/internal/api/response"
 	"github.com/denisakp/pulseguard/internal/domain"
@@ -41,6 +43,30 @@ func NewResourceHandler(resourceService ResourceServiceInterface) *ResourceHandl
 	return &ResourceHandler{
 		resourceService: resourceService,
 	}
+}
+
+// validateExpiryThresholds returns an error when the comma-separated threshold
+// string contains any value that is non-positive or greater than 365.
+// An empty string or nil pointer is treated as "use global defaults" — no error.
+func validateExpiryThresholds(s string) error {
+	if s == "" {
+		return nil
+	}
+	parts := strings.Split(s, ",")
+	for _, p := range parts {
+		p = strings.TrimSpace(p)
+		if p == "" {
+			continue
+		}
+		v, err := strconv.Atoi(p)
+		if err != nil {
+			return fmt.Errorf("invalid threshold value %q: must be an integer", p)
+		}
+		if v <= 0 || v > 365 {
+			return fmt.Errorf("threshold value %d is out of range (must be 1–365)", v)
+		}
+	}
+	return nil
 }
 
 // CreateResource handles POST /resources - creates a new monitoring resource.
@@ -93,6 +119,14 @@ func (h *ResourceHandler) CreateResource(w http.ResponseWriter, r *http.Request)
 	if resource.ConfirmationInterval != nil && *resource.ConfirmationInterval >= resource.Interval {
 		respondError(w, http.StatusBadRequest, "confirmation_interval must be < interval")
 		return
+	}
+
+	// Validate per-resource expiry alert thresholds (FR-012)
+	if resource.ExpiryAlertThresholds != nil {
+		if err := validateExpiryThresholds(*resource.ExpiryAlertThresholds); err != nil {
+			respondError(w, http.StatusUnprocessableEntity, "expiry_alert_thresholds: "+err.Error())
+			return
+		}
 	}
 
 	// Call service layer to create resource (which will also schedule monitoring)
@@ -190,6 +224,14 @@ func (h *ResourceHandler) UpdateResource(w http.ResponseWriter, r *http.Request)
 	if payload.Interval != nil && payload.ConfirmationInterval != nil && *payload.ConfirmationInterval >= *payload.Interval {
 		respondError(w, http.StatusBadRequest, "confirmation_interval must be < interval")
 		return
+	}
+
+	// Validate per-resource expiry alert thresholds (FR-012)
+	if payload.ExpiryAlertThresholds != nil {
+		if err := validateExpiryThresholds(*payload.ExpiryAlertThresholds); err != nil {
+			respondError(w, http.StatusUnprocessableEntity, "expiry_alert_thresholds: "+err.Error())
+			return
+		}
 	}
 
 	// Call service layer to update resource (which will also reschedule monitoring)

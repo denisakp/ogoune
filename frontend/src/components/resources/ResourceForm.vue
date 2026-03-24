@@ -26,6 +26,7 @@ const form = ref<CreateResource & { component_id?: string }>({
   confirmation_interval: 30,
   tags: [],
   component_id: undefined,
+  expiry_alert_thresholds: undefined,
 })
 
 const loading = ref(false)
@@ -44,6 +45,7 @@ watch(
         confirmation_interval: resource.confirmation_interval,
         tags: (resource.tags ?? []).map((t) => t.name),
         component_id: resource.component_id || undefined,
+        expiry_alert_thresholds: resource.expiry_alert_thresholds ?? undefined,
       }
     } else {
       form.value = {
@@ -56,6 +58,7 @@ watch(
         confirmation_interval: 30,
         tags: [],
         component_id: undefined,
+        expiry_alert_thresholds: undefined,
       }
     }
   },
@@ -84,6 +87,14 @@ const handleSubmit = async () => {
   if ((form.value.confirmation_interval ?? 0) >= form.value.interval) {
     return
   }
+  const thresholds = form.value.expiry_alert_thresholds?.trim()
+  if (thresholds) {
+    const parts = thresholds.split(',').map((s) => s.trim())
+    const invalid = parts.some((p) => !/^\d+$/.test(p) || +p < 1 || +p > 365)
+    if (invalid) {
+      return
+    }
+  }
 
   loading.value = true
 
@@ -99,6 +110,7 @@ const handleSubmit = async () => {
         confirmation_interval: form.value.confirmation_interval,
         tags: form.value.tags,
         component_id: form.value.component_id,
+        expiry_alert_thresholds: form.value.expiry_alert_thresholds || undefined,
       }
       await updateResourceData(props.resource.id, updateData)
     } else {
@@ -258,6 +270,19 @@ const componentOptions = computed(() => [
       <div style="margin-top: 8px; font-size: 12px; color: rgba(0, 0, 0, 0.45)">
         💡 Group related resources together (e.g., "Frontend Services", "API Servers"). A resource
         can belong to only one component.
+      </div>
+    </a-form-item>
+
+    <!-- Expiry Alert Thresholds (HTTP only) -->
+    <a-form-item v-if="form.type === 'http'" label="Custom Expiry Alert Thresholds (days)">
+      <a-input
+        v-model:value="form.expiry_alert_thresholds"
+        placeholder="e.g. 30,14,7,1"
+        allow-clear
+      />
+      <div style="margin-top: 8px; font-size: 12px; color: rgba(0, 0, 0, 0.45)">
+        🔒 Comma-separated days before SSL/domain expiry to send alerts (each value 1–365). Leave
+        blank to use global defaults.
       </div>
     </a-form-item>
 

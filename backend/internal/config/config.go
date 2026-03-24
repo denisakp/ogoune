@@ -34,8 +34,9 @@ type Config struct {
 	SchedulerNotificationQueueSize int
 
 	// Confirmation window defaults
-	ConfirmationChecks   int
-	ConfirmationInterval int
+	ConfirmationChecks    int
+	ConfirmationInterval  int
+	ExpiryAlertThresholds string
 }
 
 // Load reads configuration from environment variables.
@@ -75,6 +76,7 @@ func Load() Config {
 		SchedulerNotificationQueueSize: schedulerNotificationQueueSize,
 		ConfirmationChecks:             confirmationChecks,
 		ConfirmationInterval:           confirmationInterval,
+		ExpiryAlertThresholds:          GetEnv("EXPIRY_ALERT_THRESHOLDS", "30,14,7,1"),
 	}
 	return cfg
 }

@@ -2,6 +2,7 @@ package notifier
 
 import (
 	"context"
+	"time"
 
 	"github.com/denisakp/pulseguard/internal/domain"
 )
@@ -21,11 +22,23 @@ type ComponentResource struct {
 	Status domain.ResourceStatus
 }
 
-// NotificationPayload is a union of either a resource incident or a component update.
-// Only one of Incident or Component should be non-nil.
+// NotificationPayload is a union of either a resource incident, a component update, or an expiry alert.
+// Exactly one field should be non-nil per dispatch.
 type NotificationPayload struct {
 	Incident  *domain.Incident
 	Component *ComponentNotification
+	Expiry    *ExpiryNotification
+}
+
+// ExpiryNotification carries expiry-specific data for threshold alert dispatching.
+type ExpiryNotification struct {
+	Resource      domain.Resource
+	ExpiryType    string // "ssl" | "domain"
+	DaysRemaining int
+	ExpiresAt     time.Time
+	Issuer        string // certificate issuer (SSL) or registrar (domain)
+	Threshold     int    // which threshold triggered this alert
+	TriggeredAt   time.Time
 }
 
 // Notifier defines the interface for sending notifications.

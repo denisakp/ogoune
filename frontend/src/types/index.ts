@@ -6,6 +6,8 @@ export interface ResourceMetadata {
   ssl_issuer?: string
   domain_expiration_date?: string
   domain_registrar?: string
+  ssl_days_remaining?: number | null
+  domain_days_remaining?: number | null
 }
 
 /**
@@ -23,6 +25,8 @@ export interface Resource {
   failure_count: number
   confirmation_checks: number
   confirmation_interval: number
+  expiry_alert_thresholds?: string | null
+  expiry_status?: 'ok' | 'warning' | 'critical' | 'expired'
   last_checked?: string
   created_at: string
   updated_at: string
@@ -74,6 +78,7 @@ export interface CreateResource {
   confirmation_interval?: number
   tags: string[]
   component_id?: string // Optional component assignment
+  expiry_alert_thresholds?: string // Comma-separated days, e.g. "30,14,7,1"
 }
 
 export type UpdateResource = Partial<CreateResource>

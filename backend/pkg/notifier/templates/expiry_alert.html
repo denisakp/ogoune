@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Expiry Alert</title>
+  <style>
+    body { font-family: Arial, sans-serif; background-color: #f4f4f4; margin: 0; padding: 20px; }
+    .container { max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+    .header { background-color: #f59e0b; color: white; padding: 24px; text-align: center; }
+    .header h1 { margin: 0; font-size: 24px; }
+    .body { padding: 24px; }
+    .detail-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #e5e7eb; }
+    .detail-label { color: #6b7280; font-weight: 600; }
+    .detail-value { color: #111827; }
+    .badge { display: inline-block; padding: 4px 12px; border-radius: 9999px; font-size: 14px; font-weight: 700; }
+    .badge-warning { background-color: #fef3c7; color: #92400e; }
+    .footer { background-color: #f9fafb; padding: 16px; text-align: center; color: #9ca3af; font-size: 12px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>⚠️ {{ if eq .ExpiryType "ssl" }}🔒 SSL{{ else }}🌐 Domain{{ end }} Expiry Alert</h1>
+    </div>
+    <div class="body">
+      <p>The following resource requires your attention — its {{ if eq .ExpiryType "ssl" }}SSL certificate{{ else }}domain registration{{ end }} is expiring soon.</p>
+
+      <div class="detail-row">
+        <span class="detail-label">Resource</span>
+        <span class="detail-value">{{ .ResourceName }}</span>
+      </div>
+      <div class="detail-row">
+        <span class="detail-label">URL</span>
+        <span class="detail-value">{{ .ResourceURL }}</span>
+      </div>
+      <div class="detail-row">
+        <span class="detail-label">Type</span>
+        <span class="detail-value">{{ if eq .ExpiryType "ssl" }}SSL Certificate{{ else }}Domain Registration{{ end }}</span>
+      </div>
+      <div class="detail-row">
+        <span class="detail-label">Expires On</span>
+        <span class="detail-value">{{ .ExpiresAt }}</span>
+      </div>
+      <div class="detail-row">
+        <span class="detail-label">Days Remaining</span>
+        <span class="detail-value"><strong>{{ .DaysRemaining }} days</strong></span>
+      </div>
+      {{ if .Issuer }}
+      <div class="detail-row">
+        <span class="detail-label">{{ if eq .ExpiryType "ssl" }}Issuer{{ else }}Registrar{{ end }}</span>
+        <span class="detail-value">{{ .Issuer }}</span>
+      </div>
+      {{ end }}
+      <div class="detail-row">
+        <span class="detail-label">Alert Threshold</span>
+        <span class="detail-value">{{ .Threshold }} days</span>
+      </div>
+
+      <p style="margin-top: 20px;">Please renew your {{ if eq .ExpiryType "ssl" }}SSL certificate{{ else }}domain registration{{ end }} as soon as possible to avoid service disruption.</p>
+    </div>
+    <div class="footer">
+      <p>This alert was sent by PulseGuard. You will not receive this alert again for this threshold until renewal is detected.</p>
+    </div>
+  </div>
+</body>
+</html>

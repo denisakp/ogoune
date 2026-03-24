@@ -316,6 +316,25 @@ func main() {
 			}
 
 			log.Printf("✓ TimingWheel check dispatcher started with %d workers", workers)
+
+			// Daily expiry check in TimingWheel mode (no Redis).
+			twExpiryNotificationLogRepo := postgres.NewExpiryNotificationLogRepository(db)
+			twExpiryService := service.NewExpiryNotificationService(
+				twExpiryNotificationLogRepo,
+				notificationChannelRepo,
+				service.ParseGlobalThresholds(cfg.ExpiryAlertThresholds),
+			)
+			twExpiryHandler := worker.NewExpiryTaskHandler(resourceRepo, notificationChannelRepo, enrichmentService, twExpiryService)
+			go func() {
+				ticker := time.NewTicker(24 * time.Hour)
+				defer ticker.Stop()
+				for range ticker.C {
+					if err := twExpiryHandler.ProcessTask(context.Background(), asynq.NewTask(worker.TypeExpiryCheck, nil)); err != nil {
+						log.Printf("⚠️  TimingWheel expiry:check failed: %v", err)
+					}
+				}
+			}()
+			log.Println("✓ TimingWheel daily expiry check scheduled")
 		}
 
 	} else {
@@ -387,8 +406,22 @@ func main() {
 		monitoringHandler := worker.NewMonitoringTaskHandler(resourceRepo, monitoringActivityRepo, maintenanceRepo, incidentDiagnosticsRepo, executor, incidentService, componentService, confirmationScheduler)
 		maintenanceTaskHandler := maintenance.NewTaskHandler(maintenanceRepo, asynqClient)
 
+		// Initialize expiry notification service and handler
+		expiryNotificationLogRepo := postgres.NewExpiryNotificationLogRepository(db)
+		expiryService := service.NewExpiryNotificationService(
+			expiryNotificationLogRepo,
+			notificationChannelRepo,
+			service.ParseGlobalThresholds(cfg.ExpiryAlertThresholds),
+		)
+		expiryTaskHandler := worker.NewExpiryTaskHandler(resourceRepo, notificationChannelRepo, enrichmentService, expiryService)
+
+		// Register daily expiry check with the Asynq scheduler
+		if _, err := asynqScheduler.Register("@daily", asynq.NewTask(worker.TypeExpiryCheck, nil)); err != nil {
+			log.Printf("⚠️  Failed to register expiry:check scheduler: %v", err)
+		}
+
 		// Create the Asynq worker processor
-		processor = worker.NewProcessor(redisOpt, monitoringHandler, maintenanceTaskHandler, worker.Config{
+		processor = worker.NewProcessor(redisOpt, monitoringHandler, maintenanceTaskHandler, expiryTaskHandler, worker.Config{
 			Concurrency: schedulerCfg.Asynq.Concurrency,
 		})
 		defer processor.Stop()

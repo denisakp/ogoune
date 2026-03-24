@@ -2,6 +2,8 @@ package domain
 
 import (
 	"math/rand"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/oklog/ulid/v2"
@@ -77,27 +79,123 @@ type ResourceMetaData struct {
 // A Resource is something that can be monitored, such as a website or server.
 type Resource struct {
 	Base
-	Name                 string                 `json:"name"`
-	Type                 ResourceType           `json:"type"  gorm:"index"`
-	Interval             int                    `json:"interval" gorm:"default:300"` // in seconds
-	Timeout              int                    `json:"timeout" gorm:"default:10"`   // in seconds
-	Target               string                 `json:"target"`
-	LastChecked          *time.Time             `json:"last_checked"`
-	Status               ResourceStatus         `json:"status" gorm:"default:pending"`
-	IsActive             bool                   `json:"is_active" gorm:"default:true"`
-	FailureCount         int                    `json:"failure_count" gorm:"default:0"`
-	ConfirmationChecks   int                    `json:"confirmation_checks" gorm:"default:2"`
-	ConfirmationInterval int                    `json:"confirmation_interval" gorm:"default:30"`
-	Metadata             *ResourceMetaData      `json:"metadata" gorm:"embedded"`
-	Incidents            []Incident             `json:"incidents"`
-	Tags                 []*Tags                `json:"tags" gorm:"many2many:resource_tags;joinForeignKey:resource_id;joinReferences:tag_id;"`
-	NotificationChannels []*NotificationChannel `json:"notification_channels" gorm:"many2many:resource_notification_channels;"`
-	ComponentID          *string                `json:"component_id" gorm:"index"`
-	Component            *Component             `json:"component" gorm:"foreignKey:ComponentID"`
-	MetadataPending      bool                   `json:"metadata_pending" gorm:"-"`
+	Name                  string                 `json:"name"`
+	Type                  ResourceType           `json:"type"  gorm:"index"`
+	Interval              int                    `json:"interval" gorm:"default:300"` // in seconds
+	Timeout               int                    `json:"timeout" gorm:"default:10"`   // in seconds
+	Target                string                 `json:"target"`
+	LastChecked           *time.Time             `json:"last_checked"`
+	Status                ResourceStatus         `json:"status" gorm:"default:pending"`
+	IsActive              bool                   `json:"is_active" gorm:"default:true"`
+	FailureCount          int                    `json:"failure_count" gorm:"default:0"`
+	ConfirmationChecks    int                    `json:"confirmation_checks" gorm:"default:2"`
+	ConfirmationInterval  int                    `json:"confirmation_interval" gorm:"default:30"`
+	ExpiryAlertThresholds *string                `json:"expiry_alert_thresholds" gorm:"column:expiry_alert_thresholds"`
+	Metadata              *ResourceMetaData      `json:"metadata" gorm:"embedded"`
+	Incidents             []Incident             `json:"incidents"`
+	Tags                  []*Tags                `json:"tags" gorm:"many2many:resource_tags;joinForeignKey:resource_id;joinReferences:tag_id;"`
+	NotificationChannels  []*NotificationChannel `json:"notification_channels" gorm:"many2many:resource_notification_channels;"`
+	ComponentID           *string                `json:"component_id" gorm:"index"`
+	Component             *Component             `json:"component" gorm:"foreignKey:ComponentID"`
+	MetadataPending       bool                   `json:"metadata_pending" gorm:"-"`
 }
 
 func (Resource) TableName() string { return "resources" }
+
+// ExpiryStatus represents the computed expiry state of a resource's SSL certificate or domain.
+type ExpiryStatus string
+
+const (
+	ExpiryStatusOK       ExpiryStatus = "ok"
+	ExpiryStatusWarning  ExpiryStatus = "warning"
+	ExpiryStatusCritical ExpiryStatus = "critical"
+	ExpiryStatusExpired  ExpiryStatus = "expired"
+)
+
+// ComputeExpiryStatus returns the expiry status for the given number of days remaining.
+func ComputeExpiryStatus(daysRemaining int) ExpiryStatus {
+	switch {
+	case daysRemaining <= 0:
+		return ExpiryStatusExpired
+	case daysRemaining <= 7:
+		return ExpiryStatusCritical
+	case daysRemaining <= 30:
+		return ExpiryStatusWarning
+	default:
+		return ExpiryStatusOK
+	}
+}
+
+// AggregateExpiryStatus returns the worst-case ExpiryStatus across ssl and domain timelines.
+func AggregateExpiryStatus(ssl, domain ExpiryStatus) ExpiryStatus {
+	rank := map[ExpiryStatus]int{
+		ExpiryStatusOK:       0,
+		ExpiryStatusWarning:  1,
+		ExpiryStatusCritical: 2,
+		ExpiryStatusExpired:  3,
+	}
+	if rank[domain] > rank[ssl] {
+		return domain
+	}
+	return ssl
+}
+
+// DefaultExpiryThresholds returns the hardcoded fallback threshold list.
+func DefaultExpiryThresholds() []int {
+	return []int{30, 14, 7, 1}
+}
+
+// ExpiryThresholds returns the resolved alert thresholds for this resource.
+// Priority: resource-level field → globalDefaults → hardcoded defaults.
+func (r *Resource) ExpiryThresholds(globalDefaults []int) []int {
+	if r.ExpiryAlertThresholds == nil || *r.ExpiryAlertThresholds == "" {
+		if len(globalDefaults) > 0 {
+			return globalDefaults
+		}
+		return DefaultExpiryThresholds()
+	}
+	parsed := parseThresholds(*r.ExpiryAlertThresholds)
+	if len(parsed) == 0 {
+		if len(globalDefaults) > 0 {
+			return globalDefaults
+		}
+		return DefaultExpiryThresholds()
+	}
+	return parsed
+}
+
+// parseThresholds parses a comma-separated threshold string (e.g. "30,14,7,1").
+// Values that are not positive integers or exceed 365 are silently ignored.
+func parseThresholds(s string) []int {
+	parts := strings.Split(s, ",")
+	result := make([]int, 0, len(parts))
+	for _, p := range parts {
+		v, err := strconv.Atoi(strings.TrimSpace(p))
+		if err != nil || v <= 0 || v > 365 {
+			continue
+		}
+		result = append(result, v)
+	}
+	return result
+}
+
+// ParseThresholds parses a comma-separated threshold string (exported for use in validation).
+func ParseThresholds(s string) []int {
+	return parseThresholds(s)
+}
+
+// ExpiryNotificationLog records that a threshold alert was dispatched for a specific
+// resource and expiry type. It prevents duplicate notifications across daily check runs.
+type ExpiryNotificationLog struct {
+	Base
+	ResourceID string    `json:"resource_id" gorm:"index;not null"`
+	Resource   Resource  `json:"resource"    gorm:"foreignKey:ResourceID;constraint:OnDelete:CASCADE"`
+	ExpiryType string    `json:"expiry_type" gorm:"index;not null"`
+	Threshold  int       `json:"threshold"   gorm:"index;not null"`
+	SentAt     time.Time `json:"sent_at"     gorm:"not null"`
+}
+
+func (ExpiryNotificationLog) TableName() string { return "expiry_notification_logs" }
 
 // Component is a logical grouping of resources. Its status is derived from member resources.
 type Component struct {

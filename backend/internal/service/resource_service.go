@@ -121,15 +121,16 @@ func (s *ResourceService) CreateResource(ctx context.Context, payload *dto.Creat
 	}
 
 	resource := &domain.Resource{
-		Name:                 payload.Name,
-		Type:                 payload.Type,
-		Interval:             payload.Interval,
-		Timeout:              payload.Timeout,
-		Target:               payload.Target,
-		IsActive:             true,
-		Status:               domain.StatusPending,
-		ConfirmationChecks:   resolvedChecks,
-		ConfirmationInterval: resolvedInterval,
+		Name:                  payload.Name,
+		Type:                  payload.Type,
+		Interval:              payload.Interval,
+		Timeout:               payload.Timeout,
+		Target:                payload.Target,
+		IsActive:              true,
+		Status:                domain.StatusPending,
+		ConfirmationChecks:    resolvedChecks,
+		ConfirmationInterval:  resolvedInterval,
+		ExpiryAlertThresholds: payload.ExpiryAlertThresholds,
 	}
 
 	// Optional component assignment
@@ -237,10 +238,12 @@ func (s *ResourceService) GetResourceByIDWithResponseTimes(ctx context.Context, 
 	if err != nil {
 		// Don't fail the entire request if we can't get response times
 		// Just log and return resource without response times
-		return &dto.ResourceResponse{
+		rr := &dto.ResourceResponse{
 			Resource:      *resource,
 			ResponseTimes: []dto.ResponseTimePoint{},
-		}, nil
+		}
+		dto.EnrichResponseExpiry(rr)
+		return rr, nil
 	}
 
 	// Map to DTO response times
@@ -252,10 +255,13 @@ func (s *ResourceService) GetResourceByIDWithResponseTimes(ctx context.Context, 
 		}
 	}
 
-	return &dto.ResourceResponse{
+	rr := &dto.ResourceResponse{
 		Resource:      *resource,
 		ResponseTimes: responseTimes,
-	}, nil
+	}
+	dto.EnrichResponseExpiry(rr)
+
+	return rr, nil
 }
 
 // UpdateResource updates an existing resource by ID with the provided payload.
@@ -341,6 +347,15 @@ func (s *ResourceService) UpdateResource(ctx context.Context, id string, payload
 	// Validate target format after updates
 	if err := domain.ValidateResourceTarget(resource.Target, resource.Type); err != nil {
 		return nil, fmt.Errorf("%w: %v", ErrValidationFailed, err)
+	}
+
+	// Apply per-resource expiry alert threshold override (empty string → clear the field)
+	if payload.ExpiryAlertThresholds != nil {
+		if *payload.ExpiryAlertThresholds == "" {
+			resource.ExpiryAlertThresholds = nil
+		} else {
+			resource.ExpiryAlertThresholds = payload.ExpiryAlertThresholds
+		}
 	}
 
 	// Defer SSL/WHOIS enrichment to avoid blocking the update request

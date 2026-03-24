@@ -53,8 +53,8 @@ Key packages and files (relative to backend/):
 - internal/monitoring/incident_service.go: incident lifecycle + notifications fan‑out
 - internal/monitoring/strategy/{http,tcp}.go: concrete monitoring strategies
 - internal/worker/processor.go: Asynq server and task mux
-- internal/worker/handler_monitoring.go: “monitoring:check” task handler
-- internal/database/*: driver selection, openers, startup migration runner, authoritative SQL migrations
+- internal/worker/handler_monitoring.go: “monitoring:check” task handler- internal/worker/handler_expiry.go: "expiry:check" daily background task handler
+- internal/service/expiry_notification_service.go: threshold evaluation, dedup, and notification dispatch for SSL/domain expiry- internal/database/*: driver selection, openers, startup migration runner, authoritative SQL migrations
 - internal/repository/postgres/*: GORM repository implementations + legacy DB wrapper
 - pkg/notifier/*: SMTP + Slack/Webhook providers and factory
 
@@ -139,6 +139,12 @@ End‑to‑end flow:
 7) Notifications
    - Channel-based: notification channels (SMTP/Slack/Webhook/SMS) are stored in the database and dispatched via the notifier factory.
    - Testing: `/notification-channels/{id}/test` for saved channels; `/notification-channels/test-config` to validate before saving.
+
+8) SSL/Domain Expiry Alerts (daily background task)
+   - A separate `expiry:check` task runs once per day (via Asynq `@daily` scheduler or a 24-hour TimingWheel ticker in community/SQLite deployments).
+   - `ExpiryTaskHandler` (internal/worker/handler_expiry.go) iterates all active HTTP resources, enriches SSL/WHOIS metadata, detects certificate/domain renewals (resets dedup logs), and delegates to `ExpiryNotificationService`.
+   - `ExpiryNotificationService` (internal/service/expiry_notification_service.go) evaluates configurable threshold sets (global default: `EXPIRY_ALERT_THRESHOLDS=30,14,7,1`; per-resource override via `expiry_alert_thresholds` field), deduplicates via `expiry_notification_logs`, and dispatches alerts through the same SMTP/Webhook channel routing used for incidents.
+   - Resource API (`PATCH /resources/{id}`) accepts `expiry_alert_thresholds` (comma-separated integers 1–365) to override global defaults per monitor.
 
 ---
 

@@ -16,6 +16,7 @@ import { useDateTime } from '@/composables/useDateTime'
 import { useComponents } from '@/composables/useComponents'
 import ResourceModal from '@/components/resources/ResourceModal.vue'
 import GroupResourcesModal from '@/components/modals/GroupResourcesModal.vue'
+import ExpiryBadge from '@/components/resources/ExpiryBadge.vue'
 import UptimeSparkline from '@/components/UptimeSparkline.vue'
 import Last24HoursStatsCard from '@/components/Last24HoursStatsCard.vue'
 import type { Resource } from '@/types'
@@ -446,11 +447,25 @@ const handleRowClick = (record: Resource) => {
 
             <!-- Name Column -->
             <template v-else-if="column.key === 'name'">
-              <div style="display: flex; align-items: center; gap: 8px">
+              <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap">
                 <span>{{ record.name }}</span>
                 <a-tag :color="getTypeColor(record.type)" style="margin: 0">
                   {{ record.type.toUpperCase() }}
                 </a-tag>
+                <template v-if="record.expiry_status && record.expiry_status !== 'ok'">
+                  <ExpiryBadge
+                    v-if="record.metadata?.ssl_days_remaining != null"
+                    type="ssl"
+                    :days-remaining="record.metadata.ssl_days_remaining"
+                    :status="record.expiry_status"
+                  />
+                  <ExpiryBadge
+                    v-if="record.metadata?.domain_days_remaining != null"
+                    type="domain"
+                    :days-remaining="record.metadata.domain_days_remaining"
+                    :status="record.expiry_status"
+                  />
+                </template>
               </div>
             </template>
 

@@ -158,3 +158,18 @@ type IncidentDiagnosticsRepository interface {
 	Update(ctx context.Context, d *domain.IncidentDiagnostics) error
 	Delete(ctx context.Context, id string) error
 }
+
+// ExpiryNotificationLogRepository manages deduplication records for expiry alerts.
+type ExpiryNotificationLogRepository interface {
+	// CountByKey returns how many log entries exist for the given resource/type/threshold combination.
+	CountByKey(ctx context.Context, resourceID, expiryType string, threshold int) (int64, error)
+
+	// Create persists a new log entry after a successful notification dispatch.
+	Create(ctx context.Context, log *domain.ExpiryNotificationLog) error
+
+	// DeleteByResourceIDAndType removes all logs for a resource+type pair (called on renewal reset).
+	DeleteByResourceIDAndType(ctx context.Context, resourceID, expiryType string) error
+
+	// DeleteOlderThan removes log entries with sent_at older than the given cutoff time.
+	DeleteOlderThan(ctx context.Context, cutoff time.Time) error
+}

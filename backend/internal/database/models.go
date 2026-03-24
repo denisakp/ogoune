@@ -16,6 +16,7 @@ var RegisteredModels = []any{
 	&domain.MonitoringActivity{},
 	&domain.StatusPageSettings{},
 	&domain.User{},
+	&domain.ExpiryNotificationLog{},
 }
 
 // RegisteredJoinTables captures SQL-managed many-to-many tables that are not first-class domain models.

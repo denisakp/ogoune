@@ -38,6 +38,16 @@ type ComponentTemplateData struct {
 	Impacted []ComponentResource
 }
 
+type ExpiryTemplateData struct {
+	ResourceName  string
+	ResourceURL   string
+	ExpiryType    string
+	DaysRemaining int
+	ExpiresAt     string
+	Issuer        string
+	Threshold     int
+}
+
 type TestTemplateData struct {
 	Message   string
 	Timestamp string
@@ -95,11 +105,14 @@ func (n *SMTPNotifier) Send(ctx context.Context, payload NotificationPayload) er
 	case payload.Component != nil:
 		subject = n.componentSubject(payload.Component)
 		htmlBody = n.generateComponentEmailHTML(payload.Component)
+	case payload.Expiry != nil:
+		subject = n.expirySubject(payload.Expiry)
+		htmlBody = n.generateExpiryEmailHTML(payload.Expiry)
 	case payload.Incident != nil:
 		incident := *payload.Incident
 		subject, htmlBody = n.incidentEmailContent(incident)
 	default:
-		return fmt.Errorf("notification payload missing incident or component")
+		return fmt.Errorf("notification payload missing incident, component, or expiry")
 	}
 
 	message := gomail.NewMessage()
@@ -295,4 +308,40 @@ func (n *SMTPNotifier) SendTestNotification(ctx context.Context, resource domain
 
 	log.Printf("[SMTP Notifier] Successfully sent test email to %s\nSubject: %s", n.recipient, subject)
 	return nil
+}
+
+func (n *SMTPNotifier) expirySubject(expiry *ExpiryNotification) string {
+	typeLabel := "SSL"
+	if expiry.ExpiryType == "domain" {
+		typeLabel = "Domain"
+	}
+	return fmt.Sprintf("⚠️ %s expiry alert: %s expires in %d days", typeLabel, expiry.Resource.Name, expiry.DaysRemaining)
+}
+
+func (n *SMTPNotifier) generateExpiryEmailHTML(expiry *ExpiryNotification) string {
+	data := &ExpiryTemplateData{
+		ResourceName:  expiry.Resource.Name,
+		ResourceURL:   expiry.Resource.Target,
+		ExpiryType:    expiry.ExpiryType,
+		DaysRemaining: expiry.DaysRemaining,
+		ExpiresAt:     expiry.ExpiresAt.Format("2006-01-02"),
+		Issuer:        expiry.Issuer,
+		Threshold:     expiry.Threshold,
+	}
+
+	tmpl, err := template.ParseFS(emailTemplates, "templates/expiry_alert.html")
+	if err != nil {
+		log.Printf("[SMTP Notifier] Failed to parse expiry_alert.html template: %v", err)
+		return fmt.Sprintf("<!DOCTYPE html><html><body><p>%s expiry alert: %s expires in %d days.</p></body></html>",
+			expiry.ExpiryType, expiry.Resource.Name, expiry.DaysRemaining)
+	}
+
+	var buf bytes.Buffer
+	if err := tmpl.Execute(&buf, data); err != nil {
+		log.Printf("[SMTP Notifier] Failed to execute expiry_alert.html template: %v | Resource: %s", err, expiry.Resource.Name)
+		return fmt.Sprintf("<!DOCTYPE html><html><body><p>%s expiry alert: %s expires in %d days.</p></body></html>",
+			expiry.ExpiryType, expiry.Resource.Name, expiry.DaysRemaining)
+	}
+
+	return buf.String()
 }
