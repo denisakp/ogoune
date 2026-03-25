@@ -1,454 +1,578 @@
-# Pulseguard - Complete Implementation Guide
+# PulseGuard — Quick Start Guide
 
-Welcome to **Pulseguard**, an open-source monitoring platform for websites, APIs, TCP services, SSL certificates, and cron jobs.
+Everything you need to go from zero to a running PulseGuard instance.
 
-## 📚 Documentation Structure
+---
 
-### Getting Started
+## Table of Contents
 
-- **[QUICKSTART.md](./QUICKSTART.md)** ⭐ **START HERE**
+- [Choose your setup](#choose-your-setup)
+- [Option 1 — Community Edition (recommended)](#option-1--community-edition-recommended)
+- [Option 2 — Full Stack (PostgreSQL + Redis)](#option-2--full-stack-postgresql--redis)
+- [Option 3 — Build from source](#option-3--build-from-source)
+- [First login](#first-login)
+- [Step 1 — Add your first HTTP monitor](#step-1--add-your-first-http-monitor)
+- [Step 2 — Configure notifications](#step-2--configure-notifications)
+- [Environment variables reference](#environment-variables-reference)
+- [Troubleshooting](#troubleshooting)
 
-  - 5-minute setup guide
-  - Fastest way to get the application running
-  - Common issues and solutions
+---
 
-- **[INTEGRATION.md](./INTEGRATION.md)** - Backend + Frontend Integration
-  - How to run both backend API and frontend together
-  - Workflow examples
-  - Testing integration
-  - Debugging tips
+## Choose your setup
 
-### Backend (Go API + Worker)
+| | Community Edition | Full Stack | Build from source |
+|---|---|---|---|
+| External dependencies | None | PostgreSQL + Redis | None |
+| Best for | Homelabs, solo devs, quick eval | Teams, production | Contributors, customization |
+| Setup time | ~1 minute | ~5 minutes | ~10 minutes |
+| Persistent data | SQLite file (volume mount) | PostgreSQL | SQLite or PostgreSQL |
+| ARM / Raspberry Pi | ✅ | ✅ | ✅ |
 
-- **[backend/README.md](./backend/README.md)** - Backend Setup
+---
 
-  - Technology stack
-  - Configuration guide
-  - Running instructions
-  - Developer notes
+## Option 1 — Community Edition (recommended)
 
-- **[backend/docs/ARCHITECTURE.md](./backend/ARCHITECTURE.md)** - Backend Architecture
+Zero external dependencies. One container. Data stored in an embedded SQLite file.
 
-  - Core architecture (API + Worker)
-  - Scheduling engine
-  - Real-time system (WebSockets)
-  - Database models
-  - Incident management
-  - Notification system
+### Prerequisites
 
-- **[.github/copilot-instructions.md](./.github/copilot-instructions.md)** - Backend AI Instructions
-  - For AI coding agents
-  - Project patterns and conventions
-  - Architecture boundaries
-  - When adding features
+- Docker 24+ installed and running
 
-### Frontend (Vue 3 + TypeScript)
-
-- **[frontend/README.md](./frontend/README.md)** - Frontend Overview
-
-  - Project structure
-  - Technology stack
-  - Getting started
-  - Features overview
-  - Styling with Daisy UI
-
-- **[frontend/DEVELOPMENT.md](./frontend/DEVELOPMENT.md)** - Frontend Developer Guide
-
-  - Architecture principles
-  - Best practices
-  - Adding new features (step-by-step)
-  - Component patterns
-  - Testing strategies
-  - Common mistakes to avoid
-
-- **[frontend/QUICKSTART.md](./frontend/QUICKSTART.md)** - Frontend Quick Start
-  - 5-minute setup
-  - Project summary
-  - Feature overview
-  - Development workflow
-  - Troubleshooting
-
-### Implementation Summaries
-
-- **[FRONTEND_IMPLEMENTATION.md](./FRONTEND_IMPLEMENTATION.md)** - What Was Built
-  - Complete deliverables checklist
-  - Architecture overview
-  - Features implemented
-  - Technical details
-  - Future enhancements
-
-## 🚀 Quick Start (5 Minutes)
-
-### Option A: Community Mode (Recommended for Local Testing)
-
-No Redis required – everything runs in a single process with embedded SQLite:
-
-**Terminal 1: Backend (with embedded scheduler)**
+### Run
 
 ```bash
-# Community mode: SQLite + in-process scheduler
-DB_DRIVER=sqlite SQLITE_PATH=./pulseguard.db SCHEDULER_MODE=timingwheel make run
+docker run -d \
+  --name pulseguard \
+  --restart unless-stopped \
+  -p 8080:8080 \
+  -v pulseguard_data:/data \
+  -e JWT_SECRET=change-me-before-production \
+  pulseguard/community:latest
 ```
 
-Or use Docker Compose Community edition:
+Open **http://localhost:8080**
+
+That's it. Your data is persisted in the `pulseguard_data` Docker volume.
+
+### Or with Docker Compose
+
+Create a `compose.yml`:
+
+```yaml
+services:
+  pulseguard:
+    image: pulseguard/community:latest
+    container_name: pulseguard
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    volumes:
+      - pulseguard_data:/data
+    environment:
+      DB_DRIVER: sqlite
+      SQLITE_PATH: /data/pulseguard.db
+      SCHEDULER_DRIVER: timingwheel
+      JWT_SECRET: change-me-before-production
+      ADMIN_EMAIL: admin@pulseguard.test
+
+volumes:
+  pulseguard_data:
+```
 
 ```bash
-docker compose -f docker-compose.community.yml up
+docker compose up -d
 ```
 
-**Terminal 2: Frontend SPA**
+### Verify it's running
+
+```bash
+curl http://localhost:8080/health
+# → {"status":"ok"}
+```
+
+---
+
+## Option 2 — Full Stack (PostgreSQL + Redis)
+
+For teams or production deployments that need a more robust backend.
+
+### Prerequisites
+
+- Docker 24+ and Docker Compose
+
+### Setup
+
+```bash
+git clone https://github.com/denisakp/pulseguard.git
+cd pulseguard
+cp .env.example .env
+```
+
+Open `.env` and set at minimum:
+
+```env
+DATABASE_URL=postgres://pulseguard:pulseguard@postgres:5432/pulseguard
+REDIS_URL=redis://redis:6379
+JWT_SECRET=a-long-random-secret-string
+ADMIN_EMAIL=admin@yourdomain.com
+```
+
+Generate a strong JWT secret:
+```bash
+openssl rand -hex 32
+```
+
+Start everything:
+
+```bash
+docker compose up -d
+```
+
+This starts: the PulseGuard app, PostgreSQL, Redis, and a reverse proxy.
+
+### Verify services are healthy
+
+```bash
+docker compose ps
+# All services should show "healthy" or "running"
+
+curl http://localhost:8080/health
+# → {"status":"ok"}
+```
+
+### Data persistence
+
+PostgreSQL data is stored in the `postgres_data` Docker volume. Back it up regularly:
+
+```bash
+docker exec pulseguard-postgres pg_dump -U pulseguard pulseguard > backup.sql
+```
+
+---
+
+## Option 3 — Build from source
+
+For contributors or users who want to run the latest code.
+
+### Prerequisites
+
+| Tool | Version |
+|---|---|
+| Go | 1.24+ |
+| Node.js | 22+ |
+| Git | Latest |
+
+### Clone and set up
+
+```bash
+git clone https://github.com/denisakp/pulseguard.git
+cd pulseguard
+```
+
+### Build the frontend
 
 ```bash
 cd frontend
-pnpm install
-pnpm run dev      # http://localhost:5173
+npm install
+npm run build
+# → builds to frontend/dist/
+cd ..
 ```
 
-✅ **Done!** Open http://localhost:5173
-
----
-
-### Option B: Hosted Mode (Full PostgreSQL + Redis Setup)
-
-For production-like multi-container deployments:
-
-**Terminal 1: Hosted/PostgreSQL Backend Services**
+### Configure the backend
 
 ```bash
-make docker-up    # Start PostgreSQL + Redis
+cd backend
+cp ../.env.example .env
 ```
 
-**Terminal 2: Backend API + Worker**
+Edit `.env` — minimum required for a local SQLite run:
+
+```env
+DB_DRIVER=sqlite
+SQLITE_PATH=./pulseguard.db
+SCHEDULER_DRIVER=timingwheel
+JWT_SECRET=dev-secret-change-in-production
+ADMIN_EMAIL=admin@pulseguard.test
+APP_PORT=8080
+```
+
+### Run the backend
 
 ```bash
-make run          # Start Go API and background worker
+go run ./cmd/api
 ```
 
-**Terminal 3: Frontend SPA**
+Open **http://localhost:8080**
 
-```bash
-cd frontend
-pnpm install
-pnpm run dev      # http://localhost:5173
-```
+The backend serves the frontend from `frontend/dist/` automatically.
 
----
+### Run frontend in dev mode (hot reload)
 
-## Important: Scheduler Modes
-
-- **Community/MVPMode (_timingwheel_)**: In-process scheduler, no Redis required
-  - ✅ Perfect for single-server deployments
-  - ✅ No external dependencies
-  - ✅ All checks run deterministically in-process
-
-- **Hosted Mode (_asynq_)**: Redis-based distributed scheduler
-  - ✅ Scales across multiple instances
-  - ✅ Requires Redis 6+
-  - ✅ Recommended for production SaaS deployments
-
-**Never use `SCHEDULER_MODE=asynq` without Redis**, or the process will fail to start.
-
-## Confirmation Window Quick Reference
-
-- Default behavior is controlled by `CONFIRMATION_CHECKS` and `CONFIRMATION_INTERVAL`.
-- New monitors can override these using `confirmation_checks` and `confirmation_interval` in create/update payloads.
-- Incident creation occurs only on threshold crossing (`failure_count == confirmation_checks`).
-- Recovery before threshold is treated as a false positive (no incident, counter resets).
-
----
-
-### Terminal 1: Community Backend Services
-
-```bash
-docker compose -f docker-compose.community.yml up -d
-```
-
-This starts PulseGuard with embedded SQLite and Redis only.
-
-### Terminal 2: Hosted/PostgreSQL Backend Services
-
-```bash
-make docker-up    # Start PostgreSQL + Redis
-```
-
-### Terminal 2: Backend API + Worker
-
-```bash
-make run          # Start Go API and background worker
-```
-
-### Terminal 3: Frontend SPA
+In a second terminal:
 
 ```bash
 cd frontend
-pnpm install
-pnpm run dev      # http://localhost:5173
+npm run dev
+# → http://localhost:5173 (proxies API to :8080)
 ```
 
-**That's it!** 🎉 Open http://localhost:5173 in your browser.
-
-## 📊 What You Can Do
-
-### Monitor Your Services
-
-✅ **HTTP/HTTPS Monitoring**
-
-- Monitor websites and APIs
-- Customizable check intervals
-- Response time tracking
-
-✅ **TCP Monitoring**
-
-- Monitor server ports
-- Connection testing
-- Network availability
-
-✅ **Status Dashboard**
-
-- Real-time status display
-- Uptime percentage
-- Last check information
-
-### Organize & Configure
-
-✅ **Tags**
-
-- Organize monitors with labels
-- Filter by tags
-- Better resource management
-
-✅ **Integrations**
-
-- Send notifications to Slack
-- Receive alerts via Webhooks
-- Email notifications via SMTP
-- Webhook support
-
-### View Activity & History
-
-✅ **Monitoring Activities**
-
-- View all check results
-- Response time metrics
-- Success/failure status
-- Real-time updates (coming soon)
-
-✅ **Incident Management**
-
-- Automatic incident creation (3 consecutive failures)
-- Incident resolution tracking
-- Complete incident history
-
-### Monitor Lifecycle Operations
-
-✅ **Pause Monitoring**
-
-Temporarily stop checks for a monitor without deleting it:
+### Run tests
 
 ```bash
-curl -X POST http://localhost:8080/api/resources/{resourceId}/pause
-```
+# Backend
+cd backend
+go test -race ./...
 
-**Effect**: 
-- Stops all scheduled checks immediately
-- Monitor remains in the database
-- Can be resumed later at any time
-- No incidents or notifications while paused
-
-**Use case**: Maintenance windows, temporary service downtime, testing
-
-✅ **Resume Monitoring**
-
-Resume checks for a paused monitor:
-
-```bash
-curl -X POST http://localhost:8080/api/resources/{resourceId}/resume
-```
-
-**Effect**: 
-- Reactivates monitoring checks
-- Uses the configured interval
-- Checks resume immediately on next scheduler tick
-- Incidents can be created again if threshold met
-
-**Use case**: Resume after maintenance, restart monitoring for troubleshooting
-
-✅ **Update Check Interval**
-
-Change how frequently a monitor runs:
-
-```bash
-curl -X PATCH http://localhost:8080/api/resources/{resourceId} \
-  -H "Content-Type: application/json" \
-  -d '{"interval": 600}'  # 600 seconds = 10 minutes
-```
-
-**Interval** is specified in seconds. Changes take effect on the next scheduler tick.
-
-## 🏗️ Architecture Overview
-
-```
-Frontend (Vue 3 + TypeScript)
-   ↓ (JSON API calls)
-Backend API (Go + Chi Router)
-   ↓ (enqueues jobs)
-Background Worker (Asynq)
-   ↓ (executes checks)
-SQLite or PostgreSQL Database
-   ↓ (stores results)
-Frontend (real-time updates via WebSocket - coming soon)
-```
-
-### Technology Stack
-
-**Backend**:
-
-- Language: Go 1.25+
-- HTTP Router: Chi
-- Database: driver-aware GORM runtime with PostgreSQL or embedded SQLite
-- Queue: Redis + Asynq
-- Real-time: WebSockets (nhooyr.io/websocket)
-
-**Frontend**:
-
-- Framework: Vue 3
-- Language: TypeScript 5.9
-- Build Tool: Vite 7
-- Styling: Tailwind CSS + Daisy UI
-- HTTP Client: Axios
-- Routing: Vue Router 4
-
-## 📖 Documentation by Role
-
-### I'm a User
-
-1. Start with: **[QUICKSTART.md](./QUICKSTART.md)**
-2. Learn: **[frontend/README.md](./frontend/README.md)**
-3. Refer: Feature list and troubleshooting in **[frontend/QUICKSTART.md](./frontend/QUICKSTART.md)**
-
-### I'm a Frontend Developer
-
-1. Start with: **[frontend/README.md](./frontend/README.md)**
-2. Deep dive: **[frontend/DEVELOPMENT.md](./frontend/DEVELOPMENT.md)**
-3. Reference: **[FRONTEND_IMPLEMENTATION.md](./FRONTEND_IMPLEMENTATION.md)**
-
-### I'm a Backend Developer
-
-1. Start with: **[backend/README.md](./backend/README.md)**
-2. Architecture: **[backend/docs/ARCHITECTURE.md](./backend/docs/ARCHITECTURE.md)**
-3. AI Instructions: **[.github/copilot-instructions.md](./.github/copilot-instructions.md)**
-
-### I'm an AI Coding Agent
-
-1. Start with: **[.github/copilot-instructions.md](./.github/copilot-instructions.md)** (Backend)
-2. Frontend standards: **[frontend/DEVELOPMENT.md](./frontend/DEVELOPMENT.md)**
-3. Integration points: **[INTEGRATION.md](./INTEGRATION.md)**
-
-### I'm Contributing
-
-1. Read: **[CONTRIBUTING.md](./CONTRIBUTING.md)**
-2. Backend guide: **[.github/copilot-instructions.md](./.github/copilot-instructions.md)**
-3. Frontend guide: **[frontend/DEVELOPMENT.md](./frontend/DEVELOPMENT.md)**
-4. Test everything locally using **[INTEGRATION.md](./INTEGRATION.md)**
-
-## ✨ Key Features
-
-- ✅ Multiple monitor types (HTTP, TCP)
-- ✅ Real-time status updates
-- ✅ Flexible notification integrations
-- ✅ Incident management
-- ✅ Activity logging
-- ✅ Tag-based organization
-- ✅ Responsive web interface
-- ✅ Type-safe API integration
-
-## 🔮 Future Roadmap
-
-- [ ] Write the test cases
-
-## 🐛 Troubleshooting
-
-### Can't connect to backend?
-
-- Check: `curl http://localhost:8080/health`
-- See: **[INTEGRATION.md](./INTEGRATION.md)** "Troubleshooting" section
-
-### Frontend not loading?
-
-- Check: Terminal 3 output
-- See: **[frontend/DEVELOPMENT.md](./frontend/DEVELOPMENT.md)** "Debugging" section
-
-### Database connection failed?
-
-- Check: Docker containers running
-- See: **[INTEGRATION.md](./INTEGRATION.md)** "Troubleshooting" section
-
-### Need help with development?
-
-- See: **[frontend/DEVELOPMENT.md](./frontend/DEVELOPMENT.md)** for patterns
-- See: **[.github/copilot-instructions.md](./.github/copilot-instructions.md)** for backend patterns
-
-## 🎯 Next Steps
-
-1. **Get it running**: Follow [QUICKSTART.md](./QUICKSTART.md)
-2. **Create a monitor**: Add your first website/API to monitor
-3. **Configure notifications**: Set up Slack or email alerts
-4. **Explore the code**: Understand the architecture
-5. **Contribute**: Add features and improvements!
-
-## 📞 Support
-
-- **Setup Help**: Check relevant README files
-- **How-To Guides**: See DEVELOPMENT guides
-- **Architecture Questions**: See ARCHITECTURE documents
-- **Issues**: Check GitHub Issues
-- **Contributions**: See CONTRIBUTING.md
-
-## 📄 License
-
-MIT License - See [LICENSE](./LICENSE) file
-
-## 🙏 Contributing
-
-Contributions are welcome! Please read [CONTRIBUTING.md](./CONTRIBUTING.md) for guidelines.
-
----
-
-## File Index
-
-```
-/
-├── backend/
-│   ├── README.md                          # Backend setup
-│   ├── docs/ARCHITECTURE.md               # Backend architecture
-│   ├── cmd/api/main.go                    # Entry point
-│   ├── internal/                          # Core implementation
-│   └── pkg/notifier/                      # Notification providers
-├── frontend/
-│   ├── README.md                          # Frontend overview
-│   ├── DEVELOPMENT.md                     # Frontend patterns
-│   ├── QUICKSTART.md                      # Frontend quick start
-│   ├── src/
-│   │   ├── services/                      # API client layer
-│   │   ├── composables/                   # State management
-│   │   ├── views/                         # Page components
-│   │   ├── components/                    # Reusable components
-│   │   ├── router/                        # Routing
-│   │   ├── types/                         # TypeScript interfaces
-│   │   └── App.vue                        # Root component
-│   └── tailwind.config.ts                 # Styling config
-├── .github/
-│   └── copilot-instructions.md            # Backend AI guidelines
-├── CONTRIBUTING.md                        # Contribution guidelines
-├── FRONTEND_IMPLEMENTATION.md             # What was built
-├── INTEGRATION.md                         # Backend-Frontend integration
-├── QUICKSTART.md                          # This document
-└── README.md                              # Project overview
+# Frontend
+cd frontend
+npm run test
 ```
 
 ---
 
-**Ready to get started? Open [QUICKSTART.md](./QUICKSTART.md)! 🚀**
+## First login
 
-_Last Updated: October 19, 2025_
-_Pulseguard - Open-source Monitoring Platform_
+Regardless of which option you chose, the default credentials are:
+
+| | |
+|---|---|
+| **URL** | http://localhost:8080 |
+| **Email** | `admin@pulseguard.test` |
+| **Password** | `puls3gu@rd` |
+
+**Change your password immediately** — Settings → Account → Change password.
+
+Optionally, enable 2FA — Settings → Account → Two-Factor Authentication.
+
+---
+
+## Step 1 — Add your first HTTP monitor
+
+This walks you through adding a monitor for a website or API endpoint.
+
+### 1.1 Open the monitors page
+
+Click **Monitors** in the left sidebar, then **+ Add Monitor**.
+
+### 1.2 Fill in the basic details
+
+| Field | Example | Notes |
+|---|---|---|
+| **Name** | `My Website` | Displayed on the dashboard |
+| **Type** | `HTTP` | Use TCP for non-HTTP services |
+| **Target** | `https://example.com` | Full URL including protocol |
+| **Interval** | `300` | Seconds between checks (default: 5 min) |
+| **Timeout** | `10` | Seconds before a check is considered failed |
+
+### 1.3 Configure the confirmation window
+
+The confirmation window prevents false positives. PulseGuard will only create an incident after N consecutive failures.
+
+| Field | Recommended | Notes |
+|---|---|---|
+| **Confirmation checks** | `2` | Failures before alerting |
+| **Confirmation interval** | `30` | Seconds between confirmation checks |
+
+> With these defaults: if your site goes down, PulseGuard waits 30 seconds and checks again. Only if it's still down does it create an incident and send an alert. A 2-second network blip will never wake you up at 3am.
+
+Set **Confirmation checks to 1** if you want immediate alerts with no confirmation delay.
+
+### 1.4 Save and verify
+
+Click **Save**. The monitor appears on your dashboard with status **Pending** — it will run its first check within the configured interval.
+
+After the first check, the status updates to:
+- 🟢 **Up** — resource is reachable
+- 🔴 **Down** — resource is unreachable (incident created after confirmation)
+- 🟡 **Flapping** — resource is switching between up and down repeatedly
+
+### 1.5 Add a TCP monitor (optional)
+
+For services that aren't HTTP (databases, SMTP servers, game servers):
+
+| Field | Example |
+|---|---|
+| **Type** | `TCP` |
+| **Target** | `db.example.com:5432` |
+
+Format: `hostname:port`. No protocol prefix.
+
+### 1.6 Add a DNS monitor (optional)
+
+To verify DNS resolution for a domain:
+
+| Field | Example |
+|---|---|
+| **Type** | `DNS` |
+| **Target** | `example.com` |
+
+---
+
+## Step 2 — Configure notifications
+
+PulseGuard supports two notification channels out of the box: **SMTP (email)** and **Webhook** (Slack, Google Chat, Teams, Discord, or any HTTP endpoint).
+
+### 2.1 Navigate to notification settings
+
+Settings → Notifications → **+ Add Channel**
+
+---
+
+### SMTP — Email notifications
+
+#### What you need
+
+- An SMTP server (Gmail, Mailgun, Postmark, your own server, etc.)
+- SMTP host, port, username, and password
+
+#### Gmail setup
+
+If you use Gmail, you need an **App Password** — Gmail blocks direct password auth for apps.
+
+1. Go to [myaccount.google.com/security](https://myaccount.google.com/security)
+2. Enable 2-Step Verification if not already enabled
+3. Search for "App passwords" → Create → select "Mail" → copy the 16-char password
+
+Use these settings:
+
+| Field | Value |
+|---|---|
+| **Name** | `Gmail` (or anything) |
+| **SMTP Host** | `smtp.gmail.com` |
+| **Port** | `587` |
+| **Username** | your full Gmail address |
+| **Password** | the 16-char App Password |
+| **From** | your Gmail address |
+| **To** | where alerts should be sent |
+| **TLS** | STARTTLS |
+| **Enabled by default** | ✅ Toggle on |
+
+#### Other providers
+
+| Provider | Host | Port | TLS |
+|---|---|---|---|
+| Mailgun | `smtp.mailgun.org` | `587` | STARTTLS |
+| Postmark | `smtp.postmarkapp.com` | `587` | STARTTLS |
+| SendGrid | `smtp.sendgrid.net` | `587` | STARTTLS |
+| Custom / self-hosted | your host | `25` or `587` | depends |
+
+#### Test before saving
+
+Click **Test** before saving. PulseGuard sends a test email immediately. If it arrives, the config is correct.
+
+---
+
+### Webhook — Slack, Google Chat, Teams, Discord
+
+Webhooks work by sending an HTTP POST to a URL when an incident occurs. Every service listed below provides a webhook URL you paste into PulseGuard.
+
+#### Slack
+
+1. Go to [api.slack.com/apps](https://api.slack.com/apps) → **Create New App** → **From scratch**
+2. Name it `PulseGuard`, choose your workspace
+3. Click **Incoming Webhooks** → toggle **On**
+4. Click **Add New Webhook to Workspace** → pick a channel → **Allow**
+5. Copy the webhook URL — looks like: `https://hooks.slack.com/services/T.../B.../...`
+
+In PulseGuard:
+
+| Field | Value |
+|---|---|
+| **Name** | `Slack — #alerts` |
+| **Type** | `Webhook` |
+| **URL** | the URL copied from Slack |
+| **Enabled by default** | ✅ Toggle on |
+
+#### Google Chat
+
+1. Open the Google Chat space where you want alerts
+2. Click the space name → **Apps & integrations** → **Add webhooks**
+3. Name it `PulseGuard` → **Save** → copy the URL
+
+Paste the URL in PulseGuard exactly as you did for Slack.
+
+#### Microsoft Teams
+
+1. In Teams, right-click a channel → **Manage channel** → **Connectors**
+2. Search for **Incoming Webhook** → **Add** → **Add** again
+3. Name it `PulseGuard` → upload an icon (optional) → **Create**
+4. Copy the webhook URL
+
+#### Discord
+
+1. In Discord, open channel settings → **Integrations** → **Webhooks**
+2. Click **New Webhook** → name it → copy the URL
+3. **Important:** append `/slack` to the URL — Discord's Slack-compatible webhook endpoint
+
+```
+https://discord.com/api/webhooks/YOUR_ID/YOUR_TOKEN/slack
+```
+
+Paste this modified URL in PulseGuard.
+
+#### Custom HTTP endpoint
+
+Any endpoint that accepts a POST with a JSON body works. PulseGuard sends:
+
+```json
+{
+  "event": "down",
+  "resource_name": "Production API",
+  "target": "https://api.example.com",
+  "cause": "DNS Resolution Failed — host could not be found",
+  "started_at": "2025-09-01T10:00:00Z"
+}
+```
+
+---
+
+### 2.2 Enable by default
+
+When creating a notification channel, toggle **Enabled by default** to ON. This means the channel will receive alerts for **all monitors** — even ones that don't have a channel explicitly assigned.
+
+If you leave this off, you need to manually assign the channel to each monitor individually.
+
+### 2.3 Assign a channel to a specific monitor (optional)
+
+To send alerts from a specific monitor to a specific channel only:
+
+1. Open the monitor → **Edit**
+2. Under **Notification Channels** → select the channel
+3. Save
+
+This overrides the default channel for that monitor.
+
+### 2.4 Test the channel
+
+Always click **Test** after creating a channel. It sends a test notification immediately. Confirm you received it before assuming it's working.
+
+---
+
+## Environment variables reference
+
+Full list of all available configuration options.
+
+```env
+# ── Database ────────────────────────────────────────────────────────────────
+DB_DRIVER=sqlite              # sqlite | postgres
+SQLITE_PATH=/data/pulseguard.db  # Path to SQLite file (Community Edition)
+DATABASE_URL=postgres://user:pass@host:5432/dbname  # Required if postgres
+DB_LOG_LEVEL=error            # silent | error | warn | info
+
+# ── Scheduler ────────────────────────────────────────────────────────────────
+SCHEDULER_DRIVER=timingwheel  # timingwheel | asynq
+REDIS_URL=redis://localhost:6379  # Required if SCHEDULER_DRIVER=asynq
+SCHEDULER_CONCURRENCY=10      # Max parallel checks
+SCHEDULER_NOTIF_QUEUE_SIZE=100  # Notification queue buffer
+
+# ── Alerting defaults ────────────────────────────────────────────────────────
+CONFIRMATION_CHECKS=2         # Failures before alerting (per monitor override available)
+CONFIRMATION_INTERVAL=30      # Seconds between confirmation checks
+EXPIRY_ALERT_THRESHOLDS=30,14,7,1  # Days before SSL/domain expiry to alert
+
+# ── Application ──────────────────────────────────────────────────────────────
+APP_PORT=8080
+APP_ENV=production            # development | production
+
+# ── Security ─────────────────────────────────────────────────────────────────
+JWT_SECRET=                   # Required — use `openssl rand -hex 32` to generate
+ADMIN_EMAIL=admin@pulseguard.test  # Default admin account email
+```
+
+---
+
+## Troubleshooting
+
+### Container starts but I can't open the UI
+
+```bash
+# Check the container is running
+docker ps | grep pulseguard
+
+# Check logs for errors
+docker logs pulseguard
+
+# Verify the health endpoint
+curl http://localhost:8080/health
+```
+
+Common causes:
+- Port 8080 already in use → change `-p 8080:8080` to `-p 9090:8080`
+- `JWT_SECRET` not set → add `-e JWT_SECRET=any-random-string`
+
+---
+
+### My monitor shows "Pending" and never updates
+
+The first check runs after the configured interval. For a 5-minute interval, wait 5 minutes.
+
+To trigger a check immediately: pause the monitor and resume it — this reschedules the check immediately.
+
+---
+
+### I'm not receiving notifications
+
+**Step 1 — Check channel configuration:**
+Settings → Notifications → click your channel → **Test**. If the test fails, the SMTP or webhook config is wrong.
+
+**Step 2 — Check "Enabled by default":**
+If the channel is not set as default and not assigned to the monitor, no notification is sent. Edit the channel and toggle **Enabled by default** on.
+
+**Step 3 — Check PulseGuard logs:**
+```bash
+docker logs pulseguard | grep "NOTIFICATION"
+```
+Look for `[WARNING] No notification channels configured` — this means the monitor has no channel assigned and no default is set.
+
+**Step 4 — Check the incident event steps:**
+Open the incident detail page. The timeline shows whether an alert was sent. If `alert_sent` step is missing, no notification was dispatched.
+
+---
+
+### Gmail SMTP returns "authentication failed"
+
+You must use an **App Password**, not your regular Gmail password. See [Step 2 — Gmail setup](#gmail-setup).
+
+---
+
+### SQLite database file not persisting between restarts
+
+You must mount a volume. Without `-v pulseguard_data:/data`, data is lost when the container stops.
+
+```bash
+# Correct
+docker run -v pulseguard_data:/data pulseguard/community:latest
+
+# Wrong — data lost on restart
+docker run pulseguard/community:latest
+```
+
+---
+
+### Build from source fails — "go: command not found"
+
+Go is not installed or not in your PATH. Download from [go.dev/dl](https://go.dev/dl/) and follow the installation instructions for your OS.
+
+---
+
+### `go test -race ./...` fails with "too many open files" on macOS
+
+```bash
+# Increase the file descriptor limit
+ulimit -n 10000
+go test -race ./...
+```
+
+---
+
+## Next steps
+
+- [Architecture documentation](./backend/ARCHITECTURE.md) — how PulseGuard works under the hood
+- [Contributing guidelines](./CONTRIBUTING.md) — how to contribute code or feedback
+- [GitHub Discussions](https://github.com/denisakp/pulseguard/discussions) — ask questions
+- [GitHub Issues](https://github.com/denisakp/pulseguard/issues) — report bugs
+
+---
+
+*Found something wrong or missing in this guide? [Open an issue](https://github.com/denisakp/pulseguard/issues/new?labels=documentation) — doc fixes are always welcome.*
