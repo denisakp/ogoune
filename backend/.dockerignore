@@ -2,3 +2,8 @@
 .env.example
 README
 docs/
+.git/
+Dockerfile*
+.dockerignore
+*.log*
+coverage/

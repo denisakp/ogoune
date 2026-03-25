@@ -138,7 +138,14 @@ End‑to‑end flow:
 
 7) Notifications
    - Channel-based: notification channels (SMTP/Slack/Webhook/SMS) are stored in the database and dispatched via the notifier factory.
+  - Resolution order is resource channels, then component channels, then default-enabled global channels.
+  - If no channel is resolved, incident creation continues and a warning log is emitted with remediation guidance.
    - Testing: `/notification-channels/{id}/test` for saved channels; `/notification-channels/test-config` to validate before saving.
+
+9) Incident diagnostics and API readability
+  - Incident and monitoring activity APIs return byte-backed diagnostic fields as readable text.
+  - HTTP incident diagnostics persist response headers when available.
+  - Persisted request headers remove the Authorization key entirely before storage.
 
 8) SSL/Domain Expiry Alerts (daily background task)
    - A separate `expiry:check` task runs once per day (via Asynq `@daily` scheduler or a 24-hour TimingWheel ticker in community/SQLite deployments).

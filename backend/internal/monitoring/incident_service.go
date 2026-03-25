@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"strings"
 	"time"
 
 	"github.com/denisakp/pulseguard/internal/domain"
@@ -108,7 +109,7 @@ func (s *IncidentService) CreateIncident(ctx context.Context, r *domain.Resource
 	detectedStep := &domain.IncidentEventStep{
 		IncidentID: incident.ID,
 		Step:       domain.IncidentEventStepDetected,
-		Message:    stringPtr(fmt.Sprintf("Incident detected: %s", cause)),
+		Message:    stringPtr(fmt.Sprintf("Incident detected: %s", humanizeCause(cause))),
 	}
 
 	if _, err := s.eventSteps.Create(ctx, detectedStep); err != nil {
@@ -118,14 +119,14 @@ func (s *IncidentService) CreateIncident(ctx context.Context, r *domain.Resource
 	if _, err := s.eventSteps.FindLastByIncidentAndStep(ctx, incident.ID, domain.IncidentEventStepDownAlert); err == nil {
 		log.Printf("[INCIDENT] Down alert already exists for incident %s, skipping duplicate dispatch", incident.ID)
 		return nil
-	} else if err != nil && !errors.Is(err, repository.ErrNotFound) {
+	} else if !errors.Is(err, repository.ErrNotFound) {
 		return fmt.Errorf("failed to verify prior down alert event step: %w", err)
 	}
 
 	// Fetch notification channels associated with this resource using the resolution hierarchy
 	channels := s.resolveNotificationChannels(ctx, r)
 	if len(channels) == 0 {
-		log.Printf("[INCIDENT] No notification channels resolved for resource %s (tried: resource -> component -> default)", r.ID)
+		log.Printf("[WARNING] Incident %s created for resource %s but no alert was sent. Configure a resource, component, or default notification channel to enable delivery.", incident.ID, r.ID)
 		return nil
 	}
 
@@ -143,7 +144,7 @@ func (s *IncidentService) CreateIncident(ctx context.Context, r *domain.Resource
 		alertStep := &domain.IncidentEventStep{
 			IncidentID: incident.ID,
 			Step:       domain.IncidentEventStepDownAlert,
-			Message:    stringPtr(fmt.Sprintf("Down notification %s via %s (%s)", statusMsg, channel.Type, channel.Name)),
+			Message:    stringPtr(fmt.Sprintf("Down notification %s via %s (%s): %s", statusMsg, channel.Type, channel.Name, humanizeCause(incident.Cause))),
 		}
 		if _, err := s.eventSteps.Create(ctx, alertStep); err != nil {
 			log.Printf("Warning: Failed to create alert event step: %v", err)
@@ -333,7 +334,7 @@ func (s *IncidentService) ResolveIncident(ctx context.Context, r *domain.Resourc
 		upAlertStep := &domain.IncidentEventStep{
 			IncidentID: activeIncident.ID,
 			Step:       domain.IncidentEventStepUpAlert,
-			Message:    stringPtr(fmt.Sprintf("Up notification %s via %s (%s)", statusMsg, channel.Type, channel.Name)),
+			Message:    stringPtr(fmt.Sprintf("Up notification %s via %s (%s): %s", statusMsg, channel.Type, channel.Name, humanizeCause(activeIncident.Cause))),
 		}
 		if _, err := s.eventSteps.Create(ctx, upAlertStep); err != nil {
 			log.Printf("Warning: Failed to create up alert event step: %v", err)
@@ -360,7 +361,7 @@ func extractCause(result domain.CheckResult) string {
 	}
 
 	if result.Status == "down" && len(result.ResponseData) > 0 {
-		data := result.ResponseData
+		data := strings.ToLower(result.ResponseData)
 
 		if contains(data, "timeout") {
 			return "connection_timeout"
@@ -368,14 +369,14 @@ func extractCause(result domain.CheckResult) string {
 		if contains(data, "refused") {
 			return "connection_refused"
 		}
-		if contains(data, "status") || contains(data, "code") {
-			return "invalid_status_code"
-		}
 		if contains(data, "dns") || contains(data, "resolve") || contains(data, "no such host") {
 			return "dns_resolution_failure"
 		}
 		if contains(data, "ssl") || contains(data, "tls") || contains(data, "certificate") {
 			return "ssl_certificate_error"
+		}
+		if contains(data, "status") || contains(data, "code") {
+			return "invalid_status_code"
 		}
 
 	}
@@ -466,12 +467,11 @@ func (s *IncidentService) resolveNotificationChannels(ctx context.Context, r *do
 	}
 
 	// Step 3: Fall back to default/global channels
-	// TODO: Implement global default channels once NotificationChannelRepository supports it
-	// defaultChannels, err := s.notificationChannels.FindDefault(ctx)
-	// if err == nil && len(defaultChannels) > 0 {
-	// 	log.Printf("[NOTIFICATION] Resolved %d global default notification channel(s)", len(defaultChannels))
-	// 	return defaultChannels
-	// }
+	defaultChannels, err := s.notificationChannels.FindDefaultChannels(ctx)
+	if err == nil && len(defaultChannels) > 0 {
+		log.Printf("[NOTIFICATION] Resolved %d global default notification channel(s)", len(defaultChannels))
+		return defaultChannels
+	}
 
 	log.Printf("[NOTIFICATION] No notification channels found for resource %s (tried: resource -> component -> default)", r.ID)
 	return channels
@@ -490,7 +490,7 @@ func (s *IncidentService) buildIncidentDiagnostics(incidentID string, result dom
 		IncidentID:        incidentID,
 		RequestMethod:     result.RequestMethod,
 		RequestURL:        result.RequestURL,
-		RequestHeaders:    result.RequestHeaders,
+		RequestHeaders:    sanitizeRequestHeaders(result.RequestHeaders),
 		RequestTimeout:    resource.Timeout,
 		HTTPStatusCode:    result.HTTPStatusCode,
 		ResponseHeaders:   result.ResponseHeaders,
@@ -516,4 +516,50 @@ func (s *IncidentService) buildIncidentDiagnostics(incidentID string, result dom
 	}
 
 	return diag
+}
+
+func humanizeCause(cause string) string {
+	known := map[string]string{
+		"connection_timeout":                 "Connection timeout",
+		"connection_refused":                 "Connection refused",
+		"invalid_status_code":                "Invalid HTTP status code",
+		"dns_resolution_failure":             "DNS resolution failed",
+		"ssl_certificate_error":              "SSL certificate error",
+		"health_check_failed":                "Health check failed",
+		"check_execution_error":              "Check execution error",
+		"unknown_failure":                    "Unknown failure",
+		string(domain.ConnectionTimeout):     "Connection timeout",
+		string(domain.ConnectionRefused):     "Connection refused",
+		string(domain.DNSResolutionFailed):   "DNS resolution failed",
+		string(domain.HTTPInvalidStatusCode): "Invalid HTTP status code",
+		string(domain.HTTPRequestFailed):     "HTTP request failed",
+		string(domain.HTTPSSLError):          "HTTPS handshake error",
+		string(domain.InvalidTarget):         "Invalid target",
+	}
+
+	if msg, ok := known[cause]; ok {
+		return msg
+	}
+
+	if strings.TrimSpace(cause) == "" {
+		return "Health check failed"
+	}
+
+	return "Health check failed"
+}
+
+func sanitizeRequestHeaders(headers map[string]string) map[string]string {
+	if headers == nil {
+		return map[string]string{}
+	}
+
+	clean := make(map[string]string, len(headers))
+	for k, v := range headers {
+		if strings.EqualFold(k, "Authorization") {
+			continue
+		}
+		clean[k] = v
+	}
+
+	return clean
 }

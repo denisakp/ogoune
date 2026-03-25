@@ -21,10 +21,12 @@ func (s *DNSStrategy) Execute(ctx context.Context, resource *domain.Resource) (d
 
 	addrs, err := net.LookupHost(resource.Target)
 	if err != nil {
+		cause := domain.DNSResolutionFailed
 		return domain.CheckResult{
 			Status:       string(domain.StatusDown),
 			ResponseTime: time.Since(start),
 			ResponseData: fmt.Sprintf("DNS résolution failed: %v", err),
+			Cause:        &cause,
 		}, nil
 	}
 

@@ -8,3 +8,8 @@ ARCHITECTURE.md
 eslint.config.ts
 README.md
 dist/
+.git/
+Dockerfile*
+.dockerignore
+coverage/
+*.log*

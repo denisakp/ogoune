@@ -18,6 +18,8 @@ Auto-generated from all feature plans. Last updated: 2026-03-25
 - Go 1.22 (backend), TypeScript / Vue 3.4 (frontend) + Chi v5, GORM, Asynq (backend); Vue 3, Pinia, Ant Design Vue, Vite (frontend) (008-live-monitor-refresh)
 - PostgreSQL (primary/hosted) + SQLite (community/self-hosted) — raw SQL migrations (008-live-monitor-refresh)
 - TypeScript 5, Vue 3.4 + Ant Design Vue 4 (`a-form-item`, `a-select`, `a-tag`), Vite 5 (009-ui-notification-cleanup)
+- Go 1.25.1 (backend), TypeScript 5 + Vue 3.5 (frontend) + Chi router, GORM repositories, Asynq worker path, Ant Design Vue settings UI (010-incident-diagnostic-fixes)
+- PostgreSQL/SQLite via existing GORM models (no schema migration expected) (010-incident-diagnostic-fixes)
 
 - Go 1.25.1 (backend), TypeScript/Vue 3 (frontend unaffected for this feature) + `gorm.io/gorm`, `gorm.io/driver/postgres`, `github.com/glebarez/sqlite` (new), `github.com/stretchr/testify` (002-add-db-driver-abstraction)
 
@@ -38,9 +40,9 @@ npm test && npm run lint
 Go 1.25.1 (backend), TypeScript/Vue 3 (frontend unaffected for this feature): Follow standard conventions
 
 ## Recent Changes
+- 010-incident-diagnostic-fixes: Added Go 1.25.1 (backend), TypeScript 5 + Vue 3.5 (frontend) + Chi router, GORM repositories, Asynq worker path, Ant Design Vue settings UI
 - 009-ui-notification-cleanup: Added TypeScript 5, Vue 3.4 + Ant Design Vue 4 (`a-form-item`, `a-select`, `a-tag`), Vite 5
 - 008-live-monitor-refresh: Added Go 1.22 (backend), TypeScript / Vue 3.4 (frontend) + Chi v5, GORM, Asynq (backend); Vue 3, Pinia, Ant Design Vue, Vite (frontend)
-- 007-intelligent-alerting: Added Go 1.22 (backend), TypeScript / Vue 3 (frontend) + GORM, Asynq, Chi, Ant Design Vue, Pinia
 
 
 <!-- MANUAL ADDITIONS START -->

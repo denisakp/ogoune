@@ -1,10 +1,13 @@
 package monitoring
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
+	"log"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"sync/atomic"
 	"testing"
 
@@ -127,6 +130,31 @@ func TestExtractCause(t *testing.T) {
 	}
 }
 
+func TestExtractCause_PrioritizesStructuredCause(t *testing.T) {
+	structured := domain.DNSResolutionFailed
+	result := domain.CheckResult{
+		Status:       "down",
+		ResponseData: "connection refused",
+		Cause:        &structured,
+	}
+
+	assert.Equal(t, string(domain.DNSResolutionFailed), extractCause(result))
+}
+
+func TestExtractCause_DNSNoSuchHostFallback(t *testing.T) {
+	result := domain.CheckResult{
+		Status:       "down",
+		ResponseData: "dial tcp: lookup bad.host: no such host",
+	}
+
+	assert.Equal(t, "dns_resolution_failure", extractCause(result))
+}
+
+func TestHumanizeCause_KnownAndUnknown(t *testing.T) {
+	assert.Equal(t, "DNS resolution failed", humanizeCause(string(domain.DNSResolutionFailed)))
+	assert.Equal(t, "Health check failed", humanizeCause("some_future_cause"))
+}
+
 // ============================================================
 // INTEGRATION TESTS - Testing incident lifecycle
 // ============================================================
@@ -172,6 +200,74 @@ func TestIncidentService_CreateIncident_Success(t *testing.T) {
 	require.NoError(t, err)
 	assert.Greater(t, len(steps), 0)
 	assert.Equal(t, domain.IncidentEventStepDetected, steps[0].Step)
+	require.NotNil(t, steps[0].Message)
+	assert.NotContains(t, *steps[0].Message, "dns_resolution_failure")
+}
+
+func TestIncidentService_ResolveNotificationChannels_DefaultFallback(t *testing.T) {
+	service, _, _, _, channelRepo, asynqClient := setupTestService()
+	defer asynqClient.Close()
+
+	ctx := context.Background()
+
+	defaultChannel := &domain.NotificationChannel{
+		Base:             domain.Base{ID: "default-channel-1"},
+		Name:             "Default Channel",
+		Type:             domain.NotificationChannelType("webhook"),
+		Config:           []byte(`{"url":"https://example.com"}`),
+		EnabledByDefault: true,
+	}
+	require.NoError(t, channelRepo.Create(ctx, defaultChannel))
+
+	resource := &domain.Resource{Base: domain.Base{ID: "res-default"}}
+	channels := service.resolveNotificationChannels(ctx, resource)
+	require.Len(t, channels, 1)
+	assert.Equal(t, "default-channel-1", channels[0].ID)
+}
+
+func TestIncidentService_CreateIncident_LogsActionableWarningWhenNoChannels(t *testing.T) {
+	service, _, _, _, _, asynqClient := setupTestService()
+	defer asynqClient.Close()
+
+	var logBuffer bytes.Buffer
+	originalWriter := log.Writer()
+	log.SetOutput(&logBuffer)
+	defer log.SetOutput(originalWriter)
+
+	resource := &domain.Resource{
+		Base:   domain.Base{ID: "res-no-channels"},
+		Target: "https://example.com",
+	}
+
+	err := service.CreateIncident(context.Background(), resource, domain.CheckResult{Status: "down", ResponseData: "timeout"})
+	require.NoError(t, err)
+
+	out := logBuffer.String()
+	assert.True(t, strings.Contains(out, "no alert was sent"))
+	assert.True(t, strings.Contains(out, "Configure a resource, component, or default notification channel"))
+}
+
+func TestIncidentService_BuildIncidentDiagnostics_PropagatesAndSanitizesHeaders(t *testing.T) {
+	service, _, _, _, _, asynqClient := setupTestService()
+	defer asynqClient.Close()
+
+	resource := &domain.Resource{Timeout: 10}
+	result := domain.CheckResult{
+		RequestHeaders: map[string]string{
+			"Authorization": "Bearer secret",
+			"X-Trace":       "trace-1",
+		},
+		ResponseHeaders: map[string]string{
+			"Content-Type": "application/json",
+		},
+	}
+
+	diag := service.buildIncidentDiagnostics("inc-diag-1", result, resource)
+
+	_, found := diag.RequestHeaders["Authorization"]
+	assert.False(t, found)
+	assert.Equal(t, "trace-1", diag.RequestHeaders["X-Trace"])
+	assert.Equal(t, "application/json", diag.ResponseHeaders["Content-Type"])
 }
 
 func TestIncidentService_CreateIncident_DuplicatePrevention(t *testing.T) {

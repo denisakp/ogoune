@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"strings"
 	"time"
 
 	"github.com/denisakp/pulseguard/internal/domain"
@@ -28,10 +29,15 @@ func (s *TCPStrategy) Execute(ctx context.Context, resource *domain.Resource) (d
 
 	conn, err := net.DialTimeout("tcp", resource.Target, timeout)
 	if err != nil {
+		cause := domain.TCPPortClosed
+		if strings.Contains(strings.ToLower(err.Error()), "timeout") {
+			cause = domain.ConnectionTimeout
+		}
 		return domain.CheckResult{
 			Status:       string(domain.StatusDown),
 			ResponseTime: time.Since(start),
 			ResponseData: fmt.Sprintf("failed to connect: %v", err),
+			Cause:        &cause,
 		}, nil
 	}
 	defer conn.Close()

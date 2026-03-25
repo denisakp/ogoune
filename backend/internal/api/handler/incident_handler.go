@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/denisakp/pulseguard/internal/domain"
 	"github.com/denisakp/pulseguard/internal/service"
@@ -26,6 +27,20 @@ type IncidentServiceInterface interface {
 // logic in the service layer while handling HTTP concerns here.
 type IncidentHandler struct {
 	incidentService IncidentServiceInterface
+}
+
+type incidentResponse struct {
+	ID                  string                      `json:"id"`
+	CreatedAt           time.Time                   `json:"created_at"`
+	UpdatedAt           time.Time                   `json:"updated_at"`
+	ResourceID          string                      `json:"resource_id"`
+	Resource            domain.Resource             `json:"resource"`
+	Cause               string                      `json:"cause"`
+	ResolvedAt          *time.Time                  `json:"resolved_at"`
+	StartedAt           time.Time                   `json:"started_at"`
+	Details             string                      `json:"details"`
+	EventStep           []domain.IncidentEventStep  `json:"event_steps"`
+	IncidentDiagnostics *domain.IncidentDiagnostics `json:"diagnostics"`
 }
 
 // NewIncidentHandler creates a new IncidentHandler with injected dependencies.
@@ -78,7 +93,7 @@ func (h *IncidentHandler) ListIncidents(w http.ResponseWriter, r *http.Request) 
 		incidents = []*domain.Incident{}
 	}
 
-	respondJSON(w, http.StatusOK, incidents)
+	respondJSON(w, http.StatusOK, toIncidentResponses(incidents))
 }
 
 // GetIncidentDetail handles GET /incidents/{id} - retrieves a single incident with its event steps.
@@ -105,7 +120,7 @@ func (h *IncidentHandler) GetIncidentDetail(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	respondJSON(w, http.StatusOK, incident)
+	respondJSON(w, http.StatusOK, toIncidentResponse(incident))
 }
 
 // GetIncidentEventSteps handles GET /incidents/{id}/event-steps - retrieves event steps for an incident.
@@ -175,5 +190,32 @@ func (h *IncidentHandler) GetResourceIncidents(w http.ResponseWriter, r *http.Re
 		incidents = []*domain.Incident{}
 	}
 
-	respondJSON(w, http.StatusOK, incidents)
+	respondJSON(w, http.StatusOK, toIncidentResponses(incidents))
+}
+
+func toIncidentResponses(incidents []*domain.Incident) []incidentResponse {
+	out := make([]incidentResponse, 0, len(incidents))
+	for _, incident := range incidents {
+		if incident == nil {
+			continue
+		}
+		out = append(out, toIncidentResponse(incident))
+	}
+	return out
+}
+
+func toIncidentResponse(incident *domain.Incident) incidentResponse {
+	return incidentResponse{
+		ID:                  incident.ID,
+		CreatedAt:           incident.CreatedAt,
+		UpdatedAt:           incident.UpdatedAt,
+		ResourceID:          incident.ResourceID,
+		Resource:            incident.Resource,
+		Cause:               incident.Cause,
+		ResolvedAt:          incident.ResolvedAt,
+		StartedAt:           incident.StartedAt,
+		Details:             string(incident.Details),
+		EventStep:           incident.EventStep,
+		IncidentDiagnostics: incident.IncidentDiagnostics,
+	}
 }
