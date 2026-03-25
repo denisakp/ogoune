@@ -221,3 +221,61 @@ func (f *MonitoringActivityFake) GetGlobalUptimeStats(ctx context.Context, hours
 
 	return (float64(successCount) / float64(totalCount)) * 100, nil
 }
+
+// GetUptimeByWindow returns the uptime percentage for a resource over the given hour window.
+// Returns nil when no activity data exists for the window.
+func (f *MonitoringActivityFake) GetUptimeByWindow(ctx context.Context, resourceID string, hours int) (*float64, error) {
+	f.mu.RLock()
+	defer f.mu.RUnlock()
+
+	if resourceID == "" {
+		return nil, repository.ErrInvalidInput
+	}
+
+	since := time.Now().Add(-time.Duration(hours) * time.Hour)
+	total := 0
+	successful := 0
+	for _, a := range f.activities {
+		if a.ResourceID != resourceID || a.CreatedAt.Before(since) {
+			continue
+		}
+		total++
+		if a.Success {
+			successful++
+		}
+	}
+
+	if total == 0 {
+		return nil, nil
+	}
+	uptime := (float64(successful) / float64(total)) * 100
+	return &uptime, nil
+}
+
+// GetAvgResponseTimeByWindow returns the average response time (ms) for successful checks
+// within the given hour window. Returns nil when no successful checks exist.
+func (f *MonitoringActivityFake) GetAvgResponseTimeByWindow(ctx context.Context, resourceID string, hours int) (*int, error) {
+	f.mu.RLock()
+	defer f.mu.RUnlock()
+
+	if resourceID == "" {
+		return nil, repository.ErrInvalidInput
+	}
+
+	since := time.Now().Add(-time.Duration(hours) * time.Hour)
+	total := 0
+	sum := 0
+	for _, a := range f.activities {
+		if a.ResourceID != resourceID || a.CreatedAt.Before(since) || !a.Success {
+			continue
+		}
+		total++
+		sum += a.ResponseTime
+	}
+
+	if total == 0 {
+		return nil, nil
+	}
+	avg := sum / total
+	return &avg, nil
+}

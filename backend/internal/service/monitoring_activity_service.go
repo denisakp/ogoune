@@ -120,3 +120,31 @@ func (s *MonitoringActivityService) GetRecentResponseTimes(ctx context.Context, 
 
 	return response, nil
 }
+
+// GetResourceUptimeStats computes uptime percentages and average response time for the four
+// standard time windows: 2h, 24h, 7d (168h), 30d (720h). Fields are nil when no data exists.
+func (s *MonitoringActivityService) GetResourceUptimeStats(ctx context.Context, resourceID string) (*dto.LiveStats, error) {
+	if resourceID == "" {
+		return nil, fmt.Errorf("resource_id is required")
+	}
+
+	stats := &dto.LiveStats{}
+
+	if v, err := s.repo.GetUptimeByWindow(ctx, resourceID, 2); err == nil {
+		stats.Uptime2h = v
+	}
+	if v, err := s.repo.GetUptimeByWindow(ctx, resourceID, 24); err == nil {
+		stats.Uptime24h = v
+	}
+	if v, err := s.repo.GetUptimeByWindow(ctx, resourceID, 168); err == nil {
+		stats.Uptime7d = v
+	}
+	if v, err := s.repo.GetUptimeByWindow(ctx, resourceID, 720); err == nil {
+		stats.Uptime30d = v
+	}
+	if v, err := s.repo.GetAvgResponseTimeByWindow(ctx, resourceID, 24); err == nil {
+		stats.AvgResponseTime24h = v
+	}
+
+	return stats, nil
+}

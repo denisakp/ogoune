@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/denisakp/pulseguard/internal/domain"
+	"github.com/denisakp/pulseguard/internal/dto"
 	"github.com/denisakp/pulseguard/internal/repository"
 )
 
@@ -130,4 +131,26 @@ func (s *IncidentService) GetEventStepsForIncident(ctx context.Context, incident
 	}
 
 	return result, nil
+}
+
+// GetActiveIncident returns the most recent unresolved incident for a resource.
+// When no active incident exists, it returns (nil, nil).
+func (s *IncidentService) GetActiveIncident(ctx context.Context, resourceID string) (*dto.LiveActiveIncident, error) {
+	if resourceID == "" {
+		return nil, fmt.Errorf("resource_id is required")
+	}
+
+	incident, err := s.incidents.FindActiveByResourceID(ctx, resourceID)
+	if err != nil {
+		if errors.Is(err, repository.ErrNotFound) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("failed to get active incident for resource %s: %w", resourceID, err)
+	}
+
+	return &dto.LiveActiveIncident{
+		ID:        incident.ID,
+		StartedAt: incident.StartedAt,
+		Cause:     incident.Cause,
+	}, nil
 }

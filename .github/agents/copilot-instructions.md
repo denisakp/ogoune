@@ -15,6 +15,8 @@ Auto-generated from all feature plans. Last updated: 2026-03-25
 - PostgreSQL (hosted/default) + SQLite (community edition) — dual migration files required for every schema change (006-ssl-domain-expiry-alerts)
 - Go 1.22 (backend), TypeScript / Vue 3 (frontend) + GORM, Asynq, Chi, Ant Design Vue, Pinia (007-intelligent-alerting)
 - PostgreSQL (primary) + SQLite (dev/CE default) via dual migration track (007-intelligent-alerting)
+- Go 1.22 (backend), TypeScript / Vue 3.4 (frontend) + Chi v5, GORM, Asynq (backend); Vue 3, Pinia, Ant Design Vue, Vite (frontend) (008-live-monitor-refresh)
+- PostgreSQL (primary/hosted) + SQLite (community/self-hosted) — raw SQL migrations (008-live-monitor-refresh)
 
 - Go 1.25.1 (backend), TypeScript/Vue 3 (frontend unaffected for this feature) + `gorm.io/gorm`, `gorm.io/driver/postgres`, `github.com/glebarez/sqlite` (new), `github.com/stretchr/testify` (002-add-db-driver-abstraction)
 
@@ -35,9 +37,9 @@ npm test && npm run lint
 Go 1.25.1 (backend), TypeScript/Vue 3 (frontend unaffected for this feature): Follow standard conventions
 
 ## Recent Changes
+- 008-live-monitor-refresh: Added Go 1.22 (backend), TypeScript / Vue 3.4 (frontend) + Chi v5, GORM, Asynq (backend); Vue 3, Pinia, Ant Design Vue, Vite (frontend)
 - 007-intelligent-alerting: Added Go 1.22 (backend), TypeScript / Vue 3 (frontend) + GORM, Asynq, Chi, Ant Design Vue, Pinia
 - 007-intelligent-alerting: Added [if applicable, e.g., PostgreSQL, CoreData, files or N/A]
-- 006-ssl-domain-expiry-alerts: Added Go 1.22 (backend), TypeScript / Vue 3 (frontend) + Chi (HTTP router), GORM (ORM), Asynq (task queue / PostgreSQL mode), TimingWheel (task scheduler / SQLite community mode), Ant Design Vue (UI components)
 
 
 <!-- MANUAL ADDITIONS START -->

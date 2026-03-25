@@ -122,6 +122,25 @@ func (r *IncidentRepositoryImpl) FindByResource(ctx context.Context, resourceID 
 	return incidents, nil
 }
 
+// FindActiveByResourceID returns the most recent unresolved incident for a resource.
+// Returns repository.ErrNotFound when no active incident exists.
+func (r *IncidentRepositoryImpl) FindActiveByResourceID(ctx context.Context, resourceID string) (*domain.Incident, error) {
+	var incident domain.Incident
+	err := r.db.WithContext(ctx).
+		Where("resource_id = ? AND resolved_at IS NULL", resourceID).
+		Order("started_at DESC").
+		Limit(1).
+		First(&incident).Error
+
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, repository.ErrNotFound
+		}
+		return nil, fmt.Errorf("failed to find active incident for resource %s: %w", resourceID, err)
+	}
+	return &incident, nil
+}
+
 // GetIncidentStats retrieves incident statistics for a given time range.
 // Returns: total incidents count, affected monitors count, error
 func (r *IncidentRepositoryImpl) GetIncidentStats(ctx context.Context, hours int) (int, int, error) {

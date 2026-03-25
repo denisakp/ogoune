@@ -553,3 +553,26 @@ export interface BulkAssignPayload {
 export interface BulkRemovePayload {
   resource_ids: string[]
 }
+
+export interface LiveStats {
+  uptime_2h: number | null
+  uptime_24h: number | null
+  uptime_7d: number | null
+  uptime_30d: number | null
+  avg_response_time_24h: number | null
+  last_response_time: number | null
+}
+
+export interface LiveActiveIncident {
+  id: string
+  started_at: string
+  cause: string
+}
+
+export interface LiveSnapshot {
+  resource: Resource
+  stats: LiveStats
+  active_incident: LiveActiveIncident | null
+  recent_activities: MonitoringActivity[]
+  fetched_at: string
+}

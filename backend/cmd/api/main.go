@@ -469,6 +469,7 @@ func main() {
 	statusPageSettingsService := service.NewStatusPageSettingsService(statusPageSettingsRepo)
 	statusPageService := service.NewStatusPageService(resourceRepo, incidentRepo, monitoringActivityRepo, maintenanceRepo, statusPageSettingsRepo, componentRepo)
 	incidentAPIService := service.NewIncidentService(incidentRepo, incidentEventStepRepo)
+	liveSnapshotService := service.NewLiveSnapshotService(resourceService, activityService, incidentAPIService)
 	notificationService := service.NewNotificationService(
 		resourceRepo,
 		notificationChannelRepo,
@@ -490,7 +491,7 @@ func main() {
 	_, _ = authService.CreateDefaultUser(context.Background(), cfg.AuthEmail, cfg.AuthPassword)
 
 	// Initialize JSON API handlers (no template dependencies)
-	resourceHandler := handler.NewResourceHandler(resourceService)
+	resourceHandler := handler.NewResourceHandler(resourceService, liveSnapshotService)
 	activityHandler := handler.NewMonitoringActivityHandler(activityService)
 	tagHandler := handler.NewTagHandler(tagService)
 	statusPageHandler := handler.NewStatusPageHandler(statusPageService)

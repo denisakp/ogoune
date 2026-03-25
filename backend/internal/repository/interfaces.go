@@ -69,6 +69,9 @@ type IncidentRepository interface {
 	FindUnresolved(ctx context.Context, limit, offset int) ([]*domain.Incident, error)
 	FindByResource(ctx context.Context, resourceID string, limit, offset int) ([]*domain.Incident, error)
 	GetIncidentStats(ctx context.Context, hours int) (int, int, error)
+	// FindActiveByResourceID returns the most recent unresolved incident for a resource.
+	// Returns ErrNotFound when no active incident exists.
+	FindActiveByResourceID(ctx context.Context, resourceID string) (*domain.Incident, error)
 }
 
 // IncidentEventStepRepository manages lifecycle steps
@@ -101,6 +104,12 @@ type MonitoringActivityRepository interface {
 	GetUptimeStats(ctx context.Context, resourceID string) ([]domain.UptimeStat, error)
 	GetRecentResponseTimes(ctx context.Context, resourceID string, limit int) ([]domain.ResponseTimePoint, error)
 	GetGlobalUptimeStats(ctx context.Context, hours int) (float64, error)
+	// GetUptimeByWindow returns the uptime percentage for a resource over the given hour window.
+	// Returns nil when no activity data exists for the window.
+	GetUptimeByWindow(ctx context.Context, resourceID string, hours int) (*float64, error)
+	// GetAvgResponseTimeByWindow returns the average response time (ms) for successful checks
+	// within the given hour window. Returns nil when no successful checks exist.
+	GetAvgResponseTimeByWindow(ctx context.Context, resourceID string, hours int) (*int, error)
 }
 
 // Scheduler defines the interface for scheduling monitoring tasks

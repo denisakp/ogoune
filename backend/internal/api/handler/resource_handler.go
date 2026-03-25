@@ -31,17 +31,30 @@ type ResourceServiceInterface interface {
 	RemoveTagFromResource(ctx context.Context, resourceID string, tagID string) error
 }
 
+// LiveSnapshotServiceInterface defines the live snapshot query used by ResourceHandler.
+type LiveSnapshotServiceInterface interface {
+	GetLiveSnapshot(ctx context.Context, resourceID string) (*dto.LiveSnapshotResponse, error)
+}
+
 // ResourceHandler handles HTTP requests for monitoring resource management.
 // It follows the Handler -> Service -> Repository pattern, keeping all business
 // logic in the service layer while handling HTTP concerns here.
 type ResourceHandler struct {
-	resourceService ResourceServiceInterface
+	resourceService     ResourceServiceInterface
+	liveSnapshotService LiveSnapshotServiceInterface
 }
 
 // NewResourceHandler creates a new ResourceHandler with injected dependencies.
-func NewResourceHandler(resourceService ResourceServiceInterface) *ResourceHandler {
+
+func NewResourceHandler(resourceService ResourceServiceInterface, liveSnapshotService ...LiveSnapshotServiceInterface) *ResourceHandler {
+	var liveService LiveSnapshotServiceInterface
+	if len(liveSnapshotService) > 0 {
+		liveService = liveSnapshotService[0]
+	}
+
 	return &ResourceHandler{
-		resourceService: resourceService,
+		resourceService:     resourceService,
+		liveSnapshotService: liveService,
 	}
 }
 
@@ -399,6 +412,32 @@ func (h *ResourceHandler) RemoveTagFromResource(w http.ResponseWriter, r *http.R
 	}
 
 	w.WriteHeader(http.StatusNoContent)
+}
+
+// GetLive handles GET /resources/{id}/live - returns a live snapshot for one resource.
+func (h *ResourceHandler) GetLive(w http.ResponseWriter, r *http.Request) {
+	resourceID := chi.URLParam(r, "id")
+	if resourceID == "" {
+		respondError(w, http.StatusBadRequest, "Resource ID is required")
+		return
+	}
+
+	if h.liveSnapshotService == nil {
+		respondError(w, http.StatusInternalServerError, "Live snapshot service is not configured")
+		return
+	}
+
+	liveSnapshot, err := h.liveSnapshotService.GetLiveSnapshot(r.Context(), resourceID)
+	if err != nil {
+		if errors.Is(err, service.ErrResourceNotFound) {
+			respondError(w, http.StatusNotFound, "Resource not found")
+			return
+		}
+		respondError(w, http.StatusInternalServerError, "Failed to retrieve live snapshot")
+		return
+	}
+
+	respondJSON(w, http.StatusOK, liveSnapshot)
 }
 
 // respondJSON writes a JSON response with the given status code and payload.

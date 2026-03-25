@@ -8,7 +8,9 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
+	"github.com/denisakp/pulseguard/internal/api/middleware"
 	"github.com/denisakp/pulseguard/internal/domain"
 	"github.com/denisakp/pulseguard/internal/dto"
 	"github.com/denisakp/pulseguard/internal/service"
@@ -29,6 +31,17 @@ type mockResourceService struct {
 	removeTagFromResourceFunc            func(ctx context.Context, resourceID, tagID string) error
 	getResourceByIDFunc                  func(ctx context.Context, id string) (*domain.Resource, error)
 	getResourceByIDWithResponseTimesFunc func(ctx context.Context, id string, limit int) (*dto.ResourceResponse, error)
+}
+
+type mockLiveSnapshotService struct {
+	getLiveSnapshotFunc func(ctx context.Context, resourceID string) (*dto.LiveSnapshotResponse, error)
+}
+
+func (m *mockLiveSnapshotService) GetLiveSnapshot(ctx context.Context, resourceID string) (*dto.LiveSnapshotResponse, error) {
+	if m.getLiveSnapshotFunc != nil {
+		return m.getLiveSnapshotFunc(ctx, resourceID)
+	}
+	return nil, nil
 }
 
 func (m *mockResourceService) CreateResource(ctx context.Context, payload *dto.CreateResourcePayload) (*domain.Resource, error) {
@@ -883,4 +896,213 @@ func TestDeleteResource_ServiceError(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Contains(t, errorResp["error"], "Failed to delete resource")
+}
+
+func TestGetLive_200_AllFields(t *testing.T) {
+	fetchedAt := time.Now().UTC()
+	avgResponse := 142
+	lastResponse := 121
+	resourceID := "res-live-123"
+	liveService := &mockLiveSnapshotService{
+		getLiveSnapshotFunc: func(ctx context.Context, id string) (*dto.LiveSnapshotResponse, error) {
+			assert.Equal(t, resourceID, id)
+			return &dto.LiveSnapshotResponse{
+				Resource: &domain.Resource{Base: domain.Base{ID: id}, Name: "API Monitor", Type: domain.ResourceHTTP, Target: "https://example.com"},
+				Stats: dto.LiveStats{
+					Uptime2h:           ptrFloat64(100),
+					Uptime24h:          ptrFloat64(99.9),
+					Uptime7d:           ptrFloat64(99.7),
+					Uptime30d:          ptrFloat64(99.5),
+					AvgResponseTime24h: &avgResponse,
+					LastResponseTime:   &lastResponse,
+				},
+				ActiveIncident:   &dto.LiveActiveIncident{ID: "inc-1", StartedAt: fetchedAt.Add(-10 * time.Minute), Cause: "timeout"},
+				RecentActivities: []*domain.MonitoringActivity{{ResponseTime: 120}, {ResponseTime: 125}},
+				FetchedAt:        fetchedAt,
+			}, nil
+		},
+	}
+	h := NewResourceHandler(&mockResourceService{}, liveService)
+
+	req := httptest.NewRequest(http.MethodGet, "/resources/"+resourceID+"/live", nil)
+	ctx := chi.NewRouteContext()
+	ctx.URLParams.Add("id", resourceID)
+	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, ctx))
+	rec := httptest.NewRecorder()
+
+	h.GetLive(rec, req)
+
+	assert.Equal(t, http.StatusOK, rec.Code)
+
+	var body map[string]interface{}
+	err := json.NewDecoder(rec.Body).Decode(&body)
+	require.NoError(t, err)
+	require.NotNil(t, body["resource"])
+	require.NotNil(t, body["stats"])
+	require.NotNil(t, body["active_incident"])
+	require.NotNil(t, body["recent_activities"])
+	require.NotNil(t, body["fetched_at"])
+
+	stats, ok := body["stats"].(map[string]interface{})
+	require.True(t, ok)
+	assert.Contains(t, stats, "uptime_2h")
+	assert.Contains(t, stats, "uptime_24h")
+	assert.Contains(t, stats, "uptime_7d")
+	assert.Contains(t, stats, "uptime_30d")
+	assert.Contains(t, stats, "avg_response_time_24h")
+	assert.Contains(t, stats, "last_response_time")
+
+	if fetchedAtString, ok := body["fetched_at"].(string); ok {
+		parsed, parseErr := time.Parse(time.RFC3339Nano, fetchedAtString)
+		require.NoError(t, parseErr)
+		assert.Equal(t, time.UTC, parsed.Location())
+	}
+}
+
+func TestGetLive_404_UnknownID(t *testing.T) {
+	liveService := &mockLiveSnapshotService{
+		getLiveSnapshotFunc: func(ctx context.Context, resourceID string) (*dto.LiveSnapshotResponse, error) {
+			return nil, service.ErrResourceNotFound
+		},
+	}
+	h := NewResourceHandler(&mockResourceService{}, liveService)
+
+	req := httptest.NewRequest(http.MethodGet, "/resources/unknown/live", nil)
+	ctx := chi.NewRouteContext()
+	ctx.URLParams.Add("id", "unknown")
+	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, ctx))
+	rec := httptest.NewRecorder()
+
+	h.GetLive(rec, req)
+
+	assert.Equal(t, http.StatusNotFound, rec.Code)
+
+	var errorResp map[string]string
+	err := json.NewDecoder(rec.Body).Decode(&errorResp)
+	require.NoError(t, err)
+	assert.Contains(t, errorResp["error"], "Resource not found")
+}
+
+func TestGetLive_NullActiveIncident(t *testing.T) {
+	liveService := &mockLiveSnapshotService{
+		getLiveSnapshotFunc: func(ctx context.Context, resourceID string) (*dto.LiveSnapshotResponse, error) {
+			return &dto.LiveSnapshotResponse{
+				Resource:         &domain.Resource{Base: domain.Base{ID: resourceID}},
+				Stats:            dto.LiveStats{},
+				ActiveIncident:   nil,
+				RecentActivities: []*domain.MonitoringActivity{},
+				FetchedAt:        time.Now().UTC(),
+			}, nil
+		},
+	}
+	h := NewResourceHandler(&mockResourceService{}, liveService)
+
+	req := httptest.NewRequest(http.MethodGet, "/resources/r1/live", nil)
+	ctx := chi.NewRouteContext()
+	ctx.URLParams.Add("id", "r1")
+	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, ctx))
+	rec := httptest.NewRecorder()
+
+	h.GetLive(rec, req)
+
+	assert.Equal(t, http.StatusOK, rec.Code)
+
+	var body map[string]interface{}
+	err := json.NewDecoder(rec.Body).Decode(&body)
+	require.NoError(t, err)
+	assert.Nil(t, body["active_incident"])
+}
+
+func TestGetLive_Unauthorized(t *testing.T) {
+	liveService := &mockLiveSnapshotService{
+		getLiveSnapshotFunc: func(ctx context.Context, resourceID string) (*dto.LiveSnapshotResponse, error) {
+			t.Fatalf("live service should not be called without auth")
+			return nil, nil
+		},
+	}
+	h := NewResourceHandler(&mockResourceService{}, liveService)
+
+	r := chi.NewRouter()
+	r.Use(middleware.AuthMiddleware(nil))
+	r.Get("/resources/{id}/live", h.GetLive)
+
+	req := httptest.NewRequest(http.MethodGet, "/resources/r1/live", nil)
+	rec := httptest.NewRecorder()
+	r.ServeHTTP(rec, req)
+
+	assert.Equal(t, http.StatusUnauthorized, rec.Code)
+}
+
+func TestGetLive_RecentActivitiesMax20(t *testing.T) {
+	recent := make([]*domain.MonitoringActivity, 20)
+	for i := range recent {
+		recent[i] = &domain.MonitoringActivity{ResponseTime: i + 100}
+	}
+
+	liveService := &mockLiveSnapshotService{
+		getLiveSnapshotFunc: func(ctx context.Context, resourceID string) (*dto.LiveSnapshotResponse, error) {
+			return &dto.LiveSnapshotResponse{
+				Resource:         &domain.Resource{Base: domain.Base{ID: resourceID}},
+				Stats:            dto.LiveStats{},
+				ActiveIncident:   nil,
+				RecentActivities: recent,
+				FetchedAt:        time.Now().UTC(),
+			}, nil
+		},
+	}
+	h := NewResourceHandler(&mockResourceService{}, liveService)
+
+	req := httptest.NewRequest(http.MethodGet, "/resources/r1/live", nil)
+	ctx := chi.NewRouteContext()
+	ctx.URLParams.Add("id", "r1")
+	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, ctx))
+	rec := httptest.NewRecorder()
+
+	h.GetLive(rec, req)
+	assert.Equal(t, http.StatusOK, rec.Code)
+
+	var body map[string]interface{}
+	err := json.NewDecoder(rec.Body).Decode(&body)
+	require.NoError(t, err)
+	recentActivities, ok := body["recent_activities"].([]interface{})
+	require.True(t, ok)
+	assert.LessOrEqual(t, len(recentActivities), 20)
+}
+
+func TestGetLive_FetchedAtIsUTC(t *testing.T) {
+	liveService := &mockLiveSnapshotService{
+		getLiveSnapshotFunc: func(ctx context.Context, resourceID string) (*dto.LiveSnapshotResponse, error) {
+			return &dto.LiveSnapshotResponse{
+				Resource:         &domain.Resource{Base: domain.Base{ID: resourceID}},
+				Stats:            dto.LiveStats{},
+				ActiveIncident:   nil,
+				RecentActivities: []*domain.MonitoringActivity{},
+				FetchedAt:        time.Now().UTC(),
+			}, nil
+		},
+	}
+	h := NewResourceHandler(&mockResourceService{}, liveService)
+
+	req := httptest.NewRequest(http.MethodGet, "/resources/r1/live", nil)
+	ctx := chi.NewRouteContext()
+	ctx.URLParams.Add("id", "r1")
+	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, ctx))
+	rec := httptest.NewRecorder()
+
+	h.GetLive(rec, req)
+	assert.Equal(t, http.StatusOK, rec.Code)
+
+	var body map[string]interface{}
+	err := json.NewDecoder(rec.Body).Decode(&body)
+	require.NoError(t, err)
+
+	fetchedAtStr, ok := body["fetched_at"].(string)
+	require.True(t, ok)
+	parsed, parseErr := time.Parse(time.RFC3339Nano, fetchedAtStr)
+	require.NoError(t, parseErr)
+	assert.Equal(t, time.UTC, parsed.Location())
+}
+
+func ptrFloat64(v float64) *float64 {
+	return &v
 }

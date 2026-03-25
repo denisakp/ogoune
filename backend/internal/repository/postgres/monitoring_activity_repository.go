@@ -227,3 +227,69 @@ func (r *MonitoringActivityRepositoryImpl) GetGlobalUptimeStats(ctx context.Cont
 	uptime := math.Round((float64(successful)/float64(total)*100)*100) / 100
 	return uptime, nil
 }
+
+// GetUptimeByWindow returns the uptime percentage for a resource over the given hour window.
+// Returns nil when no activity data exists for the window.
+func (r *MonitoringActivityRepositoryImpl) GetUptimeByWindow(ctx context.Context, resourceID string, hours int) (*float64, error) {
+	if resourceID == "" {
+		return nil, repository.ErrInvalidInput
+	}
+
+	since := time.Now().Add(-time.Duration(hours) * time.Hour)
+
+	var total int64
+	err := r.db.WithContext(ctx).
+		Model(&domain.MonitoringActivity{}).
+		Where("resource_id = ? AND created_at >= ?", resourceID, since).
+		Count(&total).Error
+	if err != nil {
+		return nil, fmt.Errorf("failed to get uptime by window for resource %s: %w", resourceID, err)
+	}
+
+	if total == 0 {
+		return nil, nil
+	}
+
+	var successful int64
+	err = r.db.WithContext(ctx).
+		Model(&domain.MonitoringActivity{}).
+		Where("resource_id = ? AND created_at >= ? AND success = ?", resourceID, since, true).
+		Count(&successful).Error
+	if err != nil {
+		return nil, fmt.Errorf("failed to get uptime by window for resource %s: %w", resourceID, err)
+	}
+
+	uptime := math.Round((float64(successful)/float64(total)*100)*100) / 100
+	return &uptime, nil
+}
+
+// GetAvgResponseTimeByWindow returns the average response time (ms) for successful checks
+// within the given hour window. Returns nil when no successful checks exist.
+func (r *MonitoringActivityRepositoryImpl) GetAvgResponseTimeByWindow(ctx context.Context, resourceID string, hours int) (*int, error) {
+	if resourceID == "" {
+		return nil, repository.ErrInvalidInput
+	}
+
+	since := time.Now().Add(-time.Duration(hours) * time.Hour)
+
+	type result struct {
+		Avg *float64
+	}
+
+	var res result
+	err := r.db.WithContext(ctx).
+		Model(&domain.MonitoringActivity{}).
+		Select("AVG(response_time) as avg").
+		Where("resource_id = ? AND created_at >= ? AND success = ?", resourceID, since, true).
+		Scan(&res).Error
+	if err != nil {
+		return nil, fmt.Errorf("failed to get avg response time for resource %s: %w", resourceID, err)
+	}
+
+	if res.Avg == nil {
+		return nil, nil
+	}
+
+	avg := int(math.Round(*res.Avg))
+	return &avg, nil
+}

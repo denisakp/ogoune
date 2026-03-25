@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, onUnmounted, ref, computed } from 'vue'
+import { onMounted, onUnmounted, ref, computed, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { message } from 'ant-design-vue'
 import {
@@ -24,6 +24,7 @@ import ResourceModal from '@/components/resources/ResourceModal.vue'
 import ResponseTimeChart from '@/components/ResponseTimeChart.vue'
 import ExpiryBadge from '@/components/resources/ExpiryBadge.vue'
 import type { Resource, Incident, ExpirationStatus } from '@/types'
+import { useMonitorLive } from '@/composables/useMonitorLive'
 
 const router = useRouter()
 const route = useRoute()
@@ -41,6 +42,17 @@ let timer: number | undefined
 
 // Get resource ID from route
 const resourceId = computed(() => route.params.id as string)
+
+const {
+  liveData,
+  isLoading: isLiveLoading,
+  lastUpdated,
+  error: liveError,
+  isTerminated,
+  refresh,
+  startPolling,
+  stopPolling,
+} = useMonitorLive(resourceId.value, () => resource.value?.interval)
 
 const { getTimeRangeCutoff } = useDateTime()
 
@@ -218,13 +230,44 @@ onMounted(async () => {
   timer = window.setInterval(() => {
     nowTs.value = Date.now()
   }, 1000)
+
+  stopPolling()
   await loadResource()
+  await refresh()
+  startPolling()
 })
 
 onUnmounted(() => {
+  stopPolling()
   if (timer) {
     window.clearInterval(timer)
   }
+})
+
+watch(liveData, (snapshot) => {
+  if (!snapshot || !resource.value) {
+    return
+  }
+
+  const incoming = snapshot.resource as Resource
+  resource.value = {
+    ...resource.value,
+    ...incoming,
+    tags: incoming.tags ? [...incoming.tags] : resource.value.tags,
+    incidents: incoming.incidents ? [...incoming.incidents] : resource.value.incidents,
+    response_times: resource.value.response_times,
+  }
+})
+
+const lastUpdatedRelative = computed(() => {
+  if (!lastUpdated.value) {
+    return ''
+  }
+  const deltaSeconds = Math.max(0, Math.floor((nowTs.value - lastUpdated.value.getTime()) / 1000))
+  if (deltaSeconds < 5) {
+    return 'just now'
+  }
+  return `${deltaSeconds}s ago`
 })
 
 const isConfirming = computed(() => {
@@ -375,6 +418,23 @@ const goBack = () => {
                 <p style="margin: 0; font-size: 12px; color: rgba(0, 0, 0, 0.45)">
                   {{ resource.type.toUpperCase() }} monitor for {{ resource.target }}
                 </p>
+                <div style="display: flex; align-items: center; gap: 8px; margin-top: 6px">
+                  <span
+                    style="width: 8px; height: 8px; border-radius: 50%; display: inline-block"
+                    :style="{
+                      backgroundColor: !isLiveLoading && liveData ? 'var(--color-text-success, #52c41a)' : 'var(--color-border-secondary, #d9d9d9)',
+                    }"
+                  />
+                  <span
+                    v-if="lastUpdated"
+                    style="font-size: 12px; color: rgba(0, 0, 0, 0.55)"
+                  >
+                    Updated {{ lastUpdatedRelative }}
+                  </span>
+                  <a-button size="small" :disabled="isLiveLoading" @click="refresh">
+                    ↻
+                  </a-button>
+                </div>
               </div>
             </div>
           </div>
@@ -410,6 +470,20 @@ const goBack = () => {
         </div>
 
         <!-- Main Content -->
+        <a-alert
+          v-if="liveError && !isTerminated"
+          style="margin-bottom: 12px"
+          type="warning"
+          show-icon
+          message="Could not refresh - showing last known data"
+        />
+        <a-alert
+          v-if="isTerminated"
+          style="margin-bottom: 12px"
+          type="warning"
+          show-icon
+          message="This monitor no longer exists - showing last known data"
+        />
         <a-row :gutter="24">
           <!-- Left Column -->
           <a-col :xs="24" :lg="16">

@@ -86,6 +86,7 @@ func NewRouter(
 			r.Get("/", resourceHandler.ListResources)                                     // GET /resources - list all resources
 			r.Post("/", resourceHandler.CreateResource)                                   // POST /resources - create new resource
 			r.Get("/{id}", resourceHandler.GetResourceByID)                               // GET /resources/{id} - get resource details
+			r.Get("/{id}/live", resourceHandler.GetLive)                                  // GET /resources/{id}/live - get live resource snapshot
 			r.Patch("/{id}", resourceHandler.UpdateResource)                              // PATCH /resources/{id} - update resource
 			r.Delete("/{id}", resourceHandler.DeleteResource)                             // DELETE /resources/{id} - delete resource
 			r.Post("/{id}/pause", resourceHandler.PauseResourceMonitoring)                // POST /resources/{id}/pause - pause monitoring
