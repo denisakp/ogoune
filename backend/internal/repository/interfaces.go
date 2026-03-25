@@ -75,6 +75,7 @@ type IncidentRepository interface {
 type IncidentEventStepRepository interface {
 	Create(ctx context.Context, s *domain.IncidentEventStep) (*domain.IncidentEventStep, error)
 	FindByID(ctx context.Context, id string) (*domain.IncidentEventStep, error)
+	FindLastByIncidentAndStep(ctx context.Context, incidentID string, step domain.IncidentEventStepType) (*domain.IncidentEventStep, error)
 	List(ctx context.Context, limit, offset int) ([]*domain.IncidentEventStep, error)
 	Update(ctx context.Context, s *domain.IncidentEventStep) error
 	Delete(ctx context.Context, id string) error
@@ -96,6 +97,7 @@ type MonitoringActivityRepository interface {
 	Create(ctx context.Context, activity *domain.MonitoringActivity) error
 	List(ctx context.Context, limit, offset int) ([]*domain.MonitoringActivity, error)
 	FindByResourceID(ctx context.Context, resourceID string, limit, offset int) ([]*domain.MonitoringActivity, error)
+	CountTransitionsInWindow(ctx context.Context, resourceID string, windowStart time.Time) (int, error)
 	GetUptimeStats(ctx context.Context, resourceID string) ([]domain.UptimeStat, error)
 	GetRecentResponseTimes(ctx context.Context, resourceID string, limit int) ([]domain.ResponseTimePoint, error)
 	GetGlobalUptimeStats(ctx context.Context, hours int) (float64, error)

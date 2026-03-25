@@ -102,6 +102,12 @@ func (n *SMTPNotifier) Send(ctx context.Context, payload NotificationPayload) er
 	var htmlBody string
 
 	switch {
+	case payload.Flapping != nil:
+		subject = n.flappingSubject(payload.Flapping)
+		htmlBody = n.generateFlappingEmailHTML(payload.Flapping)
+	case payload.Reminder != nil:
+		subject = n.reminderSubject(payload.Reminder)
+		htmlBody = n.generateReminderEmailHTML(payload.Reminder)
 	case payload.Component != nil:
 		subject = n.componentSubject(payload.Component)
 		htmlBody = n.generateComponentEmailHTML(payload.Component)
@@ -112,7 +118,7 @@ func (n *SMTPNotifier) Send(ctx context.Context, payload NotificationPayload) er
 		incident := *payload.Incident
 		subject, htmlBody = n.incidentEmailContent(incident)
 	default:
-		return fmt.Errorf("notification payload missing incident, component, or expiry")
+		return fmt.Errorf("notification payload missing incident, component, expiry, flapping, or reminder")
 	}
 
 	message := gomail.NewMessage()
@@ -315,7 +321,29 @@ func (n *SMTPNotifier) expirySubject(expiry *ExpiryNotification) string {
 	if expiry.ExpiryType == "domain" {
 		typeLabel = "Domain"
 	}
-	return fmt.Sprintf("⚠️ %s expiry alert: %s expires in %d days", typeLabel, expiry.Resource.Name, expiry.DaysRemaining)
+	return fmt.Sprintf("%s expiry alert: %s expires in %d days", typeLabel, expiry.Resource.Name, expiry.DaysRemaining)
+}
+
+func (n *SMTPNotifier) flappingSubject(flapping *FlappingNotification) string {
+	if flapping.Stabilized {
+		return fmt.Sprintf("[PulseGuard] %s stabilized after flapping", flapping.Resource.Name)
+	}
+	return fmt.Sprintf("[PulseGuard] %s is flapping - %d transitions in %d minutes", flapping.Resource.Name, flapping.TransitionCount, flapping.WindowSeconds/60)
+}
+
+func (n *SMTPNotifier) generateFlappingEmailHTML(flapping *FlappingNotification) string {
+	if flapping.Stabilized {
+		return fmt.Sprintf("<!DOCTYPE html><html><body><p>Monitor <strong>%s</strong> stabilized after a flapping episode.</p><p>Current status: %s</p></body></html>", flapping.Resource.Name, flapping.FinalStatus)
+	}
+	return fmt.Sprintf("<!DOCTYPE html><html><body><p>Your monitor <strong>%s</strong> (%s) has been switching between UP and DOWN %d times in the last %d minutes.</p><p>PulseGuard has suppressed repeated alerts while the service is unstable.</p></body></html>", flapping.Resource.Name, flapping.Resource.Target, flapping.TransitionCount, flapping.WindowSeconds/60)
+}
+
+func (n *SMTPNotifier) reminderSubject(reminder *ReminderNotification) string {
+	return fmt.Sprintf("[PulseGuard] %s still down - %d minutes", reminder.Resource.Name, reminder.ElapsedMinutes)
+}
+
+func (n *SMTPNotifier) generateReminderEmailHTML(reminder *ReminderNotification) string {
+	return fmt.Sprintf("<!DOCTYPE html><html><body><p>Your monitor <strong>%s</strong> has been down for %d minutes.</p><p>Incident started at %s.</p><p>This is a reminder - the incident is still active.</p></body></html>", reminder.Resource.Name, reminder.ElapsedMinutes, reminder.Incident.StartedAt.Format(time.RFC3339))
 }
 
 func (n *SMTPNotifier) generateExpiryEmailHTML(expiry *ExpiryNotification) string {

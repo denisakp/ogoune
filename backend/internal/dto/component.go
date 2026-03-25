@@ -5,15 +5,17 @@ import "github.com/denisakp/pulseguard/internal/domain"
 // CreateComponentPayload represents the input to create a component.
 // ResourceIDs is required and must contain at least one resource.
 type CreateComponentPayload struct {
-	Name        string   `json:"name"`
-	Description *string  `json:"description,omitempty"`
-	ResourceIDs []string `json:"resource_ids"` // Required: minimum 1 resource
+	GroupingWindowSeconds *int     `json:"grouping_window_seconds,omitempty"`
+	Name                  string   `json:"name"`
+	Description           *string  `json:"description,omitempty"`
+	ResourceIDs           []string `json:"resource_ids"` // Required: minimum 1 resource
 }
 
 // UpdateComponentPayload represents partial updates to a component.
 type UpdateComponentPayload struct {
-	Name        *string `json:"name,omitempty"`
-	Description *string `json:"description,omitempty"`
+	Name                  *string `json:"name,omitempty"`
+	Description           *string `json:"description,omitempty"`
+	GroupingWindowSeconds *int    `json:"grouping_window_seconds,omitempty"`
 }
 
 // BulkAssignPayload assigns multiple resources to a component.
@@ -35,10 +37,11 @@ type ComponentResourceSnapshot struct {
 
 // ComponentResponse returns component metadata and derived status.
 type ComponentResponse struct {
-	ID                string                      `json:"id"`
-	Name              string                      `json:"name"`
-	Description       *string                     `json:"description,omitempty"`
-	Status            domain.ComponentStatus      `json:"status"`
-	ImpactedResources []ComponentResourceSnapshot `json:"impacted_resources"`
-	Resources         []ComponentResourceSnapshot `json:"resources"`
+	ID                    string                      `json:"id"`
+	Name                  string                      `json:"name"`
+	Description           *string                     `json:"description,omitempty"`
+	Status                domain.ComponentStatus      `json:"status"`
+	ImpactedResources     []ComponentResourceSnapshot `json:"impacted_resources"`
+	Resources             []ComponentResourceSnapshot `json:"resources"`
+	GroupingWindowSeconds int                         `json:"grouping_window_seconds"`
 }

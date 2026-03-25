@@ -249,6 +249,25 @@ const nextConfirmationCountdown = computed(() => {
   return `${remainingSec}s`
 })
 
+const isFlapping = computed(() => resource.value?.status === 'flapping')
+
+const flappingDuration = computed(() => {
+  if (!resource.value?.flap_started_at) return ''
+  const start = new Date(resource.value.flap_started_at).getTime()
+  const diff = nowTs.value - start
+  const hours = Math.floor(diff / (1000 * 60 * 60))
+  const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60))
+  if (hours > 0) return `${hours}h ${minutes}m`
+  return `${minutes}m`
+})
+
+const flappingTransitionText = computed(() => {
+  if (!resource.value) return ''
+  const threshold = resource.value.flap_threshold
+  if (!threshold || threshold < 1) return 'multiple status transitions'
+  return `${threshold}+ status transitions`
+})
+
 // Load resource using the store with response times
 const loadResource = async () => {
   if (!resourceId.value) {
@@ -407,6 +426,14 @@ const goBack = () => {
                 :message="`Confirming outage: ${confirmationProgress}`"
                 :description="`Next confirmation check in ${nextConfirmationCountdown}`"
               />
+                            <a-alert
+                              v-if="isFlapping"
+                              style="margin-bottom: 16px"
+                              type="warning"
+                              show-icon
+                              message="Service is flapping"
+                              :description="`${flappingTransitionText}${flappingDuration ? ` over ${flappingDuration}` : ''}. Alerts suppressed until service stabilizes.`"
+                            />
               <a-row :gutter="16">
                 <a-col :xs="12" :sm="8">
                   <div style="text-align: center">

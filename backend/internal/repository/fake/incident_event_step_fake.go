@@ -2,7 +2,9 @@ package fake
 
 import (
 	"context"
+	"sort"
 	"sync"
+	"time"
 
 	domain "github.com/denisakp/pulseguard/internal/domain"
 	"github.com/denisakp/pulseguard/internal/repository"
@@ -28,6 +30,9 @@ func (f *IncidentEventStepFake) Create(ctx context.Context, s *domain.IncidentEv
 	if err := s.BeforeCreate(nil); err != nil {
 		return nil, ErrInvalidInput
 	}
+	if s.CreatedAt.IsZero() {
+		s.CreatedAt = time.Now()
+	}
 
 	if _, exists := f.steps[s.ID]; exists {
 		return nil, ErrDuplicate
@@ -50,6 +55,28 @@ func (f *IncidentEventStepFake) FindByID(ctx context.Context, id string) (*domai
 
 	// Return a copy to avoid external mutations
 	result := *step
+	return &result, nil
+}
+
+func (f *IncidentEventStepFake) FindLastByIncidentAndStep(ctx context.Context, incidentID string, stepType domain.IncidentEventStepType) (*domain.IncidentEventStep, error) {
+	f.mu.RLock()
+	defer f.mu.RUnlock()
+
+	matches := make([]*domain.IncidentEventStep, 0)
+	for _, step := range f.steps {
+		if step.IncidentID == incidentID && step.Step == stepType {
+			matches = append(matches, step)
+		}
+	}
+	if len(matches) == 0 {
+		return nil, ErrNotFound
+	}
+
+	sort.Slice(matches, func(i, j int) bool {
+		return matches[i].CreatedAt.After(matches[j].CreatedAt)
+	})
+
+	result := *matches[0]
 	return &result, nil
 }
 

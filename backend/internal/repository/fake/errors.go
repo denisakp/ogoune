@@ -1,10 +1,11 @@
 package fake
 
-import "errors"
+import "github.com/denisakp/pulseguard/internal/repository"
 
-// Common errors for fake repositories
+// Common errors for fake repositories — reuse the canonical repository errors
+// so that errors.Is checks in production code work correctly with fake repos.
 var (
-	ErrNotFound     = errors.New("repository: not found")
-	ErrDuplicate    = errors.New("repository: duplicate")
-	ErrInvalidInput = errors.New("repository: invalid input")
+	ErrNotFound     = repository.ErrNotFound
+	ErrDuplicate    = repository.ErrDuplicate
+	ErrInvalidInput = repository.ErrInvalidInput
 )

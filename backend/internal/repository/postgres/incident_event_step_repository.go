@@ -40,6 +40,23 @@ func (r *IncidentEventStepRepositoryImpl) FindByID(ctx context.Context, id strin
 	return &step, nil
 }
 
+// FindLastByIncidentAndStep retrieves the most recent incident event step for an incident and step type.
+func (r *IncidentEventStepRepositoryImpl) FindLastByIncidentAndStep(ctx context.Context, incidentID string, stepType domain.IncidentEventStepType) (*domain.IncidentEventStep, error) {
+	var step domain.IncidentEventStep
+	err := r.db.WithContext(ctx).
+		Where("incident_id = ? AND step = ?", incidentID, stepType).
+		Order("created_at DESC").
+		Limit(1).
+		First(&step).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, repository.ErrNotFound
+		}
+		return nil, fmt.Errorf("failed to find latest incident event step: %w", err)
+	}
+	return &step, nil
+}
+
 // List retrieves all incident event steps with pagination, ordered by creation time descending.
 func (r *IncidentEventStepRepositoryImpl) List(ctx context.Context, limit, offset int) ([]*domain.IncidentEventStep, error) {
 	var steps []*domain.IncidentEventStep

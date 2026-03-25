@@ -28,7 +28,7 @@ func (s *DNSStrategy) Execute(ctx context.Context, resource *domain.Resource) (d
 		}, nil
 	}
 
-	data := fmt.Sprintf("Resolced IPs: %s ", strings.Join(addrs, ", "))
+	data := fmt.Sprintf("Resolved IPs: %s ", strings.Join(addrs, ", "))
 
 	return domain.CheckResult{
 		Status:       string(domain.StatusUp),

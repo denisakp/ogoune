@@ -50,13 +50,14 @@ const (
 type ResourceStatus string
 
 const (
-	StatusUp      ResourceStatus = "up"
-	StatusDown    ResourceStatus = "down"
-	StatusError   ResourceStatus = "error"
-	StatusUnknown ResourceStatus = "unknown"
-	StatusPaused  ResourceStatus = "paused"
-	StatusPending ResourceStatus = "pending"
-	StatusWarn    ResourceStatus = "warning"
+	StatusUp       ResourceStatus = "up"
+	StatusDown     ResourceStatus = "down"
+	StatusError    ResourceStatus = "error"
+	StatusUnknown  ResourceStatus = "unknown"
+	StatusPaused   ResourceStatus = "paused"
+	StatusPending  ResourceStatus = "pending"
+	StatusWarn     ResourceStatus = "warning"
+	StatusFlapping ResourceStatus = "flapping"
 )
 
 // ComponentStatus represents the derived health of a logical group of resources.
@@ -79,25 +80,32 @@ type ResourceMetaData struct {
 // A Resource is something that can be monitored, such as a website or server.
 type Resource struct {
 	Base
-	Name                  string                 `json:"name"`
-	Type                  ResourceType           `json:"type"  gorm:"index"`
-	Interval              int                    `json:"interval" gorm:"default:300"` // in seconds
-	Timeout               int                    `json:"timeout" gorm:"default:10"`   // in seconds
-	Target                string                 `json:"target"`
-	LastChecked           *time.Time             `json:"last_checked"`
-	Status                ResourceStatus         `json:"status" gorm:"default:pending"`
-	IsActive              bool                   `json:"is_active" gorm:"default:true"`
-	FailureCount          int                    `json:"failure_count" gorm:"default:0"`
-	ConfirmationChecks    int                    `json:"confirmation_checks" gorm:"default:2"`
-	ConfirmationInterval  int                    `json:"confirmation_interval" gorm:"default:30"`
-	ExpiryAlertThresholds *string                `json:"expiry_alert_thresholds" gorm:"column:expiry_alert_thresholds"`
-	Metadata              *ResourceMetaData      `json:"metadata" gorm:"embedded"`
-	Incidents             []Incident             `json:"incidents"`
-	Tags                  []*Tags                `json:"tags" gorm:"many2many:resource_tags;joinForeignKey:resource_id;joinReferences:tag_id;"`
-	NotificationChannels  []*NotificationChannel `json:"notification_channels" gorm:"many2many:resource_notification_channels;"`
-	ComponentID           *string                `json:"component_id" gorm:"index"`
-	Component             *Component             `json:"component" gorm:"foreignKey:ComponentID"`
-	MetadataPending       bool                   `json:"metadata_pending" gorm:"-"`
+	Name                    string                 `json:"name"`
+	Type                    ResourceType           `json:"type"  gorm:"index"`
+	Interval                int                    `json:"interval" gorm:"default:300"` // in seconds
+	Timeout                 int                    `json:"timeout" gorm:"default:10"`   // in seconds
+	Target                  string                 `json:"target"`
+	LastChecked             *time.Time             `json:"last_checked"`
+	Status                  ResourceStatus         `json:"status" gorm:"default:pending"`
+	IsActive                bool                   `json:"is_active" gorm:"default:true"`
+	FailureCount            int                    `json:"failure_count" gorm:"default:0"`
+	ConfirmationChecks      int                    `json:"confirmation_checks" gorm:"default:2"`
+	ConfirmationInterval    int                    `json:"confirmation_interval" gorm:"default:30"`
+	ExpiryAlertThresholds   *string                `json:"expiry_alert_thresholds" gorm:"column:expiry_alert_thresholds"`
+	Metadata                *ResourceMetaData      `json:"metadata" gorm:"embedded"`
+	Incidents               []Incident             `json:"incidents"`
+	Tags                    []*Tags                `json:"tags" gorm:"many2many:resource_tags;joinForeignKey:resource_id;joinReferences:tag_id;"`
+	NotificationChannels    []*NotificationChannel `json:"notification_channels" gorm:"many2many:resource_notification_channels;"`
+	ComponentID             *string                `json:"component_id" gorm:"index"`
+	Component               *Component             `json:"component" gorm:"foreignKey:ComponentID"`
+	FlapDetectionEnabled    bool                   `json:"flap_detection_enabled" gorm:"default:true"`
+	FlapThreshold           int                    `json:"flap_threshold" gorm:"default:4"`
+	FlapWindowSeconds       int                    `json:"flap_window_seconds" gorm:"default:600"`
+	FlapMaxDurationMinutes  int                    `json:"flap_max_duration_minutes" gorm:"default:30"`
+	LastStatusTransition    *time.Time             `json:"last_status_transition" gorm:"index"`
+	FlapStartedAt           *time.Time             `json:"flap_started_at"`
+	ReminderIntervalMinutes int                    `json:"reminder_interval_minutes" gorm:"default:0"`
+	MetadataPending         bool                   `json:"metadata_pending" gorm:"-"`
 }
 
 func (Resource) TableName() string { return "resources" }
@@ -204,6 +212,7 @@ type Component struct {
 	Description            *string         `json:"description,omitempty"`
 	Resources              []*Resource     `json:"resources,omitempty" gorm:"foreignKey:ComponentID"`
 	LastNotificationStatus ComponentStatus `json:"last_notification_status" gorm:"default:'up'"`
+	GroupingWindowSeconds  int             `json:"grouping_window_seconds" gorm:"default:30"`
 }
 
 func (Component) TableName() string { return "components" }
@@ -255,11 +264,15 @@ func (IncidentDiagnostics) TableName() string { return "incident_diagnostics" }
 type IncidentEventStepType string
 
 const (
-	IncidentEventStepDetected  IncidentEventStepType = "detected"
-	IncidentEventStepResolved  IncidentEventStepType = "resolved"
-	IncidentEventStepAlert     IncidentEventStepType = "alert_sent"
-	IncidentEventStepDownAlert IncidentEventStepType = "resource_down_alert"
-	IncidentEventStepUpAlert   IncidentEventStepType = "resource_up_alert"
+	IncidentEventStepDetected           IncidentEventStepType = "detected"
+	IncidentEventStepResolved           IncidentEventStepType = "resolved"
+	IncidentEventStepAlert              IncidentEventStepType = "alert_sent"
+	IncidentEventStepDownAlert          IncidentEventStepType = "resource_down_alert"
+	IncidentEventStepUpAlert            IncidentEventStepType = "resource_up_alert"
+	IncidentEventStepFlapping           IncidentEventStepType = "flapping"
+	IncidentEventStepFlappingStabilized IncidentEventStepType = "flapping_stabilized"
+	IncidentEventStepReminder           IncidentEventStepType = "reminder"
+	IncidentEventStepComponentAlert     IncidentEventStepType = "component_alert"
 )
 
 // IncidentEventStep represents a step in the lifecycle of an incident, such as detection or resolution.
@@ -285,9 +298,12 @@ const (
 type NotificationEventType string
 
 const (
-	NotificationEventTypeUp     NotificationEventType = "up"
-	NotificationEventTypeDown   NotificationEventType = "down"
-	NotificationEventTypeExpiry NotificationEventType = "expiry"
+	NotificationEventTypeUp         NotificationEventType = "up"
+	NotificationEventTypeDown       NotificationEventType = "down"
+	NotificationEventTypeExpiry     NotificationEventType = "expiry"
+	NotificationEventTypeFlapping   NotificationEventType = "flapping"
+	NotificationEventTypeStabilized NotificationEventType = "stabilized"
+	NotificationEventTypeReminder   NotificationEventType = "reminder"
 )
 
 type NotificationEventStatusType string

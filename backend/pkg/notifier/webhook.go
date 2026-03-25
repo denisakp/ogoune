@@ -39,6 +39,34 @@ func (n *WebHookNotifier) Send(ctx context.Context, payload NotificationPayload)
 	var body map[string]any
 
 	switch {
+	case payload.Flapping != nil:
+		flapping := payload.Flapping
+		event := "flapping"
+		body = map[string]any{
+			"event":            event,
+			"resource_id":      flapping.Resource.ID,
+			"resource_name":    flapping.Resource.Name,
+			"target":           flapping.Resource.Target,
+			"transition_count": flapping.TransitionCount,
+			"window_seconds":   flapping.WindowSeconds,
+			"triggered_at":     flapping.TriggeredAt.Format(time.RFC3339),
+		}
+		if flapping.Stabilized {
+			body["event"] = "flapping_stabilized"
+			body["final_status"] = flapping.FinalStatus
+		}
+	case payload.Reminder != nil:
+		reminder := payload.Reminder
+		body = map[string]any{
+			"event":               "reminder",
+			"resource_id":         reminder.Resource.ID,
+			"resource_name":       reminder.Resource.Name,
+			"target":              reminder.Resource.Target,
+			"incident_id":         reminder.Incident.ID,
+			"incident_started_at": reminder.Incident.StartedAt.Format(time.RFC3339),
+			"elapsed_minutes":     reminder.ElapsedMinutes,
+			"triggered_at":        reminder.TriggeredAt.Format(time.RFC3339),
+		}
 	case payload.Component != nil:
 		component := payload.Component
 		impacted := make([]map[string]string, 0, len(component.Impacted))
@@ -83,7 +111,7 @@ func (n *WebHookNotifier) Send(ctx context.Context, payload NotificationPayload)
 			"message": incident.Cause,
 		}
 	default:
-		return fmt.Errorf("notification payload missing incident, component, or expiry")
+		return fmt.Errorf("notification payload missing incident, component, expiry, flapping, or reminder")
 	}
 
 	payloadBytes, err := json.Marshal(body)

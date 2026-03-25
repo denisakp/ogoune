@@ -20,7 +20,7 @@ export interface Resource {
   target: string
   interval: number // in seconds
   timeout: number // in seconds
-  status: 'up' | 'down' | 'error' | 'unknown' | 'paused' | 'pending'
+  status: 'up' | 'down' | 'error' | 'unknown' | 'paused' | 'pending' | 'flapping'
   is_active: boolean
   failure_count: number
   confirmation_checks: number
@@ -38,6 +38,13 @@ export interface Resource {
   response_times?: ResponseTime[] // Response time history
   metadata?: ResourceMetadata // SSL and domain metadata
   metadata_pending?: boolean // true when backend enrichment is in progress
+  flap_detection_enabled?: boolean
+  flap_threshold?: number
+  flap_window_seconds?: number
+  flap_max_duration_minutes?: number
+  reminder_interval_minutes?: number
+  last_status_transition?: string | null
+  flap_started_at?: string | null
 }
 
 /**
@@ -79,6 +86,11 @@ export interface CreateResource {
   tags: string[]
   component_id?: string // Optional component assignment
   expiry_alert_thresholds?: string // Comma-separated days, e.g. "30,14,7,1"
+  flap_detection_enabled?: boolean
+  flap_threshold?: number
+  flap_window_seconds?: number
+  flap_max_duration_minutes?: number
+  reminder_interval_minutes?: number
 }
 
 export type UpdateResource = Partial<CreateResource>
@@ -505,6 +517,7 @@ export interface Component {
   resources: ComponentResourceSnapshot[]
   created_at: string
   updated_at: string
+  grouping_window_seconds?: number
 }
 
 /**
@@ -520,9 +533,15 @@ export interface CreateComponent {
   name: string
   description?: string
   resource_ids: string[] // Required: at least one resource
+  grouping_window_seconds?: number
 }
 
 export type UpdateComponent = Partial<Omit<CreateComponent, 'resource_ids'>>
+
+// Extend UpdateComponent to also allow updating grouping_window_seconds
+export interface UpdateComponentPayload extends UpdateComponent {
+  grouping_window_seconds?: number
+}
 
 /**
  * Bulk operation payloads for component management

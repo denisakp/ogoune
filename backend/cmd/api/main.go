@@ -238,7 +238,7 @@ func main() {
 		// Initialize maintenance scheduler
 		maintenanceScheduler = maintenance.NewSchedulerService(asynqClient, asynqInspector, asynqScheduler, maintenanceRepo)
 		if err := maintenanceScheduler.EnsureScheduled(context.Background()); err != nil {
-			log.Printf("⚠️  Failed to ensure maintenance schedules: %v", err)
+			log.Printf("Failed to ensure maintenance schedules: %v", err)
 		}
 
 	} else {
@@ -303,13 +303,13 @@ func main() {
 
 						payload, err := json.Marshal(map[string]string{"resource_id": job.ResourceID})
 						if err != nil {
-							log.Printf("⚠️  Failed to marshal timingwheel payload for resource %s: %v", job.ResourceID, err)
+							log.Printf("Failed to marshal timingwheel payload for resource %s: %v", job.ResourceID, err)
 							continue
 						}
 
 						task := asynq.NewTask("monitoring:check", payload)
 						if err := monitoringHandler.ProcessTask(context.Background(), task); err != nil {
-							log.Printf("⚠️  TimingWheel check failed for resource %s: %v", job.ResourceID, err)
+							log.Printf("TimingWheel check failed for resource %s: %v", job.ResourceID, err)
 						}
 					}
 				}()
@@ -330,7 +330,7 @@ func main() {
 				defer ticker.Stop()
 				for range ticker.C {
 					if err := twExpiryHandler.ProcessTask(context.Background(), asynq.NewTask(worker.TypeExpiryCheck, nil)); err != nil {
-						log.Printf("⚠️  TimingWheel expiry:check failed: %v", err)
+						log.Printf("TimingWheel expiry:check failed: %v", err)
 					}
 				}
 			}()
@@ -358,7 +358,7 @@ func main() {
 			log.Printf("Scheduling resource: %s (ID: %s)", resource.Name, resource.ID)
 
 			if err := schedulerAdapter.Schedule(bootstrapCtx, resource); err != nil {
-				log.Printf("  ⚠️  Failed to schedule resource %s: %v", resource.ID, err)
+				log.Printf(" Failed to schedule resource %s: %v", resource.ID, err)
 				failureCount++
 			} else {
 				log.Printf("  ✓ Successfully scheduled resource %s", resource.ID)
@@ -374,7 +374,7 @@ func main() {
 		log.Println("========================================")
 
 		if failureCount > 0 {
-			log.Println("⚠️  Some resources failed to schedule. Check logs above for details.")
+			log.Println(" Some resources failed to schedule. Check logs above for details.")
 		}
 	}
 
@@ -417,7 +417,7 @@ func main() {
 
 		// Register daily expiry check with the Asynq scheduler
 		if _, err := asynqScheduler.Register("@daily", asynq.NewTask(worker.TypeExpiryCheck, nil)); err != nil {
-			log.Printf("⚠️  Failed to register expiry:check scheduler: %v", err)
+			log.Printf(" Failed to register expiry:check scheduler: %v", err)
 		}
 
 		// Create the Asynq worker processor
@@ -450,7 +450,7 @@ func main() {
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 		defer cancel()
 		if err := runtimeScheduler.Stop(shutdownCtx); err != nil {
-			log.Printf("⚠️  Error during scheduler shutdown: %v", err)
+			log.Printf(" Error during scheduler shutdown: %v", err)
 		}
 		if processor != nil {
 			processor.Stop()
@@ -525,7 +525,7 @@ func main() {
 		log.Printf("✓ Serving static files from: %s", staticDir)
 		serveStaticFiles(rootRouter, staticDir)
 	} else {
-		log.Printf("⚠️  Static directory not found at %s - frontend will not be served", staticDir)
+		log.Printf(" Static directory not found at %s - frontend will not be served", staticDir)
 	}
 
 	// Create HTTP server with explicit configuration

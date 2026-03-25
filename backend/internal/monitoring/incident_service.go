@@ -2,6 +2,7 @@ package monitoring
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"time"
@@ -114,6 +115,13 @@ func (s *IncidentService) CreateIncident(ctx context.Context, r *domain.Resource
 		log.Printf("Warning: Failed to create detected event step: %v", err)
 	}
 
+	if _, err := s.eventSteps.FindLastByIncidentAndStep(ctx, incident.ID, domain.IncidentEventStepDownAlert); err == nil {
+		log.Printf("[INCIDENT] Down alert already exists for incident %s, skipping duplicate dispatch", incident.ID)
+		return nil
+	} else if err != nil && !errors.Is(err, repository.ErrNotFound) {
+		return fmt.Errorf("failed to verify prior down alert event step: %w", err)
+	}
+
 	// Fetch notification channels associated with this resource using the resolution hierarchy
 	channels := s.resolveNotificationChannels(ctx, r)
 	if len(channels) == 0 {
@@ -152,6 +160,102 @@ func (s *IncidentService) CreateIncident(ctx context.Context, r *domain.Resource
 	}
 
 	return nil
+}
+
+func (s *IncidentService) NotifyFlapping(ctx context.Context, r *domain.Resource, transitionCount, windowSeconds, maxDurationMinutes int) error {
+	if r == nil {
+		return fmt.Errorf("resource cannot be nil")
+	}
+	channels := s.resolveNotificationChannels(ctx, r)
+	for _, channel := range channels {
+		if err := s.dispatchNotification(ctx, notifier.NotificationPayload{Flapping: &notifier.FlappingNotification{
+			Resource:           *r,
+			TransitionCount:    transitionCount,
+			WindowSeconds:      windowSeconds,
+			MaxDurationMinutes: maxDurationMinutes,
+			FlapStartedAt:      r.FlapStartedAt,
+			TriggeredAt:        time.Now(),
+		}}, channel); err != nil {
+			log.Printf("Warning: Failed to dispatch flapping notification via channel %s (%s): %v", channel.ID, channel.Type, err)
+		}
+	}
+	return nil
+}
+
+func (s *IncidentService) NotifyStabilized(ctx context.Context, r *domain.Resource, finalStatus domain.ResourceStatus) error {
+	if r == nil {
+		return fmt.Errorf("resource cannot be nil")
+	}
+	channels := s.resolveNotificationChannels(ctx, r)
+	for _, channel := range channels {
+		if err := s.dispatchNotification(ctx, notifier.NotificationPayload{Flapping: &notifier.FlappingNotification{
+			Resource:    *r,
+			Stabilized:  true,
+			FinalStatus: finalStatus,
+			TriggeredAt: time.Now(),
+		}}, channel); err != nil {
+			log.Printf("Warning: Failed to dispatch stabilization notification via channel %s (%s): %v", channel.ID, channel.Type, err)
+		}
+	}
+	return nil
+}
+
+func (s *IncidentService) SendReminderIfDue(ctx context.Context, r *domain.Resource) error {
+	if r == nil || r.ReminderIntervalMinutes <= 0 {
+		return nil
+	}
+	activeIncident, err := s.findActiveIncident(ctx, r.ID)
+	if err != nil || activeIncident == nil || activeIncident.ResolvedAt != nil {
+		return err
+	}
+	lastStep, err := s.eventSteps.FindLastByIncidentAndStep(ctx, activeIncident.ID, domain.IncidentEventStepDownAlert)
+	if err != nil {
+		if errors.Is(err, repository.ErrNotFound) {
+			return nil
+		}
+		return fmt.Errorf("failed to fetch last down alert step: %w", err)
+	}
+	elapsed := int(time.Since(lastStep.CreatedAt).Minutes())
+	if elapsed < r.ReminderIntervalMinutes {
+		return nil
+	}
+	channels := s.resolveNotificationChannels(ctx, r)
+	for _, channel := range channels {
+		if err := s.dispatchNotification(ctx, notifier.NotificationPayload{Reminder: &notifier.ReminderNotification{
+			Resource:       *r,
+			Incident:       *activeIncident,
+			ElapsedMinutes: elapsed,
+			TriggeredAt:    time.Now(),
+		}}, channel); err != nil {
+			log.Printf("Warning: Failed to dispatch reminder notification via channel %s (%s): %v", channel.ID, channel.Type, err)
+		}
+	}
+	reminderMessage := "Reminder notification sent"
+	if _, err := s.eventSteps.Create(ctx, &domain.IncidentEventStep{IncidentID: activeIncident.ID, Step: domain.IncidentEventStepReminder, Message: &reminderMessage}); err != nil {
+		log.Printf("Warning: Failed to create reminder event step: %v", err)
+	}
+	anchorMessage := "Reminder anchor written"
+	if _, err := s.eventSteps.Create(ctx, &domain.IncidentEventStep{IncidentID: activeIncident.ID, Step: domain.IncidentEventStepDownAlert, Message: &anchorMessage}); err != nil {
+		log.Printf("Warning: Failed to create reminder down-alert anchor: %v", err)
+	}
+	if err := s.notifications.Create(ctx, &domain.NotificationEvent{IncidentID: activeIncident.ID, Type: domain.NotificationEventTypeReminder}); err != nil {
+		log.Printf("Warning: Failed to create reminder notification event: %v", err)
+	}
+	return nil
+}
+
+func (s *IncidentService) findActiveIncident(ctx context.Context, resourceID string) (*domain.Incident, error) {
+	incidents, err := s.incidents.FindByResource(ctx, resourceID, 10, 0)
+	if err != nil {
+		return nil, fmt.Errorf("failed to find incidents: %w", err)
+	}
+	var activeIncident *domain.Incident
+	for _, incident := range incidents {
+		if incident.ResolvedAt == nil && (activeIncident == nil || incident.StartedAt.After(activeIncident.StartedAt)) {
+			activeIncident = incident
+		}
+	}
+	return activeIncident, nil
 }
 
 // ResolveIncident resolves an active incident when a resource recovers.
@@ -251,28 +355,35 @@ func (s *IncidentService) ResolveIncident(ctx context.Context, r *domain.Resourc
 // extractCause extracts a structured cause from the monitoring result.
 // This provides consistent failure categorization.
 func extractCause(result domain.CheckResult) string {
+	if result.Cause != nil {
+		return string(*result.Cause) // DNSResolutionFailed, ConnectionTimeOut, etc...
+	}
+
+	if result.Status == "down" && len(result.ResponseData) > 0 {
+		data := result.ResponseData
+
+		if contains(data, "timeout") {
+			return "connection_timeout"
+		}
+		if contains(data, "refused") {
+			return "connection_refused"
+		}
+		if contains(data, "status") || contains(data, "code") {
+			return "invalid_status_code"
+		}
+		if contains(data, "dns") || contains(data, "resolve") || contains(data, "no such host") {
+			return "dns_resolution_failure"
+		}
+		if contains(data, "ssl") || contains(data, "tls") || contains(data, "certificate") {
+			return "ssl_certificate_error"
+		}
+
+	}
+
+	// Fallback
 	// Map status to structured causes
 	switch result.Status {
 	case "down":
-		// Check the response data for more specific causes
-		if len(result.ResponseData) > 0 {
-			data := result.ResponseData
-			if contains(data, "timeout") {
-				return "connection_timeout"
-			}
-			if contains(data, "refused") {
-				return "connection_refused"
-			}
-			if contains(data, "status") || contains(data, "code") {
-				return "invalid_status_code"
-			}
-			if contains(data, "dns") || contains(data, "resolve") {
-				return "dns_resolution_failure"
-			}
-			if contains(data, "ssl") || contains(data, "tls") || contains(data, "certificate") {
-				return "ssl_certificate_error"
-			}
-		}
 		return "health_check_failed"
 	case "error":
 		return "check_execution_error"

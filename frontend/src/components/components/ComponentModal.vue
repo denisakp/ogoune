@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, watch, computed } from 'vue'
 import { useComponents } from '@/composables/useComponents'
-import type { Component, UpdateComponent } from '@/types'
+import type { Component, UpdateComponentPayload } from '@/types'
 
 const props = defineProps<{
   visible: boolean
@@ -24,6 +24,7 @@ const { updateComponent } = useComponents()
 const form = ref({
   name: '',
   description: '',
+  groupingWindowSeconds: undefined as number | undefined,
 })
 
 const loading = ref(false)
@@ -35,11 +36,13 @@ watch(
       form.value = {
         name: newVal.name,
         description: newVal.description || '',
+        groupingWindowSeconds: newVal.grouping_window_seconds ?? undefined,
       }
     } else {
       form.value = {
         name: '',
         description: '',
+        groupingWindowSeconds: undefined,
       }
     }
   },
@@ -54,9 +57,10 @@ const handleSubmit = async () => {
   loading.value = true
   try {
     if (props.editing) {
-      const payload: UpdateComponent = {
+      const payload: UpdateComponentPayload = {
         name: form.value.name,
         description: form.value.description || undefined,
+        grouping_window_seconds: form.value.groupingWindowSeconds,
       }
       await updateComponent(props.editing.id, payload)
       emit('submit')
@@ -98,6 +102,19 @@ const handleCancel = () => {
 
       <a-form-item label="Description">
         <a-textarea v-model:value="form.description" placeholder="Optional description" :rows="3" />
+      </a-form-item>
+
+      <a-form-item label="Alert Grouping Window (seconds, 0 = disabled)">
+        <a-input-number
+          v-model:value="form.groupingWindowSeconds"
+          :min="0"
+          :max="300"
+          style="width: 100%"
+          placeholder="0"
+        />
+        <div style="margin-top: 4px; font-size: 12px; color: rgba(0,0,0,0.45)">
+          Group multiple resource alerts into a single component notification within this window (10–300s). Set 0 to disable.
+        </div>
       </a-form-item>
     </a-form>
   </a-modal>

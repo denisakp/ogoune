@@ -34,9 +34,15 @@ type Config struct {
 	SchedulerNotificationQueueSize int
 
 	// Confirmation window defaults
-	ConfirmationChecks    int
-	ConfirmationInterval  int
-	ExpiryAlertThresholds string
+	ConfirmationChecks      int
+	ConfirmationInterval    int
+	ExpiryAlertThresholds   string
+	FlapDetectionEnabled    bool
+	FlapThreshold           int
+	FlapWindowSeconds       int
+	FlapMaxDurationMinutes  int
+	ReminderIntervalMinutes int
+	GroupingWindowSeconds   int
 }
 
 // Load reads configuration from environment variables.
@@ -52,6 +58,12 @@ func Load() Config {
 	schedulerNotificationQueueSize := parseInt(GetEnv("SCHEDULER_NOTIFICATION_QUEUE_SIZE", "100"))
 	confirmationChecks := parseInt(GetEnv("CONFIRMATION_CHECKS", "2"))
 	confirmationInterval := parseInt(GetEnv("CONFIRMATION_INTERVAL", "30"))
+	flapDetectionEnabled := parseBool(GetEnv("FLAP_DETECTION_ENABLED", "true"), true)
+	flapThreshold := parseInt(GetEnv("FLAP_THRESHOLD", "4"))
+	flapWindowSeconds := parseInt(GetEnv("FLAP_WINDOW_SECONDS", "600"))
+	flapMaxDurationMinutes := parseInt(GetEnv("FLAP_MAX_DURATION_MINUTES", "30"))
+	reminderIntervalMinutes := parseInt(GetEnv("REMINDER_INTERVAL_MINUTES", "0"))
+	groupingWindowSeconds := parseInt(GetEnv("GROUPING_WINDOW_SECONDS", "30"))
 
 	cfg := Config{
 		RedisUrl:         GetEnv("REDIS_URL", "localhost:6379"),
@@ -77,6 +89,12 @@ func Load() Config {
 		ConfirmationChecks:             confirmationChecks,
 		ConfirmationInterval:           confirmationInterval,
 		ExpiryAlertThresholds:          GetEnv("EXPIRY_ALERT_THRESHOLDS", "30,14,7,1"),
+		FlapDetectionEnabled:           flapDetectionEnabled,
+		FlapThreshold:                  flapThreshold,
+		FlapWindowSeconds:              flapWindowSeconds,
+		FlapMaxDurationMinutes:         flapMaxDurationMinutes,
+		ReminderIntervalMinutes:        reminderIntervalMinutes,
+		GroupingWindowSeconds:          groupingWindowSeconds,
 	}
 	return cfg
 }
@@ -130,6 +148,14 @@ func parseInt(s string) int {
 		return 0 // Default fallback
 	}
 	return i
+}
+
+func parseBool(s string, defaultValue bool) bool {
+	v, err := strconv.ParseBool(s)
+	if err != nil {
+		return defaultValue
+	}
+	return v
 }
 
 // MustInit loads configuration from .env file (if present) and environment variables.

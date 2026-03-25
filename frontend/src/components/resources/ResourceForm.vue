@@ -27,6 +27,11 @@ const form = ref<CreateResource & { component_id?: string }>({
   tags: [],
   component_id: undefined,
   expiry_alert_thresholds: undefined,
+  flap_detection_enabled: undefined,
+  flap_threshold: undefined,
+  flap_window_seconds: undefined,
+  flap_max_duration_minutes: undefined,
+  reminder_interval_minutes: undefined,
 })
 
 const loading = ref(false)
@@ -46,6 +51,11 @@ watch(
         tags: (resource.tags ?? []).map((t) => t.name),
         component_id: resource.component_id || undefined,
         expiry_alert_thresholds: resource.expiry_alert_thresholds ?? undefined,
+        flap_detection_enabled: resource.flap_detection_enabled,
+        flap_threshold: resource.flap_threshold,
+        flap_window_seconds: resource.flap_window_seconds,
+        flap_max_duration_minutes: resource.flap_max_duration_minutes,
+        reminder_interval_minutes: resource.reminder_interval_minutes,
       }
     } else {
       form.value = {
@@ -59,6 +69,11 @@ watch(
         tags: [],
         component_id: undefined,
         expiry_alert_thresholds: undefined,
+        flap_detection_enabled: undefined,
+        flap_threshold: undefined,
+        flap_window_seconds: undefined,
+        flap_max_duration_minutes: undefined,
+        reminder_interval_minutes: undefined,
       }
     }
   },
@@ -111,6 +126,11 @@ const handleSubmit = async () => {
         tags: form.value.tags,
         component_id: form.value.component_id,
         expiry_alert_thresholds: form.value.expiry_alert_thresholds || undefined,
+        flap_detection_enabled: form.value.flap_detection_enabled,
+        flap_threshold: form.value.flap_threshold,
+        flap_window_seconds: form.value.flap_window_seconds,
+        flap_max_duration_minutes: form.value.flap_max_duration_minutes,
+        reminder_interval_minutes: form.value.reminder_interval_minutes,
       }
       await updateResourceData(props.resource.id, updateData)
     } else {
@@ -287,6 +307,67 @@ const componentOptions = computed(() => [
     </a-form-item>
 
     <!-- Submit Buttons -->
+        <!-- Smart Alerting -->
+        <a-collapse style="margin-bottom: 24px" :bordered="false">
+          <a-collapse-panel key="smart-alerting" header="⚡ Smart Alerting (Optional)">
+            <a-form-item label="Flap Detection">
+              <a-switch v-model:checked="form.flap_detection_enabled" />
+              <span style="margin-left: 8px; font-size: 13px; color: rgba(0,0,0,0.45)">
+                Suppress repeated alerts when the service oscillates between UP and DOWN
+              </span>
+            </a-form-item>
+
+            <template v-if="form.flap_detection_enabled">
+              <a-row :gutter="16">
+                <a-col :xs="24" :sm="8">
+                  <a-form-item label="Flap Threshold (transitions)">
+                    <a-input-number
+                      v-model:value="form.flap_threshold"
+                      :min="2"
+                      :max="20"
+                      style="width: 100%"
+                      placeholder="e.g. 3"
+                    />
+                  </a-form-item>
+                </a-col>
+                <a-col :xs="24" :sm="8">
+                  <a-form-item label="Flap Window (seconds)">
+                    <a-input-number
+                      v-model:value="form.flap_window_seconds"
+                      :min="60"
+                      :max="3600"
+                      style="width: 100%"
+                      placeholder="e.g. 300"
+                    />
+                  </a-form-item>
+                </a-col>
+                <a-col :xs="24" :sm="8">
+                  <a-form-item label="Max Flap Duration (minutes, 0=unlimited)">
+                    <a-input-number
+                      v-model:value="form.flap_max_duration_minutes"
+                      :min="0"
+                      style="width: 100%"
+                      placeholder="0"
+                    />
+                  </a-form-item>
+                </a-col>
+              </a-row>
+            </template>
+
+            <a-form-item label="Reminder Interval (minutes, 0=disabled)">
+              <a-input-number
+                v-model:value="form.reminder_interval_minutes"
+                :min="0"
+                style="width: 100%"
+                placeholder="0"
+              />
+              <div style="margin-top: 4px; font-size: 12px; color: rgba(0,0,0,0.45)">
+                Send a reminder notification if an incident remains open for this many minutes.
+              </div>
+            </a-form-item>
+          </a-collapse-panel>
+        </a-collapse>
+
     <a-form-item style="margin-top: 24px">
       <a-space>
         <a-button @click="() => emit('submit')">Cancel</a-button>

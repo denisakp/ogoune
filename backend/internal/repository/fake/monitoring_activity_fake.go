@@ -4,6 +4,7 @@ import (
 	"context"
 	"sort"
 	"sync"
+	"time"
 
 	"github.com/denisakp/pulseguard/internal/domain"
 	"github.com/denisakp/pulseguard/internal/repository"
@@ -33,7 +34,12 @@ func (f *MonitoringActivityFake) Create(ctx context.Context, activity *domain.Mo
 
 	// ID should be set by BeforeCreate hook in the domain model
 	if activity.ID == "" {
-		return repository.ErrInvalidInput
+		if err := activity.BeforeCreate(nil); err != nil {
+			return repository.ErrInvalidInput
+		}
+	}
+	if activity.CreatedAt.IsZero() {
+		activity.CreatedAt = time.Now()
 	}
 
 	f.activities[activity.ID] = activity
@@ -104,6 +110,36 @@ func (f *MonitoringActivityFake) FindByResourceID(ctx context.Context, resourceI
 	}
 
 	return filtered[start:end], nil
+}
+
+// CountTransitionsInWindow counts success/failure flips for a resource within the provided window.
+func (f *MonitoringActivityFake) CountTransitionsInWindow(ctx context.Context, resourceID string, windowStart time.Time) (int, error) {
+	if resourceID == "" {
+		return 0, repository.ErrInvalidInput
+	}
+
+	f.mu.RLock()
+	defer f.mu.RUnlock()
+
+	filtered := make([]*domain.MonitoringActivity, 0)
+	for _, activity := range f.activities {
+		if activity.ResourceID == resourceID && !activity.CreatedAt.Before(windowStart) {
+			filtered = append(filtered, activity)
+		}
+	}
+
+	sort.Slice(filtered, func(i, j int) bool {
+		return filtered[i].CreatedAt.Before(filtered[j].CreatedAt)
+	})
+
+	transitions := 0
+	for index := 1; index < len(filtered); index++ {
+		if filtered[index].Success != filtered[index-1].Success {
+			transitions++
+		}
+	}
+
+	return transitions, nil
 }
 
 // GetUptimeStats retrieves the hourly uptime percentage for a resource over the last 24 hours.

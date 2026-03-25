@@ -67,6 +67,37 @@ func (r *MonitoringActivityRepositoryImpl) FindByResourceID(ctx context.Context,
 	return activities, nil
 }
 
+// CountTransitionsInWindow counts success/failure flips within the provided time window.
+func (r *MonitoringActivityRepositoryImpl) CountTransitionsInWindow(ctx context.Context, resourceID string, windowStart time.Time) (int, error) {
+	if resourceID == "" {
+		return 0, repository.ErrInvalidInput
+	}
+
+	type activityPoint struct {
+		Success bool
+	}
+
+	var points []activityPoint
+	err := r.db.WithContext(ctx).
+		Model(&domain.MonitoringActivity{}).
+		Select("success").
+		Where("resource_id = ? AND created_at >= ?", resourceID, windowStart).
+		Order("created_at ASC").
+		Find(&points).Error
+	if err != nil {
+		return 0, fmt.Errorf("failed to count transitions for resource %s: %w", resourceID, err)
+	}
+
+	transitions := 0
+	for index := 1; index < len(points); index++ {
+		if points[index].Success != points[index-1].Success {
+			transitions++
+		}
+	}
+
+	return transitions, nil
+}
+
 // GetUptimeStats retrieves the hourly uptime percentage for a resource over the last 24 hours.
 func (r *MonitoringActivityRepositoryImpl) GetUptimeStats(ctx context.Context, resourceID string) ([]domain.UptimeStat, error) {
 	if resourceID == "" {

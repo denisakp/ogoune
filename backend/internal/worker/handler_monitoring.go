@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/denisakp/pulseguard/internal/config"
 	"github.com/denisakp/pulseguard/internal/domain"
 	"github.com/denisakp/pulseguard/internal/monitoring"
 	"github.com/denisakp/pulseguard/internal/repository"
@@ -22,6 +23,9 @@ const (
 type incidentManager interface {
 	CreateIncident(ctx context.Context, r *domain.Resource, result domain.CheckResult) error
 	ResolveIncident(ctx context.Context, r *domain.Resource, result domain.CheckResult) error
+	NotifyFlapping(ctx context.Context, r *domain.Resource, transitionCount, windowSeconds, maxDurationMinutes int) error
+	NotifyStabilized(ctx context.Context, r *domain.Resource, finalStatus domain.ResourceStatus) error
+	SendReminderIfDue(ctx context.Context, r *domain.Resource) error
 }
 
 type confirmationRescheduler interface {
@@ -150,6 +154,7 @@ func (h *MonitoringTaskHandler) ProcessTask(ctx context.Context, task *asynq.Tas
 
 	currentResultStatus := domain.ResourceStatus(result.Status)
 	now := time.Now()
+	resource.LastChecked = &now
 	confirmationChecks := resource.ConfirmationChecks
 	if confirmationChecks <= 0 {
 		confirmationChecks = defaultConfirmationChecks
@@ -157,6 +162,16 @@ func (h *MonitoringTaskHandler) ProcessTask(ctx context.Context, task *asynq.Tas
 	confirmationInterval := resource.ConfirmationInterval
 	if confirmationInterval <= 0 {
 		confirmationInterval = defaultConfirmationInterval
+	}
+
+	if resource.Status != currentResultStatus && currentResultStatus != domain.StatusFlapping {
+		resource.LastStatusTransition = &now
+	}
+
+	if handled, err := h.handleFlapping(ctx, resource, previousStatus, currentResultStatus, now, confirmationChecks); err != nil {
+		return err
+	} else if handled {
+		return nil
 	}
 
 	switch currentResultStatus {
@@ -173,8 +188,6 @@ func (h *MonitoringTaskHandler) ProcessTask(ctx context.Context, task *asynq.Tas
 		// Reset failure count and update status to UP
 		resource.FailureCount = 0
 		resource.Status = domain.StatusUp
-		resource.LastChecked = &now
-
 		if err := h.resources.Update(ctx, resource); err != nil {
 			return fmt.Errorf("failed to update resource status: %w", err)
 		}
@@ -189,8 +202,6 @@ func (h *MonitoringTaskHandler) ProcessTask(ctx context.Context, task *asynq.Tas
 		resource.FailureCount++
 		fmt.Printf("[FAILURE] Resource %s failed (failure_count: %d, previous_status: %s)\n", resource.ID, resource.FailureCount, previousStatus)
 		resource.Status = domain.StatusDown
-		resource.LastChecked = &now
-
 		if err := h.resources.Update(ctx, resource); err != nil {
 			return fmt.Errorf("failed to update resource after failure: %w", err)
 		}
@@ -211,14 +222,16 @@ func (h *MonitoringTaskHandler) ProcessTask(ctx context.Context, task *asynq.Tas
 			}
 		}
 
+		if err := h.incidents.SendReminderIfDue(ctx, resource); err != nil {
+			fmt.Printf("Warning: failed to send reminder notification: %v\n", err)
+		}
+
 		if h.scheduler != nil {
 			_ = h.scheduler.ScheduleWithInterval(ctx, resource, time.Duration(resource.Interval)*time.Second)
 		}
 	default:
 		// Handle other statuses (error, unknown, etc.)
 		resource.Status = currentResultStatus
-		resource.LastChecked = &now
-
 		if err := h.resources.Update(ctx, resource); err != nil {
 			return fmt.Errorf("failed to update resource status: %w", err)
 		}
@@ -230,6 +243,95 @@ func (h *MonitoringTaskHandler) ProcessTask(ctx context.Context, task *asynq.Tas
 	}
 
 	return nil
+}
+
+func (h *MonitoringTaskHandler) handleFlapping(ctx context.Context, resource *domain.Resource, previousStatus, currentResultStatus domain.ResourceStatus, now time.Time, confirmationChecks int) (bool, error) {
+	if currentResultStatus != domain.StatusUp && currentResultStatus != domain.StatusDown {
+		return false, nil
+	}
+
+	cfg := config.Load()
+	flapEnabled := resource.FlapDetectionEnabled
+	if !flapEnabled && resource.FlapThreshold == 0 && resource.FlapWindowSeconds == 0 && resource.FlapMaxDurationMinutes == 0 {
+		flapEnabled = cfg.FlapDetectionEnabled
+	}
+	flapThreshold := resource.FlapThreshold
+	if flapThreshold <= 0 {
+		flapThreshold = cfg.FlapThreshold
+	}
+	flapWindowSeconds := resource.FlapWindowSeconds
+	if flapWindowSeconds <= 0 {
+		flapWindowSeconds = cfg.FlapWindowSeconds
+	}
+	flapMaxDurationMinutes := resource.FlapMaxDurationMinutes
+	if flapMaxDurationMinutes <= 0 {
+		flapMaxDurationMinutes = cfg.FlapMaxDurationMinutes
+	}
+
+	detector := monitoring.NewFlapDetector(h.activities, monitoring.FlapConfig{
+		Enabled:            flapEnabled,
+		Threshold:          flapThreshold,
+		WindowSeconds:      flapWindowSeconds,
+		MaxDurationMinutes: flapMaxDurationMinutes,
+	})
+	transitions, err := detector.Evaluate(ctx, resource.ID, now.Add(-time.Duration(flapWindowSeconds)*time.Second))
+	if err != nil {
+		return false, fmt.Errorf("failed to evaluate flapping state: %w", err)
+	}
+
+	if transitions >= flapThreshold {
+		if previousStatus == domain.StatusFlapping {
+			if detector.ShouldForceIncident(resource.FlapStartedAt) {
+				resource.FlapStartedAt = nil
+				resource.Status = currentResultStatus
+				resource.LastStatusTransition = &now
+				if currentResultStatus == domain.StatusDown {
+					resource.FailureCount = confirmationChecks - 1
+				}
+				return false, nil
+			}
+
+			resource.Status = domain.StatusFlapping
+			resource.FailureCount = 0
+			if err := h.resources.Update(ctx, resource); err != nil {
+				return true, fmt.Errorf("failed to persist flapping resource state: %w", err)
+			}
+			if h.scheduler != nil {
+				_ = h.scheduler.ScheduleWithInterval(ctx, resource, time.Duration(resource.Interval)*time.Second)
+			}
+			return true, nil
+		}
+
+		resource.Status = domain.StatusFlapping
+		resource.FlapStartedAt = &now
+		resource.FailureCount = 0
+		if err := h.resources.Update(ctx, resource); err != nil {
+			return true, fmt.Errorf("failed to persist flapping entry state: %w", err)
+		}
+		if err := h.incidents.NotifyFlapping(ctx, resource, transitions, flapWindowSeconds, flapMaxDurationMinutes); err != nil {
+			fmt.Printf("Warning: failed to dispatch flapping notification: %v\n", err)
+		}
+		if h.scheduler != nil {
+			_ = h.scheduler.ScheduleWithInterval(ctx, resource, time.Duration(resource.Interval)*time.Second)
+		}
+		return true, nil
+	}
+
+	if previousStatus == domain.StatusFlapping {
+		resource.FlapStartedAt = nil
+		resource.Status = currentResultStatus
+		resource.LastStatusTransition = &now
+		if currentResultStatus == domain.StatusDown {
+			resource.FailureCount = confirmationChecks - 1
+		} else {
+			resource.FailureCount = 0
+		}
+		if err := h.incidents.NotifyStabilized(ctx, resource, currentResultStatus); err != nil {
+			fmt.Printf("Warning: failed to dispatch stabilization notification: %v\n", err)
+		}
+	}
+
+	return false, nil
 }
 
 // persistIncidentDiagnostics builds and stores diagnostic information for an incident.

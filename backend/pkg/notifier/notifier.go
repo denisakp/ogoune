@@ -28,6 +28,8 @@ type NotificationPayload struct {
 	Incident  *domain.Incident
 	Component *ComponentNotification
 	Expiry    *ExpiryNotification
+	Flapping  *FlappingNotification
+	Reminder  *ReminderNotification
 }
 
 // ExpiryNotification carries expiry-specific data for threshold alert dispatching.
@@ -39,6 +41,24 @@ type ExpiryNotification struct {
 	Issuer        string // certificate issuer (SSL) or registrar (domain)
 	Threshold     int    // which threshold triggered this alert
 	TriggeredAt   time.Time
+}
+
+type FlappingNotification struct {
+	Resource           domain.Resource
+	TransitionCount    int
+	WindowSeconds      int
+	MaxDurationMinutes int
+	FlapStartedAt      *time.Time
+	Stabilized         bool
+	FinalStatus        domain.ResourceStatus
+	TriggeredAt        time.Time
+}
+
+type ReminderNotification struct {
+	Resource       domain.Resource
+	Incident       domain.Incident
+	ElapsedMinutes int
+	TriggeredAt    time.Time
 }
 
 // Notifier defines the interface for sending notifications.

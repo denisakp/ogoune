@@ -2,6 +2,10 @@ package monitoring
 
 import (
 	"context"
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
+	"sync/atomic"
 	"testing"
 
 	"github.com/denisakp/pulseguard/internal/domain"
@@ -10,6 +14,18 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+type cooldownEventStepRepo struct {
+	*fake.IncidentEventStepFake
+	returnExisting bool
+}
+
+func (r *cooldownEventStepRepo) FindLastByIncidentAndStep(ctx context.Context, incidentID string, step domain.IncidentEventStepType) (*domain.IncidentEventStep, error) {
+	if r.returnExisting && step == domain.IncidentEventStepDownAlert {
+		return &domain.IncidentEventStep{IncidentID: incidentID, Step: step}, nil
+	}
+	return r.IncidentEventStepFake.FindLastByIncidentAndStep(ctx, incidentID, step)
+}
 
 // Test helpers
 func setupTestService() (*IncidentService, *fake.IncidentFake, *fake.IncidentEventStepFake, *fake.NotificationFake, *fake.NotificationChannelFake, *asynq.Client) {
@@ -191,6 +207,47 @@ func TestIncidentService_CreateIncident_DuplicatePrevention(t *testing.T) {
 	incidents, err := incidentRepo.FindByResource(ctx, resource.ID, 10, 0)
 	require.NoError(t, err)
 	assert.Equal(t, 1, len(incidents))
+}
+
+func TestCooldown_NoDuplicateDownAlert(t *testing.T) {
+	incidentRepo := fake.NewIncidentFake()
+	baseEventRepo := fake.NewIncidentEventStepFake().(*fake.IncidentEventStepFake)
+	eventRepo := &cooldownEventStepRepo{IncidentEventStepFake: baseEventRepo, returnExisting: true}
+	notificationRepo := fake.NewNotificationFake()
+	notificationChannelRepo := fake.NewNotificationChannelFake()
+	diagnosticsRepo := fake.NewIncidentDiagnosticsFake()
+	service := NewIncidentService(incidentRepo, eventRepo, notificationRepo, notificationChannelRepo, diagnosticsRepo, nil)
+
+	var hitCount atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		hitCount.Add(1)
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+
+	channelConfig, err := json.Marshal(map[string]string{"url": server.URL})
+	require.NoError(t, err)
+	channel := &domain.NotificationChannel{
+		Base:   domain.Base{ID: "channel-cooldown"},
+		Name:   "webhook",
+		Type:   domain.NotificationChannelType("webhook"),
+		Config: channelConfig,
+	}
+	require.NoError(t, notificationChannelRepo.Create(context.Background(), channel))
+	notificationChannelRepo.AssociateChannelWithResource("res-cooldown", channel.ID)
+
+	resource := &domain.Resource{
+		Base:     domain.Base{ID: "res-cooldown"},
+		Name:     "Cooldown API",
+		Target:   "https://example.com",
+		Type:     domain.ResourceHTTP,
+		IsActive: true,
+		Status:   domain.StatusDown,
+	}
+
+	err = service.CreateIncident(context.Background(), resource, domain.CheckResult{Status: "down", ResponseData: "connection timeout"})
+	require.NoError(t, err)
+	assert.Equal(t, int32(0), hitCount.Load())
 }
 
 func TestIncidentService_ResolveIncident_Success(t *testing.T) {

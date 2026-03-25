@@ -134,6 +134,33 @@ func (s *ResourceService) CreateResource(ctx context.Context, payload *dto.Creat
 	}
 
 	// Optional component assignment
+	// Apply smart alerting config defaults and per-resource overrides
+	cfg := config.Load()
+	resource.FlapDetectionEnabled = cfg.FlapDetectionEnabled
+	resource.FlapThreshold = cfg.FlapThreshold
+	resource.FlapWindowSeconds = cfg.FlapWindowSeconds
+	resource.FlapMaxDurationMinutes = cfg.FlapMaxDurationMinutes
+	resource.ReminderIntervalMinutes = cfg.ReminderIntervalMinutes
+	if payload.FlapDetectionEnabled != nil {
+		resource.FlapDetectionEnabled = *payload.FlapDetectionEnabled
+	}
+	if payload.FlapThreshold != nil {
+		resource.FlapThreshold = *payload.FlapThreshold
+	}
+	if payload.FlapWindowSeconds != nil {
+		resource.FlapWindowSeconds = *payload.FlapWindowSeconds
+	}
+	if payload.FlapMaxDurationMinutes != nil {
+		resource.FlapMaxDurationMinutes = *payload.FlapMaxDurationMinutes
+	}
+	if payload.ReminderIntervalMinutes != nil {
+		resource.ReminderIntervalMinutes = *payload.ReminderIntervalMinutes
+	}
+	if err := validateSmartAlertingFields(resource.FlapThreshold, resource.FlapWindowSeconds, resource.FlapMaxDurationMinutes, resource.ReminderIntervalMinutes); err != nil {
+		return nil, err
+	}
+
+	// Optional component assignment
 	if payload.ComponentID != nil && *payload.ComponentID != "" {
 		if s.components == nil {
 			return nil, fmt.Errorf("%w: component support is not configured", ErrValidationFailed)
@@ -358,6 +385,26 @@ func (s *ResourceService) UpdateResource(ctx context.Context, id string, payload
 		}
 	}
 
+	// Apply smart alerting overrides
+	if payload.FlapDetectionEnabled != nil {
+		resource.FlapDetectionEnabled = *payload.FlapDetectionEnabled
+	}
+	if payload.FlapThreshold != nil {
+		resource.FlapThreshold = *payload.FlapThreshold
+	}
+	if payload.FlapWindowSeconds != nil {
+		resource.FlapWindowSeconds = *payload.FlapWindowSeconds
+	}
+	if payload.FlapMaxDurationMinutes != nil {
+		resource.FlapMaxDurationMinutes = *payload.FlapMaxDurationMinutes
+	}
+	if payload.ReminderIntervalMinutes != nil {
+		resource.ReminderIntervalMinutes = *payload.ReminderIntervalMinutes
+	}
+	if err := validateSmartAlertingFields(resource.FlapThreshold, resource.FlapWindowSeconds, resource.FlapMaxDurationMinutes, resource.ReminderIntervalMinutes); err != nil {
+		return nil, err
+	}
+
 	// Defer SSL/WHOIS enrichment to avoid blocking the update request
 	resource.MetadataPending = true
 	go s.asyncEnrichAndPersist(resource)
@@ -485,6 +532,23 @@ func confirmationDefaults() (int, int) {
 		interval = defaultConfirmationInterval
 	}
 	return checks, interval
+}
+
+// validateSmartAlertingFields validates the smart alerting configuration fields.
+func validateSmartAlertingFields(flapThreshold, flapWindowSeconds, flapMaxDurationMinutes, reminderIntervalMinutes int) error {
+	if flapThreshold < 2 {
+		return fmt.Errorf("%w: flap_threshold must be >= 2 (got %d)", ErrValidationFailed, flapThreshold)
+	}
+	if flapWindowSeconds < 60 || flapWindowSeconds > 3600 {
+		return fmt.Errorf("%w: flap_window_seconds must be between 60 and 3600 (got %d)", ErrValidationFailed, flapWindowSeconds)
+	}
+	if flapMaxDurationMinutes < 0 {
+		return fmt.Errorf("%w: flap_max_duration_minutes must be >= 0 (got %d)", ErrValidationFailed, flapMaxDurationMinutes)
+	}
+	if reminderIntervalMinutes < 0 {
+		return fmt.Errorf("%w: reminder_interval_minutes must be >= 0 (got %d)", ErrValidationFailed, reminderIntervalMinutes)
+	}
+	return nil
 }
 
 // ListUnresolvedIncidents returns unresolved incidents for a specific resource.

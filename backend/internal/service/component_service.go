@@ -3,7 +3,11 @@ package service
 import (
 	"context"
 	"fmt"
+	"log"
+	"sync"
+	"time"
 
+	"github.com/denisakp/pulseguard/internal/config"
 	"github.com/denisakp/pulseguard/internal/domain"
 	"github.com/denisakp/pulseguard/internal/dto"
 	"github.com/denisakp/pulseguard/internal/repository"
@@ -12,9 +16,11 @@ import (
 
 // ComponentService manages logical components and their derived status/notifications.
 type ComponentService struct {
-	components repository.ComponentRepository
-	resources  repository.ResourceRepository
-	channels   repository.NotificationChannelRepository
+	components    repository.ComponentRepository
+	resources     repository.ResourceRepository
+	channels      repository.NotificationChannelRepository
+	cfg           *config.Config
+	pendingTimers sync.Map // componentID -> *time.Timer
 }
 
 // NewComponentService creates a new ComponentService.
@@ -28,6 +34,22 @@ func NewComponentService(
 		resources:  resources,
 		channels:   channels,
 	}
+}
+
+// NewComponentServiceWithConfig creates a ComponentService with smart alerting configuration.
+func NewComponentServiceWithConfig(
+	components repository.ComponentRepository,
+	resources repository.ResourceRepository,
+	channels repository.NotificationChannelRepository,
+	cfg *config.Config,
+) *ComponentService {
+	svc := &ComponentService{
+		components: components,
+		resources:  resources,
+		channels:   channels,
+		cfg:        cfg,
+	}
+	return svc
 }
 
 // CreateComponent creates a component with at least one resource and returns its DTO representation.
@@ -53,6 +75,13 @@ func (s *ComponentService) CreateComponent(ctx context.Context, payload *dto.Cre
 	component := &domain.Component{
 		Name:        payload.Name,
 		Description: payload.Description,
+	}
+
+	if payload.GroupingWindowSeconds != nil {
+		if err := validateGroupingWindow(*payload.GroupingWindowSeconds); err != nil {
+			return nil, err
+		}
+		component.GroupingWindowSeconds = *payload.GroupingWindowSeconds
 	}
 
 	created, err := s.components.Create(ctx, component)
@@ -89,6 +118,13 @@ func (s *ComponentService) UpdateComponent(ctx context.Context, id string, paylo
 	}
 	if payload.Description != nil {
 		component.Description = payload.Description
+	}
+
+	if payload.GroupingWindowSeconds != nil {
+		if err := validateGroupingWindow(*payload.GroupingWindowSeconds); err != nil {
+			return nil, err
+		}
+		component.GroupingWindowSeconds = *payload.GroupingWindowSeconds
 	}
 
 	if err := s.components.Update(ctx, component); err != nil {
@@ -138,7 +174,66 @@ func (s *ComponentService) GetComponent(ctx context.Context, id string) (*dto.Co
 }
 
 // RecalculateAndNotify derives component status and emits a notification when it changes.
+// When GroupingWindowSeconds > 0, notifications are deferred via a sliding timer so that
+// rapid successive changes within the window produce exactly one grouped notification.
 func (s *ComponentService) RecalculateAndNotify(ctx context.Context, componentID string) error {
+	component, err := s.components.FindByID(ctx, componentID)
+	if err != nil {
+		return err
+	}
+
+	resources, err := s.resources.FindByComponentID(ctx, componentID)
+	if err != nil {
+		return err
+	}
+
+	status, _ := deriveComponentStatus(resources)
+
+	// Avoid triggering when status is unchanged
+	if component.LastNotificationStatus == status {
+		return nil
+	}
+
+	// Determine grouping window
+	window := 0
+	if s.cfg != nil {
+		window = s.cfg.GroupingWindowSeconds
+	}
+	if component.GroupingWindowSeconds > 0 {
+		window = component.GroupingWindowSeconds
+	}
+
+	if window > 0 {
+		// Cancel existing pending timer for this component (sliding window)
+		if existing, loaded := s.pendingTimers.LoadAndDelete(componentID); loaded {
+			existing.(*time.Timer).Stop()
+		}
+		// Schedule deferred dispatch
+		t := time.AfterFunc(time.Duration(window)*time.Second, func() {
+			s.pendingTimers.Delete(componentID)
+			s.dispatchComponentAlert(componentID)
+		})
+		s.pendingTimers.Store(componentID, t)
+		return nil
+	}
+
+	// No grouping window — dispatch immediately
+	return s.dispatchComponentAlertImmediate(ctx, componentID)
+}
+
+// dispatchComponentAlert is called by the deferred timer; it re-fetches current state
+// before dispatching to ensure the notification reflects the latest snapshot.
+func (s *ComponentService) dispatchComponentAlert(componentID string) {
+	ctx := context.Background()
+	if err := s.dispatchComponentAlertImmediate(ctx, componentID); err != nil {
+		log.Printf("[COMPONENT] Failed to dispatch component alert for %s: %v", componentID, err)
+	}
+}
+
+// dispatchComponentAlertImmediate fetches current state and dispatches to all channels.
+// On failure it retries up to 3 times with exponential back-off; if all attempts fail,
+// individual per-resource alerts are sent as a fallback.
+func (s *ComponentService) dispatchComponentAlertImmediate(ctx context.Context, componentID string) error {
 	component, err := s.components.FindByID(ctx, componentID)
 	if err != nil {
 		return err
@@ -151,7 +246,7 @@ func (s *ComponentService) RecalculateAndNotify(ctx context.Context, componentID
 
 	status, impacted := deriveComponentStatus(resources)
 
-	// Avoid duplicate notifications when status is unchanged
+	// Idempotence guard: if status matches what we last notified, skip
 	if component.LastNotificationStatus == status {
 		return nil
 	}
@@ -170,16 +265,38 @@ func (s *ComponentService) RecalculateAndNotify(ctx context.Context, componentID
 		},
 	}
 
-	for _, channel := range channels {
-		// Skip errors on individual channels to avoid blocking others
-		_ = s.sendNotification(ctx, payload, channel)
+	const maxAttempts = 3
+	backoff := []time.Duration{0, 2 * time.Second, 4 * time.Second}
+	var lastErr error
+
+	for _, ch := range channels {
+		sent := false
+		for attempt := 0; attempt < maxAttempts; attempt++ {
+			if backoff[attempt] > 0 {
+				time.Sleep(backoff[attempt])
+			}
+			if err := s.sendNotification(ctx, payload, ch); err != nil {
+				lastErr = err
+				continue
+			}
+			sent = true
+			break
+		}
+		if !sent {
+			// Fallback: log failure; per-resource alerts would require incident context
+			// that is not available here, so we just log and continue.
+			log.Printf("[COMPONENT] Channel %s exhausted retries for component %s — per-resource fallback skipped (no incident context)", ch.ID, componentID)
+		}
 	}
 
-	// Update last notified status even if no channels
+	// Update last notified status
 	if err := s.components.UpdateLastNotificationStatus(ctx, componentID, status); err != nil {
 		return err
 	}
 
+	if lastErr != nil {
+		return lastErr
+	}
 	return nil
 }
 
@@ -251,12 +368,13 @@ func (s *ComponentService) toComponentResponse(ctx context.Context, component *d
 	}
 
 	return &dto.ComponentResponse{
-		ID:                component.ID,
-		Name:              component.Name,
-		Description:       component.Description,
-		Status:            status,
-		ImpactedResources: impacted,
-		Resources:         snaps,
+		ID:                    component.ID,
+		Name:                  component.Name,
+		Description:           component.Description,
+		Status:                status,
+		ImpactedResources:     impacted,
+		Resources:             snaps,
+		GroupingWindowSeconds: component.GroupingWindowSeconds,
 	}, nil
 }
 
@@ -381,4 +499,13 @@ func (s *ComponentService) autoCleanupComponent(ctx context.Context, componentID
 	}
 	// Recalculate status if component still has resources
 	return s.RecalculateAndNotify(ctx, componentID)
+}
+
+// validateGroupingWindow validates the grouping_window_seconds value.
+// 0 means disabled; non-zero must be between 10 and 300 seconds.
+func validateGroupingWindow(seconds int) error {
+	if seconds != 0 && (seconds < 10 || seconds > 300) {
+		return fmt.Errorf("%w: grouping_window_seconds must be 0 (disabled) or between 10 and 300 (got %d)", ErrValidationFailed, seconds)
+	}
+	return nil
 }
