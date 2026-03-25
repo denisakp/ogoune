@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { onMounted, computed, reactive, ref, watch } from 'vue'
+import { onMounted, computed, reactive, ref, watch, nextTick } from 'vue'
 import { message } from 'ant-design-vue'
 import { PlusOutlined } from '@ant-design/icons-vue'
 import type {
@@ -28,6 +28,7 @@ const isEditMode = ref(false)
 const currentChannel = ref<NotificationChannel | null>(null)
 const isSubmitting = ref(false)
 const isTestingConfig = ref(false)
+const isHydratingEditForm = ref(false)
 
 // Form state
 const formState = reactive({
@@ -49,6 +50,9 @@ const formRules = {
 watch(
   () => formState.type,
   () => {
+    if (isHydratingEditForm.value) {
+      return
+    }
     formState.config = {}
     // Clear validation errors for the type field
     formRef.value?.clearValidate('type')
@@ -56,17 +60,30 @@ watch(
 )
 
 // Available notification types
-const channelTypes: Array<{ label: string; value: NotificationChannelType }> = [
+const baseChannelTypes: Array<{ label: string; value: NotificationChannelType }> = [
   { label: 'Email (SMTP)', value: 'smtp' },
-  { label: 'Slack', value: 'slack' },
-  { label: 'SMS', value: 'sms' },
+  { label: 'Webhook', value: 'slack' },
 ]
+
+const channelTypes = computed<Array<{ label: string; value: NotificationChannelType }>>(() => {
+  if (isEditMode.value && currentChannel.value?.type === 'sms') {
+    return [...baseChannelTypes, { label: 'SMS (Legacy)', value: 'sms' }]
+  }
+  return baseChannelTypes
+})
 
 // Get the appropriate config component based on type
 const configComponentMap = {
   smtp: SMTPConfigForm,
   slack: SlackConfigForm,
   sms: SMSConfigForm,
+}
+
+// Channel type labels for table rendering.
+const typeLabels: Record<string, string> = {
+  smtp: 'SMTP',
+  slack: 'WEBHOOK',
+  sms: 'SMS',
 }
 
 const currentConfigComponent = computed(() => {
@@ -103,6 +120,7 @@ const openCreateModal = () => {
 
 // Open edit modal
 const openEditModal = (channel: NotificationChannel) => {
+  isHydratingEditForm.value = true
   isEditMode.value = true
   currentChannel.value = channel
   formState.name = channel.name
@@ -110,6 +128,11 @@ const openEditModal = (channel: NotificationChannel) => {
   formState.enabled_by_default = channel.enabled_by_default
   formState.config = { ...channel.config }
   isModalVisible.value = true
+
+  // Re-enable type-change reset logic after initial form hydration.
+  void nextTick(() => {
+    isHydratingEditForm.value = false
+  })
 }
 
 // Handle form submission
@@ -267,7 +290,7 @@ onMounted(() => {
                     : 'default'
             "
           >
-            {{ record.type.toUpperCase() }}
+            {{ typeLabels[record.type] ?? record.type.toUpperCase() }}
           </a-tag>
         </template>
 
@@ -318,7 +341,11 @@ onMounted(() => {
         </a-form-item>
 
         <!-- Type Field -->
-        <a-form-item label="Channel Type" name="type">
+        <a-form-item
+          label="Channel Type"
+          name="type"
+          extra="Webhook is compatible with Slack, Google Chat, Microsoft Teams, Discord, and any custom HTTP endpoint."
+        >
           <a-select v-model:value="formState.type" style="width: 100%">
             <a-select-option v-for="type in channelTypes" :key="type.value" :value="type.value">
               {{ type.label }}
