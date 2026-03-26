@@ -21,6 +21,16 @@ func TestBuildIncidentDiagnostics_PersistsResponseHeaders(t *testing.T) {
 	assert.Equal(t, "application/json", diag.ResponseHeaders["Content-Type"])
 }
 
+func TestBuildIncidentDiagnostics_NilResponseHeaders_DefaultsToEmptyMap(t *testing.T) {
+	result := domain.CheckResult{}
+	resource := &domain.Resource{Timeout: 10}
+
+	diag := BuildIncidentDiagnostics("inc-3", result, resource)
+
+	assert.NotNil(t, diag.ResponseHeaders)
+	assert.Equal(t, 0, len(diag.ResponseHeaders))
+}
+
 func TestBuildIncidentDiagnostics_RemovesAuthorizationHeader(t *testing.T) {
 	result := domain.CheckResult{
 		RequestHeaders: map[string]string{

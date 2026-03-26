@@ -3,16 +3,48 @@ package notifier
 import (
 	"encoding/json"
 	"fmt"
+	"strconv"
 )
+
+type stringOrNumber string
+
+func (s *stringOrNumber) UnmarshalJSON(data []byte) error {
+	if string(data) == "null" {
+		*s = ""
+		return nil
+	}
+
+	var asString string
+	if err := json.Unmarshal(data, &asString); err == nil {
+		*s = stringOrNumber(asString)
+		return nil
+	}
+
+	var asInt int
+	if err := json.Unmarshal(data, &asInt); err == nil {
+		*s = stringOrNumber(strconv.Itoa(asInt))
+		return nil
+	}
+
+	var asFloat float64
+	if err := json.Unmarshal(data, &asFloat); err == nil {
+		*s = stringOrNumber(strconv.FormatInt(int64(asFloat), 10))
+		return nil
+	}
+
+	return fmt.Errorf("expected string or number")
+}
 
 // SMTPConfig represents the JSON configuration for an SMTP notification channel.
 type SMTPConfig struct {
-	Recipient string `json:"recipient"`
-	Sender    string `json:"sender"`
-	Host      string `json:"host"`
-	Port      string `json:"port"`
-	User      string `json:"user"`
-	Password  string `json:"password"`
+	Recipient  string         `json:"recipient"`
+	Recipients []string       `json:"recipients,omitempty"`
+	Sender     string         `json:"sender"`
+	Host       string         `json:"host"`
+	Port       stringOrNumber `json:"port"`
+	User       string         `json:"user"`
+	Username   string         `json:"username"`
+	Password   string         `json:"password"`
 }
 
 // NewSMTPNotifierFromConfig deserializes a JSON config string and creates an SMTP notifier.
@@ -22,8 +54,20 @@ func NewSMTPNotifierFromConfig(configJSON string) (*SMTPNotifier, error) {
 		return nil, fmt.Errorf("failed to unmarshal SMTP config: %w", err)
 	}
 
+	recipient := cfg.Recipient
+	if recipient == "" && len(cfg.Recipients) > 0 {
+		recipient = cfg.Recipients[0]
+	}
+
+	user := cfg.User
+	if user == "" {
+		user = cfg.Username
+	}
+
+	port := string(cfg.Port)
+
 	// Validate required fields
-	if cfg.Recipient == "" {
+	if recipient == "" {
 		return nil, fmt.Errorf("SMTP config missing recipient")
 	}
 	if cfg.Sender == "" {
@@ -32,17 +76,17 @@ func NewSMTPNotifierFromConfig(configJSON string) (*SMTPNotifier, error) {
 	if cfg.Host == "" {
 		return nil, fmt.Errorf("SMTP config missing host")
 	}
-	if cfg.Port == "" {
+	if port == "" {
 		return nil, fmt.Errorf("SMTP config missing port")
 	}
-	if cfg.User == "" {
+	if user == "" {
 		return nil, fmt.Errorf("SMTP config missing user")
 	}
 	if cfg.Password == "" {
 		return nil, fmt.Errorf("SMTP config missing password")
 	}
 
-	return NewSMTPNotifier(cfg.Recipient, cfg.Sender, cfg.Host, cfg.Port, cfg.User, cfg.Password), nil
+	return NewSMTPNotifier(recipient, cfg.Sender, cfg.Host, port, user, cfg.Password), nil
 }
 
 // WebhookConfig represents the JSON configuration for a Webhook notification channel.

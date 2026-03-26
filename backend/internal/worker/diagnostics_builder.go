@@ -18,7 +18,7 @@ func BuildIncidentDiagnostics(incidentID string, result domain.CheckResult, reso
 		RequestHeaders:    sanitizeHeaders(result.RequestHeaders),
 		RequestTimeout:    resource.Timeout,
 		HTTPStatusCode:    result.HTTPStatusCode,
-		ResponseHeaders:   result.ResponseHeaders,
+		ResponseHeaders:   normalizeHeaders(result.ResponseHeaders),
 		TotalDuration:     int(result.ResponseTime.Milliseconds()),
 		DNSDuration:       int(result.DNSDuration.Milliseconds()),
 		TLSDuration:       int(result.TLSDuration.Milliseconds()),
@@ -56,6 +56,18 @@ func BuildIncidentDiagnostics(incidentID string, result domain.CheckResult, reso
 	}
 
 	return diag
+}
+
+func normalizeHeaders(headers map[string]string) map[string]string {
+	if headers == nil {
+		return make(map[string]string)
+	}
+
+	copyHeaders := make(map[string]string, len(headers))
+	for k, v := range headers {
+		copyHeaders[k] = v
+	}
+	return copyHeaders
 }
 
 // sanitizeHeaders removes sensitive headers before storage.
