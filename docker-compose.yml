@@ -8,7 +8,7 @@ volumes:
   traefik-data:
 services:
   postgres:
-    image: postgres:17-alpine
+    image: postgres:18-alpine
     environment:
       PGPASSWORD: ${PG_PASSWORD}
       POSTGRES_DB: ${PG_DATABASE}

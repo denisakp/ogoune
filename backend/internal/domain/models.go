@@ -312,15 +312,21 @@ const (
 	NotificationEventStatusSent      NotificationEventStatusType = "sent"
 	NotificationEventStatusFailed    NotificationEventStatusType = "failed"
 	NotificationEventStatusPending   NotificationEventStatusType = "pending"
+	NotificationEventStatusExpired   NotificationEventStatusType = "expired"
 	NotificationEventStatusDelivered NotificationEventStatusType = "delivered"
 	NotificationEventStatusRead      NotificationEventStatusType = "read"
 )
 
 type NotificationEvent struct {
 	Base
-	IncidentID string                `json:"incident_id" gorm:"index"`
-	Incident   Incident              `json:"incident" gorm:"foreignKey:IncidentID"`
-	Type       NotificationEventType `json:"type" gorm:"index"`
+	IncidentID  string                      `json:"incident_id" gorm:"index"`
+	Incident    Incident                    `json:"incident" gorm:"foreignKey:IncidentID"`
+	Type        NotificationEventType       `json:"type" gorm:"index"`
+	Status      NotificationEventStatusType `json:"status" gorm:"index;default:pending"`
+	ClaimOwner  *string                     `json:"claim_owner,omitempty" gorm:"index"`
+	ClaimedAt   *time.Time                  `json:"claimed_at,omitempty"`
+	ProcessedAt *time.Time                  `json:"processed_at,omitempty"`
+	LastError   string                      `json:"last_error" gorm:"default:''"`
 }
 
 func (NotificationEvent) TableName() string { return "notification_events" }

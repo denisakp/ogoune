@@ -144,6 +144,8 @@ Hosted compatibility notes:
 Expected output:
 ```
 ✓ Database connection established successfully
+[STARTUP] Checking for pending notifications...
+[STARTUP] Pending notifications: scanned=... retried=... expired=... failed=... skipped_claimed=...
 ✓ All systems operational!
 ✓ API server listening on :8080
 ```
@@ -349,6 +351,14 @@ For ad-hoc webhook testing, you can still point a channel to a [webhook.site](ht
 - For SMTP channels, double-check host/port/auth inside the saved channel JSON.
 - For webhook channels, confirm the endpoint returns 2xx and accepts your payload.
 - Review logs for the specific notifier (SMTP/Slack/Webhook) when incidents fire.
+
+### Startup Pending Notification Retry
+
+- At startup, Pulseguard runs a bounded single pass over `notification_events` with `status=pending` for `down` and `up` events.
+- Rows older than 24 hours are terminalized as `expired` and skipped from dispatch.
+- Recent rows are atomically claimed before retry to avoid duplicate sends across concurrent startup instances.
+- Retry failures are non-fatal for startup and logged as warnings; affected rows become `failed` with `last_error` populated.
+- If required retry columns are missing, startup fails fast with an instruction to apply latest migrations.
 
 ### Webhooks Not Triggering
 

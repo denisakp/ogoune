@@ -23,6 +23,8 @@ Auto-generated from all feature plans. Last updated: 2026-03-26
 - Go 1.25 (backend) / TypeScript 5 + Vue 3.5 (frontend) + Chi v5 (router), GORM (ORM), `crypt# Implementation Plan: API Keys Managemen (011-api-key-management)
 - Go 1.23.x (backend monolith), TypeScript 5.x (frontend unaffected for this feature) + Chi router, GORM, Asynq scheduler adapter, Testify, fake repositories under `backend/internal/repository/fake` (012-fix-confirmation-window)
 - PostgreSQL (primary), SQLite (community/local mode), existing resource and incident tables (012-fix-confirmation-window)
+- Go 1.23.x backend monolith; TypeScript/Vue frontend unchanged for this feature + GORM runtime, embedded SQL migrations, Asynq runtime, Chi, Testify, existing notifier implementations in `backend/pkg/notifier` (013-retry-pending-notifications)
+- PostgreSQL and SQLite via `internal/database` with authoritative SQL migrations (013-retry-pending-notifications)
 
 - Go 1.25.1 (backend), TypeScript/Vue 3 (frontend unaffected for this feature) + `gorm.io/gorm`, `gorm.io/driver/postgres`, `github.com/glebarez/sqlite` (new), `github.com/stretchr/testify` (002-add-db-driver-abstraction)
 
@@ -43,9 +45,9 @@ npm test && npm run lint
 Go 1.25.1 (backend), TypeScript/Vue 3 (frontend unaffected for this feature): Follow standard conventions
 
 ## Recent Changes
+- 013-retry-pending-notifications: Added Go 1.23.x backend monolith; TypeScript/Vue frontend unchanged for this feature + GORM runtime, embedded SQL migrations, Asynq runtime, Chi, Testify, existing notifier implementations in `backend/pkg/notifier`
 - 012-fix-confirmation-window: Added Go 1.23.x (backend monolith), TypeScript 5.x (frontend unaffected for this feature) + Chi router, GORM, Asynq scheduler adapter, Testify, fake repositories under `backend/internal/repository/fake`
 - 011-api-key-management: Added Go 1.25 (backend) / TypeScript 5 + Vue 3.5 (frontend) + Chi v5 (router), GORM (ORM), `crypt# Implementation Plan: API Keys Managemen
-- 010-incident-diagnostic-fixes: Added Go 1.25.1 (backend), TypeScript 5 + Vue 3.5 (frontend) + Chi router, GORM repositories, Asynq worker path, Ant Design Vue settings UI
 
 
 <!-- MANUAL ADDITIONS START -->

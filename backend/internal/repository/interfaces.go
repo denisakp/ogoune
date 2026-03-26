@@ -92,7 +92,10 @@ type NotificationRepository interface {
 	Update(ctx context.Context, n *domain.NotificationEvent) error
 	Delete(ctx context.Context, id string) error
 	FindPending(ctx context.Context, limit, offset int) ([]*domain.NotificationEvent, error)
-	MarkAsSent(ctx context.Context, id string) error
+	ClaimPending(ctx context.Context, id, claimOwner string, claimedAt time.Time) (bool, error)
+	MarkAsSent(ctx context.Context, id string, processedAt time.Time) error
+	MarkAsFailed(ctx context.Context, id, lastError string, processedAt time.Time) error
+	MarkAsExpired(ctx context.Context, id, lastError string, processedAt time.Time) error
 }
 
 // MonitoringActivityRepository manages monitoring activity records

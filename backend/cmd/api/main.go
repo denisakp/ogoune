@@ -34,6 +34,10 @@ type resourceRepositoryAdapter struct {
 	repo repository.ResourceRepository
 }
 
+type pendingNotificationRetryRunner interface {
+	RetryPendingNotifications(ctx context.Context, limit int) (service.PendingNotificationRetrySummary, error)
+}
+
 func (a *resourceRepositoryAdapter) FindScheduledResources(ctx context.Context) ([]scheduler.ScheduleItem, error) {
 	resources, err := a.repo.FindScheduledResources(ctx)
 	if err != nil {
@@ -78,6 +82,27 @@ func serveStaticFiles(router *chi.Mux, staticDir string) {
 		// File exists, serve it
 		fs.ServeHTTP(w, r)
 	})
+}
+
+func runStartupPendingNotificationRetry(ctx context.Context, retryService pendingNotificationRetryRunner) {
+	if retryService == nil {
+		return
+	}
+
+	log.Println("[STARTUP] Checking for pending notifications...")
+	summary, err := retryService.RetryPendingNotifications(ctx, 1000)
+	if err != nil {
+		log.Printf("[STARTUP] [WARNING] Pending notification retry failed: %v", err)
+		return
+	}
+
+	log.Printf("[STARTUP] Pending notifications: scanned=%d retried=%d expired=%d failed=%d skipped_claimed=%d",
+		summary.ScannedCount,
+		summary.RetriedCount,
+		summary.ExpiredCount,
+		summary.FailedCount,
+		summary.SkippedClaimedCount,
+	)
 }
 
 func main() {
@@ -251,6 +276,14 @@ func main() {
 
 	// Initialize component service (used by both worker and API handlers)
 	componentService := service.NewComponentService(componentRepo, resourceRepo, notificationChannelRepo)
+	pendingRetryService := service.NewPendingNotificationRetryService(
+		notificationRepo,
+		incidentRepo,
+		notificationChannelRepo,
+		componentRepo,
+		"",
+		24*time.Hour,
+	)
 
 	// ========================================
 	// STEP 1: START SCHEDULER AND BOOTSTRAP
@@ -378,6 +411,8 @@ func main() {
 			log.Println(" Some resources failed to schedule. Check logs above for details.")
 		}
 	}
+
+	runStartupPendingNotificationRetry(context.Background(), pendingRetryService)
 
 	// ========================================
 	// STEP 2: INITIALIZE WORKER (Asynq only)

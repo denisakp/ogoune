@@ -111,7 +111,7 @@ GORM entities (see internal/domain/models.go):
 - Incident: resource_id, cause, started_at, resolved_at(NULL while active), details(bytes), event steps
 - IncidentEventStep: incident_id, step (detected, resolved, resource_down_alert, resource_up_alert, …), message
 - Integration: config(JSON), event_types(JSON), is_active, name
-- NotificationEvent: incident_id, type (up|down|expiry), timestamps
+- NotificationEvent: incident_id, type (up|down|expiry), status (pending|sent|failed|expired), claim_owner, claimed_at, processed_at, last_error, timestamps
 - Tags: many‑to‑many with resources
 
 DB initialization:
@@ -154,6 +154,8 @@ End‑to‑end flow:
    - Channel-based: notification channels (SMTP/Slack/Webhook/SMS) are stored in the database and dispatched via the notifier factory.
   - Resolution order is resource channels, then component channels, then default-enabled global channels.
   - If no channel is resolved, incident creation continues and a warning log is emitted with remediation guidance.
+  - Notification events are persisted as `pending` before dispatch and terminalized as `sent` or `failed` after immediate delivery attempts.
+  - At startup, a single recovery pass retries recent pending down/up events, expires stale events, and skips already-claimed rows to prevent duplicate dispatch in multi-instance boot scenarios.
    - Testing: `/notification-channels/{id}/test` for saved channels; `/notification-channels/test-config` to validate before saving.
 
 9) Incident diagnostics and API readability

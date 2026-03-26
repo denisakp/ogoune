@@ -2,7 +2,9 @@ package fake
 
 import (
 	"context"
+	"sort"
 	"sync"
+	"time"
 
 	"github.com/denisakp/pulseguard/internal/domain"
 )
@@ -36,6 +38,10 @@ func (r *NotificationFake) Create(ctx context.Context, notification *domain.Noti
 
 	if _, exists := r.notifications[notification.ID]; exists {
 		return ErrDuplicate
+	}
+
+	if notification.Status == "" {
+		notification.Status = domain.NotificationEventStatusPending
 	}
 
 	// Make a copy to avoid external mutations
@@ -146,20 +152,92 @@ func (r *NotificationFake) List(ctx context.Context, limit, offset int) ([]*doma
 // FindPending retrieves pending notification events.
 // In this fake implementation, we return an empty list since we don't track pending status.
 func (r *NotificationFake) FindPending(ctx context.Context, limit, offset int) ([]*domain.NotificationEvent, error) {
-	// For testing purposes, we don't track pending status
-	return []*domain.NotificationEvent{}, nil
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	var pending []*domain.NotificationEvent
+	for _, notification := range r.notifications {
+		if notification.Status != domain.NotificationEventStatusPending {
+			continue
+		}
+		if notification.Type != domain.NotificationEventTypeDown && notification.Type != domain.NotificationEventTypeUp {
+			continue
+		}
+		copy := *notification
+		pending = append(pending, &copy)
+	}
+
+	sort.Slice(pending, func(i, j int) bool {
+		return pending[i].CreatedAt.Before(pending[j].CreatedAt)
+	})
+
+	if offset >= len(pending) {
+		return []*domain.NotificationEvent{}, nil
+	}
+
+	end := offset + limit
+	if end > len(pending) {
+		end = len(pending)
+	}
+
+	return pending[offset:end], nil
 }
 
-// MarkAsSent marks a notification as sent.
-// In this fake implementation, this is a no-op since we don't track status.
-func (r *NotificationFake) MarkAsSent(ctx context.Context, id string) error {
+// ClaimPending atomically acquires ownership of a pending notification event.
+func (r *NotificationFake) ClaimPending(ctx context.Context, id, claimOwner string, claimedAt time.Time) (bool, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	if _, exists := r.notifications[id]; !exists {
+	if id == "" || claimOwner == "" {
+		return false, ErrInvalidInput
+	}
+
+	n, exists := r.notifications[id]
+	if !exists {
+		return false, ErrNotFound
+	}
+
+	if n.Status != domain.NotificationEventStatusPending {
+		return false, nil
+	}
+	if n.ClaimOwner != nil && *n.ClaimOwner != "" {
+		return false, nil
+	}
+
+	owner := claimOwner
+	n.ClaimOwner = &owner
+	n.ClaimedAt = &claimedAt
+	return true, nil
+}
+
+// MarkAsSent marks a notification as sent.
+func (r *NotificationFake) MarkAsSent(ctx context.Context, id string, processedAt time.Time) error {
+	return r.markTerminal(id, domain.NotificationEventStatusSent, "", processedAt)
+}
+
+// MarkAsFailed marks a notification as failed.
+func (r *NotificationFake) MarkAsFailed(ctx context.Context, id, lastError string, processedAt time.Time) error {
+	return r.markTerminal(id, domain.NotificationEventStatusFailed, lastError, processedAt)
+}
+
+// MarkAsExpired marks a notification as expired.
+func (r *NotificationFake) MarkAsExpired(ctx context.Context, id, lastError string, processedAt time.Time) error {
+	return r.markTerminal(id, domain.NotificationEventStatusExpired, lastError, processedAt)
+}
+
+func (r *NotificationFake) markTerminal(id string, status domain.NotificationEventStatusType, lastError string, processedAt time.Time) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	n, exists := r.notifications[id]
+	if !exists {
 		return ErrNotFound
 	}
 
-	// No-op for fake implementation
+	n.Status = status
+	n.LastError = lastError
+	n.ClaimOwner = nil
+	n.ClaimedAt = nil
+	n.ProcessedAt = &processedAt
 	return nil
 }

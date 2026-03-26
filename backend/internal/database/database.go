@@ -306,5 +306,20 @@ func ValidateStartupSchema(db *gorm.DB) error {
 	if !db.Migrator().HasColumn("resources", "confirmation_interval") {
 		return fmt.Errorf("db init: missing required confirmation schema column resources.confirmation_interval; run latest migrations")
 	}
+	if !db.Migrator().HasColumn("notification_events", "status") {
+		return fmt.Errorf("db init: missing required notification retry schema column notification_events.status; run latest migrations")
+	}
+	if !db.Migrator().HasColumn("notification_events", "claim_owner") {
+		return fmt.Errorf("db init: missing required notification retry schema column notification_events.claim_owner; run latest migrations")
+	}
+	if !db.Migrator().HasColumn("notification_events", "claimed_at") {
+		return fmt.Errorf("db init: missing required notification retry schema column notification_events.claimed_at; run latest migrations")
+	}
+	if !db.Migrator().HasColumn("notification_events", "processed_at") {
+		return fmt.Errorf("db init: missing required notification retry schema column notification_events.processed_at; run latest migrations")
+	}
+	if !db.Migrator().HasColumn("notification_events", "last_error") {
+		return fmt.Errorf("db init: missing required notification retry schema column notification_events.last_error; run latest migrations")
+	}
 	return nil
 }

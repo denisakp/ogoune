@@ -132,6 +132,18 @@ func (s *IncidentService) CreateIncident(ctx context.Context, r *domain.Resource
 
 	// Dispatch notifications to all configured channels
 	for _, channel := range channels {
+		notificationEvent := &domain.NotificationEvent{
+			IncidentID: incident.ID,
+			Type:       domain.NotificationEventTypeDown,
+			Status:     domain.NotificationEventStatusPending,
+		}
+		eventCreated := false
+		if err := s.notifications.Create(ctx, notificationEvent); err != nil {
+			log.Printf("Warning: Failed to create pending notification event: %v", err)
+		} else {
+			eventCreated = true
+		}
+
 		err := s.dispatchNotification(ctx, notifier.NotificationPayload{Incident: incident}, channel)
 
 		// Create event step for notification attempt (regardless of success/failure)
@@ -150,13 +162,17 @@ func (s *IncidentService) CreateIncident(ctx context.Context, r *domain.Resource
 			log.Printf("Warning: Failed to create alert event step: %v", err)
 		}
 
-		// Create notification event record for tracking
-		notificationEvent := &domain.NotificationEvent{
-			IncidentID: incident.ID,
-			Type:       domain.NotificationEventTypeDown,
-		}
-		if err := s.notifications.Create(ctx, notificationEvent); err != nil {
-			log.Printf("Warning: Failed to create notification event: %v", err)
+		if eventCreated {
+			processedAt := time.Now()
+			if err != nil {
+				if markErr := s.notifications.MarkAsFailed(ctx, notificationEvent.ID, err.Error(), processedAt); markErr != nil {
+					log.Printf("Warning: Failed to mark notification event as failed: %v", markErr)
+				}
+			} else {
+				if markErr := s.notifications.MarkAsSent(ctx, notificationEvent.ID, processedAt); markErr != nil {
+					log.Printf("Warning: Failed to mark notification event as sent: %v", markErr)
+				}
+			}
 		}
 	}
 
@@ -222,6 +238,18 @@ func (s *IncidentService) SendReminderIfDue(ctx context.Context, r *domain.Resou
 	}
 	channels := s.resolveNotificationChannels(ctx, r)
 	for _, channel := range channels {
+		notificationEvent := &domain.NotificationEvent{
+			IncidentID: activeIncident.ID,
+			Type:       domain.NotificationEventTypeReminder,
+			Status:     domain.NotificationEventStatusPending,
+		}
+		eventCreated := false
+		if err := s.notifications.Create(ctx, notificationEvent); err != nil {
+			log.Printf("Warning: Failed to create reminder notification event: %v", err)
+		} else {
+			eventCreated = true
+		}
+
 		if err := s.dispatchNotification(ctx, notifier.NotificationPayload{Reminder: &notifier.ReminderNotification{
 			Resource:       *r,
 			Incident:       *activeIncident,
@@ -229,6 +257,15 @@ func (s *IncidentService) SendReminderIfDue(ctx context.Context, r *domain.Resou
 			TriggeredAt:    time.Now(),
 		}}, channel); err != nil {
 			log.Printf("Warning: Failed to dispatch reminder notification via channel %s (%s): %v", channel.ID, channel.Type, err)
+			if eventCreated {
+				if markErr := s.notifications.MarkAsFailed(ctx, notificationEvent.ID, err.Error(), time.Now()); markErr != nil {
+					log.Printf("Warning: Failed to mark reminder notification event as failed: %v", markErr)
+				}
+			}
+		} else if eventCreated {
+			if markErr := s.notifications.MarkAsSent(ctx, notificationEvent.ID, time.Now()); markErr != nil {
+				log.Printf("Warning: Failed to mark reminder notification event as sent: %v", markErr)
+			}
 		}
 	}
 	reminderMessage := "Reminder notification sent"
@@ -238,9 +275,6 @@ func (s *IncidentService) SendReminderIfDue(ctx context.Context, r *domain.Resou
 	anchorMessage := "Reminder anchor written"
 	if _, err := s.eventSteps.Create(ctx, &domain.IncidentEventStep{IncidentID: activeIncident.ID, Step: domain.IncidentEventStepDownAlert, Message: &anchorMessage}); err != nil {
 		log.Printf("Warning: Failed to create reminder down-alert anchor: %v", err)
-	}
-	if err := s.notifications.Create(ctx, &domain.NotificationEvent{IncidentID: activeIncident.ID, Type: domain.NotificationEventTypeReminder}); err != nil {
-		log.Printf("Warning: Failed to create reminder notification event: %v", err)
 	}
 	return nil
 }
@@ -322,6 +356,18 @@ func (s *IncidentService) ResolveIncident(ctx context.Context, r *domain.Resourc
 
 	// Dispatch resolution notifications to all configured channels
 	for _, channel := range channels {
+		notificationEvent := &domain.NotificationEvent{
+			IncidentID: activeIncident.ID,
+			Type:       domain.NotificationEventTypeUp,
+			Status:     domain.NotificationEventStatusPending,
+		}
+		eventCreated := false
+		if err := s.notifications.Create(ctx, notificationEvent); err != nil {
+			log.Printf("Warning: Failed to create pending notification event: %v", err)
+		} else {
+			eventCreated = true
+		}
+
 		err := s.dispatchNotification(ctx, notifier.NotificationPayload{Incident: activeIncident}, channel)
 
 		// Create event step for notification attempt (regardless of success/failure)
@@ -340,13 +386,17 @@ func (s *IncidentService) ResolveIncident(ctx context.Context, r *domain.Resourc
 			log.Printf("Warning: Failed to create up alert event step: %v", err)
 		}
 
-		// Create notification event record for tracking
-		notificationEvent := &domain.NotificationEvent{
-			IncidentID: activeIncident.ID,
-			Type:       domain.NotificationEventTypeUp,
-		}
-		if err := s.notifications.Create(ctx, notificationEvent); err != nil {
-			log.Printf("Warning: Failed to create notification event: %v", err)
+		if eventCreated {
+			processedAt := time.Now()
+			if err != nil {
+				if markErr := s.notifications.MarkAsFailed(ctx, notificationEvent.ID, err.Error(), processedAt); markErr != nil {
+					log.Printf("Warning: Failed to mark notification event as failed: %v", markErr)
+				}
+			} else {
+				if markErr := s.notifications.MarkAsSent(ctx, notificationEvent.ID, processedAt); markErr != nil {
+					log.Printf("Warning: Failed to mark notification event as sent: %v", markErr)
+				}
+			}
 		}
 	}
 
