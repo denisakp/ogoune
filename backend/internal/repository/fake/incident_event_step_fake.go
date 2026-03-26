@@ -128,3 +128,39 @@ func (f *IncidentEventStepFake) Delete(ctx context.Context, id string) error {
 	delete(f.steps, id)
 	return nil
 }
+
+// FindByIncidentID returns all event steps for an incident sorted by CreatedAt ascending.
+func (f *IncidentEventStepFake) FindByIncidentID(incidentID string) []*domain.IncidentEventStep {
+	f.mu.RLock()
+	defer f.mu.RUnlock()
+
+	result := make([]*domain.IncidentEventStep, 0)
+	for _, step := range f.steps {
+		if step.IncidentID != incidentID {
+			continue
+		}
+		copy := *step
+		result = append(result, &copy)
+	}
+
+	sort.Slice(result, func(i, j int) bool {
+		return result[i].CreatedAt.Before(result[j].CreatedAt)
+	})
+
+	return result
+}
+
+// CountByIncidentAndStep counts event steps of a given type for an incident.
+func (f *IncidentEventStepFake) CountByIncidentAndStep(incidentID string, stepType domain.IncidentEventStepType) int {
+	f.mu.RLock()
+	defer f.mu.RUnlock()
+
+	count := 0
+	for _, step := range f.steps {
+		if step.IncidentID == incidentID && step.Step == stepType {
+			count++
+		}
+	}
+
+	return count
+}

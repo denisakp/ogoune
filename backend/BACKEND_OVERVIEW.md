@@ -288,6 +288,12 @@ Backups and durability:
 - PostgreSQL or SQLite is the source of truth depending on DB_DRIVER; ensure regular backups of the active runtime
 - Redis is used for job transport and scheduling; it does not store authoritative data
 
+Troubleshooting confirmation enforcement:
+
+- Below-threshold failures should not create incidents or down-alert steps. If alerts appear too early, verify `confirmation_checks` on the resource and inspect `failure_count` progression in the DB.
+- If `failure_count` is already above threshold but no unresolved incident exists, the next DOWN cycle should create an incident immediately. Check worker logs for `[INCIDENT_RECONCILE]` entries.
+- When persistence of failure progression fails, incident creation is intentionally skipped for that cycle and retried on the next check. Check worker logs for `failed to persist failure progression` warnings.
+
 ---
 
 ## 11) Performance, scaling, and security notes

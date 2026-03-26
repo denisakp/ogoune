@@ -3,6 +3,10 @@ package worker
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"io"
+	"os"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -75,7 +79,7 @@ func setupMonitoringHandlerForConfirmationTests(
 	t *testing.T,
 	resource *domain.Resource,
 	strategy *mutableStrategy,
-) (*MonitoringTaskHandler, *fake.ResourceFake, *fake.IncidentFake, *intervalCaptureScheduler) {
+) (*MonitoringTaskHandler, *fake.ResourceFake, *fake.IncidentFake, *fake.IncidentEventStepFake, *intervalCaptureScheduler) {
 	t.Helper()
 
 	resourceRepo := fake.NewResourceFake()
@@ -84,6 +88,8 @@ func setupMonitoringHandlerForConfirmationTests(
 	diagnosticsRepo := fake.NewIncidentDiagnosticsFake()
 	incidentRepo := fake.NewIncidentFake()
 	eventStepRepo := fake.NewIncidentEventStepFake()
+	eventStepFake, ok := eventStepRepo.(*fake.IncidentEventStepFake)
+	require.True(t, ok)
 	notificationRepo := fake.NewNotificationFake()
 	notificationChannelRepo := fake.NewNotificationChannelFake()
 	incidentService := monitoring.NewIncidentService(
@@ -119,7 +125,7 @@ func setupMonitoringHandlerForConfirmationTests(
 		intervalSpy,
 	)
 
-	return h, resourceRepo, incidentRepo, intervalSpy
+	return h, resourceRepo, incidentRepo, eventStepFake, intervalSpy
 }
 
 func processMonitoringTask(t *testing.T, h *MonitoringTaskHandler, resourceID string) {
@@ -131,7 +137,7 @@ func processMonitoringTask(t *testing.T, h *MonitoringTaskHandler, resourceID st
 
 func TestMonitoringConfirmation_NoIncidentOnFirstFailure(t *testing.T) {
 	strategy := &mutableStrategy{status: domain.StatusDown}
-	h, resourceRepo, incidentMgr, intervalSpy := setupMonitoringHandlerForConfirmationTests(t, &domain.Resource{
+	h, resourceRepo, incidentMgr, _, intervalSpy := setupMonitoringHandlerForConfirmationTests(t, &domain.Resource{
 		Name:                 "first-failure",
 		Type:                 domain.ResourceHTTP,
 		Target:               "https://example.com",
@@ -160,7 +166,7 @@ func TestMonitoringConfirmation_NoIncidentOnFirstFailure(t *testing.T) {
 
 func TestMonitoringConfirmation_IncidentCreatedAtExactThreshold(t *testing.T) {
 	strategy := &mutableStrategy{status: domain.StatusDown}
-	h, resourceRepo, incidentMgr, _ := setupMonitoringHandlerForConfirmationTests(t, &domain.Resource{
+	h, resourceRepo, incidentMgr, _, _ := setupMonitoringHandlerForConfirmationTests(t, &domain.Resource{
 		Name:                 "threshold",
 		Type:                 domain.ResourceHTTP,
 		Target:               "https://example.com",
@@ -185,7 +191,7 @@ func TestMonitoringConfirmation_IncidentCreatedAtExactThreshold(t *testing.T) {
 
 func TestMonitoringConfirmation_NoDuplicateIncidentsAfterThreshold(t *testing.T) {
 	strategy := &mutableStrategy{status: domain.StatusDown}
-	h, resourceRepo, incidentMgr, _ := setupMonitoringHandlerForConfirmationTests(t, &domain.Resource{
+	h, resourceRepo, incidentMgr, _, _ := setupMonitoringHandlerForConfirmationTests(t, &domain.Resource{
 		Name:                 "no-duplicate",
 		Type:                 domain.ResourceHTTP,
 		Target:               "https://example.com",
@@ -211,7 +217,7 @@ func TestMonitoringConfirmation_NoDuplicateIncidentsAfterThreshold(t *testing.T)
 
 func TestMonitoringConfirmation_FalsePositiveRecoveryCreatesNoIncident(t *testing.T) {
 	strategy := &mutableStrategy{status: domain.StatusDown}
-	h, resourceRepo, incidentMgr, intervalSpy := setupMonitoringHandlerForConfirmationTests(t, &domain.Resource{
+	h, resourceRepo, incidentMgr, _, intervalSpy := setupMonitoringHandlerForConfirmationTests(t, &domain.Resource{
 		Name:                 "false-positive",
 		Type:                 domain.ResourceHTTP,
 		Target:               "https://example.com",
@@ -245,7 +251,7 @@ func TestMonitoringConfirmation_FalsePositiveRecoveryCreatesNoIncident(t *testin
 
 func TestMonitoringConfirmation_PreThresholdRecoveryResetsFailureCount(t *testing.T) {
 	strategy := &mutableStrategy{status: domain.StatusDown}
-	h, resourceRepo, _, _ := setupMonitoringHandlerForConfirmationTests(t, &domain.Resource{
+	h, resourceRepo, _, _, _ := setupMonitoringHandlerForConfirmationTests(t, &domain.Resource{
 		Name:                 "reset-counter",
 		Type:                 domain.ResourceHTTP,
 		Target:               "https://example.com",
@@ -276,7 +282,7 @@ func TestMonitoringConfirmation_PreThresholdRecoveryResetsFailureCount(t *testin
 
 func TestMonitoringConfirmation_PerResourceSerializedProcessing(t *testing.T) {
 	strategy := &mutableStrategy{status: domain.StatusDown}
-	h, resourceRepo, incidentMgr, _ := setupMonitoringHandlerForConfirmationTests(t, &domain.Resource{
+	h, resourceRepo, incidentMgr, _, _ := setupMonitoringHandlerForConfirmationTests(t, &domain.Resource{
 		Name:                 "serialized",
 		Type:                 domain.ResourceHTTP,
 		Target:               "https://example.com",
@@ -318,4 +324,252 @@ func TestMonitoringConfirmation_PerResourceSerializedProcessing(t *testing.T) {
 	incidents, err := incidentMgr.List(context.Background(), 10, 0)
 	require.NoError(t, err)
 	assert.Len(t, incidents, 1)
+}
+
+func TestMonitoringConfirmation_NoIncidentOnSecondFailureBelowThreshold(t *testing.T) {
+	strategy := &mutableStrategy{status: domain.StatusDown}
+	h, resourceRepo, incidentMgr, _, _ := setupMonitoringHandlerForConfirmationTests(t, &domain.Resource{
+		Name:                 "second-failure",
+		Type:                 domain.ResourceHTTP,
+		Target:               "https://example.com",
+		Interval:             60,
+		Timeout:              5,
+		Status:               domain.StatusUp,
+		IsActive:             true,
+		ConfirmationChecks:   3,
+		ConfirmationInterval: 10,
+	}, strategy)
+
+	resources, err := resourceRepo.List(context.Background(), 1, 0)
+	require.NoError(t, err)
+
+	processMonitoringTask(t, h, resources[0].ID)
+	processMonitoringTask(t, h, resources[0].ID)
+
+	updated, err := resourceRepo.FindByID(context.Background(), resources[0].ID)
+	require.NoError(t, err)
+	assert.Equal(t, 2, updated.FailureCount)
+
+	incidents, err := incidentMgr.List(context.Background(), 10, 0)
+	require.NoError(t, err)
+	assert.Len(t, incidents, 0)
+}
+
+func TestMonitoringConfirmation_EventTimestampsAfterThresholdTiming(t *testing.T) {
+	strategy := &mutableStrategy{status: domain.StatusDown}
+	h, resourceRepo, incidentMgr, eventSteps, _ := setupMonitoringHandlerForConfirmationTests(t, &domain.Resource{
+		Name:                 "timestamp-traceability",
+		Type:                 domain.ResourceHTTP,
+		Target:               "https://example.com",
+		Interval:             60,
+		Timeout:              5,
+		Status:               domain.StatusUp,
+		IsActive:             true,
+		ConfirmationChecks:   2,
+		ConfirmationInterval: 15,
+	}, strategy)
+
+	resources, err := resourceRepo.List(context.Background(), 1, 0)
+	require.NoError(t, err)
+	resourceID := resources[0].ID
+
+	firstFailureAt := time.Now()
+	processMonitoringTask(t, h, resourceID)
+	assert.Eventually(t, func() bool {
+		incidents, err := incidentMgr.List(context.Background(), 10, 0)
+		return err == nil && len(incidents) == 0
+	}, time.Second, 10*time.Millisecond)
+
+	thresholdMetAt := time.Now()
+	processMonitoringTask(t, h, resourceID)
+
+	incidents, err := incidentMgr.List(context.Background(), 10, 0)
+	require.NoError(t, err)
+	require.Len(t, incidents, 1)
+
+	incidentID := incidents[0].ID
+	detectedSteps := eventSteps.CountByIncidentAndStep(incidentID, domain.IncidentEventStepDetected)
+	assert.Equal(t, 1, detectedSteps)
+
+	steps := eventSteps.FindByIncidentID(incidentID)
+	require.NotEmpty(t, steps)
+	for _, step := range steps {
+		assert.True(t, step.CreatedAt.After(firstFailureAt) || step.CreatedAt.Equal(firstFailureAt))
+		assert.True(t, step.CreatedAt.After(thresholdMetAt) || step.CreatedAt.Equal(thresholdMetAt))
+	}
+}
+
+func TestMonitoringConfirmation_PersistenceFailureSkipsIncidentAndRetriesNextCycle(t *testing.T) {
+	strategy := &mutableStrategy{status: domain.StatusDown}
+	h, resourceRepo, incidentMgr, _, intervalSpy := setupMonitoringHandlerForConfirmationTests(t, &domain.Resource{
+		Name:                 "persist-fail",
+		Type:                 domain.ResourceHTTP,
+		Target:               "https://example.com",
+		Interval:             60,
+		Timeout:              5,
+		Status:               domain.StatusUp,
+		IsActive:             true,
+		ConfirmationChecks:   1,
+		ConfirmationInterval: 7,
+	}, strategy)
+
+	resources, err := resourceRepo.List(context.Background(), 1, 0)
+	require.NoError(t, err)
+	resourceID := resources[0].ID
+
+	resourceRepo.FailNextUpdate(errors.New("simulated persistence error"))
+	processMonitoringTask(t, h, resourceID)
+
+	incidents, err := incidentMgr.List(context.Background(), 10, 0)
+	require.NoError(t, err)
+	assert.Len(t, incidents, 0)
+	assert.Equal(t, 7*time.Second, intervalSpy.Last())
+
+	processMonitoringTask(t, h, resourceID)
+	incidents, err = incidentMgr.List(context.Background(), 10, 0)
+	require.NoError(t, err)
+	assert.Len(t, incidents, 1)
+}
+
+func TestMonitoringConfirmation_ImmediateIncidentWhenAlreadyAboveThresholdNoActiveIncident(t *testing.T) {
+	strategy := &mutableStrategy{status: domain.StatusDown}
+	h, resourceRepo, incidentMgr, _, _ := setupMonitoringHandlerForConfirmationTests(t, &domain.Resource{
+		Name:                 "reconcile-above-threshold",
+		Type:                 domain.ResourceHTTP,
+		Target:               "https://example.com",
+		Interval:             60,
+		Timeout:              5,
+		Status:               domain.StatusDown,
+		IsActive:             true,
+		FailureCount:         5,
+		ConfirmationChecks:   3,
+		ConfirmationInterval: 10,
+	}, strategy)
+
+	resources, err := resourceRepo.List(context.Background(), 1, 0)
+	require.NoError(t, err)
+	resourceID := resources[0].ID
+
+	processMonitoringTask(t, h, resourceID)
+
+	incidents, err := incidentMgr.List(context.Background(), 10, 0)
+	require.NoError(t, err)
+	assert.Len(t, incidents, 1)
+}
+
+func TestMonitoringConfirmation_ImmediateIncidentWhenConfirmationChecksOne(t *testing.T) {
+	strategy := &mutableStrategy{status: domain.StatusDown}
+	h, resourceRepo, incidentMgr, _, _ := setupMonitoringHandlerForConfirmationTests(t, &domain.Resource{
+		Name:                 "checks-one",
+		Type:                 domain.ResourceHTTP,
+		Target:               "https://example.com",
+		Interval:             60,
+		Timeout:              5,
+		Status:               domain.StatusUp,
+		IsActive:             true,
+		ConfirmationChecks:   1,
+		ConfirmationInterval: 10,
+	}, strategy)
+
+	resources, err := resourceRepo.List(context.Background(), 1, 0)
+	require.NoError(t, err)
+
+	processMonitoringTask(t, h, resources[0].ID)
+
+	incidents, err := incidentMgr.List(context.Background(), 10, 0)
+	require.NoError(t, err)
+	assert.Len(t, incidents, 1)
+}
+
+func TestMonitoringConfirmation_NonPositiveConfirmationChecksTreatedAsImmediate(t *testing.T) {
+	strategy := &mutableStrategy{status: domain.StatusDown}
+	h, resourceRepo, incidentMgr, _, _ := setupMonitoringHandlerForConfirmationTests(t, &domain.Resource{
+		Name:                 "checks-zero",
+		Type:                 domain.ResourceHTTP,
+		Target:               "https://example.com",
+		Interval:             60,
+		Timeout:              5,
+		Status:               domain.StatusUp,
+		IsActive:             true,
+		ConfirmationChecks:   0,
+		ConfirmationInterval: 10,
+	}, strategy)
+
+	resources, err := resourceRepo.List(context.Background(), 1, 0)
+	require.NoError(t, err)
+
+	processMonitoringTask(t, h, resources[0].ID)
+
+	incidents, err := incidentMgr.List(context.Background(), 10, 0)
+	require.NoError(t, err)
+	assert.Len(t, incidents, 1)
+}
+
+func TestMonitoringConfirmation_InactiveResourceSkipsProcessing(t *testing.T) {
+	strategy := &mutableStrategy{status: domain.StatusDown}
+	h, resourceRepo, incidentMgr, _, intervalSpy := setupMonitoringHandlerForConfirmationTests(t, &domain.Resource{
+		Name:                 "inactive",
+		Type:                 domain.ResourceHTTP,
+		Target:               "https://example.com",
+		Interval:             60,
+		Timeout:              5,
+		Status:               domain.StatusUp,
+		IsActive:             false,
+		ConfirmationChecks:   1,
+		ConfirmationInterval: 10,
+	}, strategy)
+
+	resources, err := resourceRepo.List(context.Background(), 1, 0)
+	require.NoError(t, err)
+
+	processMonitoringTask(t, h, resources[0].ID)
+
+	updated, err := resourceRepo.FindByID(context.Background(), resources[0].ID)
+	require.NoError(t, err)
+	assert.Equal(t, 0, updated.FailureCount)
+	assert.Equal(t, time.Duration(0), intervalSpy.Last())
+
+	incidents, err := incidentMgr.List(context.Background(), 10, 0)
+	require.NoError(t, err)
+	assert.Len(t, incidents, 0)
+}
+
+func TestMonitoringConfirmation_PersistenceFailureLogsAndDoesNotPanic(t *testing.T) {
+	strategy := &mutableStrategy{status: domain.StatusDown}
+	h, resourceRepo, incidentMgr, _, _ := setupMonitoringHandlerForConfirmationTests(t, &domain.Resource{
+		Name:                 "log-on-fail",
+		Type:                 domain.ResourceHTTP,
+		Target:               "https://example.com",
+		Interval:             60,
+		Timeout:              5,
+		Status:               domain.StatusUp,
+		IsActive:             true,
+		ConfirmationChecks:   1,
+		ConfirmationInterval: 5,
+	}, strategy)
+
+	resources, err := resourceRepo.List(context.Background(), 1, 0)
+	require.NoError(t, err)
+	resourceID := resources[0].ID
+
+	resourceRepo.FailNextUpdate(errors.New("forced failure"))
+
+	originalStdout := os.Stdout
+	r, w, err := os.Pipe()
+	require.NoError(t, err)
+	os.Stdout = w
+
+	processMonitoringTask(t, h, resourceID)
+
+	require.NoError(t, w.Close())
+	os.Stdout = originalStdout
+	output, err := io.ReadAll(r)
+	require.NoError(t, err)
+	_ = r.Close()
+
+	assert.Contains(t, strings.ToLower(string(output)), "failed to persist failure progression")
+
+	incidents, err := incidentMgr.List(context.Background(), 10, 0)
+	require.NoError(t, err)
+	assert.Len(t, incidents, 0)
 }

@@ -16,9 +16,15 @@ import (
 )
 
 const (
-	defaultConfirmationChecks   = 2
 	defaultConfirmationInterval = 30
 )
+
+func normalizeConfirmationChecks(value int) int {
+	if value <= 0 {
+		return 1
+	}
+	return value
+}
 
 type incidentManager interface {
 	CreateIncident(ctx context.Context, r *domain.Resource, result domain.CheckResult) error
@@ -155,10 +161,7 @@ func (h *MonitoringTaskHandler) ProcessTask(ctx context.Context, task *asynq.Tas
 	currentResultStatus := domain.ResourceStatus(result.Status)
 	now := time.Now()
 	resource.LastChecked = &now
-	confirmationChecks := resource.ConfirmationChecks
-	if confirmationChecks <= 0 {
-		confirmationChecks = defaultConfirmationChecks
-	}
+	confirmationChecks := normalizeConfirmationChecks(resource.ConfirmationChecks)
 	confirmationInterval := resource.ConfirmationInterval
 	if confirmationInterval <= 0 {
 		confirmationInterval = defaultConfirmationInterval
@@ -203,7 +206,11 @@ func (h *MonitoringTaskHandler) ProcessTask(ctx context.Context, task *asynq.Tas
 		fmt.Printf("[FAILURE] Resource %s failed (failure_count: %d, previous_status: %s)\n", resource.ID, resource.FailureCount, previousStatus)
 		resource.Status = domain.StatusDown
 		if err := h.resources.Update(ctx, resource); err != nil {
-			return fmt.Errorf("failed to update resource after failure: %w", err)
+			fmt.Printf("[WARNING] failed to persist failure progression for resource %s; skipping incident creation this cycle and retrying later: %v\n", resource.ID, err)
+			if h.scheduler != nil {
+				_ = h.scheduler.ScheduleWithInterval(ctx, resource, time.Duration(confirmationInterval)*time.Second)
+			}
+			break
 		}
 
 		// While below threshold, run fast confirmation retries.
@@ -214,9 +221,13 @@ func (h *MonitoringTaskHandler) ProcessTask(ctx context.Context, task *asynq.Tas
 			break
 		}
 
-		// Create incident only once on threshold crossing.
-		if previousFailureCount < confirmationChecks && resource.FailureCount >= confirmationChecks {
-			fmt.Printf("[INCIDENT_TRIGGER] Resource %s reached confirmation threshold (%d failures), attempting incident creation\n", resource.ID, confirmationChecks)
+		// Create incident whenever confirmation is satisfied; incident service prevents duplicates.
+		if resource.FailureCount >= confirmationChecks {
+			if previousFailureCount < confirmationChecks {
+				fmt.Printf("[INCIDENT_TRIGGER] Resource %s reached confirmation threshold (%d failures), attempting incident creation\n", resource.ID, confirmationChecks)
+			} else {
+				fmt.Printf("[INCIDENT_RECONCILE] Resource %s already above threshold (%d failures), ensuring incident exists\n", resource.ID, confirmationChecks)
+			}
 			if err := h.incidents.CreateIncident(ctx, resource, result); err != nil {
 				fmt.Printf("Warning: failed to create incident at threshold crossing: %v\n", err)
 			}

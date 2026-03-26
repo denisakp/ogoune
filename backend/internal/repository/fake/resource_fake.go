@@ -13,6 +13,7 @@ type ResourceFake struct {
 	mu        sync.RWMutex
 	resources map[string]*domain.Resource
 	tags      map[string]*domain.Tags // Simple tag store for FindByTag queries
+	updateErr error
 }
 
 // NewResourceFake creates a new in-memory ResourceRepository fake.
@@ -89,6 +90,12 @@ func (r *ResourceFake) Update(ctx context.Context, resource *domain.Resource) er
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
+	if r.updateErr != nil {
+		err := r.updateErr
+		r.updateErr = nil
+		return err
+	}
+
 	if _, exists := r.resources[resource.ID]; !exists {
 		return ErrNotFound
 	}
@@ -98,6 +105,13 @@ func (r *ResourceFake) Update(ctx context.Context, resource *domain.Resource) er
 	r.resources[resource.ID] = &copy
 
 	return nil
+}
+
+// FailNextUpdate configures the fake to fail exactly one upcoming Update call.
+func (r *ResourceFake) FailNextUpdate(err error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.updateErr = err
 }
 
 func (r *ResourceFake) UpdateMetadata(ctx context.Context, id string, metadata *domain.ResourceMetaData) error {
