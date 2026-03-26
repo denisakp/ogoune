@@ -27,4 +27,19 @@ var (
 
 	// ErrInvalidPassword is returned when password doesn't meet requirements
 	ErrInvalidPassword = errors.New("password must be at least 8 characters")
+
+	// ErrAPIKeyNotFound indicates the requested API key doesn't exist for the user
+	ErrAPIKeyNotFound = errors.New("api key not found")
+
+	// ErrAPIKeyLimitReached indicates user reached the hard API key limit
+	ErrAPIKeyLimitReached = errors.New("maximum number of API keys reached")
+
+	// ErrAPIKeyExpired indicates an API key has passed its expiry date
+	ErrAPIKeyExpired = errors.New("API key has expired")
+
+	// ErrAPIKeyRevoked indicates an API key has been revoked
+	ErrAPIKeyRevoked = errors.New("invalid or revoked API key")
+
+	// ErrAPIKeyInvalid indicates API key lookup failed
+	ErrAPIKeyInvalid = errors.New("invalid or revoked API key")
 )

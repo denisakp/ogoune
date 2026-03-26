@@ -55,6 +55,7 @@ Change the password on first login.
 - 🛠️ **Maintenance Windows** – Avoid false alarms during updates
 - 🏷️ **Organize** – Tag and group monitors
 - 🔐 **Secure** – 2FA support
+- 🔑 **API Keys** – Programmatic access with scoped keys (`read`, `read_write`)
 
 <img src="./static/monitored-resource.png" alt="Create and Monitor Resources" width="100%" style="border-radius: 8px; margin-top: 20px;" />
 
@@ -108,6 +109,23 @@ That's it. No complexity.
 ---
 
 ## Configuration
+
+### API Key Authentication
+
+PulseGuard supports automation access with long-lived API keys.
+
+- Create and revoke keys in **Settings > API Keys**
+- Use either `X-API-Key: <key>` or `Authorization: Bearer <key>`
+- Scope options:
+- `read`: non-mutating endpoints
+- `read_write`: read + write endpoints
+
+Example:
+
+```bash
+curl http://localhost:8080/api/v1/resources \
+    -H "X-API-Key: pk_live_your_key"
+```
 
 ### Environment Variables
 

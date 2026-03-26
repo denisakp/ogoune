@@ -129,6 +129,7 @@ func main() {
 	statusPageSettingsRepo := postgres.NewStatusPageSettingsRepository(db)
 	componentRepo := postgres.NewComponentRepository(db)
 	userRepo := postgres.NewUserRepository(db)
+	apiKeyRepo := postgres.NewAPIKeyRepository(db)
 
 	// ========================================
 	// Initialize scheduler based on configuration
@@ -479,6 +480,7 @@ func main() {
 
 	// New auth service with database support
 	jwtManager := service.NewJWTManager(cfg.JWTSecret, "pulseguard", 24*time.Hour)
+	apiKeyService := service.NewAPIKeyService(apiKeyRepo, userRepo)
 	authService := service.NewAuthService(userRepo, jwtManager)
 
 	// Create default admin user on first startup
@@ -501,11 +503,11 @@ func main() {
 	maintenanceHandler := handler.NewMaintenanceHandler(maintenanceAPIService)
 	statsHandler := handler.NewStatsHandler(statsService)
 	authHandler := handler.NewAuthHandler(authService, jwtManager)
-	accountHandler := handler.NewAccountHandler(authService)
+	accountHandler := handler.NewAccountHandler(authService, apiKeyService)
 	componentHandler := handler.NewComponentHandler(componentService)
 
 	// Create router with injected handlers
-	apiHandler := api.NewRouter(resourceHandler, activityHandler, tagHandler, componentHandler, statusPageHandler, statusPageSettingsHandler, incidentHandler, notificationHandler, maintenanceHandler, statsHandler, authHandler, accountHandler, authService)
+	apiHandler := api.NewRouter(resourceHandler, activityHandler, tagHandler, componentHandler, statusPageHandler, statusPageSettingsHandler, incidentHandler, notificationHandler, maintenanceHandler, statsHandler, authHandler, accountHandler, authService, apiKeyService)
 
 	// Root router: mount JSON API under /api
 	rootRouter := chi.NewRouter()

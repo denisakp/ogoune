@@ -83,6 +83,20 @@ Key packages and files (relative to backend/):
   - POST /notifications/test (SMTP test)
 - Stats:
   - GET /stats/summary?range=2h|24h|7d|30d
+- API Keys (JWT-only management routes):
+  - POST /account/api-keys
+  - GET /account/api-keys
+  - DELETE /account/api-keys/{id}
+
+API key auth on regular API routes accepts:
+
+- `X-API-Key: pk_live_*`
+- `Authorization: Bearer pk_live_*`
+
+Scope behavior:
+
+- `read` keys can access read endpoints
+- `read_write` keys can access mutating endpoints guarded by `RequireReadWrite`
 
 See router for the definitive list and mapping.
 

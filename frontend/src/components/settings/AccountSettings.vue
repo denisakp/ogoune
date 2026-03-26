@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { reactive, ref, onMounted } from 'vue'
+import dayjs from 'dayjs'
 import { message } from 'ant-design-vue'
 import type { Rule } from 'ant-design-vue/es/form'
 import {
@@ -11,6 +12,7 @@ import {
 } from '@ant-design/icons-vue'
 import QRCode from 'qrcode'
 import accountService from '@/services/accountService'
+import { useAPIKeys } from '@/composables/useAPIKeys'
 
 const isLoading = ref(false)
 
@@ -42,6 +44,25 @@ const pending2FASecret = ref('')
 const confirm2FAForm = reactive({
   otp: '',
 })
+
+const isCreateAPIKeyModalOpen = ref(false)
+const isRevealAPIKeyModalOpen = ref(false)
+const apiKeyForm = reactive({
+  name: '',
+  scope: 'read_write' as 'read' | 'read_write',
+  expiresAt: '' as string,
+})
+
+const {
+  keys,
+  loading: apiKeysLoading,
+  revealedKey,
+  revealKeyPrefix,
+  loadKeys,
+  createKey,
+  revokeKey,
+  clearRevealedKey,
+} = useAPIKeys()
 
 const profileRules: Record<string, Rule[]> = {
   name: [{ required: true, message: 'Please enter your name!', trigger: 'blur' }],
@@ -78,7 +99,7 @@ const confirm2FARules: Record<string, Rule[]> = {
 }
 
 onMounted(async () => {
-  await loadProfile()
+  await Promise.all([loadProfile(), loadKeys()])
 })
 
 async function loadProfile() {
@@ -199,6 +220,64 @@ async function handleDisable2FA() {
   } catch (error) {
     message.error('Failed to disable 2FA')
   }
+}
+
+function openCreateAPIKeyModal() {
+  apiKeyForm.name = ''
+  apiKeyForm.scope = 'read_write'
+  apiKeyForm.expiresAt = ''
+  isCreateAPIKeyModalOpen.value = true
+}
+
+async function handleCreateAPIKey() {
+  if (!apiKeyForm.name.trim()) {
+    message.error('Please provide an API key name')
+    return
+  }
+
+  try {
+    const expiresAt = apiKeyForm.expiresAt ? new Date(apiKeyForm.expiresAt).toISOString() : undefined
+    await createKey(apiKeyForm.name.trim(), apiKeyForm.scope, expiresAt)
+    isCreateAPIKeyModalOpen.value = false
+    isRevealAPIKeyModalOpen.value = true
+    message.success('API key created')
+  } catch (_error) {
+    message.error('Failed to create API key')
+  }
+}
+
+function closeRevealModal() {
+  clearRevealedKey()
+  isRevealAPIKeyModalOpen.value = false
+}
+
+async function handleRevokeAPIKey(id: string) {
+  const confirmed = window.confirm('Revoke this API key? This cannot be undone.')
+  if (!confirmed) {
+    return
+  }
+
+  try {
+    await revokeKey(id)
+    message.success('API key revoked')
+  } catch (_error) {
+    message.error('Failed to revoke API key')
+  }
+}
+
+function formatDate(value: string | null | undefined): string {
+  if (!value) {
+    return 'Never'
+  }
+  return dayjs(value).format('YYYY-MM-DD HH:mm')
+}
+
+function copyRevealedKey() {
+  if (!revealedKey.value) {
+    return
+  }
+  navigator.clipboard.writeText(revealedKey.value)
+  message.success('API key copied')
 }
 </script>
 
@@ -394,6 +473,108 @@ async function handleDisable2FA() {
             </a-button>
           </div>
         </section>
+
+        <a-divider />
+
+        <section class="settings-section">
+          <div class="section-header api-key-header">
+            <div>
+              <h3>API Keys</h3>
+              <p class="section-description">
+                Create long-lived keys for CI or scripts. The full key is shown exactly once.
+              </p>
+            </div>
+            <a-button type="primary" @click="openCreateAPIKeyModal">Create Key</a-button>
+          </div>
+
+          <a-empty v-if="!apiKeysLoading && keys.length === 0" description="No API keys yet" />
+
+          <a-table
+            v-else
+            :loading="apiKeysLoading"
+            :data-source="keys"
+            row-key="id"
+            :pagination="false"
+            size="small"
+          >
+            <a-table-column key="name" title="Name" data-index="name" />
+            <a-table-column key="prefix" title="Prefix" data-index="key_prefix" />
+            <a-table-column key="scope" title="Scope" data-index="scope" />
+            <a-table-column key="expires" title="Expires">
+              <template #default="{ record }">
+                {{ formatDate(record.expires_at) }}
+              </template>
+            </a-table-column>
+            <a-table-column key="last_used" title="Last Used">
+              <template #default="{ record }">
+                {{ formatDate(record.last_used_at) }}
+              </template>
+            </a-table-column>
+            <a-table-column key="status" title="Status">
+              <template #default="{ record }">
+                <a-tag :color="record.is_active ? 'green' : 'default'">
+                  {{ record.is_active ? 'Active' : 'Revoked' }}
+                </a-tag>
+              </template>
+            </a-table-column>
+            <a-table-column key="action" title="Action">
+              <template #default="{ record }">
+                <a-button
+                  type="link"
+                  danger
+                  :disabled="!record.is_active"
+                  @click="handleRevokeAPIKey(record.id)"
+                >
+                  Revoke
+                </a-button>
+              </template>
+            </a-table-column>
+          </a-table>
+
+          <a-modal
+            v-model:open="isCreateAPIKeyModalOpen"
+            title="Create API Key"
+            ok-text="Create"
+            @ok="handleCreateAPIKey"
+            @cancel="isCreateAPIKeyModalOpen = false"
+          >
+            <a-form layout="vertical">
+              <a-form-item label="Name" required>
+                <a-input v-model:value="apiKeyForm.name" placeholder="CI pipeline" maxlength="100" />
+              </a-form-item>
+              <a-form-item label="Scope" required>
+                <a-radio-group v-model:value="apiKeyForm.scope">
+                  <a-radio value="read">Read</a-radio>
+                  <a-radio value="read_write">Read & Write</a-radio>
+                </a-radio-group>
+              </a-form-item>
+              <a-form-item label="Expiry (optional)">
+                <a-date-picker
+                  v-model:value="apiKeyForm.expiresAt"
+                  show-time
+                  value-format="YYYY-MM-DDTHH:mm:ss[Z]"
+                  style="width: 100%"
+                />
+              </a-form-item>
+            </a-form>
+          </a-modal>
+
+          <a-modal
+            v-model:open="isRevealAPIKeyModalOpen"
+            title="Copy Your API Key"
+            ok-text="Done"
+            @ok="closeRevealModal"
+            @cancel="closeRevealModal"
+          >
+            <p class="section-description">This key is shown only once. Copy it before closing.</p>
+            <a-typography-paragraph copyable class="api-key-secret">
+              {{ revealedKey }}
+            </a-typography-paragraph>
+            <a-button @click="copyRevealedKey">Copy</a-button>
+            <pre class="curl-snippet">curl -H "X-API-Key: {{ revealedKey }}" http://localhost:8080/api/v1/resources</pre>
+            <p class="section-description">Prefix: {{ revealKeyPrefix }}</p>
+          </a-modal>
+        </section>
       </div>
     </a-card>
   </div>
@@ -478,6 +659,26 @@ async function handleDisable2FA() {
 .qr-loading {
   font-size: 28px;
   color: #999;
+}
+
+.api-key-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.api-key-secret {
+  margin-bottom: 12px;
+}
+
+.curl-snippet {
+  margin-top: 12px;
+  padding: 10px;
+  background: #f7f7f7;
+  border-radius: 6px;
+  overflow-x: auto;
+  font-size: 12px;
 }
 
 :deep(.ant-form) {

@@ -1,23 +1,38 @@
 package handler
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
+	"strings"
+	"time"
 
 	"github.com/denisakp/pulseguard/internal/api/response"
+	"github.com/denisakp/pulseguard/internal/domain"
 	"github.com/denisakp/pulseguard/internal/dto"
 	"github.com/denisakp/pulseguard/internal/service"
+	"github.com/go-chi/chi/v5"
 )
 
 // AccountHandler handles user account management endpoints
 type AccountHandler struct {
-	authService *service.AuthService
+	authService   *service.AuthService
+	apiKeyService APIKeyService
+}
+
+// APIKeyService captures the API key operations used by this handler.
+type APIKeyService interface {
+	CreateAPIKey(ctx context.Context, userID, name string, scope domain.APIKeyScope, expiresAt *time.Time) (*dto.CreateAPIKeyResponse, error)
+	ListAPIKeys(ctx context.Context, userID string) ([]dto.APIKeyListItem, error)
+	RevokeAPIKey(ctx context.Context, userID, keyID string) error
 }
 
 // NewAccountHandler creates a new account handler
-func NewAccountHandler(authService *service.AuthService) *AccountHandler {
+func NewAccountHandler(authService *service.AuthService, apiKeyService APIKeyService) *AccountHandler {
 	return &AccountHandler{
-		authService: authService,
+		authService:   authService,
+		apiKeyService: apiKeyService,
 	}
 }
 
@@ -194,4 +209,72 @@ func (h *AccountHandler) Disable2FA(w http.ResponseWriter, r *http.Request) {
 	response.JSON(w, http.StatusOK, map[string]string{
 		"message": "Two-factor authentication disabled successfully",
 	})
+}
+
+// CreateAPIKey handles POST /account/api-keys.
+func (h *AccountHandler) CreateAPIKey(w http.ResponseWriter, r *http.Request) {
+	userID := r.Context().Value("user_id").(string)
+
+	var req dto.CreateAPIKeyRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		response.Error(w, http.StatusBadRequest, "Invalid request body")
+		return
+	}
+
+	created, err := h.apiKeyService.CreateAPIKey(r.Context(), userID, req.Name, req.Scope, req.ExpiresAt)
+	if err != nil {
+		switch {
+		case errors.Is(err, service.ErrValidationFailed):
+			response.Error(w, http.StatusBadRequest, "validation failed")
+			return
+		case errors.Is(err, service.ErrAPIKeyLimitReached):
+			response.Error(w, http.StatusUnprocessableEntity, err.Error())
+			return
+		default:
+			response.Error(w, http.StatusInternalServerError, "internal server error")
+			return
+		}
+	}
+
+	response.Created(w, created)
+}
+
+// ListAPIKeys handles GET /account/api-keys.
+func (h *AccountHandler) ListAPIKeys(w http.ResponseWriter, r *http.Request) {
+	userID := r.Context().Value("user_id").(string)
+
+	keys, err := h.apiKeyService.ListAPIKeys(r.Context(), userID)
+	if err != nil {
+		response.Error(w, http.StatusInternalServerError, "internal server error")
+		return
+	}
+
+	response.JSON(w, http.StatusOK, keys)
+}
+
+// RevokeAPIKey handles DELETE /account/api-keys/{id}.
+func (h *AccountHandler) RevokeAPIKey(w http.ResponseWriter, r *http.Request) {
+	userID := r.Context().Value("user_id").(string)
+	keyID := chi.URLParam(r, "id")
+	if strings.TrimSpace(keyID) == "" {
+		response.Error(w, http.StatusBadRequest, "validation failed")
+		return
+	}
+
+	err := h.apiKeyService.RevokeAPIKey(r.Context(), userID, keyID)
+	if err != nil {
+		switch {
+		case errors.Is(err, service.ErrValidationFailed):
+			response.Error(w, http.StatusBadRequest, "validation failed")
+			return
+		case errors.Is(err, service.ErrAPIKeyNotFound):
+			response.Error(w, http.StatusNotFound, err.Error())
+			return
+		default:
+			response.Error(w, http.StatusInternalServerError, "internal server error")
+			return
+		}
+	}
+
+	response.Success(w, "API key revoked")
 }

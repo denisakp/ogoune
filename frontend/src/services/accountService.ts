@@ -38,6 +38,36 @@ export interface Disable2FARequest {
   otp: string
 }
 
+export type APIKeyScope = 'read' | 'read_write'
+
+export interface APIKey {
+  id: string
+  name: string
+  key_prefix: string
+  scope: APIKeyScope
+  expires_at: string | null
+  last_used_at: string | null
+  last_used_ip: string
+  is_active: boolean
+  created_at: string
+}
+
+export interface CreateAPIKeyRequest {
+  name: string
+  scope: APIKeyScope
+  expires_at?: string
+}
+
+export interface CreateAPIKeyResponse {
+  id: string
+  name: string
+  key: string
+  key_prefix: string
+  scope: APIKeyScope
+  expires_at: string | null
+  created_at: string
+}
+
 const accountService = {
   /**
    * Get user profile
@@ -140,6 +170,37 @@ const accountService = {
       { otp },
       config,
     )
+    return response.data
+  },
+
+  async createAPIKey(payload: CreateAPIKeyRequest): Promise<CreateAPIKeyResponse> {
+    const config: CustomAxiosConfig = {
+      skipSuccessToast: false,
+    }
+
+    const response = await axiosClient.post<CreateAPIKeyResponse>(
+      '/account/api-keys',
+      payload,
+      config,
+    )
+    return response.data
+  },
+
+  async listAPIKeys(): Promise<APIKey[]> {
+    const config: CustomAxiosConfig = {
+      skipSuccessToast: true,
+    }
+
+    const response = await axiosClient.get<APIKey[]>('/account/api-keys', config)
+    return response.data
+  },
+
+  async revokeAPIKey(id: string): Promise<{ message: string }> {
+    const config: CustomAxiosConfig = {
+      skipSuccessToast: false,
+    }
+
+    const response = await axiosClient.delete<{ message: string }>(`/account/api-keys/${id}`, config)
     return response.data
   },
 }

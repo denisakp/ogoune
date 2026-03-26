@@ -26,6 +26,7 @@ func NewRouter(
 	authHandler *handler.AuthHandler,
 	accountHandler *handler.AccountHandler,
 	authService *service.AuthService,
+	apiKeyService *service.APIKeyService,
 ) http.Handler {
 	r := chi.NewRouter()
 
@@ -68,7 +69,7 @@ func NewRouter(
 	// ========================================
 	r.Group(func(r chi.Router) {
 		// Apply auth middleware to all routes in this group
-		r.Use(middleware.AuthMiddleware(authService))
+		r.Use(middleware.AuthMiddleware(authService, apiKeyService))
 
 		// Account Management API
 		r.Route("/account", func(r chi.Router) {
@@ -79,40 +80,43 @@ func NewRouter(
 			r.Post("/2fa/enable", accountHandler.Enable2FA)           // POST /account/2fa/enable
 			r.Post("/2fa/confirm", accountHandler.Confirm2FA)         // POST /account/2fa/confirm
 			r.Post("/2fa/disable", accountHandler.Disable2FA)         // POST /account/2fa/disable
+			r.With(middleware.RequireJWTOnly).Post("/api-keys", accountHandler.CreateAPIKey)
+			r.With(middleware.RequireJWTOnly).Get("/api-keys", accountHandler.ListAPIKeys)
+			r.With(middleware.RequireJWTOnly).Delete("/api-keys/{id}", accountHandler.RevokeAPIKey)
 		})
 
 		// Resources (Monitors) API
 		r.Route("/resources", func(r chi.Router) {
-			r.Get("/", resourceHandler.ListResources)                                     // GET /resources - list all resources
-			r.Post("/", resourceHandler.CreateResource)                                   // POST /resources - create new resource
-			r.Get("/{id}", resourceHandler.GetResourceByID)                               // GET /resources/{id} - get resource details
-			r.Get("/{id}/live", resourceHandler.GetLive)                                  // GET /resources/{id}/live - get live resource snapshot
-			r.Patch("/{id}", resourceHandler.UpdateResource)                              // PATCH /resources/{id} - update resource
-			r.Delete("/{id}", resourceHandler.DeleteResource)                             // DELETE /resources/{id} - delete resource
-			r.Post("/{id}/pause", resourceHandler.PauseResourceMonitoring)                // POST /resources/{id}/pause - pause monitoring
-			r.Post("/{id}/resume", resourceHandler.ResumeResourceMonitoring)              // POST /resources/{id}/resume - resume monitoring
-			r.Post("/{resourceID}/tags", resourceHandler.AddTagsToResource)               // POST /resources/{resourceID}/tags - add tags
-			r.Delete("/{resourceID}/tags/{tagID}", resourceHandler.RemoveTagFromResource) // DELETE /resources/{resourceID}/tags/{tagID} - remove tag
-			r.Get("/{resourceId}/uptime-stats", activityHandler.GetUptimeStats)           // GET /resources/{resourceId}/uptime-stats - get hourly uptime stats
+			r.Get("/", resourceHandler.ListResources)                                                                       // GET /resources - list all resources
+			r.With(middleware.RequireReadWrite).Post("/", resourceHandler.CreateResource)                                   // POST /resources - create new resource
+			r.Get("/{id}", resourceHandler.GetResourceByID)                                                                 // GET /resources/{id} - get resource details
+			r.Get("/{id}/live", resourceHandler.GetLive)                                                                    // GET /resources/{id}/live - get live resource snapshot
+			r.With(middleware.RequireReadWrite).Patch("/{id}", resourceHandler.UpdateResource)                              // PATCH /resources/{id} - update resource
+			r.With(middleware.RequireReadWrite).Delete("/{id}", resourceHandler.DeleteResource)                             // DELETE /resources/{id} - delete resource
+			r.With(middleware.RequireReadWrite).Post("/{id}/pause", resourceHandler.PauseResourceMonitoring)                // POST /resources/{id}/pause - pause monitoring
+			r.With(middleware.RequireReadWrite).Post("/{id}/resume", resourceHandler.ResumeResourceMonitoring)              // POST /resources/{id}/resume - resume monitoring
+			r.With(middleware.RequireReadWrite).Post("/{resourceID}/tags", resourceHandler.AddTagsToResource)               // POST /resources/{resourceID}/tags - add tags
+			r.With(middleware.RequireReadWrite).Delete("/{resourceID}/tags/{tagID}", resourceHandler.RemoveTagFromResource) // DELETE /resources/{resourceID}/tags/{tagID} - remove tag
+			r.Get("/{resourceId}/uptime-stats", activityHandler.GetUptimeStats)                                             // GET /resources/{resourceId}/uptime-stats - get hourly uptime stats
 		})
 
 		// Components API
 		r.Route("/components", func(r chi.Router) {
 			r.Get("/", componentHandler.ListComponents)
-			r.Post("/", componentHandler.CreateComponent)
+			r.With(middleware.RequireReadWrite).Post("/", componentHandler.CreateComponent)
 			r.Get("/{id}", componentHandler.GetComponent)
-			r.Patch("/{id}", componentHandler.UpdateComponent)
-			r.Delete("/{id}", componentHandler.DeleteComponent)
-			r.Post("/{id}/resources/bulk-assign", componentHandler.BulkAssignToComponent) // POST /components/{id}/resources/bulk-assign - assign multiple resources
-			r.Post("/resources/bulk-remove", componentHandler.BulkRemoveFromComponent)    // POST /components/resources/bulk-remove - remove resources from components
+			r.With(middleware.RequireReadWrite).Patch("/{id}", componentHandler.UpdateComponent)
+			r.With(middleware.RequireReadWrite).Delete("/{id}", componentHandler.DeleteComponent)
+			r.With(middleware.RequireReadWrite).Post("/{id}/resources/bulk-assign", componentHandler.BulkAssignToComponent) // POST /components/{id}/resources/bulk-assign - assign multiple resources
+			r.With(middleware.RequireReadWrite).Post("/resources/bulk-remove", componentHandler.BulkRemoveFromComponent)    // POST /components/resources/bulk-remove - remove resources from components
 		})
 
 		// Tags API
 		r.Route("/tags", func(r chi.Router) {
-			r.Get("/", tagHandler.ListTags)         // GET /tags - list all tags
-			r.Post("/", tagHandler.CreateTag)       // POST /tags - create new tag
-			r.Patch("/{id}", tagHandler.UpdateTag)  // PATCH /tags/{id} - update tag
-			r.Delete("/{id}", tagHandler.DeleteTag) // DELETE /tags/{id} - delete tag
+			r.Get("/", tagHandler.ListTags)                                           // GET /tags - list all tags
+			r.With(middleware.RequireReadWrite).Post("/", tagHandler.CreateTag)       // POST /tags - create new tag
+			r.With(middleware.RequireReadWrite).Patch("/{id}", tagHandler.UpdateTag)  // PATCH /tags/{id} - update tag
+			r.With(middleware.RequireReadWrite).Delete("/{id}", tagHandler.DeleteTag) // DELETE /tags/{id} - delete tag
 		})
 
 		// Monitoring Activities API
@@ -127,22 +131,22 @@ func NewRouter(
 
 		// Notification Channels API
 		r.Route("/notification-channels", func(r chi.Router) {
-			r.Get("/", notificationHandler.ListNotificationChannels)                 // GET /notification-channels - list all channels
-			r.Post("/", notificationHandler.CreateNotificationChannel)               // POST /notification-channels - create new channel
-			r.Post("/test-config", notificationHandler.ValidateAndTestChannelConfig) // POST /notification-channels/test-config - test config without saving
-			r.Get("/{id}", notificationHandler.GetNotificationChannel)               // GET /notification-channels/{id} - get channel by ID
-			r.Patch("/{id}", notificationHandler.UpdateNotificationChannel)          // PATCH /notification-channels/{id} - update channel
-			r.Delete("/{id}", notificationHandler.DeleteNotificationChannel)         // DELETE /notification-channels/{id} - delete channel
-			r.Post("/{id}/test", notificationHandler.TestNotificationChannelConfig)  // POST /notification-channels/{id}/test - test channel config
+			r.Get("/", notificationHandler.ListNotificationChannels)                                                   // GET /notification-channels - list all channels
+			r.With(middleware.RequireReadWrite).Post("/", notificationHandler.CreateNotificationChannel)               // POST /notification-channels - create new channel
+			r.With(middleware.RequireReadWrite).Post("/test-config", notificationHandler.ValidateAndTestChannelConfig) // POST /notification-channels/test-config - test config without saving
+			r.Get("/{id}", notificationHandler.GetNotificationChannel)                                                 // GET /notification-channels/{id} - get channel by ID
+			r.With(middleware.RequireReadWrite).Patch("/{id}", notificationHandler.UpdateNotificationChannel)          // PATCH /notification-channels/{id} - update channel
+			r.With(middleware.RequireReadWrite).Delete("/{id}", notificationHandler.DeleteNotificationChannel)         // DELETE /notification-channels/{id} - delete channel
+			r.With(middleware.RequireReadWrite).Post("/{id}/test", notificationHandler.TestNotificationChannelConfig)  // POST /notification-channels/{id}/test - test channel config
 		})
 
 		// Maintenances API
 		r.Route("/maintenances", func(r chi.Router) {
-			r.Get("/", maintenanceHandler.ListMaintenances)              // GET /maintenances
-			r.Post("/", maintenanceHandler.CreateMaintenance)            // POST /maintenances
-			r.Patch("/{id}", maintenanceHandler.UpdateMaintenance)       // PATCH /maintenances/{id}
-			r.Delete("/{id}", maintenanceHandler.DeleteMaintenance)      // DELETE /maintenances/{id}
-			r.Post("/{id}/finish", maintenanceHandler.FinishMaintenance) // POST /maintenances/{id}/finish
+			r.Get("/", maintenanceHandler.ListMaintenances)                                                // GET /maintenances
+			r.With(middleware.RequireReadWrite).Post("/", maintenanceHandler.CreateMaintenance)            // POST /maintenances
+			r.With(middleware.RequireReadWrite).Patch("/{id}", maintenanceHandler.UpdateMaintenance)       // PATCH /maintenances/{id}
+			r.With(middleware.RequireReadWrite).Delete("/{id}", maintenanceHandler.DeleteMaintenance)      // DELETE /maintenances/{id}
+			r.With(middleware.RequireReadWrite).Post("/{id}/finish", maintenanceHandler.FinishMaintenance) // POST /maintenances/{id}/finish
 		})
 
 		// Stats API
@@ -165,7 +169,7 @@ func corsMiddleware(next http.Handler) http.Handler {
 		// In production, set this to specific domain
 		w.Header().Set("Access-Control-Allow-Origin", "*")
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-API-Key")
 		w.Header().Set("Access-Control-Max-Age", "3600")
 
 		// Handle preflight requests

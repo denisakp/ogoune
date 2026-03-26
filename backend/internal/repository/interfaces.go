@@ -162,6 +162,17 @@ type UserRepository interface {
 	UpdateTwoFactorSecret(ctx context.Context, userID string, secret string, enabled bool) error
 }
 
+// APIKeyRepository manages API key persistence and lookup.
+type APIKeyRepository interface {
+	Create(ctx context.Context, key *domain.APIKey) error
+	FindByID(ctx context.Context, id, userID string) (*domain.APIKey, error)
+	FindByKeyHash(ctx context.Context, keyHash string) (*domain.APIKey, error)
+	ListByUserID(ctx context.Context, userID string) ([]domain.APIKey, error)
+	UpdateLastUsed(ctx context.Context, id string, at time.Time, ip string) error
+	Revoke(ctx context.Context, id, userID string) error
+	CountByUserID(ctx context.Context, userID string) (int64, error)
+}
+
 // IncidentDiagnosticsRepository manages detailed diagnostic information for incidents
 type IncidentDiagnosticsRepository interface {
 	Create(ctx context.Context, d *domain.IncidentDiagnostics) (*domain.IncidentDiagnostics, error)

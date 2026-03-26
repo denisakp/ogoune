@@ -16,6 +16,7 @@ var RegisteredModels = []any{
 	&domain.MonitoringActivity{},
 	&domain.StatusPageSettings{},
 	&domain.User{},
+	&domain.APIKey{},
 	&domain.ExpiryNotificationLog{},
 }
 

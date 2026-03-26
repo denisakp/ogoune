@@ -433,6 +433,30 @@ type StatusPageSettings struct {
 
 func (StatusPageSettings) TableName() string { return "status_page_settings" }
 
+// APIKeyScope controls which routes an API key can access.
+type APIKeyScope string
+
+const (
+	APIKeyScopeRead      APIKeyScope = "read"
+	APIKeyScopeReadWrite APIKeyScope = "read_write"
+)
+
+// APIKey stores hashed API credentials for programmatic access.
+type APIKey struct {
+	Base
+	UserID     string      `json:"user_id" gorm:"index;not null"`
+	Name       string      `json:"name" gorm:"not null"`
+	KeyHash    string      `json:"-" gorm:"uniqueIndex;not null"`
+	KeyPrefix  string      `json:"key_prefix" gorm:"not null"`
+	Scope      APIKeyScope `json:"scope" gorm:"not null;default:'read'"`
+	ExpiresAt  *time.Time  `json:"expires_at"`
+	LastUsedAt *time.Time  `json:"last_used_at"`
+	LastUsedIP string      `json:"last_used_ip" gorm:"default:''"`
+	IsActive   bool        `json:"is_active" gorm:"default:true"`
+}
+
+func (APIKey) TableName() string { return "api_keys" }
+
 // User represents a user account with authentication credentials
 type User struct {
 	Base
