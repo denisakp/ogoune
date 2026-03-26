@@ -100,6 +100,13 @@ Scope behavior:
 
 See router for the definitive list and mapping.
 
+### Static entrypoint serving behavior
+
+- `/api/*` unmatched routes always return JSON/HTTP `404` and never fall back to static HTML.
+- `/status` and `/status/*` are mapped to `status.html` when that artifact exists in the static directory.
+- If `status.html` is missing (phased rollout case), `/status*` gracefully falls back to `index.html`.
+- Non-status unknown frontend paths continue to fall back to `index.html` for dashboard deep-link compatibility.
+
 ---
 
 ## 4) Data model and persistence

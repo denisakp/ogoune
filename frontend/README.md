@@ -134,8 +134,13 @@ frontend/src/
 ├── views/                  Page-level components
 ├── App.vue                 Root component with layout
 ├── main.ts                 Application entry point
+├── StatusApp.vue           Status-only root component
+├── status-main.ts          Status entrypoint bootstrap
 └── style.css               Global styles
 ```
+
+Additional root entry file:
+- `status.html` (public status entry document)
 
 ### Architecture & Patterns
 
@@ -185,6 +190,10 @@ pnpm build
 ```
 
 This generates a production-optimized build in the `dist/` folder.
+
+Dual-entry output:
+- `dist/index.html` for dashboard routes
+- `dist/status.html` for status routes (`/status`, `/status/:id`)
 
 ### Deployment Options
 

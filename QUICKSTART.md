@@ -90,6 +90,18 @@ curl http://localhost:8080/health
 # → {"status":"ok"}
 ```
 
+### Verify status entrypoint routing
+
+```bash
+curl -i http://localhost:8080/status
+curl -i http://localhost:8080/status/test-resource
+curl -i http://localhost:8080/api/non-existent-route
+```
+
+Expected:
+- `/status` and `/status/*` are served by the public status entry when `status.html` is present.
+- unmatched `/api/*` routes return `404` and never static HTML.
+
 ---
 
 ## Option 2 — Full Stack (PostgreSQL + Redis)
@@ -178,6 +190,10 @@ npm run build
 # → builds to frontend/dist/
 cd ..
 ```
+
+Build output now contains both entry documents:
+- `frontend/dist/index.html` for dashboard routes
+- `frontend/dist/status.html` for public status routes
 
 ### Configure the backend
 

@@ -152,6 +152,12 @@ Expected output:
 
 The API is now available at `http://localhost:8080/api`
 
+Static route behavior when serving frontend assets:
+
+- `/status` and `/status/*` serve `status.html` when present in the configured `STATIC_DIR`.
+- If `status.html` is not present, `/status*` falls back to `index.html` for backward-compatible rollout.
+- Unmatched `/api/*` routes remain API-first and return `404` (no static fallback).
+
 ### 5. Verify the Setup
 
 ```bash

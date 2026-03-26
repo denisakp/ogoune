@@ -71,6 +71,14 @@ func serveStaticFiles(router *chi.Mux, staticDir string) {
 			return
 		}
 
+		if path == "/status" || strings.HasPrefix(path, "/status/") {
+			statusHTML := filepath.Join(staticDir, "status.html")
+			if _, err := os.Stat(statusHTML); err == nil {
+				http.ServeFile(w, r, statusHTML)
+				return
+			}
+		}
+
 		// Check if the requested file exists
 		fullPath := filepath.Join(staticDir, path)
 		if _, err := os.Stat(fullPath); os.IsNotExist(err) {

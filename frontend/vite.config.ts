@@ -30,4 +30,12 @@ export default defineConfig({
     setupFiles: ['src/test/setup.ts'],
     include: ['src/**/*.spec.ts'],
   },
+  build: {
+    rollupOptions: {
+      input: {
+        main: fileURLToPath(new URL('./index.html', import.meta.url)),
+        status: fileURLToPath(new URL('./status.html', import.meta.url)),
+      },
+    },
+  },
 })
