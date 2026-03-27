@@ -1,6 +1,6 @@
-# PulseGuard — Quick Start Guide
+# Ogoune — Quick Start Guide
 
-Everything you need to go from zero to a running PulseGuard instance.
+Everything you need to go from zero to a running Ogoune instance.
 
 ---
 
@@ -42,17 +42,17 @@ Zero external dependencies. One container. Data stored in an embedded SQLite fil
 
 ```bash
 docker run -d \
-  --name pulseguard \
+  --name ogoune \
   --restart unless-stopped \
   -p 8080:8080 \
-  -v pulseguard_data:/data \
+  -v ogoune_data:/data \
   -e JWT_SECRET=change-me-before-production \
-  pulseguard/community:latest
+  ogoune/community:latest
 ```
 
 Open **http://localhost:8080**
 
-That's it. Your data is persisted in the `pulseguard_data` Docker volume.
+That's it. Your data is persisted in the `ogoune_data` Docker volume.
 
 ### Or with Docker Compose
 
@@ -60,23 +60,23 @@ Create a `compose.yml`:
 
 ```yaml
 services:
-  pulseguard:
-    image: pulseguard/community:latest
-    container_name: pulseguard
+  ogoune:
+    image: ogoune/community:latest
+    container_name: ogoune
     restart: unless-stopped
     ports:
       - "8080:8080"
     volumes:
-      - pulseguard_data:/data
+      - ogoune_data:/data
     environment:
       DB_DRIVER: sqlite
-      SQLITE_PATH: /data/pulseguard.db
+      SQLITE_PATH: /data/ogoune.db
       SCHEDULER_DRIVER: timingwheel
       JWT_SECRET: change-me-before-production
-      ADMIN_EMAIL: admin@pulseguard.test
+      ADMIN_EMAIL: admin@ogoune.test
 
 volumes:
-  pulseguard_data:
+  ogoune_data:
 ```
 
 ```bash
@@ -115,15 +115,15 @@ For teams or production deployments that need a more robust backend.
 ### Setup
 
 ```bash
-git clone https://github.com/denisakp/pulseguard.git
-cd pulseguard
+git clone https://github.com/denisakp/ogoune.git
+cd ogoune
 cp .env.example .env
 ```
 
 Open `.env` and set at minimum:
 
 ```env
-DATABASE_URL=postgres://pulseguard:pulseguard@postgres:5432/pulseguard
+DATABASE_URL=postgres://ogoune:ogoune@postgres:5432/ogoune
 REDIS_URL=redis://redis:6379
 JWT_SECRET=a-long-random-secret-string
 ADMIN_EMAIL=admin@yourdomain.com
@@ -140,7 +140,7 @@ Start everything:
 docker compose up -d
 ```
 
-This starts: the PulseGuard app, PostgreSQL, Redis, and a reverse proxy.
+This starts: the Ogoune app, PostgreSQL, Redis, and a reverse proxy.
 
 ### Verify services are healthy
 
@@ -157,7 +157,7 @@ curl http://localhost:8080/health
 PostgreSQL data is stored in the `postgres_data` Docker volume. Back it up regularly:
 
 ```bash
-docker exec pulseguard-postgres pg_dump -U pulseguard pulseguard > backup.sql
+docker exec ogoune-postgres pg_dump -U ogoune ogoune > backup.sql
 ```
 
 ---
@@ -177,8 +177,8 @@ For contributors or users who want to run the latest code.
 ### Clone and set up
 
 ```bash
-git clone https://github.com/denisakp/pulseguard.git
-cd pulseguard
+git clone https://github.com/denisakp/ogoune.git
+cd ogoune
 ```
 
 ### Build the frontend
@@ -205,10 +205,10 @@ Edit `.env` — minimum required for a local SQLite run:
 
 ```env
 DB_DRIVER=sqlite
-SQLITE_PATH=./pulseguard.db
+SQLITE_PATH=./ogoune.db
 SCHEDULER_MODE=timingwheel
 JWT_SECRET=dev-secret-change-in-production
-AUTH_EMAIL=admin@pulseguard.test
+AUTH_EMAIL=admin@ogoune.test
 PORT=8080
 STATIC_DIR=web/dist
 ```
@@ -246,7 +246,7 @@ make build
 ```
 
 This produces:
-- `dist/pulseguard`
+- `dist/ogoune`
 - `web/dist/index.html`
 - `web/dist/status.html`
 
@@ -259,8 +259,8 @@ Regardless of which option you chose, the default credentials are:
 | | |
 |---|---|
 | **URL** | http://localhost:8080 |
-| **Email** | `admin@pulseguard.test` |
-| **Password** | `puls3gu@rd` |
+| **Email** | `admin@ogoune.test` |
+| **Password** | `ogu3n3@rd` |
 
 **Change your password immediately** — Settings → Account → Change password.
 
@@ -288,14 +288,14 @@ Click **Monitors** in the left sidebar, then **+ Add Monitor**.
 
 ### 1.3 Configure the confirmation window
 
-The confirmation window prevents false positives. PulseGuard will only create an incident after N consecutive failures.
+The confirmation window prevents false positives. Ogoune will only create an incident after N consecutive failures.
 
 | Field | Recommended | Notes |
 |---|---|---|
 | **Confirmation checks** | `2` | Failures before alerting |
 | **Confirmation interval** | `30` | Seconds between confirmation checks |
 
-> With these defaults: if your site goes down, PulseGuard waits 30 seconds and checks again. Only if it's still down does it create an incident and send an alert. A 2-second network blip will never wake you up at 3am.
+> With these defaults: if your site goes down, Ogoune waits 30 seconds and checks again. Only if it's still down does it create an incident and send an alert. A 2-second network blip will never wake you up at 3am.
 
 Set **Confirmation checks to 1** if you want immediate alerts with no confirmation delay.
 
@@ -332,7 +332,7 @@ To verify DNS resolution for a domain:
 
 ## Step 2 — Configure notifications
 
-PulseGuard supports two notification channels out of the box: **SMTP (email)** and **Webhook** (Slack, Google Chat, Teams, Discord, or any HTTP endpoint).
+Ogoune supports two notification channels out of the box: **SMTP (email)** and **Webhook** (Slack, Google Chat, Teams, Discord, or any HTTP endpoint).
 
 ### 2.1 Navigate to notification settings
 
@@ -380,23 +380,23 @@ Use these settings:
 
 #### Test before saving
 
-Click **Test** before saving. PulseGuard sends a test email immediately. If it arrives, the config is correct.
+Click **Test** before saving. Ogoune sends a test email immediately. If it arrives, the config is correct.
 
 ---
 
 ### Webhook — Slack, Google Chat, Teams, Discord
 
-Webhooks work by sending an HTTP POST to a URL when an incident occurs. Every service listed below provides a webhook URL you paste into PulseGuard.
+Webhooks work by sending an HTTP POST to a URL when an incident occurs. Every service listed below provides a webhook URL you paste into Ogoune.
 
 #### Slack
 
 1. Go to [api.slack.com/apps](https://api.slack.com/apps) → **Create New App** → **From scratch**
-2. Name it `PulseGuard`, choose your workspace
+2. Name it `Ogoune`, choose your workspace
 3. Click **Incoming Webhooks** → toggle **On**
 4. Click **Add New Webhook to Workspace** → pick a channel → **Allow**
 5. Copy the webhook URL — looks like: `https://hooks.slack.com/services/T.../B.../...`
 
-In PulseGuard:
+In Ogoune:
 
 | Field | Value |
 |---|---|
@@ -409,15 +409,15 @@ In PulseGuard:
 
 1. Open the Google Chat space where you want alerts
 2. Click the space name → **Apps & integrations** → **Add webhooks**
-3. Name it `PulseGuard` → **Save** → copy the URL
+3. Name it `Ogoune` → **Save** → copy the URL
 
-Paste the URL in PulseGuard exactly as you did for Slack.
+Paste the URL in Ogoune exactly as you did for Slack.
 
 #### Microsoft Teams
 
 1. In Teams, right-click a channel → **Manage channel** → **Connectors**
 2. Search for **Incoming Webhook** → **Add** → **Add** again
-3. Name it `PulseGuard` → upload an icon (optional) → **Create**
+3. Name it `Ogoune` → upload an icon (optional) → **Create**
 4. Copy the webhook URL
 
 #### Discord
@@ -430,11 +430,11 @@ Paste the URL in PulseGuard exactly as you did for Slack.
 https://discord.com/api/webhooks/YOUR_ID/YOUR_TOKEN/slack
 ```
 
-Paste this modified URL in PulseGuard.
+Paste this modified URL in Ogoune.
 
 #### Custom HTTP endpoint
 
-Any endpoint that accepts a POST with a JSON body works. PulseGuard sends:
+Any endpoint that accepts a POST with a JSON body works. Ogoune sends:
 
 ```json
 {
@@ -477,7 +477,7 @@ Full list of all available configuration options.
 ```env
 # ── Database ────────────────────────────────────────────────────────────────
 DB_DRIVER=sqlite              # sqlite | postgres
-SQLITE_PATH=/data/pulseguard.db  # Path to SQLite file (Community Edition)
+SQLITE_PATH=/data/ogoune.db  # Path to SQLite file (Community Edition)
 DATABASE_URL=postgres://user:pass@host:5432/dbname  # Required if postgres
 DB_LOG_LEVEL=error            # silent | error | warn | info
 
@@ -498,7 +498,7 @@ APP_ENV=production            # development | production
 
 # ── Security ─────────────────────────────────────────────────────────────────
 JWT_SECRET=                   # Required — use `openssl rand -hex 32` to generate
-ADMIN_EMAIL=admin@pulseguard.test  # Default admin account email
+ADMIN_EMAIL=admin@ogoune.test  # Default admin account email
 ```
 
 ---
@@ -509,10 +509,10 @@ ADMIN_EMAIL=admin@pulseguard.test  # Default admin account email
 
 ```bash
 # Check the container is running
-docker ps | grep pulseguard
+docker ps | grep ogoune
 
 # Check logs for errors
-docker logs pulseguard
+docker logs ogoune
 
 # Verify the health endpoint
 curl http://localhost:8080/health
@@ -540,9 +540,9 @@ Settings → Notifications → click your channel → **Test**. If the test fail
 **Step 2 — Check "Enabled by default":**
 If the channel is not set as default and not assigned to the monitor, no notification is sent. Edit the channel and toggle **Enabled by default** on.
 
-**Step 3 — Check PulseGuard logs:**
+**Step 3 — Check Ogoune logs:**
 ```bash
-docker logs pulseguard | grep "NOTIFICATION"
+docker logs ogoune | grep "NOTIFICATION"
 ```
 Look for `[WARNING] No notification channels configured` — this means the monitor has no channel assigned and no default is set.
 
@@ -559,14 +559,14 @@ You must use an **App Password**, not your regular Gmail password. See [Step 2 �
 
 ### SQLite database file not persisting between restarts
 
-You must mount a volume. Without `-v pulseguard_data:/data`, data is lost when the container stops.
+You must mount a volume. Without `-v ogoune_data:/data`, data is lost when the container stops.
 
 ```bash
 # Correct
-docker run -v pulseguard_data:/data pulseguard/community:latest
+docker run -v ogoune_data:/data ogoune/community:latest
 
 # Wrong — data lost on restart
-docker run pulseguard/community:latest
+docker run ogoune/community:latest
 ```
 
 ---
@@ -589,11 +589,11 @@ go test -race ./...
 
 ## Next steps
 
-- [Architecture documentation](./ARCHITECTURE.md) — how PulseGuard works under the hood
+- [Architecture documentation](./ARCHITECTURE.md) — how Ogoune works under the hood
 - [Contributing guidelines](./CONTRIBUTING.md) — how to contribute code or feedback
-- [GitHub Discussions](https://github.com/denisakp/pulseguard/discussions) — ask questions
-- [GitHub Issues](https://github.com/denisakp/pulseguard/issues) — report bugs
+- [GitHub Discussions](https://github.com/denisakp/ogoune/discussions) — ask questions
+- [GitHub Issues](https://github.com/denisakp/ogoune/issues) — report bugs
 
 ---
 
-*Found something wrong or missing in this guide? [Open an issue](https://github.com/denisakp/pulseguard/issues/new?labels=documentation) — doc fixes are always welcome.*
+*Found something wrong or missing in this guide? [Open an issue](https://github.com/denisakp/ogoune/issues/new?labels=documentation) — doc fixes are always welcome.*

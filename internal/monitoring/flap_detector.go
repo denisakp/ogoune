@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/denisakp/pulseguard/internal/repository"
+	"github.com/denisakp/ogoune/internal/repository"
 )
 
 type FlapConfig struct {

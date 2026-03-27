@@ -1,6 +1,6 @@
-# Contributing to PulseGuard
+# Contributing to Ogoune
 
-First off — thank you. PulseGuard is a small project and every contribution matters.
+First off — thank you. Ogoune is a small project and every contribution matters.
 
 This document tells you everything you need to know to go from "I want to help" to "my PR is merged."
 
@@ -29,15 +29,15 @@ You don't need to write code to contribute.
 
 | Contribution | How |
 |---|---|
-| Report a bug | [Open an issue](https://github.com/denisakp/pulseguard/issues/new) |
-| Request a feature | [Start a discussion](https://github.com/denisakp/pulseguard/discussions/new) |
-| Fix a bug | Pick a [`bug`](https://github.com/denisakp/pulseguard/labels/bug) issue and open a PR |
+| Report a bug | [Open an issue](https://github.com/denisakp/ogoune/issues/new) |
+| Request a feature | [Start a discussion](https://github.com/denisakp/ogoune/discussions/new) |
+| Fix a bug | Pick a [`bug`](https://github.com/denisakp/ogoune/labels/bug) issue and open a PR |
 | Add a feature | Discuss first, then PR |
 | Improve docs | Edit any `.md` file and open a PR |
 | Share feedback | [Anonymous form](https://kawa-bunga.notion.site/2d1e5ad0a17d80dc8859e77817d901e3) — 2 minutes |
 | Tell others | Star the repo, share on Reddit, write a blog post |
 
-**Not sure where to start?** Look for issues labeled [`good first issue`](https://github.com/denisakp/pulseguard/labels/good%20first%20issue) — these are self-contained and well-documented.
+**Not sure where to start?** Look for issues labeled [`good first issue`](https://github.com/denisakp/ogoune/labels/good%20first%20issue) — these are self-contained and well-documented.
 
 ---
 
@@ -74,8 +74,8 @@ The rule of thumb: if the change takes more than a day to implement, discuss it 
 
 ```bash
 # Clone the repo
-git clone https://github.com/denisakp/pulseguard.git
-cd pulseguard
+git clone https://github.com/denisakp/ogoune.git
+cd ogoune
 
 # Start the full stack (PostgreSQL + Redis)
 cp .env.example .env
@@ -122,7 +122,7 @@ npm run test
 ## Project structure
 
 ```
-pulseguard/
+ogoune/
 ├── cmd/api/              → main entrypoint (server + worker)
 ├── internal/
 │   ├── api/              → HTTP router, handlers, middleware
@@ -159,7 +159,7 @@ The best starting point for understanding the codebase:
 
 ```bash
 # 1. Fork the repo and clone your fork
-git clone https://github.com/YOUR_USERNAME/pulseguard.git
+git clone https://github.com/YOUR_USERNAME/ogoune.git
 
 # 2. Create a branch — use a descriptive name
 git checkout -b fix/ssl-expiry-nil-panic
@@ -322,7 +322,7 @@ Your perspective is uniquely valuable — you're the target user.
 
 **What we most need from you:**
 
-- **Battle testing** — deploy PulseGuard in your real environment and tell us what breaks, what's confusing, or what's missing
+- **Battle testing** — deploy Ogoune in your real environment and tell us what breaks, what's confusing, or what's missing
 - **Performance feedback** — how does it behave with 100+ monitors? 500+? What degrades first?
 - **Docker / deployment feedback** — is the `docker-compose.community.yml` actually simple to use? What's missing?
 - **Alert quality feedback** — are there false positives you're still seeing? Edge cases the confirmation window misses?
@@ -389,8 +389,8 @@ Issues or PRs that are disrespectful will be closed without comment.
 
 ## Questions?
 
-- **GitHub Discussions** — [ask anything](https://github.com/denisakp/pulseguard/discussions)
-- **GitHub Issues** — [report a bug](https://github.com/denisakp/pulseguard/issues)
+- **GitHub Discussions** — [ask anything](https://github.com/denisakp/ogoune/discussions)
+- **GitHub Issues** — [report a bug](https://github.com/denisakp/ogoune/issues)
 
 ---
 

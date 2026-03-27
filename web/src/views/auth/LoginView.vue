@@ -46,7 +46,7 @@ const handleLogin = async () => {
   <div class="login-container">
     <div class="login-card">
       <div class="login-header">
-        <h1>PulseGuard</h1>
+        <h1>Ogoune</h1>
         <p>Monitor your infrastructure with confidence</p>
       </div>
 
@@ -60,7 +60,7 @@ const handleLogin = async () => {
         <a-form-item label="Email" name="email">
           <a-input
             v-model:value="formState.email"
-            placeholder="admin@pulseguard.test"
+            placeholder="admin@ogoune.test"
             size="large"
             :disabled="isLoading"
           >
@@ -92,7 +92,7 @@ const handleLogin = async () => {
 
       <div class="login-footer">
         <p class="hint">
-          Default credentials: <code>admin@pulseguard.test</code> / <code>puls3gu@rd</code>
+          Default credentials: <code>admin@ogoune.test</code> / <code>ogu3n3@rd</code>
         </p>
       </div>
     </div>

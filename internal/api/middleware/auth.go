@@ -8,8 +8,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/denisakp/pulseguard/internal/domain"
-	"github.com/denisakp/pulseguard/internal/service"
+	"github.com/denisakp/ogoune/internal/domain"
+	"github.com/denisakp/ogoune/internal/service"
 )
 
 // AuthMiddleware creates a middleware that validates JWT tokens

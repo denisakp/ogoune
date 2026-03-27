@@ -1,10 +1,10 @@
-# Pulseguard Backend Architecture
+# Ogoune Backend Architecture
 
-Concise technical reference for the Pulseguard backend. This document unifies architecture, runtime flow, APIs, and operations into one source.
+Concise technical reference for the Ogoune backend. This document unifies architecture, runtime flow, APIs, and operations into one source.
 
 ## 1) System Overview
 
-Pulseguard is a single Go service that:
+Ogoune is a single Go service that:
 
 - Monitors HTTP and TCP resources
 - Persists check activity and incident lifecycle in SQL
@@ -47,7 +47,7 @@ Runtime components:
 
 ## 4) Runtime Modes
 
-Pulseguard supports two execution lanes:
+Ogoune supports two execution lanes:
 
 1. Community lane
 
@@ -176,7 +176,7 @@ Common ways to extend:
 
 Community lane:
 
-- `DB_DRIVER=sqlite SQLITE_PATH=./pulseguard.db SCHEDULER_MODE=timingwheel go run ./cmd/api`
+- `DB_DRIVER=sqlite SQLITE_PATH=./ogoune.db SCHEDULER_MODE=timingwheel go run ./cmd/api`
 
 Hosted lane:
 

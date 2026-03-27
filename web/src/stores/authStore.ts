@@ -4,9 +4,9 @@ import authService from '@/services/authService'
 import { message } from 'ant-design-vue'
 import type { User } from '@/types'
 
-const TOKEN_KEY = 'pulseguard_auth_token'
-const EMAIL_KEY = 'pulseguard_user_email'
-const USER_ID_KEY = 'pulseguard_user_id'
+const TOKEN_KEY = 'ogoune_auth_token'
+const EMAIL_KEY = 'ogoune_user_email'
+const USER_ID_KEY = 'ogoune_user_id'
 
 export const useAuthStore = defineStore('auth', () => {
   // State

@@ -1,4 +1,4 @@
-module github.com/denisakp/pulseguard
+module github.com/denisakp/ogoune
 
 go 1.25.1
 

@@ -7,7 +7,7 @@ import type {
 } from 'axios'
 import { message } from 'ant-design-vue'
 
-const TOKEN_KEY = 'pulseguard_auth_token'
+const TOKEN_KEY = 'ogoune_auth_token'
 
 const SUCCESS_TOAST_METHODS = ['post', 'put', 'patch', 'delete']
 
@@ -81,7 +81,7 @@ axiosClient.interceptors.response.use(
             message.error('Unauthorized. Please log in again.')
             // Clear auth state and redirect to login
             localStorage.removeItem(TOKEN_KEY)
-            localStorage.removeItem('pulseguard_user_email')
+            localStorage.removeItem('ogoune_user_email')
             window.location.href = '/login'
             break
           case 403:

@@ -7,9 +7,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/denisakp/pulseguard/internal/domain"
-	"github.com/denisakp/pulseguard/internal/repository/fake"
-	"github.com/denisakp/pulseguard/internal/service"
+	"github.com/denisakp/ogoune/internal/domain"
+	"github.com/denisakp/ogoune/internal/repository/fake"
+	"github.com/denisakp/ogoune/internal/service"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -19,7 +19,7 @@ func buildAuthMiddleware(t *testing.T) (http.Handler, *service.APIKeyService, *f
 
 	userRepo := fake.NewUserRepository()
 	apiKeyRepo := fake.NewAPIKeyRepository()
-	jwtManager := service.NewJWTManager("test-secret", "pulseguard", 24*time.Hour)
+	jwtManager := service.NewJWTManager("test-secret", "ogoune", 24*time.Hour)
 	authSvc := service.NewAuthService(userRepo, jwtManager)
 	apiKeySvc := service.NewAPIKeyService(apiKeyRepo, userRepo)
 
@@ -77,7 +77,7 @@ func TestAuthMiddleware_BearerAPIKey_ValidKey_Accepted(t *testing.T) {
 func TestAuthMiddleware_APIKey_SetsContextValues(t *testing.T) {
 	userRepo := fake.NewUserRepository()
 	apiKeyRepo := fake.NewAPIKeyRepository()
-	jwtMgr := service.NewJWTManager("secret", "pulseguard", time.Hour)
+	jwtMgr := service.NewJWTManager("secret", "ogoune", time.Hour)
 	authSvc := service.NewAuthService(userRepo, jwtMgr)
 	apiKeySvc := service.NewAPIKeyService(apiKeyRepo, userRepo)
 
@@ -137,7 +137,7 @@ func TestAuthMiddleware_RevokedKey_Returns401(t *testing.T) {
 func TestAuthMiddleware_ExpiredKey_Returns401(t *testing.T) {
 	userRepo := fake.NewUserRepository()
 	apiKeyRepo := fake.NewAPIKeyRepository()
-	jwtMgr := service.NewJWTManager("secret", "pulseguard", time.Hour)
+	jwtMgr := service.NewJWTManager("secret", "ogoune", time.Hour)
 	authSvc := service.NewAuthService(userRepo, jwtMgr)
 	apiKeySvc := service.NewAPIKeyService(apiKeyRepo, userRepo)
 

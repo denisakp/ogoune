@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/denisakp/pulseguard/internal/domain"
+	"github.com/denisakp/ogoune/internal/domain"
 )
 
 // Asynq represents a Redis-based scheduler interface adapter.

@@ -9,16 +9,16 @@ import (
 	"strings"
 	"time"
 
-	"github.com/denisakp/pulseguard/internal/domain"
-	"github.com/denisakp/pulseguard/internal/dto"
-	"github.com/denisakp/pulseguard/internal/repository"
+	"github.com/denisakp/ogoune/internal/domain"
+	"github.com/denisakp/ogoune/internal/dto"
+	"github.com/denisakp/ogoune/internal/repository"
 	"github.com/pquerna/otp/totp"
 	"golang.org/x/crypto/bcrypt"
 )
 
 const (
 	// DefaultPassword is the initial password for new accounts
-	DefaultPassword = "puls3gu@rd"
+	DefaultPassword = "ogu3n3@rd"
 	// BCryptCost is the cost factor for bcrypt hashing
 	BCryptCost = 12
 	// OTPLength is the length of the OTP code
@@ -45,7 +45,7 @@ func NewAuthService(userRepo repository.UserRepository, jwtManager *JWTManager) 
 
 // NewLegacyAuthService creates a service with hardcoded credentials (deprecated, for backward compat)
 func NewLegacyAuthService(email, password, jwtSecret string) *AuthService {
-	jwtManager := NewJWTManager(jwtSecret, "pulseguard", 24*time.Hour)
+	jwtManager := NewJWTManager(jwtSecret, "ogoune", 24*time.Hour)
 	return &AuthService{
 		legacyEmail:    email,
 		legacyPassword: password,
@@ -241,7 +241,7 @@ func (s *AuthService) ResetPasswordToDefault(ctx context.Context, userID, curren
 func (s *AuthService) GenerateTOTPSecret(ctx context.Context, userID, userEmail string) (*dto.Enable2FAResponse, error) {
 	// Generate TOTP secret
 	key, err := totp.Generate(totp.GenerateOpts{
-		Issuer:      "PulseGuard",
+		Issuer:      "Ogoune",
 		AccountName: userEmail,
 		SecretSize:  32,
 	})

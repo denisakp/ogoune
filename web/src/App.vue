@@ -120,7 +120,7 @@ const handleMenuClick = (key: string) => {
     >
       <!-- Logo at top (sans bordure) -->
       <div style="padding: 24px 16px">
-        <div style="font-size: 20px; font-weight: bold; color: #1890ff">Pulseguard</div>
+        <div style="font-size: 20px; font-weight: bold; color: #1890ff">Ogoune</div>
       </div>
 
       <!-- Menu -->
@@ -182,7 +182,7 @@ const handleMenuClick = (key: string) => {
 
       <!-- Footer fixe en bas -->
       <a-layout-footer style="text-align: center; background: #fff; padding: 16px">
-        Pulse Guard ©{{ new Date().getUTCFullYear() }} By
+        Ogoune ©{{ new Date().getUTCFullYear() }} By
         <a target="_blank" href="https://github.com/denisakp">Denis Yaovi</a>
         ·
         <a

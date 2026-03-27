@@ -3,8 +3,8 @@ package middleware
 import (
 	"net/http"
 
-	"github.com/denisakp/pulseguard/internal/api/response"
-	"github.com/denisakp/pulseguard/internal/domain"
+	"github.com/denisakp/ogoune/internal/api/response"
+	"github.com/denisakp/ogoune/internal/domain"
 )
 
 // RequireReadWrite ensures read-scoped API keys cannot access mutating routes.

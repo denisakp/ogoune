@@ -3,8 +3,8 @@ package fake
 import (
 	"context"
 
-	"github.com/denisakp/pulseguard/internal/domain"
-	"github.com/denisakp/pulseguard/internal/repository"
+	"github.com/denisakp/ogoune/internal/domain"
+	"github.com/denisakp/ogoune/internal/repository"
 )
 
 // NotificationChannelFake is an in-memory fake implementation of NotificationChannelRepository for testing.

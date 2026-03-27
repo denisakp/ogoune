@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/denisakp/pulseguard/internal/repository"
+	"github.com/denisakp/ogoune/internal/repository"
 	"github.com/hibiken/asynq"
 )
 

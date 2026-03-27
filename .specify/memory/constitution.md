@@ -20,27 +20,27 @@ Templates requiring updates:
 Follow-up TODOs:
 - None
 -->
-# PulseGuard Constitution
+# Ogoune Constitution
 
 ## Core Principles
 
 ### I. Layered Boundary Integrity
 
-PulseGuard MUST preserve its explicit layering. Backend HTTP handlers MUST delegate business logic to services, services MUST orchestrate repositories and schedulers instead of performing transport concerns, and repositories MUST remain the only persistence boundary. Frontend components MUST stay presentational and MUST use services, stores, or composables rather than performing direct API orchestration in views. Any proposed shortcut across these boundaries requires a documented justification in the implementation plan.
+Ogoune MUST preserve its explicit layering. Backend HTTP handlers MUST delegate business logic to services, services MUST orchestrate repositories and schedulers instead of performing transport concerns, and repositories MUST remain the only persistence boundary. Frontend components MUST stay presentational and MUST use services, stores, or composables rather than performing direct API orchestration in views. Any proposed shortcut across these boundaries requires a documented justification in the implementation plan.
 
-Rationale: PulseGuard already relies on clear backend and frontend boundaries to keep monitoring behavior, persistence, and UI state understandable and maintainable.
+Rationale: Ogoune already relies on clear backend and frontend boundaries to keep monitoring behavior, persistence, and UI state understandable and maintainable.
 
 ### II. Community Simplicity, Hosted Continuity
 
 Changes intended to reduce self-hosting friction MUST not silently regress the hosted or PostgreSQL-backed path. Community-mode improvements MUST explicitly state which external dependencies are removed, which remain, and how operators select modes. If a feature affects runtime infrastructure, the hosted/default path MUST remain supported unless the spec declares otherwise.
 
-Rationale: PulseGuard serves both self-hosters who need low-friction setup and existing deployments that depend on stable PostgreSQL-backed behavior.
+Rationale: Ogoune serves both self-hosters who need low-friction setup and existing deployments that depend on stable PostgreSQL-backed behavior.
 
 ### III. Automated Verification for Runtime Changes
 
 Any change touching persistence, configuration loading, startup flow, scheduling, incident lifecycle, or notification dispatch MUST add or update automated tests. When the goal is simplified local or CI operation, tests MUST run without external infrastructure whenever technically feasible. Missing automation for a runtime-critical change is a policy violation unless the limitation and temporary mitigation are documented in the plan and review.
 
-Rationale: PulseGuard's most expensive failures are runtime regressions, not isolated code-style issues; verification must target actual operational risk.
+Rationale: Ogoune's most expensive failures are runtime regressions, not isolated code-style issues; verification must target actual operational risk.
 
 ### IV. Migration and Startup Safety
 
@@ -52,7 +52,7 @@ Rationale: Monitoring systems are infrastructure; partial startup or opaque fail
 
 Every non-trivial feature MUST maintain traceability from specification to planning to task execution. Specs MUST describe independently testable user stories, explicit out-of-scope items, and operational impact when runtime behavior changes. Plans MUST document constitution gates, technical constraints, and rollout implications. Tasks MUST map work to user stories, concrete files, validation evidence, and documentation/config updates when behavior changes.
 
-Rationale: PulseGuard work spans runtime behavior, operational docs, and UI/API boundaries; traceability prevents hidden scope drift.
+Rationale: Ogoune work spans runtime behavior, operational docs, and UI/API boundaries; traceability prevents hidden scope drift.
 
 ## Engineering Constraints
 

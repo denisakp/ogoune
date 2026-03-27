@@ -5,7 +5,7 @@ import (
 	"sort"
 	"sync"
 
-	"github.com/denisakp/pulseguard/internal/domain"
+	"github.com/denisakp/ogoune/internal/domain"
 )
 
 // ComponentFake provides an in-memory implementation of ComponentRepository for testing.

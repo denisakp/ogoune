@@ -8,17 +8,17 @@ import (
 
 func TestResolveDefaultsToPostgresDriver(t *testing.T) {
 	resolved, err := (Config{
-		DatabaseURL: "postgres://pulseguard:pulseguard@localhost:5432/pulseguard?sslmode=disable",
+		DatabaseURL: "postgres://ogoune:ogoune@localhost:5432/ogoune?sslmode=disable",
 		LogLevel:    "silent",
 	}).resolve()
 	require.NoError(t, err)
 	require.Equal(t, DriverPostgres, resolved.Driver)
 }
 
-func TestConfigFromEnvDefaultsDriverToPostgres(t *testing.T) {
+func TestConfigFromEnvDefaultsDriverToSQLite(t *testing.T) {
 	t.Setenv("DB_DRIVER", "")
-	t.Setenv("DATABASE_URL", "postgres://pulseguard:pulseguard@localhost:5432/pulseguard?sslmode=disable")
+	t.Setenv("DATABASE_URL", "")
 
 	cfg := configFromEnv()
-	require.Equal(t, DriverPostgres, cfg.Driver)
+	require.Equal(t, DriverSQLite, cfg.Driver)
 }

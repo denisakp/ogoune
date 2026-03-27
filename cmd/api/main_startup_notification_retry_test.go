@@ -7,7 +7,7 @@ import (
 	"log"
 	"testing"
 
-	"github.com/denisakp/pulseguard/internal/service"
+	"github.com/denisakp/ogoune/internal/service"
 	"github.com/stretchr/testify/assert"
 )
 

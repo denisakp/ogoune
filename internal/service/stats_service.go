@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/denisakp/pulseguard/internal/dto"
-	"github.com/denisakp/pulseguard/internal/repository"
+	"github.com/denisakp/ogoune/internal/dto"
+	"github.com/denisakp/ogoune/internal/repository"
 )
 
 // StatsService handles business logic for aggregated statistics.

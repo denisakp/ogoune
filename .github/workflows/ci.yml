@@ -15,7 +15,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       DB_DRIVER: sqlite
-      SQLITE_PATH: /tmp/pulseguard-ci.db
+      SQLITE_PATH: /tmp/ogoune-ci.db
       DB_LOG_LEVEL: error
     steps:
       - uses: actions/checkout@v5
@@ -34,7 +34,7 @@ jobs:
     runs-on: ubuntu-latest
     
     env:
-      IMAGE_NAME: pulseguard
+      IMAGE_NAME: ogoune
       REGISTRY: ghcr.io
     
     outputs:
@@ -97,17 +97,17 @@ jobs:
           DIGEST="${{ needs.build-and-push.outputs.digest }}"
           
           export IMAGE_REPO
-          export PULSEGUARD_IMAGE="${IMAGE_REPO}@${DIGEST}"
+          export OGOUNE_IMAGE="${IMAGE_REPO}@${DIGEST}"
           
           if [ -f docker-compose.yml ]; then
-            yq -i ".services.pulseguard.image = \"${PULSEGUARD_IMAGE}\"" docker-compose.yml
+            yq -i ".services.ogoune.image = \"${OGOUNE_IMAGE}\"" docker-compose.yml
           else
             echo "docker-compose.yml not found"
             exit 1
           fi
 
           if [ -f docker-compose.community.yml ]; then
-            yq -i ".services.pulseguard.image = \"${PULSEGUARD_IMAGE}\"" docker-compose.community.yml
+            yq -i ".services.ogoune.image = \"${OGOUNE_IMAGE}\"" docker-compose.community.yml
           fi
           
           if ! git diff --quiet docker-compose.yml docker-compose.community.yml; then
@@ -121,6 +121,6 @@ jobs:
       - name: Commit and push changes
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
-          commit_message: "ci: update image digest for pulseguard [skip ci]"
+          commit_message: "ci: update image digest for ogoune [skip ci]"
           branch: main
           file_pattern: docker-compose.yml

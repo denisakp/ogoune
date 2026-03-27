@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/denisakp/pulseguard/internal/domain"
-	storeRepo "github.com/denisakp/pulseguard/internal/repository/store"
+	"github.com/denisakp/ogoune/internal/domain"
+	storeRepo "github.com/denisakp/ogoune/internal/repository/store"
 	"github.com/stretchr/testify/require"
 )
 

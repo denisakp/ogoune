@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/denisakp/pulseguard/internal/domain"
-	"github.com/denisakp/pulseguard/internal/repository"
+	"github.com/denisakp/ogoune/internal/domain"
+	"github.com/denisakp/ogoune/internal/repository"
 )
 
 // RepositorySchedulerAdapter adapts the runtime Scheduler interface to the repository.Scheduler interface.

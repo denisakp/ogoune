@@ -10,7 +10,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/denisakp/pulseguard/internal/domain"
+	"github.com/denisakp/ogoune/internal/domain"
 	gomail "gopkg.in/mail.v2"
 )
 
@@ -326,20 +326,20 @@ func (n *SMTPNotifier) expirySubject(expiry *ExpiryNotification) string {
 
 func (n *SMTPNotifier) flappingSubject(flapping *FlappingNotification) string {
 	if flapping.Stabilized {
-		return fmt.Sprintf("[PulseGuard] %s stabilized after flapping", flapping.Resource.Name)
+		return fmt.Sprintf("[Ogoune] %s stabilized after flapping", flapping.Resource.Name)
 	}
-	return fmt.Sprintf("[PulseGuard] %s is flapping - %d transitions in %d minutes", flapping.Resource.Name, flapping.TransitionCount, flapping.WindowSeconds/60)
+	return fmt.Sprintf("[Ogoune] %s is flapping - %d transitions in %d minutes", flapping.Resource.Name, flapping.TransitionCount, flapping.WindowSeconds/60)
 }
 
 func (n *SMTPNotifier) generateFlappingEmailHTML(flapping *FlappingNotification) string {
 	if flapping.Stabilized {
 		return fmt.Sprintf("<!DOCTYPE html><html><body><p>Monitor <strong>%s</strong> stabilized after a flapping episode.</p><p>Current status: %s</p></body></html>", flapping.Resource.Name, flapping.FinalStatus)
 	}
-	return fmt.Sprintf("<!DOCTYPE html><html><body><p>Your monitor <strong>%s</strong> (%s) has been switching between UP and DOWN %d times in the last %d minutes.</p><p>PulseGuard has suppressed repeated alerts while the service is unstable.</p></body></html>", flapping.Resource.Name, flapping.Resource.Target, flapping.TransitionCount, flapping.WindowSeconds/60)
+	return fmt.Sprintf("<!DOCTYPE html><html><body><p>Your monitor <strong>%s</strong> (%s) has been switching between UP and DOWN %d times in the last %d minutes.</p><p>Ogoune has suppressed repeated alerts while the service is unstable.</p></body></html>", flapping.Resource.Name, flapping.Resource.Target, flapping.TransitionCount, flapping.WindowSeconds/60)
 }
 
 func (n *SMTPNotifier) reminderSubject(reminder *ReminderNotification) string {
-	return fmt.Sprintf("[PulseGuard] %s still down - %d minutes", reminder.Resource.Name, reminder.ElapsedMinutes)
+	return fmt.Sprintf("[Ogoune] %s still down - %d minutes", reminder.Resource.Name, reminder.ElapsedMinutes)
 }
 
 func (n *SMTPNotifier) generateReminderEmailHTML(reminder *ReminderNotification) string {

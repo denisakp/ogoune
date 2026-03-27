@@ -4,7 +4,7 @@ import (
 	"encoding/base64"
 	"strings"
 
-	"github.com/denisakp/pulseguard/internal/domain"
+	"github.com/denisakp/ogoune/internal/domain"
 )
 
 // BuildIncidentDiagnostics constructs an IncidentDiagnostics record from a CheckResult.

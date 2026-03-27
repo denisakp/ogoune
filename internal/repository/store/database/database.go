@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/denisakp/pulseguard/internal/config"
-	shareddb "github.com/denisakp/pulseguard/internal/database"
+	"github.com/denisakp/ogoune/internal/config"
+	shareddb "github.com/denisakp/ogoune/internal/database"
 	"gorm.io/gorm"
 )
 
@@ -20,7 +20,7 @@ func Init(ctx context.Context, dsn *string) error {
 	return shareddb.Init(ctx, shareddb.Config{
 		Driver:      shareddb.DriverPostgres,
 		DatabaseURL: *dsn,
-		SQLitePath:  config.GetEnv("SQLITE_PATH", "pulseguard.db"),
+		SQLitePath:  config.GetEnv("SQLITE_PATH", "ogoune.db"),
 		LogLevel:    config.GetEnv("DB_LOG_LEVEL", "error"),
 	})
 }

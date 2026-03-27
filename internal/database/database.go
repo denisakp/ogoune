@@ -232,7 +232,7 @@ func (cfg Config) resolve() (resolvedConfig, error) {
 	case DriverSQLite:
 		path := strings.TrimSpace(cfg.SQLitePath)
 		if path == "" {
-			path = "pulseguard.db"
+			path = "ogoune.db"
 		}
 		return resolvedConfig{
 			Driver:       driver,
@@ -248,8 +248,8 @@ func (cfg Config) resolve() (resolvedConfig, error) {
 func configFromEnv() Config {
 	return Config{
 		Driver:      Driver(getEnv("DB_DRIVER", string(DriverSQLite))),
-		DatabaseURL: getEnv("DATABASE_URL", "postgres://pulseguard:EE94PPHGz3TZ@postgres:5432/pulse?sslmode=disable"),
-		SQLitePath:  getEnv("SQLITE_PATH", "pulseguard.db"),
+		DatabaseURL: getEnv("DATABASE_URL", "postgres://ogoune:EE94PPHGz3TZ@postgres:5432/pulse?sslmode=disable"),
+		SQLitePath:  getEnv("SQLITE_PATH", "ogoune.db"),
 		LogLevel:    getEnv("DB_LOG_LEVEL", "error"),
 	}
 }

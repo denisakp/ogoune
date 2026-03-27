@@ -4,8 +4,8 @@ import { HeartOutlined } from '@ant-design/icons-vue'
 
 const showModal = ref(false)
 
-const FEEDBACK_PROMPT_SEEN_KEY = 'pulseguard_feedback_prompt_seen'
-const FEEDBACK_COMPLETED_KEY = 'pulseguard_feedback_completed'
+const FEEDBACK_PROMPT_SEEN_KEY = 'ogoune_feedback_prompt_seen'
+const FEEDBACK_COMPLETED_KEY = 'ogoune_feedback_completed'
 const FEEDBACK_FORM_URL = 'https://kawa-bunga.notion.site/2d1e5ad0a17d80dc8859e77817d901e3'
 
 onMounted(() => {
@@ -36,7 +36,7 @@ const closeFeedback = () => {
   <!-- Feedback Modal (First Visit) -->
   <a-modal
     v-model:visible="showModal"
-    title="Help us improve PulseGuard"
+    title="Help us improve Ogoune"
     :footer="null"
     :closable="false"
     width="500px"
@@ -45,7 +45,7 @@ const closeFeedback = () => {
     <div style="text-align: center">
       <HeartOutlined style="font-size: 48px; color: #ff4d4f; margin-bottom: 16px" />
       <p style="font-size: 16px; margin: 16px 0">
-        Your feedback is invaluable to us! Share your thoughts to help us improve PulseGuard.
+        Your feedback is invaluable to us! Share your thoughts to help us improve Ogoune.
       </p>
       <p style="color: rgba(0, 0, 0, 0.65); font-size: 14px; margin: 0 0 24px 0">
         This form is anonymous and takes about 2 minutes to complete.

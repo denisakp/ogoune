@@ -13,7 +13,7 @@ func newSQLiteTestConfig(t *testing.T) Config {
 	t.Helper()
 	return Config{
 		Driver:     DriverSQLite,
-		SQLitePath: filepath.Join(t.TempDir(), "pulseguard-test.db"),
+		SQLitePath: filepath.Join(t.TempDir(), "ogoune-test.db"),
 		LogLevel:   "silent",
 	}
 }

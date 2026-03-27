@@ -4,7 +4,7 @@ import (
 	"context"
 	"sync"
 
-	"github.com/denisakp/pulseguard/internal/domain"
+	"github.com/denisakp/ogoune/internal/domain"
 )
 
 // StatusPageSettingsFake is an in-memory implementation for testing

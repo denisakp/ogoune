@@ -17,7 +17,7 @@ const monitorId = computed(() => route.params.id as string)
 
 // Page configuration
 const pageConfig = {
-  companyName: 'PulseGuard',
+  companyName: 'Ogoune',
   showLogo: true,
 }
 
@@ -122,8 +122,8 @@ const goBack = () => {
         <div class="footer-content">
           <p>
             Powered by
-            <a href="https://github.com/denisakp/pulseguard" target="_blank" rel="noopener">
-              PulseGuard
+            <a href="https://github.com/denisakp/ogoune" target="_blank" rel="noopener">
+              Ogoune
             </a>
           </p>
           <p v-if="monitorDetail" class="footer-timestamp">

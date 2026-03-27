@@ -134,7 +134,7 @@ func (n *WebHookNotifier) Send(ctx context.Context, payload NotificationPayload)
 		mac.Write(payloadBytes)
 		signature := "sha256=" + hex.EncodeToString(mac.Sum(nil))
 
-		req.Header.Set("X-PulseGuard-Signature", signature)
+		req.Header.Set("X-Ogoune-Signature", signature)
 	}
 
 	response, err := n.client.Do(req)
@@ -179,7 +179,7 @@ func (n *WebHookNotifier) SendTestNotification(ctx context.Context) error {
 		mac.Write(payloadBytes)
 		signature := "sha256=" + hex.EncodeToString(mac.Sum(nil))
 
-		req.Header.Set("X-PulseGuard-Signature", signature)
+		req.Header.Set("X-Ogoune-Signature", signature)
 	}
 
 	response, err := n.client.Do(req)

@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/denisakp/pulseguard/internal/domain"
+	"github.com/denisakp/ogoune/internal/domain"
 )
 
 func TestAsynqHostedParityPreservesDispatchInputs(t *testing.T) {

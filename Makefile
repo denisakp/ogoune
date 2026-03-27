@@ -1,6 +1,6 @@
 SHELL := /bin/sh
 
-BINARY := dist/pulseguard
+BINARY := dist/ogoune
 
 .PHONY: build build-be build-fe test test-be test-fe lint clean docker
 
@@ -30,4 +30,4 @@ clean:
 	rm -rf web/dist
 
 docker:
-	docker build -t pulseguard:test .
+	docker build -t ogoune:test .

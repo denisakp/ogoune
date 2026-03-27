@@ -5,8 +5,8 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/denisakp/pulseguard/internal/domain"
-	"github.com/denisakp/pulseguard/internal/repository"
+	"github.com/denisakp/ogoune/internal/domain"
+	"github.com/denisakp/ogoune/internal/repository"
 )
 
 // TagService provides business logic for tag management operations.

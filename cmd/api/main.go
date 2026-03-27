@@ -12,20 +12,20 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/denisakp/pulseguard/internal/api"
-	"github.com/denisakp/pulseguard/internal/api/handler"
-	"github.com/denisakp/pulseguard/internal/config"
-	dbruntime "github.com/denisakp/pulseguard/internal/database"
-	"github.com/denisakp/pulseguard/internal/domain"
-	"github.com/denisakp/pulseguard/internal/ee/license"
-	"github.com/denisakp/pulseguard/internal/maintenance"
-	"github.com/denisakp/pulseguard/internal/monitoring"
-	"github.com/denisakp/pulseguard/internal/monitoring/strategy"
-	"github.com/denisakp/pulseguard/internal/repository"
-	"github.com/denisakp/pulseguard/internal/repository/store"
-	"github.com/denisakp/pulseguard/internal/scheduler"
-	"github.com/denisakp/pulseguard/internal/service"
-	"github.com/denisakp/pulseguard/internal/worker"
+	"github.com/denisakp/ogoune/internal/api"
+	"github.com/denisakp/ogoune/internal/api/handler"
+	"github.com/denisakp/ogoune/internal/config"
+	dbruntime "github.com/denisakp/ogoune/internal/database"
+	"github.com/denisakp/ogoune/internal/domain"
+	"github.com/denisakp/ogoune/internal/ee/license"
+	"github.com/denisakp/ogoune/internal/maintenance"
+	"github.com/denisakp/ogoune/internal/monitoring"
+	"github.com/denisakp/ogoune/internal/monitoring/strategy"
+	"github.com/denisakp/ogoune/internal/repository"
+	"github.com/denisakp/ogoune/internal/repository/store"
+	"github.com/denisakp/ogoune/internal/scheduler"
+	"github.com/denisakp/ogoune/internal/service"
+	"github.com/denisakp/ogoune/internal/worker"
 	"github.com/go-chi/chi/v5"
 	"github.com/hibiken/asynq"
 )
@@ -34,9 +34,9 @@ const appVersion = "1.0.0"
 
 func logStartupEdition() {
 	if license.IsEnterprise() {
-		log.Println("✓ PulseGuard Enterprise Edition")
+		log.Println("✓ Ogoune Enterprise Edition")
 	} else {
-		log.Println("✓ PulseGuard Community Edition")
+		log.Println("✓ Ogoune Community Edition")
 	}
 }
 
@@ -126,7 +126,7 @@ func runStartupPendingNotificationRetry(ctx context.Context, retryService pendin
 
 func main() {
 	log.Println("========================================")
-	log.Println("Starting Pulse guard Application...")
+	log.Println("Starting Ogoune Application...")
 	logStartupEdition()
 	log.Println("========================================")
 
@@ -534,16 +534,16 @@ func main() {
 	statsService := service.NewStatsService(monitoringActivityRepo, incidentRepo)
 
 	// New auth service with database support
-	jwtManager := service.NewJWTManager(cfg.JWTSecret, "pulseguard", 24*time.Hour)
+	jwtManager := service.NewJWTManager(cfg.JWTSecret, "ogoune", 24*time.Hour)
 	apiKeyService := service.NewAPIKeyService(apiKeyRepo, userRepo)
 	authService := service.NewAuthService(userRepo, jwtManager)
 
 	// Create default admin user on first startup
 	if cfg.AuthEmail == "" {
-		cfg.AuthEmail = "admin@pulseguard.test"
+		cfg.AuthEmail = "admin@ogoune.test"
 	}
 	if cfg.AuthPassword == "" {
-		cfg.AuthPassword = "puls3gu@rd"
+		cfg.AuthPassword = "ogu3n3@rd"
 	}
 	_, _ = authService.CreateDefaultUser(context.Background(), cfg.AuthEmail, cfg.AuthPassword)
 
@@ -640,6 +640,6 @@ func main() {
 	log.Println("✓ Background worker stopped gracefully")
 
 	log.Println("========================================")
-	log.Println("Pulse guard application stopped successfully")
+	log.Println("Ogoune application stopped successfully")
 	log.Println("========================================")
 }

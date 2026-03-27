@@ -3,49 +3,37 @@ package database
 import (
 	"context"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 
-	"github.com/denisakp/pulseguard/internal/config"
+	"github.com/denisakp/ogoune/internal/config"
 )
 
 func TestSingletonReturnsSameInstance(t *testing.T) {
 	// Reset singleton state for clean test
 	Reset()
+	t.Setenv("DB_DRIVER", "sqlite")
+	t.Setenv("SQLITE_PATH", filepath.Join(t.TempDir(), "singleton.db"))
 
-	// First call to Instance should return error since Init not called
+	// First call should lazily initialize and return an instance.
 	instance1, err1 := Instance()
-	if err1 == nil {
-		t.Error("Expected error when Instance called before Init, got nil")
-	}
-	if instance1 != nil {
-		t.Error("Expected nil instance when Instance called before Init")
+	if err1 != nil {
+		t.Fatalf("Unexpected error from first Instance call: %v", err1)
 	}
 
-	// Initialize with a valid but non-connecting DSN for testing singleton logic
-	dsn := "postgres://test:test@localhost:5432/testdb?sslmode=disable"
-	if err := Init(context.Background(), &dsn); err != nil {
-		t.Skipf("Skipping test due to DB connection error: %v", err)
-	}
-
-	// Now Instance calls should return same pointer
+	// Subsequent calls should return the same singleton instance.
 	instance2, err2 := Instance()
 	if err2 != nil {
-		t.Errorf("Unexpected error from Instance after Init: %v", err2)
+		t.Errorf("Unexpected error from second Instance call: %v", err2)
 	}
 
-	instance3, err3 := Instance()
-	if err3 != nil {
-		t.Errorf("Unexpected error from second Instance call: %v", err3)
-	}
-
-	// Should be same pointer
-	if instance2 != instance3 {
+	if instance1 != instance2 {
 		t.Error("Instance calls returned different pointers, expected singleton behavior")
 	}
-	if instance2 == nil {
-		t.Error("Instance returned nil after successful Init")
+	if instance1 == nil {
+		t.Error("Instance returned nil after lazy initialization")
 	}
 }
 

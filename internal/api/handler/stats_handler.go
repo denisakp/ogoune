@@ -3,8 +3,8 @@ package handler
 import (
 	"net/http"
 
-	"github.com/denisakp/pulseguard/internal/api/response"
-	"github.com/denisakp/pulseguard/internal/service"
+	"github.com/denisakp/ogoune/internal/api/response"
+	"github.com/denisakp/ogoune/internal/service"
 )
 
 // StatsHandler handles HTTP requests for aggregated statistics.

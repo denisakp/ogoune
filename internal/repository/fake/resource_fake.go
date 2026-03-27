@@ -5,7 +5,7 @@ import (
 	"sort"
 	"sync"
 
-	domain "github.com/denisakp/pulseguard/internal/domain"
+	domain "github.com/denisakp/ogoune/internal/domain"
 )
 
 // ResourceFake provides an in-memory implementation of ResourceRepository for testing.

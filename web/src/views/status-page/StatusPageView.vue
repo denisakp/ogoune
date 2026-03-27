@@ -100,8 +100,8 @@ const pageConfig = computed(() => ({
         <div class="footer-content">
           <p>
             Powered by
-            <a href="https://github.com/denisakp/pulseguard" target="_blank" rel="noopener">
-              PulseGuard
+            <a href="https://github.com/denisakp/ogoune" target="_blank" rel="noopener">
+              Ogoune
             </a>
           </p>
           <p v-if="statusPageData" class="footer-timestamp">

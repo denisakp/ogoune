@@ -7,9 +7,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/denisakp/pulseguard/internal/domain"
-	"github.com/denisakp/pulseguard/internal/repository/fake"
-	"github.com/denisakp/pulseguard/internal/service"
+	"github.com/denisakp/ogoune/internal/domain"
+	"github.com/denisakp/ogoune/internal/repository/fake"
+	"github.com/denisakp/ogoune/internal/service"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

@@ -1,6 +1,6 @@
 package fake
 
-import "github.com/denisakp/pulseguard/internal/repository"
+import "github.com/denisakp/ogoune/internal/repository"
 
 // Common errors for fake repositories — reuse the canonical repository errors
 // so that errors.Is checks in production code work correctly with fake repos.

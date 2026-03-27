@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	dbruntime "github.com/denisakp/pulseguard/internal/database"
-	"github.com/denisakp/pulseguard/internal/domain"
+	dbruntime "github.com/denisakp/ogoune/internal/database"
+	"github.com/denisakp/ogoune/internal/domain"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

@@ -3,9 +3,9 @@ package handler
 import (
 	"net/http"
 
-	"github.com/denisakp/pulseguard/internal/api/response"
-	"github.com/denisakp/pulseguard/internal/repository"
-	"github.com/denisakp/pulseguard/internal/service"
+	"github.com/denisakp/ogoune/internal/api/response"
+	"github.com/denisakp/ogoune/internal/repository"
+	"github.com/denisakp/ogoune/internal/service"
 	"github.com/go-chi/chi/v5"
 )
 

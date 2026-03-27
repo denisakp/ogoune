@@ -3,7 +3,7 @@ package main
 import (
 	"testing"
 
-	"github.com/denisakp/pulseguard/internal/database"
+	"github.com/denisakp/ogoune/internal/database"
 	"github.com/glebarez/sqlite"
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"

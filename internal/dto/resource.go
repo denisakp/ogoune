@@ -3,7 +3,7 @@ package dto
 import (
 	"time"
 
-	"github.com/denisakp/pulseguard/internal/domain"
+	"github.com/denisakp/ogoune/internal/domain"
 )
 
 // CreateResourcePayload contains fields for creating a new monitoring resource.

@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/denisakp/pulseguard/internal/domain"
+	"github.com/denisakp/ogoune/internal/domain"
 	"gorm.io/gorm"
 )
 

@@ -5,8 +5,8 @@ import (
 	"errors"
 	"time"
 
-	"github.com/denisakp/pulseguard/internal/domain"
-	"github.com/denisakp/pulseguard/internal/dto"
+	"github.com/denisakp/ogoune/internal/domain"
+	"github.com/denisakp/ogoune/internal/dto"
 )
 
 // LiveSnapshotServiceInterface provides the live snapshot aggregation operation.

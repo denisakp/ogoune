@@ -4,9 +4,9 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/denisakp/pulseguard/internal/domain"
-	"github.com/denisakp/pulseguard/internal/dto"
-	"github.com/denisakp/pulseguard/internal/repository"
+	"github.com/denisakp/ogoune/internal/domain"
+	"github.com/denisakp/ogoune/internal/dto"
+	"github.com/denisakp/ogoune/internal/repository"
 )
 
 // MonitoringActivityService handles business logic for monitoring activities.

@@ -6,7 +6,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/denisakp/pulseguard/internal/domain"
+	"github.com/denisakp/ogoune/internal/domain"
 )
 
 // APIKeyRepository is an in-memory API key repository for tests.

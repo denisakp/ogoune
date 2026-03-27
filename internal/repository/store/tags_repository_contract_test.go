@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	domain "github.com/denisakp/pulseguard/internal/domain"
-	"github.com/denisakp/pulseguard/internal/repository/fake"
+	domain "github.com/denisakp/ogoune/internal/domain"
+	"github.com/denisakp/ogoune/internal/repository/fake"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

@@ -18,7 +18,7 @@ func TestLogStartupEditionCommunity(t *testing.T) {
 
 	logStartupEdition()
 
-	if !strings.Contains(buf.String(), "PulseGuard Community Edition") {
+	if !strings.Contains(buf.String(), "Ogoune Community Edition") {
 		t.Fatalf("expected community edition log, got: %s", buf.String())
 	}
 }
@@ -34,7 +34,7 @@ func TestLogStartupEditionEnterprise(t *testing.T) {
 
 	logStartupEdition()
 
-	if !strings.Contains(buf.String(), "PulseGuard Enterprise Edition") {
+	if !strings.Contains(buf.String(), "Ogoune Enterprise Edition") {
 		t.Fatalf("expected enterprise edition log, got: %s", buf.String())
 	}
 }

@@ -6,7 +6,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/denisakp/pulseguard/internal/domain"
+	"github.com/denisakp/ogoune/internal/domain"
 )
 
 // NotificationFake is an in-memory fake implementation of NotificationRepository for testing.

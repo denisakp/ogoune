@@ -1,6 +1,6 @@
 # Frontend Architecture Guide
 
-This document provides a comprehensive overview of the Pulseguard frontend architecture. It is designed to help developers understand the project structure, data flow, and core principles, enabling them to contribute effectively and maintain code quality.
+This document provides a comprehensive overview of the Ogoune frontend architecture. It is designed to help developers understand the project structure, data flow, and core principles, enabling them to contribute effectively and maintain code quality.
 
 ## 1. Core Principles & Data Flow
 

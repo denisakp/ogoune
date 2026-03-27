@@ -1,6 +1,6 @@
 package database
 
-import domain "github.com/denisakp/pulseguard/internal/domain"
+import domain "github.com/denisakp/ogoune/internal/domain"
 
 // RegisteredModels provides a single registry for schema-validation tests.
 var RegisteredModels = []any{

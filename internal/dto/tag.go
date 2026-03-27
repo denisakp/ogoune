@@ -1,6 +1,6 @@
 package dto
 
-import "github.com/denisakp/pulseguard/internal/domain"
+import "github.com/denisakp/ogoune/internal/domain"
 
 type CreateTagDto struct {
 	Name        string  `json:"name" binding:"required"`

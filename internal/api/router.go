@@ -3,9 +3,9 @@ package api
 import (
 	"net/http"
 
-	"github.com/denisakp/pulseguard/internal/api/handler"
-	"github.com/denisakp/pulseguard/internal/api/middleware"
-	"github.com/denisakp/pulseguard/internal/service"
+	"github.com/denisakp/ogoune/internal/api/handler"
+	"github.com/denisakp/ogoune/internal/api/middleware"
+	"github.com/denisakp/ogoune/internal/service"
 	"github.com/go-chi/chi/v5"
 	chimiddleware "github.com/go-chi/chi/v5/middleware"
 )

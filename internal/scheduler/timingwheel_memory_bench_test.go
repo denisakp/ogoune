@@ -17,8 +17,8 @@ func TestTimingWheelMemoryRSSDelta(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping long-running memory benchmark in short mode")
 	}
-	if os.Getenv("PULSEGUARD_RUN_SC002") != "1" {
-		t.Skip("set PULSEGUARD_RUN_SC002=1 to execute the 5 minute SC-002 RSS benchmark")
+	if os.Getenv("OGOUNE_RUN_SC002") != "1" {
+		t.Skip("set OGOUNE_RUN_SC002=1 to execute the 5 minute SC-002 RSS benchmark")
 	}
 
 	baseline, err := measureAverageRSS(nil)

@@ -1,6 +1,6 @@
 package dto
 
-import "github.com/denisakp/pulseguard/internal/domain"
+import "github.com/denisakp/ogoune/internal/domain"
 
 // CreateComponentPayload represents the input to create a component.
 // ResourceIDs is required and must contain at least one resource.

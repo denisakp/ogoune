@@ -1,6 +1,6 @@
-# Pulseguard Frontend
+# Ogoune Frontend
 
-A modern, responsive dashboard for the Pulseguard monitoring platform, built with Vue 3 and TypeScript.
+A modern, responsive dashboard for the Ogoune monitoring platform, built with Vue 3 and TypeScript.
 
 ---
 

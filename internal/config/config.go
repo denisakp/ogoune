@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/denisakp/pulseguard/internal/scheduler"
+	"github.com/denisakp/ogoune/internal/scheduler"
 	"github.com/joho/godotenv"
 )
 
@@ -68,17 +68,17 @@ func Load() Config {
 	cfg := Config{
 		RedisUrl:         GetEnv("REDIS_URL", "localhost:6379"),
 		DBDriver:         GetEnv("DB_DRIVER", "sqlite"),
-		DatabaseUrl:      GetEnv("DATABASE_URL", "postgres://pulseguard:EE94PPHGz3TZ@postgres:5432/pulse?sslmode=disable"),
-		SQLitePath:       GetEnv("SQLITE_PATH", "pulseguard.db"),
+		DatabaseUrl:      GetEnv("DATABASE_URL", "postgres://ogoune:EE94PPHGz3TZ@postgres:5432/pulse?sslmode=disable"),
+		SQLitePath:       GetEnv("SQLITE_PATH", "ogoune.db"),
 		DBLogLevel:       GetEnv("DB_LOG_LEVEL", "error"),
 		Port:             GetEnv("PORT", "8080"),
 		WebHookUrl:       webhookUrl,
 		WebHookSignature: GetEnv("WEBHOOK_SIGNATURE", ""),
 		WebHookIsEnabled: webhookIsEnabled,
 		StaticDir:        GetEnv("STATIC_DIR", "web/dist"),
-		AuthEmail:        GetEnv("AUTH_EMAIL", "admin@pulseguard.test"),
-		AuthPassword:     GetEnv("AUTH_PASSWORD", "puls3gu@rd"),
-		JWTSecret:        GetEnv("JWT_SECRET", "pulseguard-secret-key-change-in-production"),
+		AuthEmail:        GetEnv("AUTH_EMAIL", "admin@ogoune.test"),
+		AuthPassword:     GetEnv("AUTH_PASSWORD", "ogu3n3@rd"),
+		JWTSecret:        GetEnv("JWT_SECRET", "ogoune-secret-key-change-in-production"),
 
 		// Scheduler defaults (mode determined separately)
 		SchedulerMode:                  GetEnv("SCHEDULER_MODE", "timingwheel"),

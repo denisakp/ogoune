@@ -1,4 +1,4 @@
-# Copilot Instructions for Pulseguard
+# Copilot Instructions for Ogoune
 
 Purpose: help AI coding agents be productive immediately in this monorepo. Keep changes aligned with the existing layering, data flow, and tooling.
 

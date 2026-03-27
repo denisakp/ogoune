@@ -4,7 +4,7 @@ import (
 	"context"
 	"log"
 
-	mhandler "github.com/denisakp/pulseguard/internal/maintenance"
+	mhandler "github.com/denisakp/ogoune/internal/maintenance"
 	"github.com/hibiken/asynq"
 )
 

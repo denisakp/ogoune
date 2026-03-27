@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	shareddb "github.com/denisakp/pulseguard/internal/database"
+	shareddb "github.com/denisakp/ogoune/internal/database"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
@@ -21,7 +21,7 @@ func GetTestDB(t *testing.T) *gorm.DB {
 	if testDBURL == "" {
 		runtime, err := shareddb.Open(context.Background(), shareddb.Config{
 			Driver:     shareddb.DriverSQLite,
-			SQLitePath: filepath.Join(t.TempDir(), "pulseguard-test.db"),
+			SQLitePath: filepath.Join(t.TempDir(), "ogoune-test.db"),
 			LogLevel:   "silent",
 		})
 		if err != nil {

@@ -7,11 +7,11 @@ import (
 	"sync"
 	"time"
 
-	"github.com/denisakp/pulseguard/internal/config"
-	"github.com/denisakp/pulseguard/internal/domain"
-	"github.com/denisakp/pulseguard/internal/dto"
-	"github.com/denisakp/pulseguard/internal/repository"
-	"github.com/denisakp/pulseguard/pkg/notifier"
+	"github.com/denisakp/ogoune/internal/config"
+	"github.com/denisakp/ogoune/internal/domain"
+	"github.com/denisakp/ogoune/internal/dto"
+	"github.com/denisakp/ogoune/internal/repository"
+	"github.com/denisakp/ogoune/pkg/notifier"
 )
 
 // ComponentService manages logical components and their derived status/notifications.

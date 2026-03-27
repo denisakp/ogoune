@@ -52,7 +52,7 @@ watch(
 
     <!-- Username (Optional) -->
     <a-form-item label="Bot Username (Optional)" :name="['config', 'username']">
-      <a-input v-model:value="form.username" placeholder="e.g., Pulseguard Bot" :maxlength="255" />
+      <a-input v-model:value="form.username" placeholder="e.g., Ogoune Bot" :maxlength="255" />
     </a-form-item>
   </div>
 </template>

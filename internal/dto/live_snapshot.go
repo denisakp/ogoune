@@ -3,7 +3,7 @@ package dto
 import (
 	"time"
 
-	"github.com/denisakp/pulseguard/internal/domain"
+	"github.com/denisakp/ogoune/internal/domain"
 )
 
 // LiveStats contains uptime percentages and response time metrics for a resource.

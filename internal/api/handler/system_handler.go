@@ -4,8 +4,8 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/denisakp/pulseguard/internal/api/response"
-	"github.com/denisakp/pulseguard/internal/ee/license"
+	"github.com/denisakp/ogoune/internal/api/response"
+	"github.com/denisakp/ogoune/internal/ee/license"
 )
 
 type SystemHandler struct{}

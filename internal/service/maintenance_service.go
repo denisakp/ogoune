@@ -5,10 +5,10 @@ import (
 	"errors"
 	"time"
 
-	"github.com/denisakp/pulseguard/internal/domain"
-	"github.com/denisakp/pulseguard/internal/dto"
-	"github.com/denisakp/pulseguard/internal/maintenance"
-	"github.com/denisakp/pulseguard/internal/repository"
+	"github.com/denisakp/ogoune/internal/domain"
+	"github.com/denisakp/ogoune/internal/dto"
+	"github.com/denisakp/ogoune/internal/maintenance"
+	"github.com/denisakp/ogoune/internal/repository"
 )
 
 // MaintenanceService orchestrates maintenance CRUD and scheduling

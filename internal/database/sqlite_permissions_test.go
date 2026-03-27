@@ -10,7 +10,7 @@ import (
 )
 
 func TestHardenSQLiteArtifactsWarnsWhenPermissionsCannotBeEnforced(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "pulseguard.db")
+	path := filepath.Join(t.TempDir(), "ogoune.db")
 	require.NoError(t, os.WriteFile(path, []byte(""), 0o644))
 
 	originalChmod := sqliteChmod

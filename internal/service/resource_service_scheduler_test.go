@@ -4,9 +4,9 @@ import (
 	"context"
 	"testing"
 
-	"github.com/denisakp/pulseguard/internal/domain"
-	"github.com/denisakp/pulseguard/internal/dto"
-	"github.com/denisakp/pulseguard/internal/repository/fake"
+	"github.com/denisakp/ogoune/internal/domain"
+	"github.com/denisakp/ogoune/internal/dto"
+	"github.com/denisakp/ogoune/internal/repository/fake"
 )
 
 func TestResourceServiceCreateSchedulesMonitor(t *testing.T) {

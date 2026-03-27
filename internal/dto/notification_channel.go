@@ -3,7 +3,7 @@ package dto
 import (
 	"encoding/json"
 
-	"github.com/denisakp/pulseguard/internal/domain"
+	"github.com/denisakp/ogoune/internal/domain"
 )
 
 // SMTPConfig represents SMTP-specific configuration

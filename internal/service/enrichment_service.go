@@ -8,7 +8,7 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/denisakp/pulseguard/internal/domain"
+	"github.com/denisakp/ogoune/internal/domain"
 	"github.com/likexian/whois"
 	whoisparser "github.com/likexian/whois-parser"
 )

@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/denisakp/pulseguard/internal/domain"
+	"github.com/denisakp/ogoune/internal/domain"
 )
 
 // ScheduleMode represents the scheduler implementation mode.

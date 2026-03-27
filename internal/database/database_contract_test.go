@@ -11,7 +11,7 @@ func TestSQLiteConfigResolveDefaults(t *testing.T) {
 	resolved, err := (Config{Driver: DriverSQLite, LogLevel: "warn"}).resolve()
 	require.NoError(t, err)
 	require.Equal(t, DriverSQLite, resolved.Driver)
-	require.Equal(t, "pulseguard.db", resolved.DSN)
+	require.Equal(t, "ogoune.db", resolved.DSN)
 	require.Equal(t, logger.Warn, resolved.GormLogLevel)
 }
 
