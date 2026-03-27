@@ -184,22 +184,21 @@ cd pulseguard
 ### Build the frontend
 
 ```bash
-cd frontend
-npm install
-npm run build
-# → builds to frontend/dist/
+cd web
+pnpm install
+pnpm build
+# → builds to web/dist/
 cd ..
 ```
 
 Build output now contains both entry documents:
-- `frontend/dist/index.html` for dashboard routes
-- `frontend/dist/status.html` for public status routes
+- `web/dist/index.html` for dashboard routes
+- `web/dist/status.html` for public status routes
 
 ### Configure the backend
 
 ```bash
-cd backend
-cp ../.env.example .env
+cp .env.example .env
 ```
 
 Edit `.env` — minimum required for a local SQLite run:
@@ -207,10 +206,11 @@ Edit `.env` — minimum required for a local SQLite run:
 ```env
 DB_DRIVER=sqlite
 SQLITE_PATH=./pulseguard.db
-SCHEDULER_DRIVER=timingwheel
+SCHEDULER_MODE=timingwheel
 JWT_SECRET=dev-secret-change-in-production
-ADMIN_EMAIL=admin@pulseguard.test
-APP_PORT=8080
+AUTH_EMAIL=admin@pulseguard.test
+PORT=8080
+STATIC_DIR=web/dist
 ```
 
 ### Run the backend
@@ -221,29 +221,34 @@ go run ./cmd/api
 
 Open **http://localhost:8080**
 
-The backend serves the frontend from `frontend/dist/` automatically.
+The backend serves the frontend from `web/dist/` automatically.
 
 ### Run frontend in dev mode (hot reload)
 
 In a second terminal:
 
 ```bash
-cd frontend
-npm run dev
+cd web
+pnpm dev
 # → http://localhost:5173 (proxies API to :8080)
 ```
 
 ### Run tests
 
 ```bash
-# Backend
-cd backend
-go test -race ./...
-
-# Frontend
-cd frontend
-npm run test
+make test
 ```
+
+### Build from the repo root
+
+```bash
+make build
+```
+
+This produces:
+- `dist/pulseguard`
+- `web/dist/index.html`
+- `web/dist/status.html`
 
 ---
 
@@ -584,7 +589,7 @@ go test -race ./...
 
 ## Next steps
 
-- [Architecture documentation](./backend/ARCHITECTURE.md) — how PulseGuard works under the hood
+- [Architecture documentation](./ARCHITECTURE.md) — how PulseGuard works under the hood
 - [Contributing guidelines](./CONTRIBUTING.md) — how to contribute code or feedback
 - [GitHub Discussions](https://github.com/denisakp/pulseguard/discussions) — ask questions
 - [GitHub Issues](https://github.com/denisakp/pulseguard/issues) — report bugs

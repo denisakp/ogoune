@@ -123,20 +123,19 @@ npm run test
 
 ```
 pulseguard/
-├── backend/
-│   ├── cmd/api/          → main entrypoint (server + worker)
-│   ├── internal/
-│   │   ├── api/          → HTTP router, handlers, middleware
-│   │   ├── domain/       → models, constants (models.go is the source of truth)
-│   │   ├── monitoring/   → check strategies (HTTP, TCP, DNS) + incident logic
-│   │   ├── worker/       → check execution handlers
-│   │   ├── scheduler/    → TimingWheel (Community) + Asynq (production)
-│   │   ├── database/     → SQLite + PostgreSQL drivers
-│   │   ├── service/      → business logic (resource, incident, notification...)
-│   │   └── maintenance/  → maintenance window scheduler
-│   └── pkg/              → reusable packages (notifier, apikey...)
+├── cmd/api/              → main entrypoint (server + worker)
+├── internal/
+│   ├── api/              → HTTP router, handlers, middleware
+│   ├── domain/           → models, constants (models.go is the source of truth)
+│   ├── monitoring/       → check strategies (HTTP, TCP, DNS) + incident logic
+│   ├── worker/           → check execution handlers
+│   ├── scheduler/        → TimingWheel (Community) + Asynq (production)
+│   ├── database/         → SQLite + PostgreSQL drivers
+│   ├── service/          → business logic (resource, incident, notification...)
+│   └── maintenance/      → maintenance window scheduler
+├── pkg/                  → reusable packages (notifier, apikey...)
 │
-├── frontend/
+├── web/
 │   └── src/
 │       ├── router/       → Vue Router routes
 │       ├── views/        → page components
@@ -150,9 +149,9 @@ pulseguard/
 ```
 
 The best starting point for understanding the codebase:
-- `backend/internal/domain/models.go` — all data models
-- `backend/internal/api/router.go` — all API routes
-- `backend/cmd/api/main.go` — how everything is wired together
+- `internal/domain/models.go` — all data models
+- `internal/api/router.go` — all API routes
+- `cmd/api/main.go` — how everything is wired together
 
 ---
 
@@ -254,18 +253,18 @@ Steps to verify the change works.
 
 ### Where to add a new monitor type
 
-1. Create `backend/internal/monitoring/strategy/yourtype.go`
+1. Create `internal/monitoring/strategy/yourtype.go`
 2. Implement the `Strategy` interface
 3. Add `ResourceYourType ResourceType = "yourtype"` to `domain/models.go`
-4. Register it in `backend/cmd/api/main.go` in the strategies map
+4. Register it in `cmd/api/main.go` in the strategies map
 
 ### Where to add a new notification channel
 
-1. Create `backend/pkg/notifier/yournotifier.go`
+1. Create `pkg/notifier/yournotifier.go`
 2. Implement the `Notifier` interface
 3. Add `NotificationChannelTypeYours NotificationChannelType = "yours"` to `domain/models.go`
-4. Add dispatch case in `backend/internal/monitoring/incident_service.go`
-5. Add config validation in `backend/internal/service/notification_service.go`
+4. Add dispatch case in `internal/monitoring/incident_service.go`
+5. Add config validation in `internal/service/notification_service.go`
 
 ### Database migrations
 
@@ -300,7 +299,7 @@ Steps to verify the change works.
 
 ### API calls
 
-- Follow the existing pattern in `frontend/src/composables/`
+- Follow the existing pattern in `web/src/composables/`
 - Use the `useApi()` composable for all HTTP calls — no raw `fetch` or `axios` directly in views
 - Handle loading, error, and empty states explicitly — never leave the user staring at a blank screen
 
@@ -311,8 +310,8 @@ Steps to verify the change works.
 
 ### Adding a new page
 
-1. Create the view in `frontend/src/views/`
-2. Add the route in `frontend/src/router/index.ts`
+1. Create the view in `web/src/views/`
+2. Add the route in `web/src/router/index.ts`
 3. Add navigation entry if needed
 
 ---
@@ -342,7 +341,7 @@ You don't need to write code. Detailed feedback about real-world usage is worth 
 ### What needs documenting
 
 - `QUICKSTART.md` — the detailed setup guide (currently sparse)
-- `backend/ARCHITECTURE.md` — how the backend is designed
+- `ARCHITECTURE.md` — how the backend is designed
 - Inline code comments — especially in `handler_monitoring.go` and `incident_service.go`
 - API reference — the endpoints, request/response shapes
 

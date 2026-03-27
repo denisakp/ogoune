@@ -12,9 +12,11 @@ Dockerfile*
 .env
 .env.*
 node_modules/
-frontend/node_modules/
 dist/
 build/
 coverage/
 *.log
 *.log*
+.specify/
+roadmap/
+specs/

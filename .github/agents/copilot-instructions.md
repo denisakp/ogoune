@@ -1,6 +1,6 @@
 # pulseguard Development Guidelines
 
-Auto-generated from all feature plans. Last updated: 2026-03-26
+Auto-generated from all feature plans. Last updated: 2026-03-27
 
 ## Active Technologies
 - Go 1.25.x (backend), TypeScript/Vue 3 (frontend unchanged) + Chi router, GORM, Asynq (`github.com/hibiken/asynq`), Redis (Asynq mode only), existing notifier package (`pkg/notifier`) (003-in-process-scheduler)
@@ -27,6 +27,8 @@ Auto-generated from all feature plans. Last updated: 2026-03-26
 - PostgreSQL and SQLite via `internal/database` with authoritative SQL migrations (013-retry-pending-notifications)
 - Go 1.23.x (backend), TypeScript 5.x + Vue 3.x (frontend) + Chi router, Ant Design Vue, Pinia, Vue Router, Vite build pipeline (014-add-status-entrypoint)
 - N/A (no persistence model or schema change) (014-add-status-entrypoint)
+- Go 1.25.1 (backend), TypeScript 5.9 + Vue 3.5 (frontend) + Chi router, GORM, Asynq, Ant Design Vue, Pinia, Axios, Vite 7 (015-project-restructuring)
+- PostgreSQL and SQLite runtime support; filesystem-backed static assets; existing SQLite test fixture under repository tests (015-project-restructuring)
 
 - Go 1.25.1 (backend), TypeScript/Vue 3 (frontend unaffected for this feature) + `gorm.io/gorm`, `gorm.io/driver/postgres`, `github.com/glebarez/sqlite` (new), `github.com/stretchr/testify` (002-add-db-driver-abstraction)
 
@@ -47,9 +49,9 @@ npm test && npm run lint
 Go 1.25.1 (backend), TypeScript/Vue 3 (frontend unaffected for this feature): Follow standard conventions
 
 ## Recent Changes
+- 015-project-restructuring: Added Go 1.25.1 (backend), TypeScript 5.9 + Vue 3.5 (frontend) + Chi router, GORM, Asynq, Ant Design Vue, Pinia, Axios, Vite 7
 - 014-add-status-entrypoint: Added Go 1.23.x (backend), TypeScript 5.x + Vue 3.x (frontend) + Chi router, Ant Design Vue, Pinia, Vue Router, Vite build pipeline
 - 013-retry-pending-notifications: Added Go 1.23.x backend monolith; TypeScript/Vue frontend unchanged for this feature + GORM runtime, embedded SQL migrations, Asynq runtime, Chi, Testify, existing notifier implementations in `backend/pkg/notifier`
-- 012-fix-confirmation-window: Added Go 1.23.x (backend monolith), TypeScript 5.x (frontend unaffected for this feature) + Chi router, GORM, Asynq scheduler adapter, Testify, fake repositories under `backend/internal/repository/fake`
 
 
 <!-- MANUAL ADDITIONS START -->

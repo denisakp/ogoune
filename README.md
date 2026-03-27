@@ -43,6 +43,29 @@ Open **http://localhost:8080** and log in with:
 
 Change the password on first login.
 <img src="./static/login.png" alt="PulseGuard Login Screen" width="100%" style="border-radius: 8px; margin-top: 20px;" />
+
+---
+
+## Developer Workflow
+
+Run PulseGuard from the repository root.
+
+```bash
+cp .env.example .env
+make test
+make build
+go run ./cmd/api
+```
+
+Frontend development runs from `web/`:
+
+```bash
+cd web
+pnpm install
+pnpm dev
+```
+
+The root build produces `dist/pulseguard`, and the frontend build outputs `web/dist/index.html` plus `web/dist/status.html`.
 ---
 
 ## ✨ What You Get
@@ -194,7 +217,7 @@ You can use PulseGuard for commercial or personal projects.
 
 - **[Quick Start Guide](./QUICKSTART.md)** – Detailed setup walkthrough
 - **[Contributing Guidelines](./CONTRIBUTING.md)** – How to help
-- **[Architecture Docs](./backend/ARCHITECTURE.md)** – How it works under the hood
+- **[Architecture Docs](./ARCHITECTURE.md)** – How it works under the hood
 - **[Security Policy](./SECURITY.md)** – Reporting security issues
 
 ---
