@@ -123,4 +123,4 @@ jobs:
         with:
           commit_message: "ci: update image digest for pulseguard [skip ci]"
           branch: main
-          file_pattern: docker-compose.yml docker-compose.community.yml
+          file_pattern: docker-compose.yml

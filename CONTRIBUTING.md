@@ -82,7 +82,7 @@ cp .env.example .env
 docker compose up -d
 
 # Or start with zero dependencies (SQLite + in-process scheduler)
-docker compose -f docker-compose.community.yml up -d
+docker compose -f docker-compose.yml up -d
 ```
 
 ### Run backend only
