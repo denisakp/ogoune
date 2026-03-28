@@ -133,11 +133,16 @@ func TestTimingWheelShutdownDrainsCheckQueue(t *testing.T) {
 		t.Fatalf("Graceful shutdown failed: %v", err)
 	}
 
-	// After shutdown, queue should be drainable (not blocking)
+	// After shutdown, queue should be drainable (not blocking).
+	// checkQueue is closed by cleanup() so use ok-check to avoid infinite loop
+	// on a closed channel (closed channel is always readable, default never fires).
 	drainedCount := 0
 	for {
 		select {
-		case <-tw.checkQueue:
+		case _, ok := <-tw.checkQueue:
+			if !ok {
+				goto done
+			}
 			drainedCount++
 		default:
 			goto done

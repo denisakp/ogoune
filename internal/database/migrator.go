@@ -138,9 +138,10 @@ func appliedMigrationVersions(ctx context.Context, db *gorm.DB) (map[string]stru
 
 func recordMigration(ctx context.Context, db *gorm.DB, driver Driver, migration migrationFile) error {
 	query := "INSERT INTO schema_migrations (version, name, applied_at) VALUES (?, ?, ?)"
-	if driver == DriverPostgres {
-		query = "INSERT INTO schema_migrations (version, name, applied_at) VALUES (?, ?, ?) ON CONFLICT (version) DO NOTHING"
-	} else if driver == DriverSQLite {
+	switch driver {
+	case DriverPostgres:
+		query = "INSERT INTO schema_migrations (version, name, applied_at) VALUES ($1, $2, $3) ON CONFLICT (version) DO NOTHING"
+	case DriverSQLite:
 		query = "INSERT OR IGNORE INTO schema_migrations (version, name, applied_at) VALUES (?, ?, ?)"
 	}
 

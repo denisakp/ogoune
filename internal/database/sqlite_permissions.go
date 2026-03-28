@@ -67,9 +67,7 @@ func sqliteFilePath(dsn string) (string, bool) {
 		return "", false
 	}
 
-	if strings.HasPrefix(trimmed, "file:") {
-		trimmed = strings.TrimPrefix(trimmed, "file:")
-	}
+	trimmed = strings.TrimPrefix(trimmed, "file:")
 
 	if idx := strings.Index(trimmed, "?"); idx >= 0 {
 		trimmed = trimmed[:idx]

@@ -18,14 +18,6 @@ func newSQLiteTestConfig(t *testing.T) Config {
 	}
 }
 
-func newSQLiteMemoryConfig() Config {
-	return Config{
-		Driver:     DriverSQLite,
-		SQLitePath: "file::memory:?cache=shared",
-		LogLevel:   "silent",
-	}
-}
-
 func openSQLiteTestRuntime(t *testing.T) *Runtime {
 	t.Helper()
 	runtime, err := Open(context.Background(), newSQLiteTestConfig(t))

@@ -31,6 +31,8 @@ Auto-generated from all feature plans. Last updated: 2026-03-27
 - PostgreSQL and SQLite runtime support; filesystem-backed static assets; existing SQLite test fixture under repository tests (015-project-restructuring)
 - Go (backend), TypeScript/Vue (frontend web) + Chi, GORM, Asynq/Redis, Vue 3, Pinia, Axios, Ant Design Vue (016-project-rename-ogoune)
 - PostgreSQL or SQLite runtime (no schema changes in this feature) (016-project-rename-ogoune)
+- Go 1.25.1 + Go testing package, Testify, scheduler/asynq runtime components already present in repository (018-fix-test-suite-hangs)
+- SQLite/PostgreSQL runtime paths exist but this feature adds no schema/data change (018-fix-test-suite-hangs)
 
 - Go 1.25.1 (backend), TypeScript/Vue 3 (frontend unaffected for this feature) + `gorm.io/gorm`, `gorm.io/driver/postgres`, `github.com/glebarez/sqlite` (new), `github.com/stretchr/testify` (002-add-db-driver-abstraction)
 
@@ -51,9 +53,9 @@ npm test && npm run lint
 Go 1.25.1 (backend), TypeScript/Vue 3 (frontend unaffected for this feature): Follow standard conventions
 
 ## Recent Changes
+- 018-fix-test-suite-hangs: Added Go 1.25.1 + Go testing package, Testify, scheduler/asynq runtime components already present in repository
 - 016-project-rename-ogoune: Added Go (backend), TypeScript/Vue (frontend web) + Chi, GORM, Asynq/Redis, Vue 3, Pinia, Axios, Ant Design Vue
 - 015-project-restructuring: Added Go 1.25.1 (backend), TypeScript 5.9 + Vue 3.5 (frontend) + Chi router, GORM, Asynq, Ant Design Vue, Pinia, Axios, Vite 7
-- 014-add-status-entrypoint: Added Go 1.23.x (backend), TypeScript 5.x + Vue 3.x (frontend) + Chi router, Ant Design Vue, Pinia, Vue Router, Vite build pipeline
 
 
 <!-- MANUAL ADDITIONS START -->
