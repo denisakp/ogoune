@@ -122,8 +122,8 @@ const columns = [
   { title: 'Status', dataIndex: 'status', key: 'status', width: 90 },
   { title: 'Name', dataIndex: 'name', key: 'name' },
   { title: 'Component', dataIndex: 'component', key: 'component' },
-  { title: 'Target', dataIndex: 'target', key: 'target', },
-  { title: 'Uptime (24h)', dataIndex: 'uptime', key: 'uptime'},
+  { title: 'Target', dataIndex: 'target', key: 'target' },
+  { title: 'Uptime (24h)', dataIndex: 'uptime', key: 'uptime' },
   { title: 'Last Checked', dataIndex: 'last_checked', key: 'last_checked' },
   { title: 'Actions', key: 'actions', width: 90, fixed: 'right' },
 ]

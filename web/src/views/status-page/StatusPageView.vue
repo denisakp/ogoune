@@ -100,9 +100,7 @@ const pageConfig = computed(() => ({
         <div class="footer-content">
           <p>
             Powered by
-            <a href="https://github.com/denisakp/ogoune" target="_blank" rel="noopener">
-              Ogoune
-            </a>
+            <a href="https://github.com/denisakp/ogoune" target="_blank" rel="noopener"> Ogoune </a>
           </p>
           <p v-if="statusPageData" class="footer-timestamp">
             Last updated: {{ new Date(statusPageData.generated_at).toLocaleString() }}

@@ -112,8 +112,9 @@ const handleCancel = () => {
           style="width: 100%"
           placeholder="0"
         />
-        <div style="margin-top: 4px; font-size: 12px; color: rgba(0,0,0,0.45)">
-          Group multiple resource alerts into a single component notification within this window (10–300s). Set 0 to disable.
+        <div style="margin-top: 4px; font-size: 12px; color: rgba(0, 0, 0, 0.45)">
+          Group multiple resource alerts into a single component notification within this window
+          (10–300s). Set 0 to disable.
         </div>
       </a-form-item>
     </a-form>

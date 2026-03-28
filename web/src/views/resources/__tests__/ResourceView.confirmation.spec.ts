@@ -5,11 +5,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import ResourceView from '@/views/resources/ResourceView.vue'
 import type { Resource } from '@/types'
 
-const { loadResourceWithResponseTimesMock, pauseResourceMock, messageErrorMock } = vi.hoisted(() => ({
-  loadResourceWithResponseTimesMock: vi.fn(),
-  pauseResourceMock: vi.fn(),
-  messageErrorMock: vi.fn(),
-}))
+const { loadResourceWithResponseTimesMock, pauseResourceMock, messageErrorMock } = vi.hoisted(
+  () => ({
+    loadResourceWithResponseTimesMock: vi.fn(),
+    pauseResourceMock: vi.fn(),
+    messageErrorMock: vi.fn(),
+  }),
+)
 
 vi.mock('vue-router', () => ({
   useRouter: () => ({

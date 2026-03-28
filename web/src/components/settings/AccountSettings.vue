@@ -236,7 +236,9 @@ async function handleCreateAPIKey() {
   }
 
   try {
-    const expiresAt = apiKeyForm.expiresAt ? new Date(apiKeyForm.expiresAt).toISOString() : undefined
+    const expiresAt = apiKeyForm.expiresAt
+      ? new Date(apiKeyForm.expiresAt).toISOString()
+      : undefined
     await createKey(apiKeyForm.name.trim(), apiKeyForm.scope, expiresAt)
     isCreateAPIKeyModalOpen.value = false
     isRevealAPIKeyModalOpen.value = true
@@ -540,7 +542,11 @@ function copyRevealedKey() {
           >
             <a-form layout="vertical">
               <a-form-item label="Name" required>
-                <a-input v-model:value="apiKeyForm.name" placeholder="CI pipeline" maxlength="100" />
+                <a-input
+                  v-model:value="apiKeyForm.name"
+                  placeholder="CI pipeline"
+                  maxlength="100"
+                />
               </a-form-item>
               <a-form-item label="Scope" required>
                 <a-radio-group v-model:value="apiKeyForm.scope">
@@ -571,7 +577,9 @@ function copyRevealedKey() {
               {{ revealedKey }}
             </a-typography-paragraph>
             <a-button @click="copyRevealedKey">Copy</a-button>
-            <pre class="curl-snippet">curl -H "X-API-Key: {{ revealedKey }}" http://localhost:8080/api/v1/resources</pre>
+            <pre class="curl-snippet">
+curl -H "X-API-Key: {{ revealedKey }}" http://localhost:8080/api/v1/resources</pre
+            >
             <p class="section-description">Prefix: {{ revealKeyPrefix }}</p>
           </a-modal>
         </section>

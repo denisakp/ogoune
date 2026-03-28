@@ -47,7 +47,9 @@ describe('ResourceForm confirmation validation', () => {
   const clickSubmit = async (wrapper: ReturnType<typeof mount>) => {
     const submitButton = wrapper
       .findAll('button')
-      .find((node) => node.text().includes('Create Monitor') || node.text().includes('Update Monitor'))
+      .find(
+        (node) => node.text().includes('Create Monitor') || node.text().includes('Update Monitor'),
+      )
 
     expect(submitButton).toBeDefined()
     await submitButton!.trigger('click')

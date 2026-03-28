@@ -26,11 +26,7 @@ export function useAPIKeys() {
     }
   }
 
-  const createKey = async (
-    name: string,
-    scope: APIKeyScope,
-    expiresAt?: string,
-  ): Promise<void> => {
+  const createKey = async (name: string, scope: APIKeyScope, expiresAt?: string): Promise<void> => {
     const payload: CreateAPIKeyRequest = {
       name,
       scope,

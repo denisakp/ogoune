@@ -200,7 +200,10 @@ const accountService = {
       skipSuccessToast: false,
     }
 
-    const response = await axiosClient.delete<{ message: string }>(`/account/api-keys/${id}`, config)
+    const response = await axiosClient.delete<{ message: string }>(
+      `/account/api-keys/${id}`,
+      config,
+    )
     return response.data
   },
 }

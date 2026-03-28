@@ -17,7 +17,9 @@ export const useMonitorLive = (resourceId: string, resourceIntervalSeconds?: Int
 
   const pollingIntervalMs = computed(() => {
     const rawInterval =
-      typeof resourceIntervalSeconds === 'function' ? resourceIntervalSeconds() : resourceIntervalSeconds
+      typeof resourceIntervalSeconds === 'function'
+        ? resourceIntervalSeconds()
+        : resourceIntervalSeconds
     const intervalSeconds = rawInterval && rawInterval > 0 ? rawInterval : 60
     return Math.max(intervalSeconds * 1000, 15_000)
   })

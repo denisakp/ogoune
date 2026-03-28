@@ -422,18 +422,16 @@ const goBack = () => {
                   <span
                     style="width: 8px; height: 8px; border-radius: 50%; display: inline-block"
                     :style="{
-                      backgroundColor: !isLiveLoading && liveData ? 'var(--color-text-success, #52c41a)' : 'var(--color-border-secondary, #d9d9d9)',
+                      backgroundColor:
+                        !isLiveLoading && liveData
+                          ? 'var(--color-text-success, #52c41a)'
+                          : 'var(--color-border-secondary, #d9d9d9)',
                     }"
                   />
-                  <span
-                    v-if="lastUpdated"
-                    style="font-size: 12px; color: rgba(0, 0, 0, 0.55)"
-                  >
+                  <span v-if="lastUpdated" style="font-size: 12px; color: rgba(0, 0, 0, 0.55)">
                     Updated {{ lastUpdatedRelative }}
                   </span>
-                  <a-button size="small" :disabled="isLiveLoading" @click="refresh">
-                    ↻
-                  </a-button>
+                  <a-button size="small" :disabled="isLiveLoading" @click="refresh"> ↻ </a-button>
                 </div>
               </div>
             </div>
@@ -500,14 +498,14 @@ const goBack = () => {
                 :message="`Confirming outage: ${confirmationProgress}`"
                 :description="`Next confirmation check in ${nextConfirmationCountdown}`"
               />
-                            <a-alert
-                              v-if="isFlapping"
-                              style="margin-bottom: 16px"
-                              type="warning"
-                              show-icon
-                              message="Service is flapping"
-                              :description="`${flappingTransitionText}${flappingDuration ? ` over ${flappingDuration}` : ''}. Alerts suppressed until service stabilizes.`"
-                            />
+              <a-alert
+                v-if="isFlapping"
+                style="margin-bottom: 16px"
+                type="warning"
+                show-icon
+                message="Service is flapping"
+                :description="`${flappingTransitionText}${flappingDuration ? ` over ${flappingDuration}` : ''}. Alerts suppressed until service stabilizes.`"
+              />
               <a-row :gutter="16">
                 <a-col :xs="12" :sm="8">
                   <div style="text-align: center">
@@ -911,7 +909,15 @@ const goBack = () => {
                           {{ formatExpirationDate(resource.metadata.ssl_expiration_date) }}
                         </span>
                       </div>
-                      <div style="margin-top: 8px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap">
+                      <div
+                        style="
+                          margin-top: 8px;
+                          display: flex;
+                          align-items: center;
+                          gap: 8px;
+                          flex-wrap: wrap;
+                        "
+                      >
                         <a-tag
                           :color="getExpirationStatus(resource.metadata.ssl_expiration_date).color"
                         >
@@ -933,7 +939,11 @@ const goBack = () => {
                           {{ getExpirationStatus(resource.metadata.ssl_expiration_date).text }}
                         </a-tag>
                         <ExpiryBadge
-                          v-if="resource.expiry_status && resource.expiry_status !== 'ok' && resource.metadata?.ssl_days_remaining != null"
+                          v-if="
+                            resource.expiry_status &&
+                            resource.expiry_status !== 'ok' &&
+                            resource.metadata?.ssl_days_remaining != null
+                          "
                           type="ssl"
                           :days-remaining="resource.metadata.ssl_days_remaining"
                           :status="resource.expiry_status"
@@ -990,7 +1000,15 @@ const goBack = () => {
                           {{ formatExpirationDate(resource.metadata.domain_expiration_date) }}
                         </span>
                       </div>
-                      <div style="margin-top: 8px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap">
+                      <div
+                        style="
+                          margin-top: 8px;
+                          display: flex;
+                          align-items: center;
+                          gap: 8px;
+                          flex-wrap: wrap;
+                        "
+                      >
                         <a-tag
                           :color="
                             getExpirationStatus(resource.metadata.domain_expiration_date).color
@@ -1014,7 +1032,11 @@ const goBack = () => {
                           {{ getExpirationStatus(resource.metadata.domain_expiration_date).text }}
                         </a-tag>
                         <ExpiryBadge
-                          v-if="resource.expiry_status && resource.expiry_status !== 'ok' && resource.metadata?.domain_days_remaining != null"
+                          v-if="
+                            resource.expiry_status &&
+                            resource.expiry_status !== 'ok' &&
+                            resource.metadata?.domain_days_remaining != null
+                          "
                           type="domain"
                           :days-remaining="resource.metadata.domain_days_remaining"
                           :status="resource.expiry_status"
