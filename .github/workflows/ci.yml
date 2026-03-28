@@ -26,7 +26,7 @@ jobs:
           go-version: '1.25.1'
 
       - name: run backend tests
-        run: go test -C ./backend ./...
+        run: go test -C ./ ./...
 
   build-and-push:
     needs: backend-tests
@@ -98,21 +98,12 @@ jobs:
           
           export IMAGE_REPO
           export OGOUNE_IMAGE="${IMAGE_REPO}@${DIGEST}"
-          
-          if [ -f docker-compose.yml ]; then
-            yq -i ".services.ogoune.image = \"${OGOUNE_IMAGE}\"" docker-compose.yml
-          else
-            echo "docker-compose.yml not found"
-            exit 1
-          fi
 
-          if [ -f docker-compose.community.yml ]; then
-            yq -i ".services.ogoune.image = \"${OGOUNE_IMAGE}\"" docker-compose.community.yml
-          fi
+          yq -i ".services.ogoune.image = \"${OGOUNE_IMAGE}\"" docker-compose.yml
           
-          if ! git diff --quiet docker-compose.yml docker-compose.community.yml; then
+          if ! git diff --quiet docker-compose.yml; then
             echo "Changes detected:"
-            git diff docker-compose.yml docker-compose.community.yml
+            git diff docker-compose.yml
           else
             echo "No changes detected, skipping commit"
             exit 0
