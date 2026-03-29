@@ -14,7 +14,7 @@ interface Props {
 const props = defineProps<Props>()
 const emit = defineEmits<{ submit: [] }>()
 
-const { addResource, updateResourceData } = useResources()
+const { addResource, updateResourceData, capabilities, loadCapabilities } = useResources()
 
 const form = ref<CreateResource & { component_id?: string }>({
   name: '',
@@ -149,6 +149,7 @@ const { components, loadComponents } = useComponents()
 onMounted(() => {
   loadTags()
   loadComponents()
+  loadCapabilities()
 })
 
 const tagsOptions = computed(() => tags.value.map((tag) => ({ value: tag.name, label: tag.name })))
@@ -157,6 +158,36 @@ const componentOptions = computed(() => [
   { value: undefined, label: '⊘ No component (standalone resource)' },
   ...components.value.map((c) => ({ value: c.id, label: c.name })),
 ])
+
+const targetPlaceholder = computed(() => {
+  switch (form.value.type) {
+    case 'dns':
+      return 'e.g., example.com or 8.8.8.8'
+    case 'icmp':
+      return 'e.g., hostname or IP address (e.g., 8.8.8.8)'
+    default:
+      return 'e.g., https://example.com or example.com:8080'
+  }
+})
+
+const icmpWarning = computed(() => {
+  if (form.value.type !== 'icmp') return null
+  if (!capabilities.value) return null
+  const icmp = capabilities.value.icmp
+  if (!icmp.enabled) {
+    return {
+      type: 'error' as const,
+      message: 'ICMP monitoring is disabled (set ENABLE_ICMP=true to enable)',
+    }
+  }
+  if (!icmp.capability_available) {
+    return {
+      type: 'warning' as const,
+      message: `ICMP capability unavailable: ${icmp.reason || 'requires elevated privileges (root or CAP_NET_RAW)'}`,
+    }
+  }
+  return null
+})
 </script>
 
 <template>
@@ -178,6 +209,7 @@ const componentOptions = computed(() => [
             <a-select-option value="http">HTTP/HTTPS</a-select-option>
             <a-select-option value="tcp">TCP</a-select-option>
             <a-select-option value="dns">DNS</a-select-option>
+            <a-select-option value="icmp">ICMP (Ping)</a-select-option>
           </a-select>
         </a-form-item>
       </a-col>
@@ -186,15 +218,20 @@ const componentOptions = computed(() => [
         <a-form-item label="Target" required>
           <a-input
             v-model:value="form.target"
-            :placeholder="
-              form.type === 'dns'
-                ? 'e.g., example.com or 8.8.8.8'
-                : 'e.g., https://example.com or example.com:8080'
-            "
+            :placeholder="targetPlaceholder"
           />
         </a-form-item>
       </a-col>
     </a-row>
+
+    <!-- ICMP availability warning -->
+    <a-alert
+      v-if="icmpWarning"
+      style="margin-bottom: 16px"
+      :type="icmpWarning.type"
+      show-icon
+      :message="icmpWarning.message"
+    />
 
     <!-- Interval -->
     <a-form-item label="Check Interval (seconds)">

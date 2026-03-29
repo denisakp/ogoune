@@ -16,7 +16,7 @@ export interface ResourceMetadata {
 export interface Resource {
   id: string
   name: string
-  type: 'http' | 'tcp' | 'dns'
+  type: 'http' | 'tcp' | 'dns' | 'icmp'
   target: string
   interval: number // in seconds
   timeout: number // in seconds
@@ -77,7 +77,7 @@ export interface StatsSummary {
 
 export interface CreateResource {
   name: string
-  type: 'http' | 'tcp' | 'dns'
+  type: 'http' | 'tcp' | 'dns' | 'icmp'
   target: string
   interval: number
   timeout: number
@@ -182,6 +182,11 @@ export interface IncidentDiagnostics {
   // Flags
   body_truncated: boolean
   body_encoded: boolean
+  // ICMP network diagnostics (optional, present only when enrichment ran)
+  icmp_available?: boolean | null
+  icmp_reachable?: boolean | null
+  icmp_rtt_ms?: number | null
+  root_cause_hint?: string | null
 }
 
 /**
@@ -200,6 +205,22 @@ export interface Incident {
   event_steps?: IncidentEventStep[]
   created_at: string
   updated_at: string
+}
+
+/**
+ * ICMP capability availability state returned by GET /system/capabilities
+ */
+export interface ICMPAvailabilityState {
+  enabled: boolean
+  capability_available: boolean
+  reason: string
+}
+
+/**
+ * System capabilities response
+ */
+export interface SystemCapabilities {
+  icmp: ICMPAvailabilityState
 }
 
 export interface IncidentsQueryParams {

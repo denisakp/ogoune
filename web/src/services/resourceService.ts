@@ -1,7 +1,7 @@
 import type { AxiosRequestConfig } from 'axios'
 
 import axiosHelper from '../libs/axios.helper'
-import type { CreateResource, Resource, UpdateResource, HourlyUptimeStat } from '@/types'
+import type { CreateResource, Resource, UpdateResource, HourlyUptimeStat, SystemCapabilities } from '@/types'
 
 interface CustomAxiosConfig extends AxiosRequestConfig {
   successMessage?: string
@@ -104,4 +104,12 @@ export const addTagsToResource = async (resourceId: string, tagIds: string[]): P
  */
 export const removeTagFromResource = async (resourceId: string, tagId: string): Promise<void> => {
   await axiosHelper.delete(`/resources/${resourceId}/tags/${tagId}`)
+}
+
+/**
+ * Fetch system capabilities (ICMP availability state)
+ */
+export const fetchCapabilities = async (): Promise<SystemCapabilities> => {
+  const { data } = await axiosHelper.get<SystemCapabilities>('/system/capabilities')
+  return data
 }

@@ -15,6 +15,8 @@ vi.mock('@/composables/useResources.ts', () => ({
   useResources: () => ({
     addResource: addResourceMock,
     updateResourceData: updateResourceDataMock,
+    loadCapabilities: vi.fn(),
+    capabilities: { value: null },
   }),
 }))
 

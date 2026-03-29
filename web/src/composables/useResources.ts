@@ -4,13 +4,14 @@ import { useResourceStore } from '@/stores/resourceStore'
 
 export function useResources() {
   const store = useResourceStore()
-  const { resources, loading, error } = storeToRefs(store)
+  const { resources, loading, error, capabilities } = storeToRefs(store)
 
   return {
     // Reactive state
     resources,
     loading,
     error,
+    capabilities,
     // Store actions
     loadResources: store.loadResources,
     loadResource: store.loadResource,
@@ -21,5 +22,6 @@ export function useResources() {
     updateResourceData: store.updateResourceData,
     pauseResource: store.pauseMonitoring,
     resumeResource: store.resumeMonitoring,
+    loadCapabilities: store.loadCapabilities,
   }
 }

@@ -43,7 +43,7 @@ type Config struct {
 	FlapMaxDurationMinutes  int
 	ReminderIntervalMinutes int
 	GroupingWindowSeconds   int
-    // ICMP configuration
+	// ICMP configuration
 	EnableICMP bool
 }
 
