@@ -268,6 +268,19 @@ type IncidentDiagnostics struct {
 
 func (IncidentDiagnostics) TableName() string { return "incident_diagnostics" }
 
+// WithICMP merges ICMP enrichment results into diagnostics.
+// This is called after a DOWN check fails to populate network diagnostic fields.
+func (d *IncidentDiagnostics) WithICMP(icmpAvailable, icmpReachable *bool, icmpRttMs *int, rootCauseHint string) *IncidentDiagnostics {
+	if d == nil {
+		return d
+	}
+	d.ICMPAvailable = icmpAvailable
+	d.ICMPReachable = icmpReachable
+	d.ICMPRttMs = icmpRttMs
+	d.RootCauseHint = rootCauseHint
+	return d
+}
+
 type IncidentEventStepType string
 
 const (

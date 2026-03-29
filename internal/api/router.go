@@ -64,6 +64,7 @@ func NewRouter(
 	r.Get("/status", statusPageHandler.HandleStatusPage)
 	r.Get("/status/{resourceId}", statusPageHandler.HandleResourceDetailStatus) // GET /status/{resourceId} - get detailed status for a specific resource
 	r.Get("/system/edition", systemHandler.GetEdition)
+	r.Get("/system/capabilities", systemHandler.GetCapabilities)
 
 	// ========================================
 	// Protected Routes (authentication required)

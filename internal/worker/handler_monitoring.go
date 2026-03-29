@@ -9,6 +9,7 @@ import (
 
 	"github.com/denisakp/ogoune/internal/config"
 	"github.com/denisakp/ogoune/internal/domain"
+	icmppkg "github.com/denisakp/ogoune/internal/icmp"
 	"github.com/denisakp/ogoune/internal/monitoring"
 	"github.com/denisakp/ogoune/internal/repository"
 	"github.com/denisakp/ogoune/internal/service"
@@ -32,6 +33,7 @@ type incidentManager interface {
 	NotifyFlapping(ctx context.Context, r *domain.Resource, transitionCount, windowSeconds, maxDurationMinutes int) error
 	NotifyStabilized(ctx context.Context, r *domain.Resource, finalStatus domain.ResourceStatus) error
 	SendReminderIfDue(ctx context.Context, r *domain.Resource) error
+	FindLatestIncidentForResource(ctx context.Context, resourceID string) (*domain.Incident, error)
 }
 
 type confirmationRescheduler interface {
@@ -230,6 +232,12 @@ func (h *MonitoringTaskHandler) ProcessTask(ctx context.Context, task *asynq.Tas
 			}
 			if err := h.incidents.CreateIncident(ctx, resource, result); err != nil {
 				fmt.Printf("Warning: failed to create incident at threshold crossing: %v\n", err)
+			} else {
+				// Enrich diagnostics with ICMP probe results for failed checks.
+				cfg := config.Load()
+				if cfg.EnableICMP {
+					h.enrichIncidentDiagnostics(ctx, resource.ID, resource.Type, resource.Target, result)
+				}
 			}
 		}
 
@@ -376,4 +384,51 @@ func (h *MonitoringTaskHandler) persistIncidentDiagnostics(ctx context.Context, 
 
 	fmt.Printf("Persisted diagnostics for incident %s\n", latestIncident.ID)
 	return nil
+}
+
+// enrichIncidentDiagnostics enriches incident diagnostics with ICMP probe results.
+// This runs immediately after incident creation for a DOWN check.
+// For non-ICMP monitors, it runs one active probe with fixed 2s timeout.
+// For ICMP monitors, it reuses the existing check result and never probes again.
+func (h *MonitoringTaskHandler) enrichIncidentDiagnostics(ctx context.Context, resourceID string, resourceType domain.ResourceType, target string, result domain.CheckResult) {
+	// Use a bounded context for enrichment work.
+	enrichCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+
+	latestIncident, err := h.incidents.FindLatestIncidentForResource(enrichCtx, resourceID)
+	if err != nil {
+		fmt.Printf("[ENRICHMENT] Failed to fetch latest incident for resource %s: %v\n", resourceID, err)
+		return
+	}
+
+	if latestIncident.ResolvedAt != nil {
+		// Skip if already resolved
+		return
+	}
+
+	// Query diagnostics for this incident
+	diag, err := h.diagnostics.FindByIncidentID(enrichCtx, latestIncident.ID)
+	if err != nil {
+		fmt.Printf("[ENRICHMENT] Failed to fetch diagnostics for incident %s: %v\n", latestIncident.ID, err)
+		return
+	}
+
+	if diag == nil {
+		fmt.Printf("[ENRICHMENT] No diagnostics found for incident %s\n", latestIncident.ID)
+		return
+	}
+
+	// Call enricher (fixed 2s timeout for active probes)
+	enrichment := icmppkg.Enrich(resourceType, target, result)
+
+	// Merge enrichment results into diagnostics
+	diag.WithICMP(enrichment.ICMPAvailable, enrichment.ICMPReachable, enrichment.ICMPRTTMs, enrichment.RootCauseHint)
+
+	// Persist enriched diagnostics
+	if err := h.diagnostics.Update(enrichCtx, diag); err != nil {
+		fmt.Printf("[ENRICHMENT] Failed to update diagnostics for incident %s: %v\n", latestIncident.ID, err)
+		return
+	}
+
+	fmt.Printf("[ENRICHMENT] Enriched diagnostics for incident %s (hint: %s)\n", latestIncident.ID, enrichment.RootCauseHint)
 }

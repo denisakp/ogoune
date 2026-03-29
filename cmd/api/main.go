@@ -125,6 +125,19 @@ func runStartupPendingNotificationRetry(ctx context.Context, retryService pendin
 	)
 }
 
+func logICMPCapabilityState(enableICMP bool, capability icmppkg.CapabilityResult) {
+	if enableICMP {
+		if capability.Available {
+			log.Println("✓ [ICMP] ICMP probing enabled and capability available")
+		} else {
+			log.Printf("[ICMP] ICMP probing enabled but capability unavailable: %s", capability.Reason)
+		}
+		return
+	}
+
+	log.Println("[ICMP] ICMP probing disabled (set ENABLE_ICMP=true to enable)")
+}
+
 func main() {
 	log.Println("========================================")
 	log.Println("Starting Ogoune Application...")
@@ -155,15 +168,7 @@ func main() {
 
 	// Detect ICMP capability at startup — never fails startup.
 	icmpCapability := icmppkg.Detect()
-	if cfg.EnableICMP {
-		if icmpCapability.Available {
-			log.Println("✓ [ICMP] ICMP probing enabled and capability available")
-		} else {
-			log.Printf("[ICMP] ICMP probing enabled but capability unavailable: %s", icmpCapability.Reason)
-		}
-	} else {
-		log.Println("[ICMP] ICMP probing disabled (set ENABLE_ICMP=true to enable)")
-	}
+	logICMPCapabilityState(cfg.EnableICMP, icmpCapability)
 
 	log.Printf("[auth] Authentication enabled with email: %s", cfg.AuthEmail)
 	log.Println("[auth] JWT-based authentication configured")

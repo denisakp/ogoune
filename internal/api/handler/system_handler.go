@@ -5,7 +5,10 @@ import (
 	"os"
 
 	"github.com/denisakp/ogoune/internal/api/response"
+	"github.com/denisakp/ogoune/internal/config"
+	"github.com/denisakp/ogoune/internal/dto"
 	"github.com/denisakp/ogoune/internal/ee/license"
+	icmppkg "github.com/denisakp/ogoune/internal/icmp"
 )
 
 type SystemHandler struct{}
@@ -28,5 +31,18 @@ func (h *SystemHandler) GetEdition(w http.ResponseWriter, r *http.Request) {
 	response.JSON(w, http.StatusOK, editionResponse{
 		Edition: string(license.Get()),
 		Version: version,
+	})
+}
+
+func (h *SystemHandler) GetCapabilities(w http.ResponseWriter, r *http.Request) {
+	cfg := config.Load()
+	capability := icmppkg.Detect()
+
+	response.JSON(w, http.StatusOK, dto.SystemCapabilitiesResponse{
+		ICMP: dto.ICMPAvailabilityState{
+			Enabled:             cfg.EnableICMP,
+			CapabilityAvailable: capability.Available,
+			Reason:              capability.Reason,
+		},
 	})
 }
