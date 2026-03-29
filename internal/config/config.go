@@ -43,6 +43,8 @@ type Config struct {
 	FlapMaxDurationMinutes  int
 	ReminderIntervalMinutes int
 	GroupingWindowSeconds   int
+    // ICMP configuration
+	EnableICMP bool
 }
 
 // Load reads configuration from environment variables.
@@ -64,6 +66,7 @@ func Load() Config {
 	flapMaxDurationMinutes := parseInt(GetEnv("FLAP_MAX_DURATION_MINUTES", "30"))
 	reminderIntervalMinutes := parseInt(GetEnv("REMINDER_INTERVAL_MINUTES", "0"))
 	groupingWindowSeconds := parseInt(GetEnv("GROUPING_WINDOW_SECONDS", "30"))
+	enableICMP := parseBool(GetEnv("ENABLE_ICMP", "false"), false)
 
 	cfg := Config{
 		RedisUrl:         GetEnv("REDIS_URL", "localhost:6379"),
@@ -95,6 +98,7 @@ func Load() Config {
 		FlapMaxDurationMinutes:         flapMaxDurationMinutes,
 		ReminderIntervalMinutes:        reminderIntervalMinutes,
 		GroupingWindowSeconds:          groupingWindowSeconds,
+		EnableICMP:                     enableICMP,
 	}
 	return cfg
 }

@@ -18,6 +18,7 @@ import (
 	dbruntime "github.com/denisakp/ogoune/internal/database"
 	"github.com/denisakp/ogoune/internal/domain"
 	"github.com/denisakp/ogoune/internal/ee/license"
+	icmppkg "github.com/denisakp/ogoune/internal/icmp"
 	"github.com/denisakp/ogoune/internal/maintenance"
 	"github.com/denisakp/ogoune/internal/monitoring"
 	"github.com/denisakp/ogoune/internal/monitoring/strategy"
@@ -151,6 +152,18 @@ func main() {
 	}
 
 	log.Println("✓ Database connection established successfully")
+
+	// Detect ICMP capability at startup — never fails startup.
+	icmpCapability := icmppkg.Detect()
+	if cfg.EnableICMP {
+		if icmpCapability.Available {
+			log.Println("✓ [ICMP] ICMP probing enabled and capability available")
+		} else {
+			log.Printf("[ICMP] ICMP probing enabled but capability unavailable: %s", icmpCapability.Reason)
+		}
+	} else {
+		log.Println("[ICMP] ICMP probing disabled (set ENABLE_ICMP=true to enable)")
+	}
 
 	log.Printf("[auth] Authentication enabled with email: %s", cfg.AuthEmail)
 	log.Println("[auth] JWT-based authentication configured")
@@ -328,8 +341,7 @@ func main() {
 			strategies := map[domain.ResourceType]domain.CheckStrategy{
 				domain.ResourceHTTP: strategy.NewHTTPStrategy(30 * time.Second),
 				domain.ResourceTCP:  strategy.NewTCPStrategy(30 * time.Second),
-				domain.ResourceDNS:  strategy.NewDNSStrategy(30 * time.Second),
-			}
+				domain.ResourceDNS:  strategy.NewDNSStrategy(30 * time.Second), domain.ResourceICMP: strategy.NewICMPStrategy()}
 			executor := domain.NewCheckExecutor(strategies)
 
 			incidentService := monitoring.NewIncidentService(
@@ -445,6 +457,7 @@ func main() {
 			domain.ResourceHTTP: strategy.NewHTTPStrategy(30 * time.Second),
 			domain.ResourceTCP:  strategy.NewTCPStrategy(30 * time.Second),
 			domain.ResourceDNS:  strategy.NewDNSStrategy(30 * time.Second),
+			domain.ResourceICMP: strategy.NewICMPStrategy(),
 		}
 		executor := domain.NewCheckExecutor(strategies)
 

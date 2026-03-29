@@ -45,6 +45,7 @@ const (
 	ResourceHTTP ResourceType = "http"
 	ResourceTCP  ResourceType = "tcp"
 	ResourceDNS  ResourceType = "dns"
+	ResourceICMP ResourceType = "icmp"
 )
 
 type ResourceStatus string
@@ -257,6 +258,12 @@ type IncidentDiagnostics struct {
 	FirstByteDuration int               `json:"first_byte_duration"`                      // Milliseconds (0 if body not captured)
 	BodyTruncated     bool              `json:"body_truncated"`                           // true if response body was truncated
 	BodyEncoded       bool              `json:"body_encoded"`                             // true if response body is base64 encoded
+
+	// ICMP enrichment fields (H2: populated by diagnostic enricher for all DOWN incidents)
+	ICMPAvailable *bool  `json:"icmp_available" gorm:"default:null"` // whether ICMP capability was available at enrichment time
+	ICMPReachable *bool  `json:"icmp_reachable" gorm:"default:null"` // whether host replied to ICMP echo
+	ICMPRttMs     *int   `json:"icmp_rtt_ms" gorm:"default:null"`    // round-trip time in ms; null when unreachable
+	RootCauseHint string `json:"root_cause_hint" gorm:"default:''"`  // enum: icmp_unavailable|host_unreachable|service_down|""
 }
 
 func (IncidentDiagnostics) TableName() string { return "incident_diagnostics" }
