@@ -3,56 +3,34 @@
 Auto-generated from all feature plans. Last updated: 2026-03-29
 
 ## Active Technologies
-- Go 1.25.x (backend), TypeScript/Vue 3 (frontend unchanged) + Chi router, GORM, Asynq (`github.com/hibiken/asynq`), Redis (Asynq mode only), existing notifier package (`pkg/notifier`) (003-in-process-scheduler)
-- SQLite or PostgreSQL via existing DB runtime (`DB_DRIVER`) (003-in-process-scheduler)
-- Go 1.25.x (backend), TypeScript 5.x/Vue 3 (frontend unchanged) + Chi router, GORM, Asynq (hosted path), Redis (hosted compatibility lane), notifier package (003-in-process-scheduler)
-- SQLite and PostgreSQL via current DB driver abstraction (003-in-process-scheduler)
-- Go 1.21+ (matching backend) (004-activate-dns-monitor)
-- PostgreSQL + SQLite (existing, no changes required) (004-activate-dns-monitor)
-- Go 1.25.x (backend), TypeScript 5.x + Vue 3 (frontend) + Chi router, GORM, Asynq, in-process scheduler (timingwheel), Pinia, Axios helper (005-confirmation-window)
-- PostgreSQL and SQLite (dual support required) (005-confirmation-window)
-- Go 1.22 (backend), TypeScript / Vue 3 (frontend) + Chi (HTTP router), GORM (ORM), Asynq (task queue / PostgreSQL mode), TimingWheel (task scheduler / SQLite community mode), Ant Design Vue (UI components) (006-ssl-domain-expiry-alerts)
-- PostgreSQL (hosted/default) + SQLite (community edition) — dual migration files required for every schema change (006-ssl-domain-expiry-alerts)
-- Go 1.22 (backend), TypeScript / Vue 3 (frontend) + GORM, Asynq, Chi, Ant Design Vue, Pinia (007-intelligent-alerting)
-- PostgreSQL (primary) + SQLite (dev/CE default) via dual migration track (007-intelligent-alerting)
-- Go 1.22 (backend), TypeScript / Vue 3.4 (frontend) + Chi v5, GORM, Asynq (backend); Vue 3, Pinia, Ant Design Vue, Vite (frontend) (008-live-monitor-refresh)
-- PostgreSQL (primary/hosted) + SQLite (community/self-hosted) — raw SQL migrations (008-live-monitor-refresh)
-- TypeScript 5, Vue 3.4 + Ant Design Vue 4 (`a-form-item`, `a-select`, `a-tag`), Vite 5 (009-ui-notification-cleanup)
-- Go 1.25.1 (backend), TypeScript 5 + Vue 3.5 (frontend) + Chi router, GORM repositories, Asynq worker path, Ant Design Vue settings UI (010-incident-diagnostic-fixes)
-- PostgreSQL/SQLite via existing GORM models (no schema migration expected) (010-incident-diagnostic-fixes)
-- Go 1.25 (backend) / TypeScript 5 + Vue 3.5 (frontend) + Chi v5 (router), GORM (ORM), `crypt# Implementation Plan: API Keys Managemen (011-api-key-management)
-- Go 1.23.x (backend monolith), TypeScript 5.x (frontend unaffected for this feature) + Chi router, GORM, Asynq scheduler adapter, Testify, fake repositories under `backend/internal/repository/fake` (012-fix-confirmation-window)
-- PostgreSQL (primary), SQLite (community/local mode), existing resource and incident tables (012-fix-confirmation-window)
-- Go 1.23.x backend monolith; TypeScript/Vue frontend unchanged for this feature + GORM runtime, embedded SQL migrations, Asynq runtime, Chi, Testify, existing notifier implementations in `backend/pkg/notifier` (013-retry-pending-notifications)
-- PostgreSQL and SQLite via `internal/database` with authoritative SQL migrations (013-retry-pending-notifications)
-- Go 1.23.x (backend), TypeScript 5.x + Vue 3.x (frontend) + Chi router, Ant Design Vue, Pinia, Vue Router, Vite build pipeline (014-add-status-entrypoint)
-- N/A (no persistence model or schema change) (014-add-status-entrypoint)
-- Go 1.25.1 (backend), TypeScript 5.9 + Vue 3.5 (frontend) + Chi router, GORM, Asynq, Ant Design Vue, Pinia, Axios, Vite 7 (015-project-restructuring)
-- PostgreSQL and SQLite runtime support; filesystem-backed static assets; existing SQLite test fixture under repository tests (015-project-restructuring)
-- Go (backend), TypeScript/Vue (frontend web) + Chi, GORM, Asynq/Redis, Vue 3, Pinia, Axios, Ant Design Vue (016-project-rename-ogoune)
-- PostgreSQL or SQLite runtime (no schema changes in this feature) (016-project-rename-ogoune)
-- Go 1.25.1 + Go testing package, Testify, scheduler/asynq runtime components already present in repository (018-fix-test-suite-hangs)
-- SQLite/PostgreSQL runtime paths exist but this feature adds no schema/data change (018-fix-test-suite-hangs)
-- Go 1.25.1 (backend), TypeScript + Vue 3 (web UI) + `golang.org/x/net/icmp`, existing scheduler/monitoring services, existing Vue + Ant Design Vue stack (019-icmp-issue-split)
-- Existing PostgreSQL/SQLite persistence via GORM; diagnostics JSON enriched with ICMP fields (019-icmp-issue-split)
-
-- Go 1.25.1 (backend), TypeScript/Vue 3 (frontend unaffected for this feature) + `gorm.io/gorm`, `gorm.io/driver/postgres`, `github.com/glebarez/sqlite` (new), `github.com/stretchr/testify` (002-add-db-driver-abstraction)
+- Go 1.25.x (backend at repository root: `./`) and TypeScript 5 + Vue 3 (frontend in `./web`).
+- Backend: Chi v5 router, GORM, Asynq, optional Redis (Asynq mode), notifier package in `pkg/notifier`.
+- Frontend (`./web`): Vite, Pinia, Axios helper, Ant Design Vue.
+- Monitoring supports HTTP, TCP, DNS, and optional ICMP (`ENABLE_ICMP`).
+- Datastores: PostgreSQL and SQLite, with dual SQL migrations under `internal/database/migrations/{postgres,sqlite}`.
 
 ## Project Structure
 
 ```text
-backend/
-frontend/
-tests/
+./                  # backend root (cmd, internal, pkg, configs, docs)
+web/                # frontend app
+internal/           # backend domain/services/api/worker/database
+cmd/                # backend entrypoints
+pkg/                # shared backend packages
+specs/              # feature specs/tasks/verification
 ```
 
 ## Commands
 
-npm test && npm run lint
+go test -race -timeout 120s ./...
+go build ./...
+cd web && pnpm test
+cd web && pnpm build
 
 ## Code Style
 
-Go 1.25.1 (backend), TypeScript/Vue 3 (frontend unaffected for this feature): Follow standard conventions
+Go (backend): standard gofmt/go test conventions and existing service-repository-handler layering.
+TypeScript/Vue (web frontend): existing composable/store/service separation and Ant Design Vue patterns.
 
 ## Recent Changes
 - 019-icmp-issue-split: Added Go 1.25.1 (backend), TypeScript + Vue 3 (web UI) + `golang.org/x/net/icmp`, existing scheduler/monitoring services, existing Vue + Ant Design Vue stack

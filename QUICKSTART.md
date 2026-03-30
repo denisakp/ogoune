@@ -328,6 +328,27 @@ To verify DNS resolution for a domain:
 | **Type** | `DNS` |
 | **Target** | `example.com` |
 
+### 1.7 Add an ICMP monitor (optional)
+
+ICMP monitoring is opt-in because raw ICMP sockets depend on host/container capabilities that are not universally available by default.
+
+Enable it in `.env` first:
+
+```env
+ENABLE_ICMP=true
+```
+
+Then restart the app and open **Monitors → + Add Monitor**.
+
+| Field | Example | Notes |
+|---|---|---|
+| **Type** | `ICMP` | Ping-based reachability check |
+| **Target** | `1.1.1.1` or `example.com` | Hostname or IP address |
+
+What to expect after enabling it:
+- if the runtime has the required capability, ICMP monitor creation is available and incident diagnostics can include ICMP reachability hints
+- if the runtime does not have the required capability, startup still succeeds, the UI warns that ICMP is unavailable, and ICMP monitor creation is blocked until the capability is granted
+
 ---
 
 ## Step 2 — Configure notifications
@@ -474,6 +495,11 @@ Always click **Test** after creating a channel. It sends a test notification imm
 
 Full list of all available configuration options.
 
+ICMP:
+- `ENABLE_ICMP=false` by default
+- set `ENABLE_ICMP=true` to enable ICMP monitor creation and ICMP-backed incident diagnostics
+- if the runtime lacks the required raw-socket capability, Ogoune continues to start and reports ICMP as unavailable instead of failing startup
+
 ```env
 # ── Database ────────────────────────────────────────────────────────────────
 DB_DRIVER=sqlite              # sqlite | postgres
@@ -495,6 +521,7 @@ EXPIRY_ALERT_THRESHOLDS=30,14,7,1  # Days before SSL/domain expiry to alert
 # ── Application ──────────────────────────────────────────────────────────────
 APP_PORT=8080
 APP_ENV=production            # development | production
+ENABLE_ICMP=false             # Optional ICMP monitoring
 
 # ── Security ─────────────────────────────────────────────────────────────────
 JWT_SECRET=                   # Required — use `openssl rand -hex 32` to generate
@@ -504,6 +531,22 @@ ADMIN_EMAIL=admin@ogoune.test  # Default admin account email
 ---
 
 ## Troubleshooting
+
+### ICMP shows as unavailable
+
+Symptoms:
+- The monitor form warns that ICMP is unavailable
+- `GET /api/system/capabilities` returns `icmp.capability_available=false`
+- Creating an ICMP monitor returns `422`
+
+Checks:
+- Confirm `.env` contains `ENABLE_ICMP=true`
+- If running in Docker, grant the container the network capability required for raw ICMP sockets on your platform
+- Restart Ogoune after changing environment or container capabilities
+
+Expected behavior:
+- Ogoune startup still succeeds even when ICMP capability is missing
+- Existing HTTP, TCP, and DNS monitoring continues unchanged
 
 ### Container starts but I can't open the UI
 

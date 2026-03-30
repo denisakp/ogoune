@@ -100,6 +100,7 @@ Set `confirmation_checks: 1` to restore immediate alerts.
 | HTTP / HTTPS checks | Monitor websites and APIs |
 | TCP port checks | Monitor any service port |
 | DNS checks | Verify DNS resolution |
+| ICMP ping checks | Optional host reachability monitoring when the runtime has raw-socket capability |
 | SSL expiry warnings | Get notified before certs expire |
 | Domain expiry warnings | Get notified before domains expire |
 | Confirmation window | N consecutive failures before alerting |
@@ -166,13 +167,30 @@ APP_SECRET_KEY=change-me    # openssl rand -hex 32
 ENTERPRISE_LICENSE_KEY=     # leave empty for Community Edition
 ```
 
+### Optional ICMP monitoring
+
+ICMP monitoring is opt-in because raw ICMP sockets depend on host/container capabilities that are not universally available by default.
+
+Enable it only when you want ping-based monitoring or ICMP-backed network diagnostics for incidents:
+
+```env
+ENABLE_ICMP=true
+```
+
+When `ENABLE_ICMP=false` (default), Ogoune keeps HTTP, TCP, and DNS behavior unchanged and skips ICMP-specific checks and diagnostics.
+
+When `ENABLE_ICMP=true`, Ogoune starts normally in both cases:
+
+- if the runtime has the required capability, ICMP monitor creation and ICMP-backed diagnostics are available
+- if the runtime does not have the required capability, startup continues, the UI/API report ICMP as unavailable, and ICMP monitor creation is rejected until capability is granted
+
 ---
 
 ## Roadmap
 
 See [ROADMAP.md](./ROADMAP.md) for the full roadmap.
 
-**Coming in H2:** Ping/ICMP, Heartbeat/Push, Keyword checks, Prometheus metrics, IMAP/SMTP, Telegram, Digest 
+**Coming in H2:** Heartbeat/Push, Keyword checks, Prometheus metrics, IMAP/SMTP, Telegram, Digest
 notifications, API v1, credential encryption.
 
 **Coming in H3:** Toolbox, Enterprise Edition (multi-tenancy, SSO, billing, agent device monitoring).
