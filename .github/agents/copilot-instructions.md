@@ -33,7 +33,7 @@ Go (backend): standard gofmt/go test conventions and existing service-repository
 TypeScript/Vue (web frontend): existing composable/store/service separation and Ant Design Vue patterns.
 
 ## Recent Changes
-- 019-icmp-issue-split: Added Go 1.25.1 (backend), TypeScript + Vue 3 (web UI) + `golang.org/x/net/icmp`, existing scheduler/monitoring services, existing Vue + Ant Design Vue stack
+- feat/019-ping-icmp-check: Added Go 1.25.1 (backend), TypeScript + Vue 3 (web UI) + `golang.org/x/net/icmp`, existing scheduler/monitoring services, existing Vue + Ant Design Vue stack
 - 018-fix-test-suite-hangs: Added Go 1.25.1 + Go testing package, Testify, scheduler/asynq runtime components already present in repository
 - 016-project-rename-ogoune: Added Go (backend), TypeScript/Vue (frontend web) + Chi, GORM, Asynq/Redis, Vue 3, Pinia, Axios, Ant Design Vue
 
