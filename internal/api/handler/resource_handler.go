@@ -145,6 +145,10 @@ func (h *ResourceHandler) CreateResource(w http.ResponseWriter, r *http.Request)
 	// Call service layer to create resource (which will also schedule monitoring)
 	created, err := h.resourceService.CreateResource(r.Context(), &resource)
 	if err != nil {
+		if errors.Is(err, service.ErrICMPUnavailable) {
+			respondError(w, http.StatusUnprocessableEntity, err.Error())
+			return
+		}
 		if errors.Is(err, service.ErrValidationFailed) {
 			respondError(w, http.StatusBadRequest, err.Error())
 			return

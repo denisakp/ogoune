@@ -13,7 +13,7 @@ type CreateResourcePayload struct {
 	Type                    domain.ResourceType `json:"type" binding:"required"`
 	Interval                int                 `json:"interval" binding:"required,min=10,max=3600"`
 	Timeout                 int                 `json:"timeout" binding:"required,min=1,max=60"`
-	Target                  string              `json:"target" binding:"required,url"`
+	Target                  string              `json:"target" binding:"required"`
 	Tags                    []string            `json:"tags"` // Tag names - will be created if they don't exist
 	ComponentID             *string             `json:"component_id,omitempty"`
 	ConfirmationChecks      *int                `json:"confirmation_checks,omitempty"`
@@ -112,4 +112,16 @@ func EnrichResponseExpiry(rr *ResourceResponse) {
 	rr.MetadataExt = ext
 	// Prevent the embedded Metadata field from double-serializing (MetadataExt replaces it).
 	rr.Resource.Metadata = nil
+}
+
+// ICMPAvailabilityState describes the current ICMP monitoring availability on this host.
+type ICMPAvailabilityState struct {
+	Enabled             bool   `json:"enabled"`
+	CapabilityAvailable bool   `json:"capability_available"`
+	Reason              string `json:"reason"`
+}
+
+// SystemCapabilitiesResponse is the response body for GET /api/system/capabilities.
+type SystemCapabilitiesResponse struct {
+	ICMP ICMPAvailabilityState `json:"icmp"`
 }

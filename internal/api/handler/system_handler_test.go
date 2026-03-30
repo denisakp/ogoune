@@ -59,3 +59,42 @@ func TestSystemHandlerGetEditionEnterprise(t *testing.T) {
 		t.Fatalf("expected version 1.2.3, got %q", body["version"])
 	}
 }
+
+func TestSystemHandlerGetCapabilitiesReturnsICMPFields(t *testing.T) {
+	os.Setenv("ENABLE_ICMP", "true")
+	defer os.Unsetenv("ENABLE_ICMP")
+
+	h := NewSystemHandler()
+	req := httptest.NewRequest(http.MethodGet, "/api/system/capabilities", nil)
+	rr := httptest.NewRecorder()
+
+	h.GetCapabilities(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("expected status %d, got %d", http.StatusOK, rr.Code)
+	}
+
+	var body map[string]any
+	if err := json.Unmarshal(rr.Body.Bytes(), &body); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+
+	icmp, ok := body["icmp"].(map[string]any)
+	if !ok {
+		t.Fatalf("expected icmp object in response")
+	}
+
+	if _, ok := icmp["enabled"]; !ok {
+		t.Fatalf("expected icmp.enabled field")
+	}
+	if _, ok := icmp["capability_available"]; !ok {
+		t.Fatalf("expected icmp.capability_available field")
+	}
+	if _, ok := icmp["reason"]; !ok {
+		t.Fatalf("expected icmp.reason field")
+	}
+
+	if enabled, ok := icmp["enabled"].(bool); !ok || !enabled {
+		t.Fatalf("expected icmp.enabled=true when ENABLE_ICMP=true")
+	}
+}

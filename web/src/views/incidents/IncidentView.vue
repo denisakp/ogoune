@@ -135,6 +135,27 @@ const hasDiagnostics = computed(() => {
   return incident.value?.diagnostics !== null && incident.value?.diagnostics !== undefined
 })
 
+// Check if ICMP network diagnostics are present (T041: hide when fields absent)
+const hasICMPDiagnostics = computed(() => {
+  const diag = incident.value?.diagnostics
+  return diag != null && diag.icmp_available != null
+})
+
+// Root cause hint label and badge color for ICMP network diagnostics
+const rootCauseHintLabel = computed((): { label: string; color: string } => {
+  const hint = incident.value?.diagnostics?.root_cause_hint
+  switch (hint) {
+    case 'host_unreachable':
+      return { label: 'Host Unreachable', color: 'red' }
+    case 'service_down':
+      return { label: 'Service Down', color: 'orange' }
+    case 'icmp_unavailable':
+      return { label: 'ICMP Unavailable', color: 'default' }
+    default:
+      return { label: hint ?? 'Unknown', color: 'default' }
+  }
+})
+
 // Copy URL to clipboard
 const copyUrlToClipboard = async (url: string) => {
   try {
@@ -616,6 +637,36 @@ const handleDownloadResponse = () => {
                 :tls-duration="incident.diagnostics.tls_duration"
                 :first-byte-duration="incident.diagnostics.first_byte_duration"
               />
+            </a-card>
+
+            <a-card v-if="hasICMPDiagnostics && incident.diagnostics" style="margin-top: 16px">
+              <template #title>
+                <div style="font-size: 14px; font-weight: 600">🔍 Network Diagnostics (ICMP Ping)</div>
+              </template>
+
+              <div style="display: flex; flex-direction: column; gap: 12px">
+                <!-- Root cause hint badge -->
+                <div v-if="incident.diagnostics.root_cause_hint">
+                  <div style="font-size: 12px; color: rgba(0,0,0,0.65); margin-bottom: 6px">ROOT CAUSE HINT</div>
+                  <a-tag :color="rootCauseHintLabel.color">{{ rootCauseHintLabel.label }}</a-tag>
+                </div>
+
+                <!-- ICMP reachability -->
+                <div>
+                  <div style="font-size: 12px; color: rgba(0,0,0,0.65); margin-bottom: 6px">ICMP REACHABLE</div>
+                  <a-tag :color="incident.diagnostics.icmp_reachable ? 'green' : 'red'">
+                    {{ incident.diagnostics.icmp_reachable ? 'Yes' : 'No' }}
+                  </a-tag>
+                </div>
+
+                <!-- RTT (only when host was reachable) -->
+                <div v-if="incident.diagnostics.icmp_rtt_ms != null">
+                  <div style="font-size: 12px; color: rgba(0,0,0,0.65); margin-bottom: 6px">RTT</div>
+                  <div style="font-size: 16px; font-weight: 600">
+                    {{ incident.diagnostics.icmp_rtt_ms }} ms
+                  </div>
+                </div>
+              </div>
             </a-card>
           </a-col>
         </a-row>

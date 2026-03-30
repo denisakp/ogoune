@@ -42,4 +42,8 @@ var (
 
 	// ErrAPIKeyInvalid indicates API key lookup failed
 	ErrAPIKeyInvalid = errors.New("invalid or revoked API key")
+
+	// ErrICMPUnavailable is returned when an ICMP monitor cannot be created because ICMP
+	// is disabled or the runtime capability is not available on this host.
+	ErrICMPUnavailable = errors.New("ICMP monitoring is unavailable: enable ENABLE_ICMP and ensure raw socket capability")
 )

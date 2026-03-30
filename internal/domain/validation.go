@@ -55,6 +55,20 @@ func ValidateResourceTarget(target string, resourceType ResourceType) error {
 				return errors.New("invalid IP address or unresolvable host")
 			}
 		}
+
+	case ResourceICMP:
+		// ICMP target is a hostname or IP address (no scheme, no port)
+		if strings.TrimSpace(target) == "" {
+			return errors.New("ICMP target must not be empty")
+		}
+		// If it's a valid IP address, accept it directly
+		if net.ParseIP(target) != nil {
+			return nil
+		}
+		// Otherwise validate as hostname
+		if !isValidHostname(target) {
+			return errors.New("invalid hostname or IP address for ICMP target")
+		}
 	}
 	return nil
 }

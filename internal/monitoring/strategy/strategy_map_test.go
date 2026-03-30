@@ -12,12 +12,14 @@ func TestStrategyMapCompleteness(t *testing.T) {
 		domain.ResourceHTTP,
 		domain.ResourceTCP,
 		domain.ResourceDNS,
+		domain.ResourceICMP,
 	}
 
 	strategies := map[domain.ResourceType]domain.CheckStrategy{
 		domain.ResourceHTTP: NewHTTPStrategy(30 * time.Second),
 		domain.ResourceTCP:  NewTCPStrategy(30 * time.Second),
 		domain.ResourceDNS:  NewDNSStrategy(30 * time.Second),
+		domain.ResourceICMP: NewICMPStrategy(),
 	}
 
 	for _, rt := range expectedTypes {
@@ -37,12 +39,5 @@ func TestStrategyMapCompleteness(t *testing.T) {
 		if !found {
 			t.Errorf("strategy map has unknown ResourceType: %s", rt)
 		}
-	}
-}
-
-func TestNewDNSStrategyPublic(t *testing.T) {
-	strategy := NewDNSStrategy(30 * time.Second)
-	if strategy == nil {
-		t.Fatal("NewDNSStrategy returned nil")
 	}
 }

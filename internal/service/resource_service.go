@@ -10,6 +10,7 @@ import (
 	"github.com/denisakp/ogoune/internal/config"
 	"github.com/denisakp/ogoune/internal/domain"
 	"github.com/denisakp/ogoune/internal/dto"
+	icmppkg "github.com/denisakp/ogoune/internal/icmp"
 	"github.com/denisakp/ogoune/internal/repository"
 )
 
@@ -101,6 +102,17 @@ func (s *ResourceService) findOrCreateTags(ctx context.Context, tagNames []strin
 // After successful creation, it schedules monitoring for the resource and triggers
 // asynchronous metadata enrichment so the HTTP request is not blocked by SSL/WHOIS lookups.
 func (s *ResourceService) CreateResource(ctx context.Context, payload *dto.CreateResourcePayload) (*domain.Resource, error) {
+	// Gate ICMP monitor creation: requires ENABLE_ICMP and runtime capability.
+	if payload.Type == domain.ResourceICMP {
+		cfg := config.Load()
+		if !cfg.EnableICMP {
+			return nil, ErrICMPUnavailable
+		}
+		if cap := icmppkg.Detect(); !cap.Available {
+			return nil, ErrICMPUnavailable
+		}
+	}
+
 	// Validate target format
 	if err := domain.ValidateResourceTarget(payload.Target, payload.Type); err != nil {
 		return nil, fmt.Errorf("%w: %v", ErrValidationFailed, err)

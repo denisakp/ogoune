@@ -3,16 +3,23 @@ interface Props {
   errorSummary?: string | null
   failureType?: string | null
   errorMessage?: string | null
+  rootCauseHint?: string | null
 }
 
 const props = withDefaults(defineProps<Props>(), {
   errorSummary: null,
   failureType: null,
   errorMessage: null,
+  rootCauseHint: null,
 })
 
-// Get icon and color based on failure type
-const getFailureIcon = (failureType: string | null | undefined) => {
+// Get icon and color based on failure type or ICMP root cause hint
+const getFailureIcon = (failureType: string | null | undefined, hint: string | null | undefined) => {
+  // ICMP root-cause hints take priority
+  if (hint === 'host_unreachable') return { icon: 'disconnect', color: 'red' }
+  if (hint === 'service_down') return { icon: 'alert', color: 'orange' }
+  if (hint === 'icmp_unavailable') return { icon: 'exclamation-circle', color: 'default' }
+
   if (!failureType) return { icon: 'exclamation-circle', color: 'red' }
 
   const type = failureType.toLowerCase()
@@ -26,7 +33,7 @@ const getFailureIcon = (failureType: string | null | undefined) => {
   return { icon: 'exclamation-circle', color: 'red' }
 }
 
-const failureIcon = getFailureIcon(props.failureType)
+const failureIcon = getFailureIcon(props.failureType, props.rootCauseHint)
 </script>
 
 <template>

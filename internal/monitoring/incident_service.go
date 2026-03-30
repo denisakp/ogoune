@@ -293,6 +293,18 @@ func (s *IncidentService) findActiveIncident(ctx context.Context, resourceID str
 	return activeIncident, nil
 }
 
+// FindLatestIncidentForResource returns the latest incident (resolved or active) for a resource.
+func (s *IncidentService) FindLatestIncidentForResource(ctx context.Context, resourceID string) (*domain.Incident, error) {
+	incidents, err := s.incidents.FindByResource(ctx, resourceID, 1, 0)
+	if err != nil {
+		return nil, fmt.Errorf("failed to find incidents: %w", err)
+	}
+	if len(incidents) == 0 {
+		return nil, repository.ErrNotFound
+	}
+	return incidents[0], nil
+}
+
 // ResolveIncident resolves an active incident when a resource recovers.
 // It updates the incident, creates event steps, and triggers recovery notifications.
 // Notifications are sent via SMTP and webhook (if configured).

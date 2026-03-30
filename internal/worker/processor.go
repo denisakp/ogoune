@@ -75,6 +75,10 @@ func (p *Processor) Start(ctx context.Context) error {
 
 // Stop gracefully shuts down the processor.
 func (p *Processor) Stop() {
+	if p == nil || p.server == nil {
+		return
+	}
+
 	log.Println("Shutting down Asynq worker...")
 	p.server.Stop()
 }

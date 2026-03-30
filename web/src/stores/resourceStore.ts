@@ -2,12 +2,13 @@ import { defineStore } from 'pinia'
 import { ref } from 'vue'
 
 import * as resourceService from '@/services/resourceService'
-import type { CreateResource, Resource, UpdateResource, HourlyUptimeStat } from '@/types'
+import type { CreateResource, Resource, UpdateResource, HourlyUptimeStat, SystemCapabilities } from '@/types'
 
 export const useResourceStore = defineStore('resource', () => {
   const resources = ref<Resource[]>([])
   const loading = ref(false)
   const error = ref<string | null>(null)
+  const capabilities = ref<SystemCapabilities | null>(null)
 
   const loadResources = async () => {
     loading.value = true
@@ -160,10 +161,19 @@ export const useResourceStore = defineStore('resource', () => {
     }
   }
 
+  const loadCapabilities = async () => {
+    try {
+      capabilities.value = await resourceService.fetchCapabilities()
+    } catch {
+      // Graceful degradation: capabilities unavailable, keep null
+    }
+  }
+
   return {
     resources,
     loading,
     error,
+    capabilities,
     loadResources,
     loadResource,
     loadResourceWithResponseTimes,
@@ -173,5 +183,6 @@ export const useResourceStore = defineStore('resource', () => {
     updateResourceData,
     pauseMonitoring,
     resumeMonitoring,
+    loadCapabilities,
   }
 })
