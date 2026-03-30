@@ -42,10 +42,11 @@ func (Tags) TableName() string { return "tags" }
 type ResourceType string
 
 const (
-	ResourceHTTP ResourceType = "http"
-	ResourceTCP  ResourceType = "tcp"
-	ResourceDNS  ResourceType = "dns"
-	ResourceICMP ResourceType = "icmp"
+	ResourceHTTP      ResourceType = "http"
+	ResourceTCP       ResourceType = "tcp"
+	ResourceDNS       ResourceType = "dns"
+	ResourceICMP      ResourceType = "icmp"
+	ResourceHeartbeat ResourceType = "heartbeat"
 )
 
 type ResourceStatus string
@@ -106,7 +107,16 @@ type Resource struct {
 	LastStatusTransition    *time.Time             `json:"last_status_transition" gorm:"index"`
 	FlapStartedAt           *time.Time             `json:"flap_started_at"`
 	ReminderIntervalMinutes int                    `json:"reminder_interval_minutes" gorm:"default:0"`
+	HeartbeatSlug           *string                `json:"heartbeat_slug,omitempty" gorm:"column:heartbeat_slug;index"`
+	HeartbeatInterval       *int                   `json:"heartbeat_interval,omitempty" gorm:"column:heartbeat_interval"`
+	HeartbeatGrace          *int                   `json:"heartbeat_grace,omitempty" gorm:"column:heartbeat_grace"`
+	LastPingAt              *time.Time             `json:"last_ping_at,omitempty" gorm:"column:last_ping_at;index"`
 	MetadataPending         bool                   `json:"metadata_pending" gorm:"-"`
+}
+
+// IsHeartbeatWaiting reports whether a heartbeat resource has never been pinged.
+func (r *Resource) IsHeartbeatWaiting() bool {
+	return r != nil && r.Type == ResourceHeartbeat && r.LastPingAt == nil
 }
 
 func (Resource) TableName() string { return "resources" }

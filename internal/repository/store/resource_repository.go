@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/denisakp/ogoune/internal/domain"
 	"github.com/denisakp/ogoune/internal/repository"
@@ -40,6 +41,22 @@ func (r *ResourceRepositoryImpl) FindByID(ctx context.Context, id string) (*doma
 			return nil, repository.ErrNotFound
 		}
 		return nil, fmt.Errorf("failed to find resource by ID: %w", err)
+	}
+	return &resource, nil
+}
+
+// FindByHeartbeatSlug retrieves an active heartbeat resource by slug.
+func (r *ResourceRepositoryImpl) FindByHeartbeatSlug(ctx context.Context, slug string) (*domain.Resource, error) {
+	var resource domain.Resource
+	err := r.db.WithContext(ctx).
+		Preload("Tags").
+		Preload("Component").
+		First(&resource, "heartbeat_slug = ? AND type = ? AND is_active = ?", slug, domain.ResourceHeartbeat, true).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, repository.ErrNotFound
+		}
+		return nil, fmt.Errorf("failed to find resource by heartbeat slug: %w", err)
 	}
 	return &resource, nil
 }
@@ -184,6 +201,57 @@ func (r *ResourceRepositoryImpl) CountByComponentID(ctx context.Context, compone
 		return 0, fmt.Errorf("failed to count resources for component: %w", err)
 	}
 	return count, nil
+}
+
+// FindMissedHeartbeats returns heartbeat resources that exceeded interval+grace and are still up.
+func (r *ResourceRepositoryImpl) FindMissedHeartbeats(ctx context.Context, now time.Time, limit int) ([]*domain.Resource, error) {
+	if limit <= 0 {
+		limit = 1000
+	}
+
+	var resources []*domain.Resource
+	err := r.db.WithContext(ctx).
+		Where("type = ?", domain.ResourceHeartbeat).
+		Where("status = ?", domain.StatusUp).
+		Where("is_active = ?", true).
+		Where("last_ping_at IS NOT NULL").
+		Where("(strftime('%s', last_ping_at) + heartbeat_interval + heartbeat_grace) < ?", now.Unix()).
+		Order("last_ping_at ASC").
+		Limit(limit).
+		Find(&resources).Error
+	if err != nil {
+		// Postgres fallback expression when SQLite strftime is not supported.
+		err = r.db.WithContext(ctx).
+			Where("type = ?", domain.ResourceHeartbeat).
+			Where("status = ?", domain.StatusUp).
+			Where("is_active = ?", true).
+			Where("last_ping_at IS NOT NULL").
+			Where("EXTRACT(EPOCH FROM last_ping_at) + heartbeat_interval + heartbeat_grace < ?", now.Unix()).
+			Order("last_ping_at ASC").
+			Limit(limit).
+			Find(&resources).Error
+		if err != nil {
+			return nil, fmt.Errorf("failed to find missed heartbeats: %w", err)
+		}
+	}
+
+	return resources, nil
+}
+
+// UpdateLastPingAt updates last_ping_at for a heartbeat resource.
+func (r *ResourceRepositoryImpl) UpdateLastPingAt(ctx context.Context, id string, at time.Time) error {
+	result := r.db.WithContext(ctx).
+		Model(&domain.Resource{}).
+		Where("id = ? AND type = ? AND is_active = ?", id, domain.ResourceHeartbeat, true).
+		Update("last_ping_at", at)
+
+	if result.Error != nil {
+		return fmt.Errorf("failed to update last_ping_at: %w", result.Error)
+	}
+	if result.RowsAffected == 0 {
+		return repository.ErrNotFound
+	}
+	return nil
 }
 
 // UpdateMetadata updates only the metadata fields of a resource to avoid touching associations.

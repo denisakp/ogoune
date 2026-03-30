@@ -100,8 +100,10 @@ func (h *ResourceHandler) CreateResource(w http.ResponseWriter, r *http.Request)
 		return
 	}
 	if resource.Target == "" {
-		respondError(w, http.StatusBadRequest, "Resource target is required")
-		return
+		if resource.Type != domain.ResourceHeartbeat {
+			respondError(w, http.StatusBadRequest, "Resource target is required")
+			return
+		}
 	}
 	if resource.Type == "" {
 		respondError(w, http.StatusBadRequest, "Resource type is required")
@@ -109,8 +111,8 @@ func (h *ResourceHandler) CreateResource(w http.ResponseWriter, r *http.Request)
 	}
 
 	// Validate resource type is one of the allowed values
-	if resource.Type != domain.ResourceHTTP && resource.Type != domain.ResourceTCP && resource.Type != domain.ResourceDNS {
-		respondError(w, http.StatusBadRequest, "Invalid resource type. Must be 'http', 'tcp' or 'dns'")
+	if resource.Type != domain.ResourceHTTP && resource.Type != domain.ResourceTCP && resource.Type != domain.ResourceDNS && resource.Type != domain.ResourceHeartbeat {
+		respondError(w, http.StatusBadRequest, "Invalid resource type. Must be 'http', 'tcp', 'dns' or 'heartbeat'")
 		return
 	}
 
@@ -134,6 +136,17 @@ func (h *ResourceHandler) CreateResource(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
+	if resource.Type == domain.ResourceHeartbeat {
+		if resource.HeartbeatInterval == nil || resource.HeartbeatGrace == nil {
+			respondError(w, http.StatusUnprocessableEntity, "heartbeat_interval and heartbeat_grace are required")
+			return
+		}
+		if err := domain.ValidateHeartbeatSettings(*resource.HeartbeatInterval, *resource.HeartbeatGrace); err != nil {
+			respondError(w, http.StatusUnprocessableEntity, err.Error())
+			return
+		}
+	}
+
 	// Validate per-resource expiry alert thresholds (FR-012)
 	if resource.ExpiryAlertThresholds != nil {
 		if err := validateExpiryThresholds(*resource.ExpiryAlertThresholds); err != nil {
@@ -146,6 +159,10 @@ func (h *ResourceHandler) CreateResource(w http.ResponseWriter, r *http.Request)
 	created, err := h.resourceService.CreateResource(r.Context(), &resource)
 	if err != nil {
 		if errors.Is(err, service.ErrICMPUnavailable) {
+			respondError(w, http.StatusUnprocessableEntity, err.Error())
+			return
+		}
+		if errors.Is(err, domain.ErrInvalidHeartbeatInterval) || errors.Is(err, domain.ErrInvalidHeartbeatGrace) || errors.Is(err, domain.ErrInvalidHeartbeatGraceRange) {
 			respondError(w, http.StatusUnprocessableEntity, err.Error())
 			return
 		}
@@ -205,7 +222,15 @@ func (h *ResourceHandler) ListResources(w http.ResponseWriter, r *http.Request) 
 	}
 
 	// Respond with resource list (empty array if no resources exist)
-	respondJSON(w, http.StatusOK, resources)
+	list := make([]dto.ResourceResponse, 0, len(resources))
+	for _, resource := range resources {
+		if resource == nil {
+			continue
+		}
+		list = append(list, dto.ToResourceListResponse(*resource))
+	}
+
+	respondJSON(w, http.StatusOK, list)
 }
 
 // UpdateResource handles PUT /resources/{id} - updates an existing monitoring resource.

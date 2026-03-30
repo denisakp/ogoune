@@ -36,6 +36,7 @@ type TagsRepository interface {
 type ResourceRepository interface {
 	Create(ctx context.Context, r *domain.Resource) (*domain.Resource, error)
 	FindByID(ctx context.Context, id string) (*domain.Resource, error)
+	FindByHeartbeatSlug(ctx context.Context, slug string) (*domain.Resource, error)
 	List(ctx context.Context, limit, offset int) ([]*domain.Resource, error)
 	Update(ctx context.Context, r *domain.Resource) error
 	Delete(ctx context.Context, id string) error // soft delete (active=false)
@@ -43,6 +44,8 @@ type ResourceRepository interface {
 	FindByTag(ctx context.Context, tagName string, limit, offset int) ([]*domain.Resource, error)
 	FindByComponentID(ctx context.Context, componentID string) ([]*domain.Resource, error)
 	CountByComponentID(ctx context.Context, componentID string) (int64, error)
+	FindMissedHeartbeats(ctx context.Context, now time.Time, limit int) ([]*domain.Resource, error)
+	UpdateLastPingAt(ctx context.Context, id string, at time.Time) error
 	// UpdateMetadata updates only the metadata fields for a resource, leaving associations intact
 	UpdateMetadata(ctx context.Context, id string, metadata *domain.ResourceMetaData) error
 	// FindScheduledResources returns all active resources with a non-nil schedule (used by scheduler startup)

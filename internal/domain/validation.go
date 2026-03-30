@@ -6,13 +6,45 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+
+	"github.com/google/uuid"
 )
 
 var (
 	ErrInvalidConfirmationChecks   = errors.New("confirmation_checks must be >= 1")
 	ErrInvalidConfirmationInterval = errors.New("confirmation_interval must be > 0")
 	ErrInvalidConfirmationRelation = errors.New("confirmation_interval must be < interval")
+	ErrInvalidHeartbeatInterval    = errors.New("heartbeat_interval must be between 60 and 86400 seconds")
+	ErrInvalidHeartbeatGrace       = errors.New("heartbeat_grace must be between 60 and 3600 seconds")
+	ErrInvalidHeartbeatGraceRange  = errors.New("heartbeat_grace must be <= heartbeat_interval")
+	ErrInvalidHeartbeatSlug        = errors.New("invalid heartbeat slug format")
 )
+
+// ValidateHeartbeatSettings validates heartbeat interval and grace constraints.
+func ValidateHeartbeatSettings(interval, grace int) error {
+	if interval < 60 || interval > 86400 {
+		return ErrInvalidHeartbeatInterval
+	}
+	if grace < 60 || grace > 3600 {
+		return ErrInvalidHeartbeatGrace
+	}
+	if grace > interval {
+		return ErrInvalidHeartbeatGraceRange
+	}
+	return nil
+}
+
+// ValidateHeartbeatSlug validates UUIDv4 slug format used by heartbeat endpoints.
+func ValidateHeartbeatSlug(slug string) error {
+	u, err := uuid.Parse(slug)
+	if err != nil {
+		return ErrInvalidHeartbeatSlug
+	}
+	if u.Version() != 4 {
+		return ErrInvalidHeartbeatSlug
+	}
+	return nil
+}
 
 // ValidateResourceTarget validates the target format based on the resource type.
 // For HTTP resources, it validates URL format.

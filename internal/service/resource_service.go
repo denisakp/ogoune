@@ -12,6 +12,7 @@ import (
 	"github.com/denisakp/ogoune/internal/dto"
 	icmppkg "github.com/denisakp/ogoune/internal/icmp"
 	"github.com/denisakp/ogoune/internal/repository"
+	"github.com/google/uuid"
 )
 
 const (
@@ -114,8 +115,10 @@ func (s *ResourceService) CreateResource(ctx context.Context, payload *dto.Creat
 	}
 
 	// Validate target format
-	if err := domain.ValidateResourceTarget(payload.Target, payload.Type); err != nil {
-		return nil, fmt.Errorf("%w: %v", ErrValidationFailed, err)
+	if payload.Type != domain.ResourceHeartbeat {
+		if err := domain.ValidateResourceTarget(payload.Target, payload.Type); err != nil {
+			return nil, fmt.Errorf("%w: %v", ErrValidationFailed, err)
+		}
 	}
 
 	defaultChecks, defaultInterval := confirmationDefaults()
@@ -143,6 +146,23 @@ func (s *ResourceService) CreateResource(ctx context.Context, payload *dto.Creat
 		ConfirmationChecks:    resolvedChecks,
 		ConfirmationInterval:  resolvedInterval,
 		ExpiryAlertThresholds: payload.ExpiryAlertThresholds,
+	}
+
+	if payload.Type == domain.ResourceHeartbeat {
+		if payload.HeartbeatInterval == nil || payload.HeartbeatGrace == nil {
+			return nil, fmt.Errorf("%w: heartbeat_interval and heartbeat_grace are required", ErrValidationFailed)
+		}
+		if err := domain.ValidateHeartbeatSettings(*payload.HeartbeatInterval, *payload.HeartbeatGrace); err != nil {
+			return nil, err
+		}
+		slug := uuid.NewString()
+		resource.HeartbeatSlug = &slug
+		resource.HeartbeatInterval = payload.HeartbeatInterval
+		resource.HeartbeatGrace = payload.HeartbeatGrace
+		resource.Status = domain.StatusUp
+		if resource.Target == "" {
+			resource.Target = "heartbeat"
+		}
 	}
 
 	// Optional component assignment
@@ -299,6 +319,7 @@ func (s *ResourceService) GetResourceByIDWithResponseTimes(ctx context.Context, 
 		ResponseTimes: responseTimes,
 	}
 	dto.EnrichResponseExpiry(rr)
+	rr.Waiting = resource.IsHeartbeatWaiting()
 
 	return rr, nil
 }
