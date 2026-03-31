@@ -597,6 +597,7 @@ func humanizeCause(cause string) string {
 		string(domain.HTTPRequestFailed):     "HTTP request failed",
 		string(domain.HTTPSSLError):          "HTTPS handshake error",
 		string(domain.InvalidTarget):         "Invalid target",
+		string(domain.MissedHeartbeat):       "No ping received within the expected interval + grace period",
 	}
 
 	if msg, ok := known[cause]; ok {

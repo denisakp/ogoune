@@ -6,6 +6,7 @@ Community Edition is now stable with a zero-external-dependency default setup.
 Highlights
 - Monitoring: HTTP/HTTPS, TCP, DNS, SSL expiry alerts (J-30/J-14/J-7/J-1), domain expiry alerts (WHOIS), SSL/domain metadata enrichment.
 - H2 update: optional ICMP monitoring is now available behind `ENABLE_ICMP=true`, with capability-aware monitor creation, startup-safe graceful degradation, and incident network diagnostics.
+- H2 update: Heartbeat / Push monitoring is now available. Operators can create heartbeat monitors for cron jobs and background workers, receive pings via GET/POST /ping/{slug}, and get alerted when pings stop. Missed heartbeats open incidents; recovery pings resolve them automatically. Includes a recurring detector (60 s cadence), per-slug rate limiting (100 req/min), and fail-fast startup safety.
 - Alerting: confirmation window (N consecutive failures), flap detection, cooldown (single down alert per incident), timed reminders, component-level grouping, startup retry for pending notifications.
 - Incidents: automatic lifecycle (create/resolve), rich diagnostics, human-readable causes, event timeline.
 - Notifications: SMTP and webhooks (Slack, Google Chat, Teams, Discord, generic HTTP), enabled_by_default channel behavior.

@@ -14,6 +14,7 @@ import (
 // All endpoints return JSON responses - no HTML rendering.
 func NewRouter(
 	resourceHandler *handler.ResourceHandler,
+	pingHandler *handler.PingHandler,
 	activityHandler *handler.MonitoringActivityHandler,
 	tagHandler *handler.TagHandler,
 	componentHandler *handler.ComponentHandler,
@@ -59,6 +60,10 @@ func NewRouter(
 		r.Post("/verify-2fa", authHandler.Verify2FA)                   // POST /auth/verify-2fa
 		r.Get("/verify", authHandler.Verify)                           // GET /auth/verify - verify JWT token
 	})
+
+	// Public heartbeat ping endpoint (unauthenticated by design)
+	r.Get("/ping/{slug}", pingHandler.Ping)
+	r.Post("/ping/{slug}", pingHandler.Ping)
 
 	// Public status page (returns JSON status data)
 	r.Get("/status", statusPageHandler.HandleStatusPage)

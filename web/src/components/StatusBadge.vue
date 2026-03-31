@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 
-type StatusType = 'up' | 'down' | 'paused' | 'pending' | 'error' | 'unknown' | 'flapping'
+type StatusType = 'up' | 'down' | 'paused' | 'pending' | 'error' | 'unknown' | 'flapping' | 'waiting'
 
 interface StatusConfig {
   color: string
@@ -23,6 +23,7 @@ const statusConfigMap: Record<StatusType, StatusConfig> = {
   error: { color: 'red', label: 'ERROR' },
   unknown: { color: 'default', label: 'UNKNOWN' },
   flapping: { color: 'warning', label: 'FLAPPING', pulse: true },
+  waiting: { color: 'default', label: 'WAITING' },
 }
 
 const statusInfo = computed<StatusConfig>(() => {

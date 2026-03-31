@@ -75,22 +75,6 @@
 - What happens when [boundary condition]?
 - How does system handle [error scenario]?
 
-## Assumptions & Out Of Scope *(mandatory)*
-
-<!--
-  ACTION REQUIRED: State the assumptions the feature relies on and explicitly
-  list what is not being changed. This section is mandatory for any non-trivial
-  feature so scope boundaries stay enforceable.
--->
-
-### Assumptions
-
-- [Assumption about existing systems, deployment mode, or user behavior]
-
-### Out Of Scope
-
-- [Explicitly excluded behavior, migration, or follow-up feature]
-
 ## Requirements *(mandatory)*
 
 <!--
@@ -111,29 +95,10 @@
 - **FR-006**: System MUST authenticate users via [NEEDS CLARIFICATION: auth method not specified - email/password, SSO, OAuth?]
 - **FR-007**: System MUST retain user data for [NEEDS CLARIFICATION: retention period not specified]
 
-### Non-Functional Requirements *(include when runtime, storage, security, or operations are affected)*
-
-- **NFR-001**: System MUST [reliability, startup-safety, or operational behavior]
-- **NFR-002**: System MUST [security or permission expectation]
-- **NFR-003**: System MUST [observability, testability, or deployment requirement]
-
 ### Key Entities *(include if feature involves data)*
 
 - **[Entity 1]**: [What it represents, key attributes without implementation]
 - **[Entity 2]**: [What it represents, relationships to other entities]
-
-## Operational Impact & Rollout *(mandatory for config, runtime, infrastructure, persistence, or deployment changes)*
-
-<!--
-  ACTION REQUIRED: Describe user-visible or operator-visible runtime effects.
-  Include configuration changes, rollout expectations, migration behavior,
-  fail-fast behavior, and documentation/deployment surfaces that must change.
--->
-
-- **Configuration Changes**: [Env vars, flags, settings, or none]
-- **Deployment Impact**: [Service topology, infra dependencies, or none]
-- **Migration/Startup Impact**: [Schema/runtime startup behavior, rollback/failure policy, or none]
-- **Documentation Impact**: [README, quickstart, env docs, operational runbooks]
 
 ## Success Criteria *(mandatory)*
 
@@ -148,3 +113,16 @@
 - **SC-002**: [Measurable metric, e.g., "System handles 1000 concurrent users without degradation"]
 - **SC-003**: [User satisfaction metric, e.g., "90% of users successfully complete primary task on first attempt"]
 - **SC-004**: [Business metric, e.g., "Reduce support tickets related to [X] by 50%"]
+
+## Assumptions
+
+<!--
+  ACTION REQUIRED: The content in this section represents placeholders.
+  Fill them out with the right assumptions based on reasonable defaults
+  chosen when the feature description did not specify certain details.
+-->
+
+- [Assumption about target users, e.g., "Users have stable internet connectivity"]
+- [Assumption about scope boundaries, e.g., "Mobile support is out of scope for v1"]
+- [Assumption about data/environment, e.g., "Existing authentication system will be reused"]
+- [Dependency on existing system/service, e.g., "Requires access to the existing user profile API"]

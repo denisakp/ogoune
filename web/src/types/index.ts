@@ -16,11 +16,11 @@ export interface ResourceMetadata {
 export interface Resource {
   id: string
   name: string
-  type: 'http' | 'tcp' | 'dns' | 'icmp'
+  type: 'http' | 'tcp' | 'dns' | 'icmp' | 'heartbeat'
   target: string
   interval: number // in seconds
   timeout: number // in seconds
-  status: 'up' | 'down' | 'error' | 'unknown' | 'paused' | 'pending' | 'flapping'
+  status: 'up' | 'down' | 'error' | 'unknown' | 'paused' | 'pending' | 'flapping' | 'waiting'
   is_active: boolean
   failure_count: number
   confirmation_checks: number
@@ -45,6 +45,12 @@ export interface Resource {
   reminder_interval_minutes?: number
   last_status_transition?: string | null
   flap_started_at?: string | null
+  // Heartbeat-specific fields (only present when type === 'heartbeat')
+  heartbeat_slug?: string        // UUID v4 — present only in detail response
+  heartbeat_interval?: number    // seconds (60–86400)
+  heartbeat_grace?: number       // seconds (60–3600)
+  last_ping_at?: string | null   // ISO 8601 or null
+  waiting?: boolean              // true when last_ping_at is null (never pinged)
 }
 
 /**
@@ -77,10 +83,10 @@ export interface StatsSummary {
 
 export interface CreateResource {
   name: string
-  type: 'http' | 'tcp' | 'dns' | 'icmp'
-  target: string
-  interval: number
-  timeout: number
+  type: 'http' | 'tcp' | 'dns' | 'icmp' | 'heartbeat'
+  target?: string
+  interval?: number
+  timeout?: number
   confirmation_checks?: number
   confirmation_interval?: number
   tags: string[]
@@ -91,6 +97,9 @@ export interface CreateResource {
   flap_window_seconds?: number
   flap_max_duration_minutes?: number
   reminder_interval_minutes?: number
+  // Heartbeat-specific
+  heartbeat_interval?: number   // seconds (60–86400)
+  heartbeat_grace?: number      // seconds (60–3600)
 }
 
 export type UpdateResource = Partial<CreateResource>

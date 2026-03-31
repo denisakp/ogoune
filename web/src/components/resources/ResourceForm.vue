@@ -32,7 +32,11 @@ const form = ref<CreateResource & { component_id?: string }>({
   flap_window_seconds: undefined,
   flap_max_duration_minutes: undefined,
   reminder_interval_minutes: undefined,
+  heartbeat_interval: 300,
+  heartbeat_grace: 60,
 })
+
+const isHeartbeat = computed(() => form.value.type === 'heartbeat')
 
 const loading = ref(false)
 
@@ -56,6 +60,8 @@ watch(
         flap_window_seconds: resource.flap_window_seconds,
         flap_max_duration_minutes: resource.flap_max_duration_minutes,
         reminder_interval_minutes: resource.reminder_interval_minutes,
+        heartbeat_interval: resource.heartbeat_interval ?? 300,
+        heartbeat_grace: resource.heartbeat_grace ?? 60,
       }
     } else {
       form.value = {
@@ -74,6 +80,8 @@ watch(
         flap_window_seconds: undefined,
         flap_max_duration_minutes: undefined,
         reminder_interval_minutes: undefined,
+        heartbeat_interval: 300,
+        heartbeat_grace: 60,
       }
     }
   },
@@ -84,23 +92,30 @@ const handleSubmit = async () => {
   if (!form.value.name.trim()) {
     return
   }
-  if (!form.value.target.trim()) {
-    return
-  }
-  if (form.value.interval < 10) {
-    return
-  }
-  if (form.value.timeout < 1) {
-    return
-  }
-  if ((form.value.confirmation_checks ?? 0) <= 0) {
-    return
-  }
-  if ((form.value.confirmation_interval ?? 0) <= 0) {
-    return
-  }
-  if ((form.value.confirmation_interval ?? 0) >= form.value.interval) {
-    return
+  if (isHeartbeat.value) {
+    const hbInterval = form.value.heartbeat_interval ?? 0
+    const hbGrace = form.value.heartbeat_grace ?? 0
+    if (hbInterval < 60 || hbInterval > 86400) return
+    if (hbGrace < 60 || hbGrace > 3600) return
+  } else {
+    if (!form.value.target?.trim()) {
+      return
+    }
+    if ((form.value.interval ?? 0) < 10) {
+      return
+    }
+    if ((form.value.timeout ?? 0) < 1) {
+      return
+    }
+    if ((form.value.confirmation_checks ?? 0) <= 0) {
+      return
+    }
+    if ((form.value.confirmation_interval ?? 0) <= 0) {
+      return
+    }
+    if ((form.value.confirmation_interval ?? 0) >= (form.value.interval ?? 0)) {
+      return
+    }
   }
   const thresholds = form.value.expiry_alert_thresholds?.trim()
   if (thresholds) {
@@ -210,11 +225,12 @@ const icmpWarning = computed(() => {
             <a-select-option value="tcp">TCP</a-select-option>
             <a-select-option value="dns">DNS</a-select-option>
             <a-select-option value="icmp">ICMP (Ping)</a-select-option>
+            <a-select-option value="heartbeat">Heartbeat / Push</a-select-option>
           </a-select>
         </a-form-item>
       </a-col>
 
-      <a-col :xs="24" :sm="12">
+      <a-col v-if="!isHeartbeat" :xs="24" :sm="12">
         <a-form-item label="Target" required>
           <a-input
             v-model:value="form.target"
@@ -223,6 +239,36 @@ const icmpWarning = computed(() => {
         </a-form-item>
       </a-col>
     </a-row>
+
+    <!-- Heartbeat fields -->
+    <template v-if="isHeartbeat">
+      <a-row :gutter="16">
+        <a-col :xs="24" :sm="12">
+          <a-form-item label="Ping Interval (seconds)" required>
+            <a-input-number
+              v-model:value="form.heartbeat_interval"
+              :min="60"
+              :max="86400"
+              style="width: 100%"
+              placeholder="e.g. 300 (5 min)"
+              data-testid="heartbeat-interval"
+            />
+          </a-form-item>
+        </a-col>
+        <a-col :xs="24" :sm="12">
+          <a-form-item label="Grace Period (seconds)" required>
+            <a-input-number
+              v-model:value="form.heartbeat_grace"
+              :min="60"
+              :max="3600"
+              style="width: 100%"
+              placeholder="e.g. 60 (1 min)"
+              data-testid="heartbeat-grace"
+            />
+          </a-form-item>
+        </a-col>
+      </a-row>
+    </template>
 
     <!-- ICMP availability warning -->
     <a-alert
@@ -233,8 +279,8 @@ const icmpWarning = computed(() => {
       :message="icmpWarning.message"
     />
 
-    <!-- Interval -->
-    <a-form-item label="Check Interval (seconds)">
+    <!-- Interval (non-heartbeat only) -->
+    <a-form-item v-if="!isHeartbeat" label="Check Interval (seconds)">
       <div style="display: flex; align-items: center; gap: 16px">
         <a-slider
           v-model:value="form.interval"
@@ -250,8 +296,8 @@ const icmpWarning = computed(() => {
       </div>
     </a-form-item>
 
-    <!-- Timeout -->
-    <a-form-item label="Timeout (seconds)">
+    <!-- Timeout (non-heartbeat only) -->
+    <a-form-item v-if="!isHeartbeat" label="Timeout (seconds)">
       <div style="display: flex; align-items: center; gap: 16px">
         <a-slider
           v-model:value="form.timeout"
@@ -265,7 +311,7 @@ const icmpWarning = computed(() => {
       </div>
     </a-form-item>
 
-    <a-row :gutter="16">
+    <a-row v-if="!isHeartbeat" :gutter="16">
       <a-col :xs="24" :sm="12">
         <a-form-item label="Confirmation Checks">
           <a-input-number
@@ -288,6 +334,7 @@ const icmpWarning = computed(() => {
       </a-col>
     </a-row>
     <a-alert
+      v-if="!isHeartbeat"
       style="margin-bottom: 16px"
       type="info"
       show-icon
