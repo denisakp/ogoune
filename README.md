@@ -101,6 +101,7 @@ Set `confirmation_checks: 1` to restore immediate alerts.
 | TCP port checks | Monitor any service port |
 | DNS checks | Verify DNS resolution |
 | ICMP ping checks | Optional host reachability monitoring when the runtime has raw-socket capability |
+| Heartbeat / Push monitoring | Verify cron jobs and background workers actually ran |
 | SSL expiry warnings | Get notified before certs expire |
 | Domain expiry warnings | Get notified before domains expire |
 | Confirmation window | N consecutive failures before alerting |
@@ -186,11 +187,32 @@ When `ENABLE_ICMP=true`, Ogoune starts normally in both cases:
 
 ---
 
+### Heartbeat / Push monitoring
+
+Heartbeat monitoring lets you verify that cron jobs and background workers actually ran. Instead of Ogoune polling a target, your job calls Ogoune at the end of a successful run.
+
+```bash
+# At the end of your script, ping Ogoune
+curl -fsS "https://your-ogoune-host/ping/<slug>" >/dev/null
+```
+
+**How it works:**
+- Create a Heartbeat monitor with an interval and grace period.
+- Copy the generated ping URL and add it to your script.
+- Ogoune waits. If no ping arrives within interval + grace seconds, an incident is created.
+- A recovery ping resolves the incident automatically.
+
+**No authentication required.** The slug itself is the token (UUID v4, unguessable). A per-slug rate limit of 100 requests/min applies.
+
+See [QUICKSTART.md](./QUICKSTART.md) for step-by-step integration.
+
+---
+
 ## Roadmap
 
 See [ROADMAP.md](./ROADMAP.md) for the full roadmap.
 
-**Coming in H2:** Heartbeat/Push, Keyword checks, Prometheus metrics, IMAP/SMTP, Telegram, Digest
+**Coming in H2:** Keyword checks, Prometheus metrics, IMAP/SMTP, Telegram, Digest
 notifications, API v1, credential encryption.
 
 **Coming in H3:** Toolbox, Enterprise Edition (multi-tenancy, SSO, billing, agent device monitoring).

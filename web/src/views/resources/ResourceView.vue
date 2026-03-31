@@ -311,6 +311,47 @@ const flappingTransitionText = computed(() => {
   return `${threshold}+ status transitions`
 })
 
+const isHeartbeat = computed(() => resource.value?.type === 'heartbeat')
+
+const pingUrl = computed(() => {
+  if (!resource.value?.heartbeat_slug) return ''
+  return `${window.location.origin}/ping/${resource.value.heartbeat_slug}`
+})
+
+const lastPingAtFormatted = computed(() => {
+  if (!resource.value?.last_ping_at) return 'Never'
+  return formatDate(resource.value.last_ping_at)
+})
+
+const nextExpectedPingCountdown = computed((): string | null => {
+  if (!resource.value?.last_ping_at) return null
+  const interval = resource.value.heartbeat_interval ?? 0
+  const grace = resource.value.heartbeat_grace ?? 0
+  const deadline =
+    new Date(resource.value.last_ping_at).getTime() + (interval + grace) * 1000
+  const remaining = Math.max(0, Math.ceil((deadline - nowTs.value) / 1000))
+  if (remaining === 0) return 'Overdue'
+  const minutes = Math.floor(remaining / 60)
+  const seconds = remaining % 60
+  if (minutes > 0) return `${minutes}m ${seconds}s`
+  return `${seconds}s`
+})
+
+const copyPingUrl = async () => {
+  if (!pingUrl.value) return
+  try {
+    await navigator.clipboard.writeText(pingUrl.value)
+    message.success('Ping URL copied!')
+  } catch {
+    message.error('Failed to copy')
+  }
+}
+
+const heartbeatSnippet = computed(() => {
+  const url = pingUrl.value || 'https://your-ogoune-host/ping/<slug>'
+  return `curl -fsS "${url}" >/dev/null`
+})
+
 // Load resource using the store with response times
 const loadResource = async () => {
   if (!resourceId.value) {
@@ -354,6 +395,7 @@ const getStatusText = (status: string): string => {
     paused: 'Paused',
     pending: 'Pending',
     error: 'Error',
+    waiting: 'Waiting',
   }
   return texts[status] || status
 }
@@ -416,7 +458,7 @@ const goBack = () => {
               <div>
                 <h1 style="font-size: 24px; font-weight: bold; margin: 0">{{ resource.name }}</h1>
                 <p style="margin: 0; font-size: 12px; color: rgba(0, 0, 0, 0.45)">
-                  {{ resource.type.toUpperCase() }} monitor for {{ resource.target }}
+                  {{ resource.type.toUpperCase() }} monitor{{ isHeartbeat ? '' : ' for ' + resource.target }}
                 </p>
                 <div style="display: flex; align-items: center; gap: 8px; margin-top: 6px">
                   <span
@@ -506,6 +548,15 @@ const goBack = () => {
                 message="Service is flapping"
                 :description="`${flappingTransitionText}${flappingDuration ? ` over ${flappingDuration}` : ''}. Alerts suppressed until service stabilizes.`"
               />
+              <a-alert
+                v-if="isHeartbeat && resource.waiting"
+                style="margin-bottom: 16px"
+                type="info"
+                show-icon
+                data-testid="heartbeat-waiting-alert"
+                message="Waiting for first ping"
+                description="This monitor will transition to UP as soon as it receives its first ping."
+              />
               <a-row :gutter="16">
                 <a-col :xs="12" :sm="8">
                   <div style="text-align: center">
@@ -548,6 +599,77 @@ const goBack = () => {
                   </div>
                 </a-col>
               </a-row>
+            </a-card>
+
+            <!-- Heartbeat Integration -->
+            <a-card v-if="isHeartbeat" style="margin-bottom: 16px" data-testid="heartbeat-integration-card">
+              <template #title>
+                <div style="font-size: 14px; font-weight: 600">Heartbeat integration</div>
+              </template>
+              <div style="display: flex; flex-direction: column; gap: 16px">
+                <!-- Ping URL -->
+                <div>
+                  <div style="font-size: 12px; color: rgba(0, 0, 0, 0.45); margin-bottom: 4px">
+                    Ping URL
+                  </div>
+                  <div style="display: flex; align-items: center; gap: 8px">
+                    <code
+                      data-testid="ping-url"
+                      style="
+                        flex: 1;
+                        font-size: 12px;
+                        background: rgba(0, 0, 0, 0.04);
+                        padding: 6px 10px;
+                        border-radius: 4px;
+                        word-break: break-all;
+                      "
+                    >{{ pingUrl }}</code>
+                    <a-button size="small" @click="copyPingUrl">Copy</a-button>
+                  </div>
+                </div>
+
+                <!-- Last ping -->
+                <div>
+                  <div style="font-size: 12px; color: rgba(0, 0, 0, 0.45); margin-bottom: 4px">
+                    Last ping received
+                  </div>
+                  <div style="font-size: 14px; font-weight: 500" data-testid="last-ping-at">
+                    {{ lastPingAtFormatted }}
+                  </div>
+                </div>
+
+                <!-- Next expected ping countdown -->
+                <div v-if="resource.last_ping_at">
+                  <div style="font-size: 12px; color: rgba(0, 0, 0, 0.45); margin-bottom: 4px">
+                    Next deadline
+                  </div>
+                  <div
+                    style="font-size: 14px; font-weight: 500"
+                    data-testid="next-ping-countdown"
+                    :style="{ color: nextExpectedPingCountdown === 'Overdue' ? '#ff4d4f' : 'inherit' }"
+                  >
+                    {{ nextExpectedPingCountdown }}
+                  </div>
+                </div>
+
+                <!-- Integration snippet -->
+                <div>
+                  <div style="font-size: 12px; color: rgba(0, 0, 0, 0.45); margin-bottom: 8px">
+                    Add to your script
+                  </div>
+                  <div
+                    data-testid="heartbeat-snippet"
+                    style="
+                      font-family: monospace;
+                      font-size: 12px;
+                      background: rgba(0, 0, 0, 0.04);
+                      padding: 12px;
+                      border-radius: 4px;
+                      word-break: break-all;
+                    "
+                  >{{ heartbeatSnippet }}</div>
+                </div>
+              </div>
             </a-card>
 
             <!-- Performance Stats -->

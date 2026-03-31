@@ -43,6 +43,38 @@ func TestResourceRepository_Contract(t *testing.T) {
 		// assert.ErrorIs(t, err, fake.ErrInvalidInput)
 	})
 
+	t.Run("Create_HeartbeatFields", func(t *testing.T) {
+		slug := "550e8400-e29b-41d4-a716-446655440000"
+		interval := 300
+		grace := 60
+
+		resource := &domain.Resource{
+			Base: domain.Base{
+				ID:        "heartbeat-create-1",
+				CreatedAt: time.Now(),
+			},
+			Name:              "Heartbeat Resource",
+			Type:              domain.ResourceHeartbeat,
+			IsActive:          true,
+			Status:            domain.StatusUp,
+			HeartbeatSlug:     &slug,
+			HeartbeatInterval: &interval,
+			HeartbeatGrace:    &grace,
+		}
+
+		_, err := repo.Create(context.Background(), resource)
+		require.NoError(t, err)
+
+		found, err := repo.FindByID(context.Background(), "heartbeat-create-1")
+		require.NoError(t, err)
+		require.NotNil(t, found.HeartbeatSlug)
+		require.NotNil(t, found.HeartbeatInterval)
+		require.NotNil(t, found.HeartbeatGrace)
+		assert.Equal(t, slug, *found.HeartbeatSlug)
+		assert.Equal(t, interval, *found.HeartbeatInterval)
+		assert.Equal(t, grace, *found.HeartbeatGrace)
+	})
+
 	t.Run("FindByID", func(t *testing.T) {
 		resource := &domain.Resource{
 			Base: domain.Base{
@@ -65,6 +97,33 @@ func TestResourceRepository_Contract(t *testing.T) {
 
 		// Test not found
 		_, err = repo.FindByID(context.Background(), "nonexistent")
+		assert.ErrorIs(t, err, fake.ErrNotFound)
+	})
+
+	t.Run("FindByHeartbeatSlug", func(t *testing.T) {
+		slug := "550e8400-e29b-41d4-a716-446655440001"
+		interval := 300
+		grace := 60
+
+		resource := &domain.Resource{
+			Base:              domain.Base{ID: "heartbeat-slug-1", CreatedAt: time.Now()},
+			Name:              "Heartbeat Slug Lookup",
+			Type:              domain.ResourceHeartbeat,
+			IsActive:          true,
+			Status:            domain.StatusUp,
+			HeartbeatSlug:     &slug,
+			HeartbeatInterval: &interval,
+			HeartbeatGrace:    &grace,
+		}
+
+		_, err := repo.Create(context.Background(), resource)
+		require.NoError(t, err)
+
+		found, err := repo.FindByHeartbeatSlug(context.Background(), slug)
+		require.NoError(t, err)
+		assert.Equal(t, "heartbeat-slug-1", found.ID)
+
+		_, err = repo.FindByHeartbeatSlug(context.Background(), "550e8400-e29b-41d4-a716-446655440999")
 		assert.ErrorIs(t, err, fake.ErrNotFound)
 	})
 
@@ -164,5 +223,61 @@ func TestResourceRepository_Contract(t *testing.T) {
 			}
 		}
 		assert.True(t, found, "Should find the active resource")
+	})
+
+	t.Run("FindMissedHeartbeats_and_UpdateLastPingAt", func(t *testing.T) {
+		now := time.Now().UTC()
+		slugMissed := "550e8400-e29b-41d4-a716-446655440002"
+		slugFresh := "550e8400-e29b-41d4-a716-446655440003"
+		interval := 300
+		grace := 60
+
+		missedAt := now.Add(-10 * time.Minute)
+		freshAt := now.Add(-1 * time.Minute)
+
+		missed := &domain.Resource{
+			Base:              domain.Base{ID: "heartbeat-missed-1", CreatedAt: now.Add(-2 * time.Minute)},
+			Name:              "Missed",
+			Type:              domain.ResourceHeartbeat,
+			Status:            domain.StatusUp,
+			IsActive:          true,
+			HeartbeatSlug:     &slugMissed,
+			HeartbeatInterval: &interval,
+			HeartbeatGrace:    &grace,
+			LastPingAt:        &missedAt,
+		}
+		fresh := &domain.Resource{
+			Base:              domain.Base{ID: "heartbeat-fresh-1", CreatedAt: now.Add(-1 * time.Minute)},
+			Name:              "Fresh",
+			Type:              domain.ResourceHeartbeat,
+			Status:            domain.StatusUp,
+			IsActive:          true,
+			HeartbeatSlug:     &slugFresh,
+			HeartbeatInterval: &interval,
+			HeartbeatGrace:    &grace,
+			LastPingAt:        &freshAt,
+		}
+
+		_, err := repo.Create(context.Background(), missed)
+		require.NoError(t, err)
+		_, err = repo.Create(context.Background(), fresh)
+		require.NoError(t, err)
+
+		items, err := repo.FindMissedHeartbeats(context.Background(), now, 50)
+		require.NoError(t, err)
+		require.Len(t, items, 1)
+		assert.Equal(t, "heartbeat-missed-1", items[0].ID)
+
+		newPing := now
+		err = repo.UpdateLastPingAt(context.Background(), "heartbeat-missed-1", newPing)
+		require.NoError(t, err)
+
+		updated, err := repo.FindByID(context.Background(), "heartbeat-missed-1")
+		require.NoError(t, err)
+		require.NotNil(t, updated.LastPingAt)
+		assert.WithinDuration(t, newPing, *updated.LastPingAt, time.Second)
+
+		err = repo.UpdateLastPingAt(context.Background(), "nonexistent", newPing)
+		assert.ErrorIs(t, err, fake.ErrNotFound)
 	})
 }

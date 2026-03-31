@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -102,6 +103,16 @@ func serveStaticFiles(router *chi.Mux, staticDir string) {
 		// File exists, serve it
 		fs.ServeHTTP(w, r)
 	})
+}
+
+// startHeartbeatDetector starts the recurring missed-heartbeat detector.
+// It returns an error immediately if the detector is nil or the context is already cancelled,
+// enforcing fail-fast startup behavior (T034).
+func startHeartbeatDetector(ctx context.Context, detector *service.HeartbeatDetectorService, interval time.Duration) error {
+	if detector == nil {
+		return fmt.Errorf("heartbeat detector service is required")
+	}
+	return detector.Start(ctx, interval)
 }
 
 func runStartupPendingNotificationRetry(ctx context.Context, retryService pendingNotificationRetryRunner) {
@@ -234,6 +245,7 @@ func main() {
 	var redisOpt asynq.RedisClientOpt
 	var processor *worker.Processor
 	var maintenanceScheduler *maintenance.SchedulerService
+	var detectorIncidentSvc *monitoring.IncidentService
 
 	if schedulerCfg.Mode == scheduler.ModeTimingWheel {
 		runtimeScheduler, err = scheduler.New(schedulerCfg)
@@ -357,6 +369,7 @@ func main() {
 				incidentDiagnosticsRepo,
 				nil,
 			)
+			detectorIncidentSvc = incidentService
 
 			monitoringHandler := worker.NewMonitoringTaskHandler(resourceRepo, monitoringActivityRepo, maintenanceRepo, incidentDiagnosticsRepo, executor, incidentService, componentService, confirmationScheduler)
 
@@ -451,6 +464,14 @@ func main() {
 
 	runStartupPendingNotificationRetry(context.Background(), pendingRetryService)
 
+	// Start heartbeat detector — runs every 60s in both scheduler modes (T033/T034).
+	// Fail-fast: if detector initialization fails, abort startup rather than silently skip.
+	heartbeatDetector := service.NewHeartbeatDetectorService(resourceRepo, detectorIncidentSvc)
+	if err := startHeartbeatDetector(context.Background(), heartbeatDetector, 60*time.Second); err != nil {
+		log.Fatalf("[STARTUP] Failed to start heartbeat detector: %v", err)
+	}
+	log.Println("✓ Heartbeat detector started (interval=60s)")
+
 	// ========================================
 	// STEP 2: INITIALIZE WORKER (Asynq only)
 	// ========================================
@@ -475,6 +496,7 @@ func main() {
 			incidentDiagnosticsRepo,
 			asynqClient,
 		)
+		detectorIncidentSvc = incidentService
 
 		// Initialize task handlers
 		monitoringHandler := worker.NewMonitoringTaskHandler(resourceRepo, monitoringActivityRepo, maintenanceRepo, incidentDiagnosticsRepo, executor, incidentService, componentService, confirmationScheduler)
@@ -567,6 +589,7 @@ func main() {
 
 	// Initialize JSON API handlers (no template dependencies)
 	resourceHandler := handler.NewResourceHandler(resourceService, liveSnapshotService)
+	pingHandler := handler.NewPingHandler(resourceService)
 	activityHandler := handler.NewMonitoringActivityHandler(activityService)
 	tagHandler := handler.NewTagHandler(tagService)
 	statusPageHandler := handler.NewStatusPageHandler(statusPageService)
@@ -582,7 +605,7 @@ func main() {
 
 	// Create router with injected handlers
 	os.Setenv("APP_VERSION", appVersion)
-	apiHandler := api.NewRouter(resourceHandler, activityHandler, tagHandler, componentHandler, statusPageHandler, statusPageSettingsHandler, incidentHandler, notificationHandler, maintenanceHandler, statsHandler, systemHandler, authHandler, accountHandler, authService, apiKeyService)
+	apiHandler := api.NewRouter(resourceHandler, pingHandler, activityHandler, tagHandler, componentHandler, statusPageHandler, statusPageSettingsHandler, incidentHandler, notificationHandler, maintenanceHandler, statsHandler, systemHandler, authHandler, accountHandler, authService, apiKeyService)
 
 	// Root router: mount JSON API under /api
 	rootRouter := chi.NewRouter()

@@ -1,0 +1,74 @@
+package api
+
+import (
+	"context"
+	"net/http"
+	"net/http/httptest"
+	"testing"
+	"time"
+
+	"github.com/denisakp/ogoune/internal/api/handler"
+	"github.com/denisakp/ogoune/internal/domain"
+	"github.com/denisakp/ogoune/internal/service"
+	"github.com/stretchr/testify/assert"
+)
+
+type mockRouterPingService struct{}
+
+func (m *mockRouterPingService) GetResourceByHeartbeatSlug(ctx context.Context, slug string) (*domain.Resource, error) {
+	return nil, service.ErrResourceNotFound
+}
+
+func (m *mockRouterPingService) MarkHeartbeatPing(ctx context.Context, resourceID string, at time.Time) error {
+	return nil
+}
+
+func (m *mockRouterPingService) HandleHeartbeatRecovery(ctx context.Context, resource *domain.Resource) error {
+	return nil
+}
+
+func TestNewRouter_PingIsPublicAndResourcesAreProtected(t *testing.T) {
+	resourceHandler := handler.NewResourceHandler(nil)
+	pingHandler := handler.NewPingHandler(&mockRouterPingService{})
+	activityHandler := handler.NewMonitoringActivityHandler(nil)
+	tagHandler := handler.NewTagHandler(nil)
+	componentHandler := handler.NewComponentHandler(nil)
+	statusPageHandler := handler.NewStatusPageHandler(nil)
+	statusPageSettingsHandler := handler.NewStatusPageSettingsHandler(nil)
+	incidentHandler := handler.NewIncidentHandler(nil)
+	notificationHandler := handler.NewNotificationHandler(nil)
+	maintenanceHandler := handler.NewMaintenanceHandler(nil)
+	statsHandler := handler.NewStatsHandler(nil)
+	systemHandler := handler.NewSystemHandler()
+	authHandler := handler.NewAuthHandler(nil, nil)
+	accountHandler := handler.NewAccountHandler(nil, nil)
+
+	router := NewRouter(
+		resourceHandler,
+		pingHandler,
+		activityHandler,
+		tagHandler,
+		componentHandler,
+		statusPageHandler,
+		statusPageSettingsHandler,
+		incidentHandler,
+		notificationHandler,
+		maintenanceHandler,
+		statsHandler,
+		systemHandler,
+		authHandler,
+		accountHandler,
+		nil,
+		nil,
+	)
+
+	pingReq := httptest.NewRequest(http.MethodGet, "/ping/550e8400-e29b-41d4-a716-446655440111", nil)
+	pingRec := httptest.NewRecorder()
+	router.ServeHTTP(pingRec, pingReq)
+	assert.Equal(t, http.StatusNotFound, pingRec.Code)
+
+	resourcesReq := httptest.NewRequest(http.MethodGet, "/resources/", nil)
+	resourcesRec := httptest.NewRecorder()
+	router.ServeHTTP(resourcesRec, resourcesReq)
+	assert.Equal(t, http.StatusUnauthorized, resourcesRec.Code)
+}

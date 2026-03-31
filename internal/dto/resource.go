@@ -14,6 +14,8 @@ type CreateResourcePayload struct {
 	Interval                int                 `json:"interval" binding:"required,min=10,max=3600"`
 	Timeout                 int                 `json:"timeout" binding:"required,min=1,max=60"`
 	Target                  string              `json:"target" binding:"required"`
+	HeartbeatInterval       *int                `json:"heartbeat_interval,omitempty"`
+	HeartbeatGrace          *int                `json:"heartbeat_grace,omitempty"`
 	Tags                    []string            `json:"tags"` // Tag names - will be created if they don't exist
 	ComponentID             *string             `json:"component_id,omitempty"`
 	ConfirmationChecks      *int                `json:"confirmation_checks,omitempty"`
@@ -45,6 +47,8 @@ type UpdateResourcePayload struct {
 	FlapWindowSeconds       *int                 `json:"flap_window_seconds,omitempty"`
 	FlapMaxDurationMinutes  *int                 `json:"flap_max_duration_minutes,omitempty"`
 	ReminderIntervalMinutes *int                 `json:"reminder_interval_minutes,omitempty"`
+	HeartbeatInterval       *int                 `json:"heartbeat_interval,omitempty"`
+	HeartbeatGrace          *int                 `json:"heartbeat_grace,omitempty"`
 }
 
 // UptimeStatResponse represents hourly uptime percentage for the last 24 hours
@@ -74,6 +78,22 @@ type ResourceResponse struct {
 	ResponseTimes []ResponseTimePoint       `json:"response_times,omitempty"`
 	ExpiryStatus  domain.ExpiryStatus       `json:"expiry_status,omitempty"`
 	MetadataExt   *ResourceMetaDataResponse `json:"metadata,omitempty"`
+	Waiting       bool                      `json:"waiting,omitempty"`
+}
+
+// ToResourceDetailResponse maps a domain resource to a detail-safe response payload.
+func ToResourceDetailResponse(resource domain.Resource) ResourceResponse {
+	response := ResourceResponse{Resource: resource}
+	response.Waiting = resource.IsHeartbeatWaiting()
+	return response
+}
+
+// ToResourceListResponse maps a domain resource to a list-safe response payload.
+// Heartbeat slug is intentionally removed from list responses.
+func ToResourceListResponse(resource domain.Resource) ResourceResponse {
+	response := ToResourceDetailResponse(resource)
+	response.HeartbeatSlug = nil
+	return response
 }
 
 // enrichMetadata computes the expiry fields and attaches the extended metadata to the response.

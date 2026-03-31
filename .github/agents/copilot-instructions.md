@@ -1,6 +1,6 @@
 # ogoune Development Guidelines
 
-Auto-generated from all feature plans. Last updated: 2026-03-29
+Auto-generated from all feature plans. Last updated: 2026-03-30
 
 ## Active Technologies
 - Go 1.25.x (backend at repository root: `./`) and TypeScript 5 + Vue 3 (frontend in `./web`).
@@ -8,6 +8,10 @@ Auto-generated from all feature plans. Last updated: 2026-03-29
 - Frontend (`./web`): Vite, Pinia, Axios helper, Ant Design Vue.
 - Monitoring supports HTTP, TCP, DNS, and optional ICMP (`ENABLE_ICMP`).
 - Datastores: PostgreSQL and SQLite, with dual SQL migrations under `internal/database/migrations/{postgres,sqlite}`.
+- Go 1.21+, Vue 3 + TypeScrip + Chi (HTTP router), GORM (persistence), Asynq or TimingWheel (scheduler), existing incident/notification services (020-heartbeat-monitoring)
+- PostgreSQL (primary) or SQLite (Community mode); new columns on `monitors` table (020-heartbeat-monitoring)
+- Go 1.21+, Vue 3 + TypeScrip + Chi router, GORM, Asynq/TimingWheel scheduler, existing incident and notification services (020-heartbeat-monitoring)
+- PostgreSQL (primary) and SQLite (community mode), heartbeat fields persisted in existing resources persistence layer (020-heartbeat-monitoring)
 
 ## Project Structure
 
@@ -33,9 +37,9 @@ Go (backend): standard gofmt/go test conventions and existing service-repository
 TypeScript/Vue (web frontend): existing composable/store/service separation and Ant Design Vue patterns.
 
 ## Recent Changes
+- 020-heartbeat-monitoring: Added Go 1.21+, Vue 3 + TypeScrip + Chi router, GORM, Asynq/TimingWheel scheduler, existing incident and notification services
+- 020-heartbeat-monitoring: Added Go 1.21+, Vue 3 + TypeScrip + Chi (HTTP router), GORM (persistence), Asynq or TimingWheel (scheduler), existing incident/notification services
 - feat/019-ping-icmp-check: Added Go 1.25.1 (backend), TypeScript + Vue 3 (web UI) + `golang.org/x/net/icmp`, existing scheduler/monitoring services, existing Vue + Ant Design Vue stack
-- 018-fix-test-suite-hangs: Added Go 1.25.1 + Go testing package, Testify, scheduler/asynq runtime components already present in repository
-- 016-project-rename-ogoune: Added Go (backend), TypeScript/Vue (frontend web) + Chi, GORM, Asynq/Redis, Vue 3, Pinia, Axios, Ant Design Vue
 
 
 <!-- MANUAL ADDITIONS START -->

@@ -4,6 +4,7 @@ import (
 	"context"
 	"sort"
 	"sync"
+	"time"
 
 	domain "github.com/denisakp/ogoune/internal/domain"
 )
@@ -56,6 +57,20 @@ func (r *ResourceFake) FindByID(ctx context.Context, id string) (*domain.Resourc
 	// Return a copy to avoid external mutations
 	copy := *resource
 	return &copy, nil
+}
+
+func (r *ResourceFake) FindByHeartbeatSlug(ctx context.Context, slug string) (*domain.Resource, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	for _, resource := range r.resources {
+		if resource.HeartbeatSlug != nil && *resource.HeartbeatSlug == slug && resource.IsActive && resource.Type == domain.ResourceHeartbeat {
+			copy := *resource
+			return &copy, nil
+		}
+	}
+
+	return nil, ErrNotFound
 }
 
 func (r *ResourceFake) List(ctx context.Context, limit, offset int) ([]*domain.Resource, error) {
@@ -161,6 +176,51 @@ func (r *ResourceFake) CountByComponentID(ctx context.Context, componentID strin
 	}
 
 	return count, nil
+}
+
+func (r *ResourceFake) FindMissedHeartbeats(ctx context.Context, now time.Time, limit int) ([]*domain.Resource, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	if limit <= 0 {
+		limit = 1000
+	}
+
+	missed := make([]*domain.Resource, 0)
+	for _, res := range r.resources {
+		if !res.IsActive || res.Type != domain.ResourceHeartbeat || res.Status != domain.StatusUp || res.LastPingAt == nil {
+			continue
+		}
+		if res.HeartbeatInterval == nil || res.HeartbeatGrace == nil {
+			continue
+		}
+		deadline := res.LastPingAt.Add(time.Duration(*res.HeartbeatInterval+*res.HeartbeatGrace) * time.Second)
+		if now.After(deadline) {
+			copy := *res
+			missed = append(missed, &copy)
+		}
+	}
+
+	sort.Slice(missed, func(i, j int) bool {
+		return missed[i].LastPingAt.Before(*missed[j].LastPingAt)
+	})
+
+	if len(missed) > limit {
+		missed = missed[:limit]
+	}
+	return missed, nil
+}
+
+func (r *ResourceFake) UpdateLastPingAt(ctx context.Context, id string, at time.Time) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	res, exists := r.resources[id]
+	if !exists || !res.IsActive || res.Type != domain.ResourceHeartbeat {
+		return ErrNotFound
+	}
+	res.LastPingAt = &at
+	return nil
 }
 
 func (r *ResourceFake) Delete(ctx context.Context, id string) error {

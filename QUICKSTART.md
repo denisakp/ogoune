@@ -351,6 +351,73 @@ What to expect after enabling it:
 
 ---
 
+### 1.3 Add a Heartbeat monitor (cron jobs and background workers)
+
+Heartbeat monitoring verifies that scheduled tasks actually ran — not just that a service is reachable. Your job signals Ogoune when it finishes successfully. If no signal arrives within the configured window, an incident is created.
+
+#### When to use it
+
+- Nightly database backups
+- Hourly data-import jobs
+- Any cron job or background worker you need to confirm actually executed
+
+#### Create the monitor
+
+Open **Monitors → + Add Monitor**, then:
+
+| Field | Example | Notes |
+|---|---|---|
+| **Type** | `Heartbeat` | Push-based check |
+| **Name** | `Nightly backup` | Human-friendly label |
+| **Ping Interval** | `300` | Expected seconds between pings (60–86400) |
+| **Grace Period** | `60` | Extra seconds after deadline before alerting (60–3600) |
+
+After saving, a **Ping URL** is generated. It looks like:
+
+```
+https://your-ogoune-host/ping/550e8400-e29b-41d4-a716-446655440000
+```
+
+Copy it — you will need it in the next step.
+
+#### Add the ping call to your script
+
+Append a ping request at the end of your job, **after the main work completes successfully**:
+
+```bash
+#!/usr/bin/env bash
+set -euo pipefail
+
+# your job
+./run-backup.sh
+
+# notify Ogoune on success
+curl -fsS "https://your-ogoune-host/ping/<slug>" >/dev/null
+```
+
+Because the script uses `set -euo pipefail`, a failure in `./run-backup.sh` aborts before the `curl` line — so Ogoune is only pinged on success.
+
+#### Schedule the job (cron example)
+
+```cron
+*/5 * * * * /opt/jobs/backup.sh
+```
+
+#### Grace period guidance
+
+Set the grace period to roughly 10–20% of the interval. For a job that runs every 5 minutes (300 s), a 60 s grace is appropriate. For a 24-hour job, 1800 s (30 minutes) is reasonable.
+
+#### What to expect
+
+| Event | Result |
+|---|---|
+| First ping received | Monitor transitions `waiting → up` |
+| No ping within interval + grace | Detector creates a missed-heartbeat incident |
+| Ping received while down | Incident resolved automatically |
+| Monitor is paused | Ping returns 403 — no state change |
+
+---
+
 ## Step 2 — Configure notifications
 
 Ogoune supports two notification channels out of the box: **SMTP (email)** and **Webhook** (Slack, Google Chat, Teams, Discord, or any HTTP endpoint).

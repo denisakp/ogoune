@@ -50,6 +50,9 @@ const (
 	InvalidConfiguration CheckFailureCause = "Invalid Configuration"
 	UnexpectedError      CheckFailureCause = "Unexpected Error"
 	ContextCancelled     CheckFailureCause = "Operation Cancelled"
+
+	// heartbeat
+	MissedHeartbeat CheckFailureCause = "missed_heartbeat"
 )
 
 // CheckResult represents the result of a health check execution.

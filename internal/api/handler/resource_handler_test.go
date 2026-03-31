@@ -248,6 +248,70 @@ func TestCreateResource_InvalidJSON(t *testing.T) {
 	assert.Equal(t, http.StatusBadRequest, rec.Code)
 }
 
+func TestCreateResource_HeartbeatSuccess(t *testing.T) {
+	interval := 300
+	grace := 60
+	slug := "7f4f3d9a-3bb0-4579-92ce-ed5a53b12de5"
+	mockService := &mockResourceService{
+		createResourceFunc: func(ctx context.Context, payload *dto.CreateResourcePayload) (*domain.Resource, error) {
+			assert.Equal(t, domain.ResourceHeartbeat, payload.Type)
+			require.NotNil(t, payload.HeartbeatInterval)
+			assert.Equal(t, interval, *payload.HeartbeatInterval)
+			require.NotNil(t, payload.HeartbeatGrace)
+			assert.Equal(t, grace, *payload.HeartbeatGrace)
+			return &domain.Resource{
+				Base:              domain.Base{ID: "hb-1"},
+				Name:              payload.Name,
+				Type:              domain.ResourceHeartbeat,
+				HeartbeatSlug:     &slug,
+				HeartbeatInterval: &interval,
+				HeartbeatGrace:    &grace,
+			}, nil
+		},
+	}
+	handler := NewResourceHandler(mockService)
+
+	body, _ := json.Marshal(map[string]interface{}{
+		"name":               "Nightly Backup",
+		"type":               "heartbeat",
+		"heartbeat_interval": interval,
+		"heartbeat_grace":    grace,
+	})
+	req := httptest.NewRequest(http.MethodPost, "/resources", bytes.NewReader(body))
+	rec := httptest.NewRecorder()
+
+	handler.CreateResource(rec, req)
+
+	assert.Equal(t, http.StatusCreated, rec.Code)
+	var created domain.Resource
+	err := json.NewDecoder(rec.Body).Decode(&created)
+	require.NoError(t, err)
+	require.NotNil(t, created.HeartbeatSlug)
+	assert.Equal(t, slug, *created.HeartbeatSlug)
+}
+
+func TestCreateResource_HeartbeatValidation422(t *testing.T) {
+	mockService := &mockResourceService{}
+	handler := NewResourceHandler(mockService)
+
+	body, _ := json.Marshal(map[string]interface{}{
+		"name":               "Invalid Heartbeat",
+		"type":               "heartbeat",
+		"heartbeat_interval": 30,
+		"heartbeat_grace":    60,
+	})
+	req := httptest.NewRequest(http.MethodPost, "/resources", bytes.NewReader(body))
+	rec := httptest.NewRecorder()
+
+	handler.CreateResource(rec, req)
+
+	assert.Equal(t, http.StatusUnprocessableEntity, rec.Code)
+	var errorResp map[string]string
+	err := json.NewDecoder(rec.Body).Decode(&errorResp)
+	require.NoError(t, err)
+	assert.Contains(t, errorResp["error"], "heartbeat_interval")
+}
+
 func TestListResources_Success(t *testing.T) {
 	expectedResources := []*domain.Resource{
 		{
@@ -278,13 +342,47 @@ func TestListResources_Success(t *testing.T) {
 
 	assert.Equal(t, http.StatusOK, rec.Code)
 
-	var resources []*domain.Resource
+	var resources []dto.ResourceResponse
 	err := json.NewDecoder(rec.Body).Decode(&resources)
 	require.NoError(t, err)
 
 	assert.Len(t, resources, len(expectedResources))
 	assert.Equal(t, "Monitor 1", resources[0].Name)
 	assert.Equal(t, "Monitor 2", resources[1].Name)
+}
+
+func TestListResources_HeartbeatSlugHiddenAndWaitingPresent(t *testing.T) {
+	interval := 300
+	grace := 60
+	slug := "ba37c8de-7264-4b62-ac43-4d3174bef6f7"
+	mockService := &mockResourceService{
+		listAllFunc: func(ctx context.Context) ([]*domain.Resource, error) {
+			return []*domain.Resource{
+				{
+					Base:              domain.Base{ID: "hb-1"},
+					Name:              "Heartbeat",
+					Type:              domain.ResourceHeartbeat,
+					HeartbeatSlug:     &slug,
+					HeartbeatInterval: &interval,
+					HeartbeatGrace:    &grace,
+				},
+			}, nil
+		},
+	}
+	handler := NewResourceHandler(mockService)
+
+	req := httptest.NewRequest(http.MethodGet, "/resources", nil)
+	rec := httptest.NewRecorder()
+	handler.ListResources(rec, req)
+
+	assert.Equal(t, http.StatusOK, rec.Code)
+
+	var resources []dto.ResourceResponse
+	err := json.NewDecoder(rec.Body).Decode(&resources)
+	require.NoError(t, err)
+	require.Len(t, resources, 1)
+	assert.True(t, resources[0].Waiting)
+	assert.Nil(t, resources[0].HeartbeatSlug)
 }
 
 func TestListResources_EmptyList(t *testing.T) {
@@ -302,11 +400,49 @@ func TestListResources_EmptyList(t *testing.T) {
 
 	assert.Equal(t, http.StatusOK, rec.Code)
 
-	var resources []*domain.Resource
+	var resources []dto.ResourceResponse
 	err := json.NewDecoder(rec.Body).Decode(&resources)
 	require.NoError(t, err)
 
 	assert.Empty(t, resources)
+}
+
+func TestGetResourceByID_HeartbeatDetailIncludesSlug(t *testing.T) {
+	interval := 300
+	grace := 60
+	slug := "f23ff8d3-7fd2-4c0f-b111-713274f4cd57"
+	mockService := &mockResourceService{
+		getResourceByIDWithResponseTimesFunc: func(ctx context.Context, id string, limit int) (*dto.ResourceResponse, error) {
+			return &dto.ResourceResponse{
+				Resource: domain.Resource{
+					Base:              domain.Base{ID: id},
+					Name:              "Heartbeat detail",
+					Type:              domain.ResourceHeartbeat,
+					HeartbeatSlug:     &slug,
+					HeartbeatInterval: &interval,
+					HeartbeatGrace:    &grace,
+				},
+				Waiting: true,
+			}, nil
+		},
+	}
+	handler := NewResourceHandler(mockService)
+
+	req := httptest.NewRequest(http.MethodGet, "/resources/hb-1", nil)
+	ctx := chi.NewRouteContext()
+	ctx.URLParams.Add("id", "hb-1")
+	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, ctx))
+	rec := httptest.NewRecorder()
+
+	handler.GetResourceByID(rec, req)
+
+	assert.Equal(t, http.StatusOK, rec.Code)
+	var detail dto.ResourceResponse
+	err := json.NewDecoder(rec.Body).Decode(&detail)
+	require.NoError(t, err)
+	require.NotNil(t, detail.HeartbeatSlug)
+	assert.Equal(t, slug, *detail.HeartbeatSlug)
+	assert.True(t, detail.Waiting)
 }
 
 func TestListResources_ServiceError(t *testing.T) {

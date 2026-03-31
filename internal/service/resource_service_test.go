@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -110,4 +111,65 @@ func TestResourceService_ListAll_EmptyRepository(t *testing.T) {
 
 	// Verify empty list
 	assert.Empty(t, resources)
+}
+
+func TestResourceService_CreateResource_HeartbeatGeneratesSlug(t *testing.T) {
+	service, _, schedulerFake := newResourceServiceForTest()
+
+	interval := 300
+	grace := 60
+	payload := &dto.CreateResourcePayload{
+		Name:              "Heartbeat Job",
+		Type:              domain.ResourceHeartbeat,
+		Interval:          300,
+		Timeout:           10,
+		HeartbeatInterval: &interval,
+		HeartbeatGrace:    &grace,
+	}
+
+	created, err := service.CreateResource(context.Background(), payload)
+	require.NoError(t, err)
+	require.NotNil(t, created.HeartbeatSlug)
+	assert.NotEmpty(t, *created.HeartbeatSlug)
+	require.NotNil(t, created.HeartbeatInterval)
+	assert.Equal(t, interval, *created.HeartbeatInterval)
+	require.NotNil(t, created.HeartbeatGrace)
+	assert.Equal(t, grace, *created.HeartbeatGrace)
+	assert.Nil(t, created.LastPingAt)
+	assert.True(t, created.IsHeartbeatWaiting())
+	assert.True(t, schedulerFake.IsScheduled(created.ID))
+}
+
+func TestResourceService_CreateResource_HeartbeatValidation(t *testing.T) {
+	service, _, _ := newResourceServiceForTest()
+
+	t.Run("missing heartbeat fields", func(t *testing.T) {
+		payload := &dto.CreateResourcePayload{
+			Name:     "Heartbeat Missing",
+			Type:     domain.ResourceHeartbeat,
+			Interval: 300,
+			Timeout:  10,
+		}
+
+		_, err := service.CreateResource(context.Background(), payload)
+		require.Error(t, err)
+		assert.True(t, errors.Is(err, ErrValidationFailed))
+	})
+
+	t.Run("invalid heartbeat interval", func(t *testing.T) {
+		interval := 30
+		grace := 60
+		payload := &dto.CreateResourcePayload{
+			Name:              "Heartbeat Invalid",
+			Type:              domain.ResourceHeartbeat,
+			Interval:          300,
+			Timeout:           10,
+			HeartbeatInterval: &interval,
+			HeartbeatGrace:    &grace,
+		}
+
+		_, err := service.CreateResource(context.Background(), payload)
+		require.Error(t, err)
+		assert.True(t, errors.Is(err, domain.ErrInvalidHeartbeatInterval))
+	})
 }

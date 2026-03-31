@@ -12,6 +12,7 @@ import (
 	"github.com/denisakp/ogoune/internal/dto"
 	icmppkg "github.com/denisakp/ogoune/internal/icmp"
 	"github.com/denisakp/ogoune/internal/repository"
+	"github.com/google/uuid"
 )
 
 const (
@@ -114,8 +115,10 @@ func (s *ResourceService) CreateResource(ctx context.Context, payload *dto.Creat
 	}
 
 	// Validate target format
-	if err := domain.ValidateResourceTarget(payload.Target, payload.Type); err != nil {
-		return nil, fmt.Errorf("%w: %v", ErrValidationFailed, err)
+	if payload.Type != domain.ResourceHeartbeat {
+		if err := domain.ValidateResourceTarget(payload.Target, payload.Type); err != nil {
+			return nil, fmt.Errorf("%w: %v", ErrValidationFailed, err)
+		}
 	}
 
 	defaultChecks, defaultInterval := confirmationDefaults()
@@ -143,6 +146,23 @@ func (s *ResourceService) CreateResource(ctx context.Context, payload *dto.Creat
 		ConfirmationChecks:    resolvedChecks,
 		ConfirmationInterval:  resolvedInterval,
 		ExpiryAlertThresholds: payload.ExpiryAlertThresholds,
+	}
+
+	if payload.Type == domain.ResourceHeartbeat {
+		if payload.HeartbeatInterval == nil || payload.HeartbeatGrace == nil {
+			return nil, fmt.Errorf("%w: heartbeat_interval and heartbeat_grace are required", ErrValidationFailed)
+		}
+		if err := domain.ValidateHeartbeatSettings(*payload.HeartbeatInterval, *payload.HeartbeatGrace); err != nil {
+			return nil, err
+		}
+		slug := uuid.NewString()
+		resource.HeartbeatSlug = &slug
+		resource.HeartbeatInterval = payload.HeartbeatInterval
+		resource.HeartbeatGrace = payload.HeartbeatGrace
+		resource.Status = domain.StatusUp
+		if resource.Target == "" {
+			resource.Target = "heartbeat"
+		}
 	}
 
 	// Optional component assignment
@@ -299,6 +319,7 @@ func (s *ResourceService) GetResourceByIDWithResponseTimes(ctx context.Context, 
 		ResponseTimes: responseTimes,
 	}
 	dto.EnrichResponseExpiry(rr)
+	rr.Waiting = resource.IsHeartbeatWaiting()
 
 	return rr, nil
 }
@@ -721,6 +742,59 @@ func (s *ResourceService) RemoveTagFromResource(ctx context.Context, resourceID 
 
 	if err := s.resources.Update(ctx, resource); err != nil {
 		return fmt.Errorf("failed to remove tag from resource: %w", err)
+	}
+
+	return nil
+}
+
+// GetResourceByHeartbeatSlug retrieves a resource by its heartbeat slug.
+func (s *ResourceService) GetResourceByHeartbeatSlug(ctx context.Context, slug string) (*domain.Resource, error) {
+	resource, err := s.resources.FindByHeartbeatSlug(ctx, slug)
+	if err != nil {
+		if errors.Is(err, repository.ErrNotFound) {
+			return nil, ErrResourceNotFound
+		}
+		return nil, err
+	}
+	return resource, nil
+}
+
+// MarkHeartbeatPing records a ping timestamp for the given heartbeat resource.
+func (s *ResourceService) MarkHeartbeatPing(ctx context.Context, resourceID string, at time.Time) error {
+	if err := s.resources.UpdateLastPingAt(ctx, resourceID, at); err != nil {
+		if errors.Is(err, repository.ErrNotFound) {
+			return ErrResourceNotFound
+		}
+		return err
+	}
+	return nil
+}
+
+// HandleHeartbeatRecovery resolves the active incident for a previously-down heartbeat monitor.
+// It updates the resource status to 'up' and marks the most recent unresolved incident as resolved.
+// Errors are non-fatal from the caller's perspective — the ping has already been recorded.
+func (s *ResourceService) HandleHeartbeatRecovery(ctx context.Context, resource *domain.Resource) error {
+	// Update resource status to 'up'
+	resource.Status = domain.StatusUp
+	if err := s.resources.Update(ctx, resource); err != nil {
+		return fmt.Errorf("failed to update heartbeat monitor status on recovery: %w", err)
+	}
+
+	// Resolve the latest unresolved incident for this resource
+	recentIncidents, err := s.incidents.FindByResource(ctx, resource.ID, 10, 0)
+	if err != nil {
+		return fmt.Errorf("failed to find incidents for heartbeat recovery: %w", err)
+	}
+
+	for _, incident := range recentIncidents {
+		if incident.ResolvedAt == nil {
+			now := time.Now()
+			incident.ResolvedAt = &now
+			if err := s.incidents.Update(ctx, incident); err != nil {
+				return fmt.Errorf("failed to resolve heartbeat incident: %w", err)
+			}
+			break
+		}
 	}
 
 	return nil

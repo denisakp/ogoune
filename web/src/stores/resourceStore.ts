@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 
 import * as resourceService from '@/services/resourceService'
 import type { CreateResource, Resource, UpdateResource, HourlyUptimeStat, SystemCapabilities } from '@/types'
@@ -169,11 +169,27 @@ export const useResourceStore = defineStore('resource', () => {
     }
   }
 
+  // Heartbeat monitors in "waiting" state (never pinged) are excluded from UP/DOWN totals.
+  const activeResources = computed(() =>
+    resources.value.filter((r) => !(r.type === 'heartbeat' && r.waiting)),
+  )
+
+  const upCount = computed(() => activeResources.value.filter((r) => r.status === 'up').length)
+
+  const downCount = computed(() => activeResources.value.filter((r) => r.status === 'down').length)
+
+  const waitingCount = computed(
+    () => resources.value.filter((r) => r.type === 'heartbeat' && r.waiting).length,
+  )
+
   return {
     resources,
     loading,
     error,
     capabilities,
+    upCount,
+    downCount,
+    waitingCount,
     loadResources,
     loadResource,
     loadResourceWithResponseTimes,
