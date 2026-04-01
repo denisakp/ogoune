@@ -13,6 +13,8 @@
 ![Docker](https://img.shields.io/badge/docker-ready-2496ED)
 [![GitHub Stars](https://img.shields.io/github/stars/denisakp/ogoune?style=flat)](https://github.com/denisakp/ogoune)
 
+**CI/CD**: [![GitHub Actions](https://img.shields.io/badge/GitHub%20Actions-passing-brightgreen?logo=github)](https://github.com/denisakp/ogoune/actions) [![GitLab CI/CD](https://img.shields.io/badge/GitLab%20CI-ready-orange?logo=gitlab)](./specs/021-gitlab-ci-workflows/quickstart.md)
+
 Ogoune monitors your websites, APIs, and services. When something goes down, it **verifies the failure** before 
 alerting you. No more 3am pages for a 2-second network blip.
 
