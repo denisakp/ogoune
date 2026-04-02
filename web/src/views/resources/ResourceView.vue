@@ -52,7 +52,11 @@ const {
   refresh,
   startPolling,
   stopPolling,
-} = useMonitorLive(resourceId.value, () => resource.value?.interval)
+} = useMonitorLive(
+  resourceId.value,
+  () => resource.value?.interval,
+  () => resource.value?.waiting === true,
+)
 
 const { getTimeRangeCutoff } = useDateTime()
 
@@ -315,7 +319,8 @@ const isHeartbeat = computed(() => resource.value?.type === 'heartbeat')
 
 const pingUrl = computed(() => {
   if (!resource.value?.heartbeat_slug) return ''
-  return `${window.location.origin}/ping/${resource.value.heartbeat_slug}`
+  const base = import.meta.env.VITE_API_BASE_URL || window.location.origin
+  return `${base}/ping/${resource.value.heartbeat_slug}`
 })
 
 const lastPingAtFormatted = computed(() => {
@@ -568,7 +573,9 @@ const goBack = () => {
                             ? '#ff4d4f'
                             : resource.status === 'paused'
                               ? '#d9d9d9'
-                              : '#52c41a',
+                              : resource.status === 'waiting'
+                                ? '#8c8c8c'
+                                : '#52c41a',
                       }"
                     >
                       {{ getStatusText(resource.status) }}
@@ -921,15 +928,31 @@ const goBack = () => {
                 </div>
 
                 <!-- Check Interval -->
-                <div>
+                <div v-if="resource.type !== 'heartbeat'">
                   <div style="font-size: 12px; color: rgba(0, 0, 0, 0.45); margin-bottom: 4px">
                     Check interval
                   </div>
                   <div style="font-size: 14px">Every {{ resource.interval }} seconds</div>
                 </div>
 
+                <!-- Heartbeat Interval + Grace -->
+                <template v-if="resource.type === 'heartbeat'">
+                  <div>
+                    <div style="font-size: 12px; color: rgba(0, 0, 0, 0.45); margin-bottom: 4px">
+                      Ping interval
+                    </div>
+                    <div style="font-size: 14px">Every {{ resource.heartbeat_interval }} seconds</div>
+                  </div>
+                  <div>
+                    <div style="font-size: 12px; color: rgba(0, 0, 0, 0.45); margin-bottom: 4px">
+                      Grace period
+                    </div>
+                    <div style="font-size: 14px">{{ resource.heartbeat_grace }} seconds</div>
+                  </div>
+                </template>
+
                 <!-- Timeout -->
-                <div>
+                <div v-if="resource.type !== 'heartbeat'">
                   <div style="font-size: 12px; color: rgba(0, 0, 0, 0.45); margin-bottom: 4px">
                     Timeout
                   </div>

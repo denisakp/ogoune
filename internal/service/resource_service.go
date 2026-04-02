@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 	"strings"
 	"time"
 
@@ -438,6 +439,20 @@ func (s *ResourceService) UpdateResource(ctx context.Context, id string, payload
 		return nil, err
 	}
 
+	if resource.Type == domain.ResourceHeartbeat {
+		if payload.HeartbeatInterval != nil {
+			resource.HeartbeatInterval = payload.HeartbeatInterval
+		}
+		if payload.HeartbeatGrace != nil {
+			resource.HeartbeatGrace = payload.HeartbeatGrace
+		}
+		if resource.HeartbeatInterval != nil && resource.HeartbeatGrace != nil {
+			if err := domain.ValidateHeartbeatSettings(*resource.HeartbeatInterval, *resource.HeartbeatGrace); err != nil {
+				return nil, fmt.Errorf("%w: %v", ErrValidationFailed, err)
+			}
+		}
+	}
+
 	// Defer SSL/WHOIS enrichment to avoid blocking the update request
 	resource.MetadataPending = true
 	go s.asyncEnrichAndPersist(resource)
@@ -525,8 +540,7 @@ func (s *ResourceService) DeleteResource(ctx context.Context, resourceID string)
 
 	// Unschedule monitoring for the deleted resource
 	if err := s.scheduler.Unschedule(ctx, resourceID); err != nil {
-		// Log the error but don't fail the entire operation
-		return err
+		log.Printf("[resource-service] failed to unschedule resource %s: %v", resourceID, err)
 	}
 
 	// Auto-cleanup component if it becomes empty after resource deletion

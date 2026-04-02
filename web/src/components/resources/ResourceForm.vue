@@ -146,6 +146,8 @@ const handleSubmit = async () => {
         flap_window_seconds: form.value.flap_window_seconds,
         flap_max_duration_minutes: form.value.flap_max_duration_minutes,
         reminder_interval_minutes: form.value.reminder_interval_minutes,
+        heartbeat_interval: isHeartbeat.value ? form.value.heartbeat_interval : undefined,
+        heartbeat_grace: isHeartbeat.value ? form.value.heartbeat_grace : undefined,
       }
       await updateResourceData(props.resource.id, updateData)
     } else {

@@ -84,8 +84,29 @@ func (r *ResourceRepositoryImpl) List(ctx context.Context, limit, offset int) ([
 func (r *ResourceRepositoryImpl) Update(ctx context.Context, resource *domain.Resource) error {
 	// Use a transaction to ensure atomicity
 	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		// First, update the resource fields (excluding associations)
-		if err := tx.Model(resource).Updates(resource).Error; err != nil {
+		// Use a map to avoid GORM skipping zero-value fields (e.g. bool=false, int=0, *int=nil).
+		// Only include user-modifiable columns; monitoring-controlled fields (status, last_checked,
+		// failure_count, last_ping_at, heartbeat_slug) are intentionally excluded.
+		updates := map[string]interface{}{
+			"name":                      resource.Name,
+			"type":                      resource.Type,
+			"target":                    resource.Target,
+			"interval":                  resource.Interval,
+			"timeout":                   resource.Timeout,
+			"is_active":                 resource.IsActive,
+			"confirmation_checks":       resource.ConfirmationChecks,
+			"confirmation_interval":     resource.ConfirmationInterval,
+			"component_id":              resource.ComponentID,
+			"expiry_alert_thresholds":   resource.ExpiryAlertThresholds,
+			"flap_detection_enabled":    resource.FlapDetectionEnabled,
+			"flap_threshold":            resource.FlapThreshold,
+			"flap_window_seconds":       resource.FlapWindowSeconds,
+			"flap_max_duration_minutes": resource.FlapMaxDurationMinutes,
+			"reminder_interval_minutes": resource.ReminderIntervalMinutes,
+			"heartbeat_interval":        resource.HeartbeatInterval,
+			"heartbeat_grace":           resource.HeartbeatGrace,
+		}
+		if err := tx.Model(resource).Updates(updates).Error; err != nil {
 			return fmt.Errorf("failed to update resource fields: %w", err)
 		}
 

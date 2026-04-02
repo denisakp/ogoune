@@ -246,6 +246,8 @@ describe('ResourceView — heartbeat integration snippet visible by default (T04
   })
 })
 
+
+
 describe('ResourceView — next expected ping countdown (T046)', () => {
   beforeEach(() => {
     vi.useFakeTimers()
