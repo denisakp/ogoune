@@ -275,6 +275,46 @@ func (r *ResourceRepositoryImpl) UpdateLastPingAt(ctx context.Context, id string
 	return nil
 }
 
+// UpdateMonitoringState persists the monitoring-controlled fields after a check cycle.
+// These fields are intentionally excluded from Update() (user-facing) to prevent
+// user PATCH requests from overwriting monitoring state.
+func (r *ResourceRepositoryImpl) UpdateMonitoringState(ctx context.Context, resource *domain.Resource) error {
+	updates := map[string]interface{}{
+		"status":                 resource.Status,
+		"failure_count":          resource.FailureCount,
+		"last_checked":           resource.LastChecked,
+		"last_status_transition": resource.LastStatusTransition,
+		"flap_started_at":        resource.FlapStartedAt,
+	}
+	result := r.db.WithContext(ctx).
+		Model(&domain.Resource{}).
+		Where("id = ?", resource.ID).
+		Updates(updates)
+	if result.Error != nil {
+		return fmt.Errorf("failed to update monitoring state: %w", result.Error)
+	}
+	if result.RowsAffected == 0 {
+		return repository.ErrNotFound
+	}
+	return nil
+}
+
+// UpdateStatus sets only the status column for a resource.
+// Used by heartbeat recovery to persist the transition to 'up' without touching other fields.
+func (r *ResourceRepositoryImpl) UpdateStatus(ctx context.Context, id string, status domain.ResourceStatus) error {
+	result := r.db.WithContext(ctx).
+		Model(&domain.Resource{}).
+		Where("id = ?", id).
+		Update("status", status)
+	if result.Error != nil {
+		return fmt.Errorf("failed to update resource status: %w", result.Error)
+	}
+	if result.RowsAffected == 0 {
+		return repository.ErrNotFound
+	}
+	return nil
+}
+
 // UpdateMetadata updates only the metadata fields of a resource to avoid touching associations.
 func (r *ResourceRepositoryImpl) UpdateMetadata(ctx context.Context, id string, metadata *domain.ResourceMetaData) error {
 	if metadata == nil {

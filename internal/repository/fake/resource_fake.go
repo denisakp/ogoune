@@ -223,6 +223,40 @@ func (r *ResourceFake) UpdateLastPingAt(ctx context.Context, id string, at time.
 	return nil
 }
 
+func (r *ResourceFake) UpdateMonitoringState(ctx context.Context, resource *domain.Resource) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	if r.updateErr != nil {
+		err := r.updateErr
+		r.updateErr = nil
+		return err
+	}
+
+	res, exists := r.resources[resource.ID]
+	if !exists {
+		return ErrNotFound
+	}
+	res.Status = resource.Status
+	res.FailureCount = resource.FailureCount
+	res.LastChecked = resource.LastChecked
+	res.LastStatusTransition = resource.LastStatusTransition
+	res.FlapStartedAt = resource.FlapStartedAt
+	return nil
+}
+
+func (r *ResourceFake) UpdateStatus(ctx context.Context, id string, status domain.ResourceStatus) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	res, exists := r.resources[id]
+	if !exists {
+		return ErrNotFound
+	}
+	res.Status = status
+	return nil
+}
+
 func (r *ResourceFake) Delete(ctx context.Context, id string) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()

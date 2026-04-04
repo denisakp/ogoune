@@ -534,6 +534,16 @@ func (s *ResourceService) DeleteResource(ctx context.Context, resourceID string)
 		componentID = res.ComponentID
 	}
 
+	// Resolve any active incident before soft-deleting to prevent orphan incidents.
+	if incident, err := s.incidents.FindActiveByResourceID(ctx, resourceID); err == nil {
+		now := time.Now()
+		incident.ResolvedAt = &now
+		if err := s.incidents.Update(ctx, incident); err != nil {
+			log.Printf("[resource-service] failed to resolve incident for deleted resource %s: %v", resourceID, err)
+		}
+	}
+	// ErrNotFound from FindActiveByResourceID is expected (no active incident) — proceed silently.
+
 	if err := s.resources.Delete(ctx, resourceID); err != nil {
 		return err
 	}
@@ -788,9 +798,10 @@ func (s *ResourceService) MarkHeartbeatPing(ctx context.Context, resourceID stri
 // It updates the resource status to 'up' and marks the most recent unresolved incident as resolved.
 // Errors are non-fatal from the caller's perspective — the ping has already been recorded.
 func (s *ResourceService) HandleHeartbeatRecovery(ctx context.Context, resource *domain.Resource) error {
-	// Update resource status to 'up'
-	resource.Status = domain.StatusUp
-	if err := s.resources.Update(ctx, resource); err != nil {
+	// Persist the status transition to 'up' using a targeted column update.
+	// The generic Update() uses a map that intentionally excludes 'status' (monitoring-controlled),
+	// so we use UpdateStatus here to avoid that exclusion.
+	if err := s.resources.UpdateStatus(ctx, resource.ID, domain.StatusUp); err != nil {
 		return fmt.Errorf("failed to update heartbeat monitor status on recovery: %w", err)
 	}
 

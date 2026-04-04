@@ -46,6 +46,12 @@ type ResourceRepository interface {
 	CountByComponentID(ctx context.Context, componentID string) (int64, error)
 	FindMissedHeartbeats(ctx context.Context, now time.Time, limit int) ([]*domain.Resource, error)
 	UpdateLastPingAt(ctx context.Context, id string, at time.Time) error
+	// UpdateStatus sets only the status column for a resource (used for heartbeat recovery).
+	UpdateStatus(ctx context.Context, id string, status domain.ResourceStatus) error
+	// UpdateMonitoringState persists the fields that the monitoring worker controls after each check:
+	// status, failure_count, last_checked, last_status_transition, flap_started_at.
+	// Intentionally separate from Update() which is restricted to user-modifiable columns.
+	UpdateMonitoringState(ctx context.Context, resource *domain.Resource) error
 	// UpdateMetadata updates only the metadata fields for a resource, leaving associations intact
 	UpdateMetadata(ctx context.Context, id string, metadata *domain.ResourceMetaData) error
 	// FindScheduledResources returns all active resources with a non-nil schedule (used by scheduler startup)
