@@ -276,6 +276,67 @@ func TestPingHandler_RecoveryFailureIsNonFatal(t *testing.T) {
 	assert.Equal(t, http.StatusOK, rec.Code)
 }
 
+func TestPingHandler_LastPingAtPersisted(t *testing.T) {
+	slug := "550e8400-e29b-41d4-a716-446655440119"
+	before := time.Now().UTC()
+
+	var capturedAt time.Time
+	h := NewPingHandler(&mockHeartbeatPingService{
+		getResourceByHeartbeatSlugFunc: func(ctx context.Context, s string) (*domain.Resource, error) {
+			return &domain.Resource{
+				Base:     domain.Base{ID: "hb-persist"},
+				Name:     "Persistence Test",
+				Type:     domain.ResourceHeartbeat,
+				IsActive: true,
+				Status:   domain.StatusUp,
+			}, nil
+		},
+		markHeartbeatPingFunc: func(ctx context.Context, resourceID string, at time.Time) error {
+			capturedAt = at
+			return nil
+		},
+	})
+	r := newPingTestRouter(h)
+	req := httptest.NewRequest(http.MethodPost, "/ping/"+slug, nil)
+	rec := httptest.NewRecorder()
+	r.ServeHTTP(rec, req)
+
+	after := time.Now().UTC()
+	require.Equal(t, http.StatusOK, rec.Code)
+
+	// SC-006: last_ping_at must be set to a real timestamp — not nil, not zero
+	require.False(t, capturedAt.IsZero(), "last_ping_at must be written with a real timestamp on ping receipt")
+	assert.True(t, capturedAt.After(before) || capturedAt.Equal(before), "last_ping_at must be >= request time")
+	assert.True(t, capturedAt.Before(after) || capturedAt.Equal(after), "last_ping_at must be <= response time")
+}
+
+func TestIsHeartbeatWaiting_NonNilTimestampIsNotWaiting(t *testing.T) {
+	// FR-004: a non-nil last_ping_at MUST NOT keep a monitor in waiting state,
+	// even if the pointer points to a zero-value time.Time.
+	zeroTime := time.Time{}
+	realTime := time.Now().UTC()
+
+	t.Run("nil last_ping_at is waiting", func(t *testing.T) {
+		r := &domain.Resource{Type: domain.ResourceHeartbeat, LastPingAt: nil}
+		assert.True(t, r.IsHeartbeatWaiting(), "nil LastPingAt should mean waiting=true")
+	})
+
+	t.Run("non-nil last_ping_at with zero value is NOT waiting", func(t *testing.T) {
+		r := &domain.Resource{Type: domain.ResourceHeartbeat, LastPingAt: &zeroTime}
+		assert.False(t, r.IsHeartbeatWaiting(), "non-nil LastPingAt (even zero-value) should mean waiting=false")
+	})
+
+	t.Run("non-nil last_ping_at with real timestamp is NOT waiting", func(t *testing.T) {
+		r := &domain.Resource{Type: domain.ResourceHeartbeat, LastPingAt: &realTime}
+		assert.False(t, r.IsHeartbeatWaiting(), "non-nil LastPingAt with real timestamp should mean waiting=false")
+	})
+
+	t.Run("non-heartbeat type is never waiting", func(t *testing.T) {
+		r := &domain.Resource{Type: domain.ResourceHTTP, LastPingAt: nil}
+		assert.False(t, r.IsHeartbeatWaiting(), "non-heartbeat resource should never be waiting")
+	})
+}
+
 func TestPingHandler_InternalError(t *testing.T) {
 	slug := "550e8400-e29b-41d4-a716-446655440115"
 	h := NewPingHandler(&mockHeartbeatPingService{

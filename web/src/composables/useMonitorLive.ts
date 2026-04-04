@@ -5,8 +5,13 @@ import type { LiveSnapshot } from '@/types'
 import { fetchLiveSnapshot } from '@/services/liveService'
 
 type IntervalInput = number | undefined | (() => number | undefined)
+type WaitingInput = boolean | undefined | (() => boolean | undefined)
 
-export const useMonitorLive = (resourceId: string, resourceIntervalSeconds?: IntervalInput) => {
+export const useMonitorLive = (
+  resourceId: string,
+  resourceIntervalSeconds?: IntervalInput,
+  isWaiting?: WaitingInput,
+) => {
   const liveData = ref<LiveSnapshot | null>(null)
   const isLoading = ref(false)
   const lastUpdated = ref<Date | null>(null)
@@ -16,6 +21,10 @@ export const useMonitorLive = (resourceId: string, resourceIntervalSeconds?: Int
   let intervalHandle: number | undefined
 
   const pollingIntervalMs = computed(() => {
+    const waiting = typeof isWaiting === 'function' ? isWaiting() : isWaiting
+    if (waiting) {
+      return 5_000
+    }
     const rawInterval =
       typeof resourceIntervalSeconds === 'function'
         ? resourceIntervalSeconds()

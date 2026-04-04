@@ -60,6 +60,60 @@ describe('useMonitorLive', () => {
     mounted2.wrapper.unmount()
   })
 
+  it('SC-001 / FR-003: returns 5000ms when isWaiting=true, regardless of heartbeat_interval', () => {
+    // Without the fix: max(300*1000, 15_000) = 300_000ms — violates the 5s SC-001 requirement.
+    // With the fix: waiting=true overrides to 5_000ms.
+    let exposed: ReturnType<typeof useMonitorLive> | null = null
+    const TestComponent = defineComponent({
+      setup() {
+        exposed = useMonitorLive('hb-waiting', () => 300, () => true)
+        return () => null
+      },
+    })
+    const wrapper = mount(TestComponent)
+    expect(exposed!.pollingIntervalMs.value).toBe(5_000)
+    wrapper.unmount()
+  })
+
+  it('SC-001: retains normal interval when isWaiting=false', () => {
+    let exposed: ReturnType<typeof useMonitorLive> | null = null
+    const TestComponent = defineComponent({
+      setup() {
+        exposed = useMonitorLive('hb-up', () => 60, () => false)
+        return () => null
+      },
+    })
+    const wrapper = mount(TestComponent)
+    expect(exposed!.pollingIntervalMs.value).toBe(60_000)
+    wrapper.unmount()
+  })
+
+  it('SC-001: retains 15s floor when isWaiting=false and interval is very short', () => {
+    let exposed: ReturnType<typeof useMonitorLive> | null = null
+    const TestComponent = defineComponent({
+      setup() {
+        exposed = useMonitorLive('hb-short', () => 5, () => false)
+        return () => null
+      },
+    })
+    const wrapper = mount(TestComponent)
+    expect(exposed!.pollingIntervalMs.value).toBe(15_000)
+    wrapper.unmount()
+  })
+
+  it('SC-001: retains normal interval when isWaiting is omitted (backwards compat)', () => {
+    let exposed: ReturnType<typeof useMonitorLive> | null = null
+    const TestComponent = defineComponent({
+      setup() {
+        exposed = useMonitorLive('hb-compat', () => 60)
+        return () => null
+      },
+    })
+    const wrapper = mount(TestComponent)
+    expect(exposed!.pollingIntervalMs.value).toBe(60_000)
+    wrapper.unmount()
+  })
+
   it('cleans up polling timer on unmount', async () => {
     const { wrapper } = mountComposable(15)
     await vi.advanceTimersByTimeAsync(30_000)

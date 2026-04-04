@@ -52,7 +52,11 @@ const {
   refresh,
   startPolling,
   stopPolling,
-} = useMonitorLive(resourceId.value, () => resource.value?.interval)
+} = useMonitorLive(
+  resourceId.value,
+  () => resource.value?.interval,
+  () => resource.value?.waiting === true,
+)
 
 const { getTimeRangeCutoff } = useDateTime()
 
@@ -313,9 +317,27 @@ const flappingTransitionText = computed(() => {
 
 const isHeartbeat = computed(() => resource.value?.type === 'heartbeat')
 
+// Heartbeat monitors report status='up' from creation, but also expose waiting=true
+// until the first ping arrives. Use effectiveStatus so UI always shows 'waiting'
+// instead of 'up' during that initial window.
+const effectiveStatus = computed(() =>
+  resource.value?.waiting ? 'waiting' : (resource.value?.status ?? 'unknown'),
+)
+
 const pingUrl = computed(() => {
   if (!resource.value?.heartbeat_slug) return ''
-  return `${window.location.origin}/ping/${resource.value.heartbeat_slug}`
+  const apiBase = import.meta.env.VITE_API_BASE_URL as string | undefined
+  let origin: string
+  if (apiBase && apiBase.startsWith('http')) {
+    try {
+      origin = new URL(apiBase).origin
+    } catch {
+      origin = window.location.origin
+    }
+  } else {
+    origin = window.location.origin
+  }
+  return `${origin}/api/ping/${resource.value.heartbeat_slug}`
 })
 
 const lastPingAtFormatted = computed(() => {
@@ -564,14 +586,16 @@ const goBack = () => {
                       style="font-size: 28px; font-weight: bold"
                       :style="{
                         color:
-                          resource.status === 'down'
+                          effectiveStatus === 'down'
                             ? '#ff4d4f'
-                            : resource.status === 'paused'
+                            : effectiveStatus === 'paused'
                               ? '#d9d9d9'
-                              : '#52c41a',
+                              : effectiveStatus === 'waiting'
+                                ? '#8c8c8c'
+                                : '#52c41a',
                       }"
                     >
-                      {{ getStatusText(resource.status) }}
+                      {{ getStatusText(effectiveStatus) }}
                     </div>
                     <div style="font-size: 12px; color: rgba(0, 0, 0, 0.65); margin-top: 8px">
                       Currently {{ resource.is_active ? 'active' : 'inactive' }}
@@ -921,15 +945,31 @@ const goBack = () => {
                 </div>
 
                 <!-- Check Interval -->
-                <div>
+                <div v-if="resource.type !== 'heartbeat'">
                   <div style="font-size: 12px; color: rgba(0, 0, 0, 0.45); margin-bottom: 4px">
                     Check interval
                   </div>
                   <div style="font-size: 14px">Every {{ resource.interval }} seconds</div>
                 </div>
 
+                <!-- Heartbeat Interval + Grace -->
+                <template v-if="resource.type === 'heartbeat'">
+                  <div>
+                    <div style="font-size: 12px; color: rgba(0, 0, 0, 0.45); margin-bottom: 4px">
+                      Ping interval
+                    </div>
+                    <div style="font-size: 14px">Every {{ resource.heartbeat_interval }} seconds</div>
+                  </div>
+                  <div>
+                    <div style="font-size: 12px; color: rgba(0, 0, 0, 0.45); margin-bottom: 4px">
+                      Grace period
+                    </div>
+                    <div style="font-size: 14px">{{ resource.heartbeat_grace }} seconds</div>
+                  </div>
+                </template>
+
                 <!-- Timeout -->
-                <div>
+                <div v-if="resource.type !== 'heartbeat'">
                   <div style="font-size: 12px; color: rgba(0, 0, 0, 0.45); margin-bottom: 4px">
                     Timeout
                   </div>

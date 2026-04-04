@@ -46,6 +46,11 @@ func (a *RepositorySchedulerAdapter) Schedule(ctx context.Context, resource *dom
 		return nil
 	}
 
+	// Heartbeat monitors are passively detected via incoming pings; no active polling needed
+	if resource.Type == domain.ResourceHeartbeat {
+		return nil
+	}
+
 	// Get interval from resource (in seconds)
 	intervalSeconds := resource.Interval
 	if intervalSeconds <= 0 {

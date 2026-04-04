@@ -84,8 +84,29 @@ func (r *ResourceRepositoryImpl) List(ctx context.Context, limit, offset int) ([
 func (r *ResourceRepositoryImpl) Update(ctx context.Context, resource *domain.Resource) error {
 	// Use a transaction to ensure atomicity
 	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		// First, update the resource fields (excluding associations)
-		if err := tx.Model(resource).Updates(resource).Error; err != nil {
+		// Use a map to avoid GORM skipping zero-value fields (e.g. bool=false, int=0, *int=nil).
+		// Only include user-modifiable columns; monitoring-controlled fields (status, last_checked,
+		// failure_count, last_ping_at, heartbeat_slug) are intentionally excluded.
+		updates := map[string]interface{}{
+			"name":                      resource.Name,
+			"type":                      resource.Type,
+			"target":                    resource.Target,
+			"interval":                  resource.Interval,
+			"timeout":                   resource.Timeout,
+			"is_active":                 resource.IsActive,
+			"confirmation_checks":       resource.ConfirmationChecks,
+			"confirmation_interval":     resource.ConfirmationInterval,
+			"component_id":              resource.ComponentID,
+			"expiry_alert_thresholds":   resource.ExpiryAlertThresholds,
+			"flap_detection_enabled":    resource.FlapDetectionEnabled,
+			"flap_threshold":            resource.FlapThreshold,
+			"flap_window_seconds":       resource.FlapWindowSeconds,
+			"flap_max_duration_minutes": resource.FlapMaxDurationMinutes,
+			"reminder_interval_minutes": resource.ReminderIntervalMinutes,
+			"heartbeat_interval":        resource.HeartbeatInterval,
+			"heartbeat_grace":           resource.HeartbeatGrace,
+		}
+		if err := tx.Model(resource).Updates(updates).Error; err != nil {
 			return fmt.Errorf("failed to update resource fields: %w", err)
 		}
 
@@ -247,6 +268,46 @@ func (r *ResourceRepositoryImpl) UpdateLastPingAt(ctx context.Context, id string
 
 	if result.Error != nil {
 		return fmt.Errorf("failed to update last_ping_at: %w", result.Error)
+	}
+	if result.RowsAffected == 0 {
+		return repository.ErrNotFound
+	}
+	return nil
+}
+
+// UpdateMonitoringState persists the monitoring-controlled fields after a check cycle.
+// These fields are intentionally excluded from Update() (user-facing) to prevent
+// user PATCH requests from overwriting monitoring state.
+func (r *ResourceRepositoryImpl) UpdateMonitoringState(ctx context.Context, resource *domain.Resource) error {
+	updates := map[string]interface{}{
+		"status":                 resource.Status,
+		"failure_count":          resource.FailureCount,
+		"last_checked":           resource.LastChecked,
+		"last_status_transition": resource.LastStatusTransition,
+		"flap_started_at":        resource.FlapStartedAt,
+	}
+	result := r.db.WithContext(ctx).
+		Model(&domain.Resource{}).
+		Where("id = ?", resource.ID).
+		Updates(updates)
+	if result.Error != nil {
+		return fmt.Errorf("failed to update monitoring state: %w", result.Error)
+	}
+	if result.RowsAffected == 0 {
+		return repository.ErrNotFound
+	}
+	return nil
+}
+
+// UpdateStatus sets only the status column for a resource.
+// Used by heartbeat recovery to persist the transition to 'up' without touching other fields.
+func (r *ResourceRepositoryImpl) UpdateStatus(ctx context.Context, id string, status domain.ResourceStatus) error {
+	result := r.db.WithContext(ctx).
+		Model(&domain.Resource{}).
+		Where("id = ?", id).
+		Update("status", status)
+	if result.Error != nil {
+		return fmt.Errorf("failed to update resource status: %w", result.Error)
 	}
 	if result.RowsAffected == 0 {
 		return repository.ErrNotFound
