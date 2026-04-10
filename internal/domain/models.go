@@ -47,6 +47,7 @@ const (
 	ResourceDNS       ResourceType = "dns"
 	ResourceICMP      ResourceType = "icmp"
 	ResourceHeartbeat ResourceType = "heartbeat"
+	ResourceKeyword   ResourceType = "keyword"
 )
 
 type ResourceStatus string
@@ -111,6 +112,8 @@ type Resource struct {
 	HeartbeatInterval       *int                   `json:"heartbeat_interval,omitempty" gorm:"column:heartbeat_interval"`
 	HeartbeatGrace          *int                   `json:"heartbeat_grace,omitempty" gorm:"column:heartbeat_grace"`
 	LastPingAt              *time.Time             `json:"last_ping_at,omitempty" gorm:"column:last_ping_at;index"`
+	Keyword                 *string                `json:"keyword,omitempty" gorm:"column:keyword"`
+	KeywordMode             *string                `json:"keyword_mode,omitempty" gorm:"column:keyword_mode"`
 	MetadataPending         bool                   `json:"metadata_pending" gorm:"-"`
 }
 
@@ -268,6 +271,11 @@ type IncidentDiagnostics struct {
 	FirstByteDuration int               `json:"first_byte_duration"`                      // Milliseconds (0 if body not captured)
 	BodyTruncated     bool              `json:"body_truncated"`                           // true if response body was truncated
 	BodyEncoded       bool              `json:"body_encoded"`                             // true if response body is base64 encoded
+
+	// Keyword enrichment fields (populated for keyword monitor incidents only)
+	Keyword      *string `json:"keyword,omitempty" gorm:"column:keyword"`
+	KeywordMode  *string `json:"keyword_mode,omitempty" gorm:"column:keyword_mode"`
+	KeywordFound *bool   `json:"keyword_found,omitempty" gorm:"column:keyword_found"`
 
 	// ICMP enrichment fields (H2: populated by diagnostic enricher for all DOWN incidents)
 	ICMPAvailable *bool  `json:"icmp_available" gorm:"default:null"` // whether ICMP capability was available at enrichment time

@@ -141,6 +141,12 @@ const hasICMPDiagnostics = computed(() => {
   return diag != null && diag.icmp_available != null
 })
 
+// Check if keyword diagnostics are present (only for keyword monitor incidents)
+const hasKeywordDiagnostics = computed(() => {
+  const diag = incident.value?.diagnostics
+  return diag != null && diag.keyword != null && diag.keyword !== ''
+})
+
 // Root cause hint label and badge color for ICMP network diagnostics
 const rootCauseHintLabel = computed((): { label: string; color: string } => {
   const hint = incident.value?.diagnostics?.root_cause_hint
@@ -637,6 +643,40 @@ const handleDownloadResponse = () => {
                 :tls-duration="incident.diagnostics.tls_duration"
                 :first-byte-duration="incident.diagnostics.first_byte_duration"
               />
+            </a-card>
+
+            <a-card v-if="hasKeywordDiagnostics && incident.diagnostics" style="margin-top: 16px">
+              <template #title>
+                <div style="font-size: 14px; font-weight: 600">🔎 Keyword Diagnostics</div>
+              </template>
+
+              <div style="display: flex; flex-direction: column; gap: 12px">
+                <div>
+                  <div style="font-size: 12px; color: rgba(0,0,0,0.65); margin-bottom: 6px">KEYWORD</div>
+                  <code style="background: #f5f5f5; padding: 2px 6px; border-radius: 4px">{{ incident.diagnostics.keyword }}</code>
+                </div>
+                <div>
+                  <div style="font-size: 12px; color: rgba(0,0,0,0.65); margin-bottom: 6px">MATCH MODE</div>
+                  <a-tag>{{ incident.diagnostics.keyword_mode }}</a-tag>
+                </div>
+                <div>
+                  <div style="font-size: 12px; color: rgba(0,0,0,0.65); margin-bottom: 6px">KEYWORD FOUND</div>
+                  <a-tag :color="incident.diagnostics.keyword_found ? 'green' : 'red'">
+                    {{ incident.diagnostics.keyword_found ? 'Yes' : 'No' }}
+                  </a-tag>
+                </div>
+                <div v-if="incident.diagnostics.response_body">
+                  <div style="font-size: 12px; color: rgba(0,0,0,0.65); margin-bottom: 6px">
+                    BODY EXCERPT
+                    <a-tag v-if="incident.diagnostics.body_truncated" color="warning" style="margin-left: 6px">Truncated</a-tag>
+                  </div>
+                  <pre style="background: #f5f5f5; padding: 8px; border-radius: 4px; font-size: 12px; white-space: pre-wrap; word-break: break-all; max-height: 200px; overflow-y: auto">{{ incident.diagnostics.response_body }}</pre>
+                </div>
+                <div v-if="incident.diagnostics.response_size">
+                  <div style="font-size: 12px; color: rgba(0,0,0,0.65); margin-bottom: 6px">BODY SIZE</div>
+                  <div style="font-size: 14px">{{ incident.diagnostics.response_size }} bytes</div>
+                </div>
+              </div>
             </a-card>
 
             <a-card v-if="hasICMPDiagnostics && incident.diagnostics" style="margin-top: 16px">

@@ -697,6 +697,55 @@ go test -race ./...
 
 ---
 
+---
+
+## Verifying page content with Keyword checks
+
+### When to use a Keyword monitor vs an HTTP monitor
+
+Use an **HTTP monitor** when you only need to know the server responds with a success status code (2xx/3xx). Use a **Keyword monitor** when the status code alone is not enough — for example, when a site returns HTTP 200 but the page contains an error message, a maintenance notice, or is missing expected content.
+
+### `contains` vs `not_contains`
+
+|Mode|When to use|Raises incident when…|
+|---|---|---|
+|`contains`|Expect a string to always be present (e.g., `"operational"`, `"Welcome"`)|The keyword is **absent** from the response body|
+|`not_contains`|Expect a string to never appear (e.g., `"maintenance"`, `"error"`)|The keyword is **present** in the response body|
+
+**Example — status page check (contains):**
+
+```json
+{
+  "type": "keyword",
+  "target": "https://status.example.com",
+  "keyword": "operational",
+  "keyword_mode": "contains"
+}
+```
+
+**Example — error detection (not_contains):**
+
+```json
+{
+  "type": "keyword",
+  "target": "https://app.example.com/health",
+  "keyword": "error",
+  "keyword_mode": "not_contains"
+}
+```
+
+### 512 KB body limit
+
+Ogoune reads at most **512 KB** of the response body for keyword inspection. Content beyond this limit is silently discarded. The `body_truncated` flag is set to `true` in incident diagnostics when truncation occurs. This cap prevents unbounded memory use on large responses (HTML pages, large JSON payloads).
+
+For most status pages, health endpoints, and JSON APIs, 512 KB is more than sufficient.
+
+### Case sensitivity
+
+Keyword matching is **case-sensitive**. The keyword `"Operational"` will not match `"operational"`. Choose your keyword casing to match the exact text as it appears in the response body.
+
+---
+
 ## Next steps
 
 - [Architecture documentation](./ARCHITECTURE.md) — how Ogoune works under the hood

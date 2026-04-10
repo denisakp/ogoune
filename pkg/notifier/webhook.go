@@ -10,6 +10,8 @@ import (
 	"fmt"
 	"net/http"
 	"time"
+
+	"github.com/denisakp/ogoune/internal/domain"
 )
 
 // WebHookNotifier is a notifier that sends notifications via webhook.
@@ -109,6 +111,15 @@ func (n *WebHookNotifier) Send(ctx context.Context, payload NotificationPayload)
 			"type":    "incident",
 			"status":  status,
 			"message": incident.Cause,
+		}
+		if incident.Resource.Type == domain.ResourceKeyword {
+			if incident.Resource.Keyword != nil {
+				body["keyword"] = *incident.Resource.Keyword
+			}
+			if incident.Resource.KeywordMode != nil {
+				body["keyword_mode"] = *incident.Resource.KeywordMode
+			}
+			body["failure_cause"] = incident.Cause
 		}
 	default:
 		return fmt.Errorf("notification payload missing incident, component, expiry, flapping, or reminder")

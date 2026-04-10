@@ -16,7 +16,7 @@ export interface ResourceMetadata {
 export interface Resource {
   id: string
   name: string
-  type: 'http' | 'tcp' | 'dns' | 'icmp' | 'heartbeat'
+  type: 'http' | 'tcp' | 'dns' | 'icmp' | 'heartbeat' | 'keyword'
   target: string
   interval: number // in seconds
   timeout: number // in seconds
@@ -51,6 +51,9 @@ export interface Resource {
   heartbeat_grace?: number       // seconds (60–3600)
   last_ping_at?: string | null   // ISO 8601 or null
   waiting?: boolean              // true when last_ping_at is null (never pinged)
+  // Keyword-specific fields (only present when type === 'keyword')
+  keyword?: string               // literal string to search for (max 500 chars)
+  keyword_mode?: 'contains' | 'not_contains'
 }
 
 /**
@@ -83,7 +86,7 @@ export interface StatsSummary {
 
 export interface CreateResource {
   name: string
-  type: 'http' | 'tcp' | 'dns' | 'icmp' | 'heartbeat'
+  type: 'http' | 'tcp' | 'dns' | 'icmp' | 'heartbeat' | 'keyword'
   target?: string
   interval?: number
   timeout?: number
@@ -100,6 +103,9 @@ export interface CreateResource {
   // Heartbeat-specific
   heartbeat_interval?: number   // seconds (60–86400)
   heartbeat_grace?: number      // seconds (60–3600)
+  // Keyword-specific
+  keyword?: string
+  keyword_mode?: 'contains' | 'not_contains'
 }
 
 export type UpdateResource = Partial<CreateResource>
@@ -196,6 +202,10 @@ export interface IncidentDiagnostics {
   icmp_reachable?: boolean | null
   icmp_rtt_ms?: number | null
   root_cause_hint?: string | null
+  // Keyword monitor diagnostics (present only when type === 'keyword')
+  keyword?: string | null
+  keyword_mode?: string | null
+  keyword_found?: boolean | null
 }
 
 /**

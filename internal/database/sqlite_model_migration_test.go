@@ -22,4 +22,9 @@ func TestSQLiteSchemaSupportsRegisteredModels(t *testing.T) {
 	require.True(t, runtime.DB.Migrator().HasColumn("users", "two_factor_backup_codes"))
 	require.True(t, runtime.DB.Migrator().HasColumn("resources", "confirmation_checks"))
 	require.True(t, runtime.DB.Migrator().HasColumn("resources", "confirmation_interval"))
+	require.True(t, runtime.DB.Migrator().HasColumn("resources", "keyword"))
+	require.True(t, runtime.DB.Migrator().HasColumn("resources", "keyword_mode"))
+	require.True(t, runtime.DB.Migrator().HasColumn("incident_diagnostics", "keyword"))
+	require.True(t, runtime.DB.Migrator().HasColumn("incident_diagnostics", "keyword_mode"))
+	require.True(t, runtime.DB.Migrator().HasColumn("incident_diagnostics", "keyword_found"))
 }

@@ -51,7 +51,7 @@ func ValidateHeartbeatSlug(slug string) error {
 // For TCP resources, it validates host:port format with basic hostname/IP validation.
 func ValidateResourceTarget(target string, resourceType ResourceType) error {
 	switch resourceType {
-	case ResourceHTTP:
+	case ResourceHTTP, ResourceKeyword:
 		// Parse and validate URL
 		u, err := url.ParseRequestURI(target)
 		if err != nil || u.Host == "" {

@@ -34,9 +34,12 @@ const form = ref<CreateResource & { component_id?: string }>({
   reminder_interval_minutes: undefined,
   heartbeat_interval: 300,
   heartbeat_grace: 60,
+  keyword: undefined,
+  keyword_mode: 'contains' as 'contains' | 'not_contains',
 })
 
 const isHeartbeat = computed(() => form.value.type === 'heartbeat')
+const isKeyword = computed(() => form.value.type === 'keyword')
 
 const loading = ref(false)
 
@@ -62,6 +65,8 @@ watch(
         reminder_interval_minutes: resource.reminder_interval_minutes,
         heartbeat_interval: resource.heartbeat_interval ?? 300,
         heartbeat_grace: resource.heartbeat_grace ?? 60,
+        keyword: resource.keyword ?? undefined,
+        keyword_mode: (resource.keyword_mode as 'contains' | 'not_contains') ?? 'contains',
       }
     } else {
       form.value = {
@@ -82,6 +87,8 @@ watch(
         reminder_interval_minutes: undefined,
         heartbeat_interval: 300,
         heartbeat_grace: 60,
+        keyword: undefined,
+        keyword_mode: 'contains',
       }
     }
   },
@@ -117,6 +124,10 @@ const handleSubmit = async () => {
       return
     }
   }
+  if (isKeyword.value) {
+    if (!form.value.keyword?.trim()) return
+    if ((form.value.keyword?.length ?? 0) > 500) return
+  }
   const thresholds = form.value.expiry_alert_thresholds?.trim()
   if (thresholds) {
     const parts = thresholds.split(',').map((s) => s.trim())
@@ -148,6 +159,8 @@ const handleSubmit = async () => {
         reminder_interval_minutes: form.value.reminder_interval_minutes,
         heartbeat_interval: isHeartbeat.value ? form.value.heartbeat_interval : undefined,
         heartbeat_grace: isHeartbeat.value ? form.value.heartbeat_grace : undefined,
+        keyword: isKeyword.value ? form.value.keyword : undefined,
+        keyword_mode: isKeyword.value ? form.value.keyword_mode : undefined,
       }
       await updateResourceData(props.resource.id, updateData)
     } else {
@@ -228,6 +241,7 @@ const icmpWarning = computed(() => {
             <a-select-option value="dns">DNS</a-select-option>
             <a-select-option value="icmp">ICMP (Ping)</a-select-option>
             <a-select-option value="heartbeat">Heartbeat / Push</a-select-option>
+            <a-select-option value="keyword">Keyword / Content Check</a-select-option>
           </a-select>
         </a-form-item>
       </a-col>
@@ -267,6 +281,30 @@ const icmpWarning = computed(() => {
               placeholder="e.g. 60 (1 min)"
               data-testid="heartbeat-grace"
             />
+          </a-form-item>
+        </a-col>
+      </a-row>
+    </template>
+
+    <!-- Keyword fields -->
+    <template v-if="isKeyword">
+      <a-row :gutter="16">
+        <a-col :xs="24" :sm="16">
+          <a-form-item label="Keyword" required>
+            <a-input
+              v-model:value="form.keyword"
+              placeholder="e.g., operational"
+              :maxlength="500"
+              data-testid="keyword-input"
+            />
+          </a-form-item>
+        </a-col>
+        <a-col :xs="24" :sm="8">
+          <a-form-item label="Match Mode">
+            <a-select v-model:value="form.keyword_mode" data-testid="keyword-mode-select">
+              <a-select-option value="contains">Contains</a-select-option>
+              <a-select-option value="not_contains">Does Not Contain</a-select-option>
+            </a-select>
           </a-form-item>
         </a-col>
       </a-row>
