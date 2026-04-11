@@ -16,6 +16,8 @@ type CreateResourcePayload struct {
 	Target                  string              `json:"target" binding:"required"`
 	HeartbeatInterval       *int                `json:"heartbeat_interval,omitempty"`
 	HeartbeatGrace          *int                `json:"heartbeat_grace,omitempty"`
+	Keyword                 *string             `json:"keyword,omitempty"`
+	KeywordMode             *string             `json:"keyword_mode,omitempty"`
 	Tags                    []string            `json:"tags"` // Tag names - will be created if they don't exist
 	ComponentID             *string             `json:"component_id,omitempty"`
 	ConfirmationChecks      *int                `json:"confirmation_checks,omitempty"`
@@ -49,6 +51,8 @@ type UpdateResourcePayload struct {
 	ReminderIntervalMinutes *int                 `json:"reminder_interval_minutes,omitempty"`
 	HeartbeatInterval       *int                 `json:"heartbeat_interval,omitempty"`
 	HeartbeatGrace          *int                 `json:"heartbeat_grace,omitempty"`
+	Keyword                 *string              `json:"keyword,omitempty"`
+	KeywordMode             *string              `json:"keyword_mode,omitempty"`
 }
 
 // UptimeStatResponse represents hourly uptime percentage for the last 24 hours

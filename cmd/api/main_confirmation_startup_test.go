@@ -10,7 +10,7 @@ import (
 )
 
 func TestStartupSchemaValidationFailsWhenConfirmationChecksMissing(t *testing.T) {
-	db, err := gorm.Open(sqlite.Open("file:confirmation_checks_missing?mode=memory&cache=shared"), &gorm.Config{})
+	db, err := gorm.Open(sqlite.Open("file::memory:?cache=private"), &gorm.Config{})
 	require.NoError(t, err)
 
 	require.NoError(t, db.Exec(`
@@ -29,7 +29,7 @@ func TestStartupSchemaValidationFailsWhenConfirmationChecksMissing(t *testing.T)
 }
 
 func TestStartupSchemaValidationFailsWhenConfirmationIntervalMissing(t *testing.T) {
-	db, err := gorm.Open(sqlite.Open("file:confirmation_interval_missing?mode=memory&cache=shared"), &gorm.Config{})
+	db, err := gorm.Open(sqlite.Open("file::memory:?cache=private"), &gorm.Config{})
 	require.NoError(t, err)
 
 	require.NoError(t, db.Exec(`

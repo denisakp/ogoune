@@ -73,6 +73,21 @@
                     <span class="value">{{ .Incident.Resource.Target }}</span>
                 </div>
 
+                {{- if .Keyword }}
+                <div class="detail">
+                    <span class="label">Keyword:</span>
+                    <span class="value">{{ .Keyword }}</span>
+                </div>
+                <div class="detail">
+                    <span class="label">Match Mode:</span>
+                    <span class="value">{{ .KeywordMode }}</span>
+                </div>
+                <div class="detail">
+                    <span class="label">Failure Reason:</span>
+                    <span class="value">{{ .ErrorSummary }}</span>
+                </div>
+                {{- end }}
+
                 <p style="margin-top: 20px">
                     <strong>Action Required:</strong> Please investigate this
                     incident immediately.

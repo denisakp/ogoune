@@ -31,6 +31,79 @@ func TestBuildIncidentDiagnostics_NilResponseHeaders_DefaultsToEmptyMap(t *testi
 	assert.Equal(t, 0, len(diag.ResponseHeaders))
 }
 
+func boolPtr(b bool) *bool { return &b }
+
+func TestBuildIncidentDiagnostics_KeywordContext_Populated(t *testing.T) {
+	cause := domain.KeywordNotFound
+	result := domain.CheckResult{
+		Cause:        &cause,
+		ReadBodySize: 48291,
+		KeywordContext: &domain.KeywordCheckContext{
+			Keyword:      "operational",
+			KeywordMode:  "contains",
+			KeywordFound: false,
+		},
+	}
+	resource := &domain.Resource{Timeout: 10}
+
+	diag := BuildIncidentDiagnostics("inc-kw-1", result, resource)
+
+	assert.Equal(t, "operational", *diag.Keyword)
+	assert.Equal(t, "contains", *diag.KeywordMode)
+	assert.Equal(t, boolPtr(false), diag.KeywordFound)
+	assert.Equal(t, 48291, diag.ResponseSize)
+}
+
+func TestBuildIncidentDiagnostics_KeywordContext_Nil_FieldsZero(t *testing.T) {
+	cause := domain.HTTPInvalidStatusCode
+	result := domain.CheckResult{
+		Cause: &cause,
+	}
+	resource := &domain.Resource{Timeout: 10}
+
+	diag := BuildIncidentDiagnostics("inc-kw-2", result, resource)
+
+	assert.Nil(t, diag.Keyword)
+	assert.Nil(t, diag.KeywordMode)
+	assert.Nil(t, diag.KeywordFound)
+}
+
+func TestBuildIncidentDiagnostics_BodyTruncated_PreservedFromResult(t *testing.T) {
+	result := domain.CheckResult{
+		ResponseBody:  "short excerpt",
+		BodyTruncated: true,
+		ReadBodySize:  512 * 1024,
+		KeywordContext: &domain.KeywordCheckContext{
+			Keyword:      "x",
+			KeywordMode:  "contains",
+			KeywordFound: false,
+		},
+	}
+	resource := &domain.Resource{Timeout: 10}
+
+	diag := BuildIncidentDiagnostics("inc-kw-3", result, resource)
+
+	assert.True(t, diag.BodyTruncated)
+	assert.Equal(t, 512*1024, diag.ResponseSize)
+}
+
+func TestBuildIncidentDiagnostics_ReadBodySize_UsedAsResponseSize(t *testing.T) {
+	result := domain.CheckResult{
+		ResponseBody: "abc",
+		ReadBodySize: 99999,
+		KeywordContext: &domain.KeywordCheckContext{
+			Keyword:      "abc",
+			KeywordMode:  "contains",
+			KeywordFound: true,
+		},
+	}
+	resource := &domain.Resource{Timeout: 10}
+
+	diag := BuildIncidentDiagnostics("inc-kw-4", result, resource)
+
+	assert.Equal(t, 99999, diag.ResponseSize)
+}
+
 func TestBuildIncidentDiagnostics_RemovesAuthorizationHeader(t *testing.T) {
 	result := domain.CheckResult{
 		RequestHeaders: map[string]string{

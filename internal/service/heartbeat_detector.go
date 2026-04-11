@@ -4,6 +4,7 @@ import (
 	"context"
 	"log"
 	"math"
+	"sync"
 	"time"
 
 	"github.com/denisakp/ogoune/internal/domain"
@@ -32,6 +33,7 @@ type HeartbeatDetectorService struct {
 	resources missedHeartbeatQuerier
 	incidents heartbeatIncidentManager
 	now       func() time.Time
+	wg        sync.WaitGroup
 }
 
 // NewHeartbeatDetectorService creates a new HeartbeatDetectorService.
@@ -106,7 +108,9 @@ func (d *HeartbeatDetectorService) Start(ctx context.Context, interval time.Dura
 		return ctx.Err()
 	}
 
+	d.wg.Add(1)
 	go func() {
+		defer d.wg.Done()
 		ticker := time.NewTicker(interval)
 		defer ticker.Stop()
 		for {
@@ -124,4 +128,10 @@ func (d *HeartbeatDetectorService) Start(ctx context.Context, interval time.Dura
 
 	log.Printf("[heartbeat-detector] started (interval=%s)", interval)
 	return nil
+}
+
+// Wait blocks until the background goroutine started by Start has fully exited.
+// Useful in tests to ensure the goroutine has stopped writing to the logger.
+func (d *HeartbeatDetectorService) Wait() {
+	d.wg.Wait()
 }

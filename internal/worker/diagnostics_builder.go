@@ -35,6 +35,25 @@ func BuildIncidentDiagnostics(incidentID string, result domain.CheckResult, reso
 		diag.ErrorMessage = result.ErrorMessage
 	}
 
+	// Populate keyword-specific fields when available
+	if result.KeywordContext != nil {
+		kw := result.KeywordContext.Keyword
+		mode := result.KeywordContext.KeywordMode
+		found := result.KeywordContext.KeywordFound
+		diag.Keyword = &kw
+		diag.KeywordMode = &mode
+		diag.KeywordFound = &found
+	}
+
+	// For keyword monitors, use ReadBodySize as the authoritative response size
+	// and propagate the 512 KB truncation flag from the strategy.
+	if result.ReadBodySize > 0 {
+		diag.ResponseSize = int(result.ReadBodySize)
+	}
+	if result.BodyTruncated && result.KeywordContext != nil {
+		diag.BodyTruncated = true
+	}
+
 	// Encode response body if present (could be binary)
 	if result.ResponseBody != "" {
 		// Check if it looks like binary data
@@ -46,13 +65,15 @@ func BuildIncidentDiagnostics(incidentID string, result domain.CheckResult, reso
 			diag.BodyEncoded = false
 		}
 
-		// Check if truncated (max 5KB)
-		const maxBodySize = 5 * 1024
-		if len(diag.ResponseBody) > maxBodySize {
-			diag.ResponseBody = diag.ResponseBody[:maxBodySize]
-			diag.BodyTruncated = true
+		// For non-keyword monitors: apply the 5 KB cap and set ResponseSize from excerpt length
+		if result.KeywordContext == nil {
+			const maxBodySize = 5 * 1024
+			if len(diag.ResponseBody) > maxBodySize {
+				diag.ResponseBody = diag.ResponseBody[:maxBodySize]
+				diag.BodyTruncated = true
+			}
+			diag.ResponseSize = len(result.ResponseBody)
 		}
-		diag.ResponseSize = len(result.ResponseBody)
 	}
 
 	return diag

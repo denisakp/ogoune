@@ -95,8 +95,8 @@ Community Edition — expanding monitoring coverage and hardening security.
 ### New monitor types
 - [x] **Ping / ICMP** — check network reachability of any host
 - [x] **Heartbeat / Push** — detect silent failures in cron jobs and background workers
-- [ ] **Keyword / content check** — verify a page contains an expected string, not just a 200 OK
-- [ ] **IMAP / SMTP** — verify mail servers are responding
+- [x] **Keyword / content check** — verify a page contains an expected string, not just a 200 OK
+- [ ] **IMAP / SMTP** — verify mail servers are responding (TODO)
 - [ ] **Extended protocols** — MySQL, PostgreSQL, Redis, MongoDB, FTP, SSH port checks with pre-filled defaults
 
 ### Observability

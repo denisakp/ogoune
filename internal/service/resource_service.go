@@ -166,6 +166,19 @@ func (s *ResourceService) CreateResource(ctx context.Context, payload *dto.Creat
 		}
 	}
 
+	if payload.Type == domain.ResourceKeyword {
+		if err := validateKeywordFields(payload.Keyword, payload.KeywordMode); err != nil {
+			return nil, err
+		}
+		resource.Keyword = payload.Keyword
+		defaultMode := "contains"
+		if payload.KeywordMode != nil {
+			resource.KeywordMode = payload.KeywordMode
+		} else {
+			resource.KeywordMode = &defaultMode
+		}
+	}
+
 	// Optional component assignment
 	// Apply smart alerting config defaults and per-resource overrides
 	cfg := config.Load()
@@ -453,6 +466,18 @@ func (s *ResourceService) UpdateResource(ctx context.Context, id string, payload
 		}
 	}
 
+	if resource.Type == domain.ResourceKeyword {
+		if payload.Keyword != nil {
+			resource.Keyword = payload.Keyword
+		}
+		if payload.KeywordMode != nil {
+			resource.KeywordMode = payload.KeywordMode
+		}
+		if err := validateKeywordFields(resource.Keyword, resource.KeywordMode); err != nil {
+			return nil, err
+		}
+	}
+
 	// Defer SSL/WHOIS enrichment to avoid blocking the update request
 	resource.MetadataPending = true
 	go s.asyncEnrichAndPersist(resource)
@@ -589,6 +614,20 @@ func confirmationDefaults() (int, int) {
 		interval = defaultConfirmationInterval
 	}
 	return checks, interval
+}
+
+// validateKeywordFields validates keyword-specific fields when resource type is keyword.
+func validateKeywordFields(keyword *string, keywordMode *string) error {
+	if keyword == nil || *keyword == "" {
+		return fmt.Errorf("%w: keyword is required for keyword monitor type", ErrValidationFailed)
+	}
+	if len(*keyword) > 500 {
+		return fmt.Errorf("%w: keyword must not exceed 500 characters", ErrValidationFailed)
+	}
+	if keywordMode != nil && *keywordMode != "contains" && *keywordMode != "not_contains" {
+		return fmt.Errorf("%w: keyword_mode must be 'contains' or 'not_contains'", ErrValidationFailed)
+	}
+	return nil
 }
 
 // validateSmartAlertingFields validates the smart alerting configuration fields.

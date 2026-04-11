@@ -53,7 +53,19 @@ const (
 
 	// heartbeat
 	MissedHeartbeat CheckFailureCause = "missed_heartbeat"
+
+	// keyword
+	KeywordNotFound CheckFailureCause = "keyword_not_found"
+	KeywordFound    CheckFailureCause = "keyword_found"
 )
+
+// KeywordCheckContext carries keyword-specific results from KeywordStrategy.Execute
+// to BuildIncidentDiagnostics. It is never persisted directly.
+type KeywordCheckContext struct {
+	Keyword      string
+	KeywordMode  string
+	KeywordFound bool
+}
 
 // CheckResult represents the result of a health check execution.
 // It contains both the check outcome and rich diagnostic information to help
@@ -62,19 +74,21 @@ type CheckResult struct {
 	Status            string
 	ResponseTime      time.Duration
 	ResponseData      string
-	Cause             *CheckFailureCause // Structured failure cause (if applicable)
-	HTTPStatusCode    int                // HTTP status code (-1 if N/A)
-	RequestMethod     string             // HTTP method used (e.g., "HEAD", "GET")
-	RequestURL        string             // Full URL being checked
-	ResponseHeaders   map[string]string  // Response headers (as structured map)
-	ResponseBody      string             // Response body (base64 encoded if binary)
-	BodyTruncated     bool               // true if response body was truncated
-	BodyEncoded       bool               // true if response body is base64 encoded
-	ErrorMessage      string             // Machine-readable error from Go
-	RequestHeaders    map[string]string  // Request headers sent
-	DNSDuration       time.Duration      // Time spent on DNS resolution
-	TLSDuration       time.Duration      // Time spent on TLS handshake
-	FirstByteDuration time.Duration      // Time to first byte of response
+	Cause             *CheckFailureCause   // Structured failure cause (if applicable)
+	HTTPStatusCode    int                  // HTTP status code (-1 if N/A)
+	RequestMethod     string               // HTTP method used (e.g., "HEAD", "GET")
+	RequestURL        string               // Full URL being checked
+	ResponseHeaders   map[string]string    // Response headers (as structured map)
+	ResponseBody      string               // Response body (base64 encoded if binary)
+	BodyTruncated     bool                 // true if response body was truncated
+	BodyEncoded       bool                 // true if response body is base64 encoded
+	ErrorMessage      string               // Machine-readable error from Go
+	RequestHeaders    map[string]string    // Request headers sent
+	DNSDuration       time.Duration        // Time spent on DNS resolution
+	TLSDuration       time.Duration        // Time spent on TLS handshake
+	FirstByteDuration time.Duration        // Time to first byte of response
+	KeywordContext    *KeywordCheckContext // Non-nil for keyword monitor checks only
+	ReadBodySize      int64                // Actual bytes read before excerpt truncation; 0 for non-keyword checks
 }
 
 // CheckStrategy defines the interface for executing health checks on resources.
@@ -159,6 +173,10 @@ func GenerateErrorSummary(failureType string, httpStatusCode int) string {
 		return "The target configuration is invalid. Check the URL or address format."
 	case string(UnexpectedError):
 		return "An unexpected error occurred during the check. See error details for more information."
+	case string(KeywordNotFound):
+		return "Response body does not contain the expected keyword."
+	case string(KeywordFound):
+		return "Response body contains the forbidden keyword."
 	default:
 		return "Health check failed. Review the error message and target configuration."
 	}

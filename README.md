@@ -104,6 +104,7 @@ Set `confirmation_checks: 1` to restore immediate alerts.
 | DNS checks | Verify DNS resolution |
 | ICMP ping checks | Optional host reachability monitoring when the runtime has raw-socket capability |
 | Heartbeat / Push monitoring | Verify cron jobs and background workers actually ran |
+| Keyword / content check monitor | Verify response body contains (or does not contain) a string — catches HTTP 200s with degraded content |
 | SSL expiry warnings | Get notified before certs expire |
 | Domain expiry warnings | Get notified before domains expire |
 | Confirmation window | N consecutive failures before alerting |

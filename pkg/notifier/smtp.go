@@ -28,8 +28,11 @@ type SMTPNotifier struct {
 }
 
 type TemplateData struct {
-	Incident domain.Incident
-	Duration string
+	Incident     domain.Incident
+	Duration     string
+	ErrorSummary string
+	Keyword      string
+	KeywordMode  string
 }
 
 type ComponentTemplateData struct {
@@ -164,6 +167,15 @@ func (n *SMTPNotifier) componentSubject(component *ComponentNotification) string
 // generateDownEmailHTML creates an HTML email for resource down events.
 func (n *SMTPNotifier) generateDownEmailHTML(incident domain.Incident) string {
 	data := &TemplateData{Incident: incident}
+	if incident.Resource.Type == domain.ResourceKeyword {
+		if incident.Resource.Keyword != nil {
+			data.Keyword = *incident.Resource.Keyword
+		}
+		if incident.Resource.KeywordMode != nil {
+			data.KeywordMode = *incident.Resource.KeywordMode
+		}
+		data.ErrorSummary = domain.GenerateErrorSummary(incident.Cause, -1)
+	}
 
 	tmpl, err := template.ParseFS(emailTemplates, "templates/resource_down.html")
 	if err != nil {
