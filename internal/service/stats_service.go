@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -47,9 +48,28 @@ func (s *StatsService) GetSummary(ctx context.Context, timeRange string) (*dto.S
 		return nil, fmt.Errorf("failed to get incident stats: %w", err)
 	}
 
-	// For now, without_incidents_duration is set to "0m"
-	// This can be enhanced later to calculate actual duration
-	withoutIncidentsDuration := "0m"
+	// Calculate duration since last resolved incident
+	hasActive, err := s.incidents.HasActiveIncident(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to check for active incident: %w", err)
+	}
+
+	var withoutIncidentsDuration string
+	if hasActive {
+		withoutIncidentsDuration = "0m"
+	} else {
+		lastResolved, err := s.incidents.FindLastResolved(ctx)
+		if err != nil {
+			if errors.Is(err, repository.ErrNotFound) {
+				withoutIncidentsDuration = "∞"
+			} else {
+				return nil, fmt.Errorf("failed to find last resolved incident: %w", err)
+			}
+		} else {
+			elapsed := int64(time.Since(*lastResolved.ResolvedAt).Seconds())
+			withoutIncidentsDuration = formatDurationFromSeconds(elapsed)
+		}
+	}
 
 	return &dto.StatsSummaryResponse{
 		Range:                    timeRange,

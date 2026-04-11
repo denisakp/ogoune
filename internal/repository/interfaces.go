@@ -81,6 +81,11 @@ type IncidentRepository interface {
 	// FindActiveByResourceID returns the most recent unresolved incident for a resource.
 	// Returns ErrNotFound when no active incident exists.
 	FindActiveByResourceID(ctx context.Context, resourceID string) (*domain.Incident, error)
+	// HasActiveIncident returns true when at least one incident has no resolved_at timestamp.
+	HasActiveIncident(ctx context.Context) (bool, error)
+	// FindLastResolved returns the most recently resolved incident ordered by resolved_at DESC.
+	// Returns ErrNotFound when no resolved incident exists.
+	FindLastResolved(ctx context.Context) (*domain.Incident, error)
 }
 
 // IncidentEventStepRepository manages lifecycle steps
