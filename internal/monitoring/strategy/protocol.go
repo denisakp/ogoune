@@ -63,18 +63,48 @@ func validBSONResponse(b []byte) bool {
 	return len(b) >= 4 && !bytes.Contains(b, []byte("errmsg"))
 }
 
-// buildMongoOPMsg constructs a minimal MongoDB OP_MSG frame carrying BSON {key: 1}.
+// buildMongoOPMsg constructs a minimal MongoDB OP_MSG frame carrying BSON {key: 1, $db: "admin"}.
+// The $db field is required by MongoDB 5.0+ for all OP_MSG commands.
 // Layout: totalLen(4) + reqID(4) + respTo(4) + opCode(4) + flags(4) + sectionKind(1) + BSON.
 func buildMongoOPMsg(key string) []byte {
-	// BSON document: docLen(4) + type(1) + key+NUL(len+1) + int32(4) + terminator(1)
-	bsonLen := 4 + 1 + len(key) + 1 + 4 + 1
+	// BSON document: {key: 1, $db: "admin"}
+	// Element 1 (int32): type(1) + key+NUL(len+1) + int32(4)
+	// Element 2 (string): type(1) + "$db"+NUL(4) + strlen(4) + "admin"+NUL(6)
+	const dbKey = "$db"
+	const dbVal = "admin"
+	e1Len := 1 + len(key) + 1 + 4
+	e2Len := 1 + len(dbKey) + 1 + 4 + len(dbVal) + 1
+	bsonLen := 4 + e1Len + e2Len + 1 // docLen + elements + terminator
+
 	bson := make([]byte, bsonLen)
-	binary.LittleEndian.PutUint32(bson[0:], uint32(bsonLen))
-	bson[4] = 0x10 // BSON type: int32
-	copy(bson[5:], key)
-	bson[5+len(key)] = 0x00
-	binary.LittleEndian.PutUint32(bson[6+len(key):], 1)
-	bson[bsonLen-1] = 0x00
+	off := 0
+	binary.LittleEndian.PutUint32(bson[off:], uint32(bsonLen))
+	off += 4
+
+	// {key: 1}
+	bson[off] = 0x10 // int32
+	off++
+	copy(bson[off:], key)
+	off += len(key)
+	bson[off] = 0x00
+	off++
+	binary.LittleEndian.PutUint32(bson[off:], 1)
+	off += 4
+
+	// {$db: "admin"}
+	bson[off] = 0x02 // UTF-8 string
+	off++
+	copy(bson[off:], dbKey)
+	off += len(dbKey)
+	bson[off] = 0x00
+	off++
+	binary.LittleEndian.PutUint32(bson[off:], uint32(len(dbVal)+1)) // length includes null
+	off += 4
+	copy(bson[off:], dbVal)
+	off += len(dbVal)
+	bson[off] = 0x00 // string null terminator
+	off++
+	bson[off] = 0x00 // document terminator
 
 	msgLen := 20 + 1 + bsonLen
 	msg := make([]byte, msgLen)
