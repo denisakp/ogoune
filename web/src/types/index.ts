@@ -16,7 +16,7 @@ export interface ResourceMetadata {
 export interface Resource {
   id: string
   name: string
-  type: 'http' | 'tcp' | 'dns' | 'icmp' | 'heartbeat' | 'keyword'
+  type: 'http' | 'tcp' | 'dns' | 'icmp' | 'heartbeat' | 'keyword' | 'protocol'
   target: string
   interval: number // in seconds
   timeout: number // in seconds
@@ -54,6 +54,9 @@ export interface Resource {
   // Keyword-specific fields (only present when type === 'keyword')
   keyword?: string               // literal string to search for (max 500 chars)
   keyword_mode?: 'contains' | 'not_contains'
+  // Protocol-specific fields (only present when type === 'protocol')
+  protocol_type?: 'redis' | 'mongodb' | 'ftp' | 'ssh'
+  protocol_port?: number         // 1–65535; absent = use protocol default
 }
 
 /**
@@ -86,7 +89,7 @@ export interface StatsSummary {
 
 export interface CreateResource {
   name: string
-  type: 'http' | 'tcp' | 'dns' | 'icmp' | 'heartbeat' | 'keyword'
+  type: 'http' | 'tcp' | 'dns' | 'icmp' | 'heartbeat' | 'keyword' | 'protocol'
   target?: string
   interval?: number
   timeout?: number
@@ -106,6 +109,9 @@ export interface CreateResource {
   // Keyword-specific
   keyword?: string
   keyword_mode?: 'contains' | 'not_contains'
+  // Protocol-specific
+  protocol_type?: 'redis' | 'mongodb' | 'ftp' | 'ssh'
+  protocol_port?: number         // 1–65535; absent = use protocol default
 }
 
 export type UpdateResource = Partial<CreateResource>

@@ -48,6 +48,7 @@ const (
 	ResourceICMP      ResourceType = "icmp"
 	ResourceHeartbeat ResourceType = "heartbeat"
 	ResourceKeyword   ResourceType = "keyword"
+	ResourceProtocol  ResourceType = "protocol"
 )
 
 type ResourceStatus string
@@ -114,6 +115,8 @@ type Resource struct {
 	LastPingAt              *time.Time             `json:"last_ping_at,omitempty" gorm:"column:last_ping_at;index"`
 	Keyword                 *string                `json:"keyword,omitempty" gorm:"column:keyword"`
 	KeywordMode             *string                `json:"keyword_mode,omitempty" gorm:"column:keyword_mode"`
+	ProtocolType            *string                `json:"protocol_type,omitempty" gorm:"column:protocol_type"`
+	ProtocolPort            *int                   `json:"protocol_port,omitempty" gorm:"column:protocol_port"`
 	MetadataPending         bool                   `json:"metadata_pending" gorm:"-"`
 }
 

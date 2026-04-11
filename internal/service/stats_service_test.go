@@ -1,8 +1,12 @@
 package service
 
 import (
+	"context"
 	"testing"
+	"time"
 
+	"github.com/denisakp/ogoune/internal/domain"
+	"github.com/denisakp/ogoune/internal/repository/fake"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -138,4 +142,76 @@ func TestFormatDurationFromSeconds(t *testing.T) {
 			assert.Equal(t, tt.expected, result)
 		})
 	}
+}
+
+func TestGetSummary_WithoutIncidentsDuration(t *testing.T) {
+	ctx := context.Background()
+
+	newResolvedIncident := func(id string, resolvedAt time.Time) *domain.Incident {
+		return &domain.Incident{
+			Base:       domain.Base{ID: id},
+			ResourceID: "res-1",
+			StartedAt:  resolvedAt.Add(-10 * time.Minute),
+			ResolvedAt: &resolvedAt,
+		}
+	}
+
+	t.Run("returns infinity when no incidents exist", func(t *testing.T) {
+		incidentRepo := fake.NewIncidentFake()
+		activityRepo := fake.NewMonitoringActivityFake()
+		svc := NewStatsService(activityRepo, incidentRepo)
+
+		result, err := svc.GetSummary(ctx, "24h")
+		require.NoError(t, err)
+		assert.Equal(t, "∞", result.WithoutIncidentsDuration)
+	})
+
+	t.Run("returns 0m when active incident exists", func(t *testing.T) {
+		incidentRepo := fake.NewIncidentFake()
+		activityRepo := fake.NewMonitoringActivityFake()
+		svc := NewStatsService(activityRepo, incidentRepo)
+
+		_, err := incidentRepo.Create(ctx, &domain.Incident{
+			Base:       domain.Base{ID: "inc-active"},
+			ResourceID: "res-1",
+			StartedAt:  time.Now().Add(-5 * time.Minute),
+		})
+		require.NoError(t, err)
+
+		result, err := svc.GetSummary(ctx, "24h")
+		require.NoError(t, err)
+		assert.Equal(t, "0m", result.WithoutIncidentsDuration)
+	})
+
+	t.Run("returns formatted duration since last resolved incident", func(t *testing.T) {
+		incidentRepo := fake.NewIncidentFake()
+		activityRepo := fake.NewMonitoringActivityFake()
+		svc := NewStatsService(activityRepo, incidentRepo)
+
+		resolvedAt := time.Now().Add(-2 * time.Hour)
+		_, err := incidentRepo.Create(ctx, newResolvedIncident("inc-1", resolvedAt))
+		require.NoError(t, err)
+
+		result, err := svc.GetSummary(ctx, "24h")
+		require.NoError(t, err)
+		assert.Equal(t, "2h", result.WithoutIncidentsDuration)
+	})
+
+	t.Run("uses most recent resolved incident when multiple exist", func(t *testing.T) {
+		incidentRepo := fake.NewIncidentFake()
+		activityRepo := fake.NewMonitoringActivityFake()
+		svc := NewStatsService(activityRepo, incidentRepo)
+
+		olderResolved := time.Now().Add(-5 * time.Hour)
+		recentResolved := time.Now().Add(-30 * time.Minute)
+
+		_, err := incidentRepo.Create(ctx, newResolvedIncident("inc-older", olderResolved))
+		require.NoError(t, err)
+		_, err = incidentRepo.Create(ctx, newResolvedIncident("inc-recent", recentResolved))
+		require.NoError(t, err)
+
+		result, err := svc.GetSummary(ctx, "24h")
+		require.NoError(t, err)
+		assert.Equal(t, "30m", result.WithoutIncidentsDuration)
+	})
 }

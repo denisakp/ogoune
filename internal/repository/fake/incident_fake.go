@@ -190,6 +190,39 @@ func (r *IncidentFake) GetIncidentStats(ctx context.Context, hours int) (int, in
 	return totalIncidents, affectedMonitors, nil
 }
 
+func (r *IncidentFake) HasActiveIncident(ctx context.Context) (bool, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	for _, inc := range r.incidents {
+		if inc.ResolvedAt == nil {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
+func (r *IncidentFake) FindLastResolved(ctx context.Context) (*domain.Incident, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	var latest *domain.Incident
+	for _, inc := range r.incidents {
+		if inc.ResolvedAt == nil {
+			continue
+		}
+		if latest == nil || inc.ResolvedAt.After(*latest.ResolvedAt) {
+			copy := *inc
+			latest = &copy
+		}
+	}
+
+	if latest == nil {
+		return nil, ErrNotFound
+	}
+	return latest, nil
+}
+
 func (r *IncidentFake) FindActiveByResourceID(ctx context.Context, resourceID string) (*domain.Incident, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()

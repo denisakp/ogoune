@@ -18,6 +18,8 @@ type CreateResourcePayload struct {
 	HeartbeatGrace          *int                `json:"heartbeat_grace,omitempty"`
 	Keyword                 *string             `json:"keyword,omitempty"`
 	KeywordMode             *string             `json:"keyword_mode,omitempty"`
+	ProtocolType            *string             `json:"protocol_type,omitempty"`
+	ProtocolPort            *int                `json:"protocol_port,omitempty"`
 	Tags                    []string            `json:"tags"` // Tag names - will be created if they don't exist
 	ComponentID             *string             `json:"component_id,omitempty"`
 	ConfirmationChecks      *int                `json:"confirmation_checks,omitempty"`
@@ -53,6 +55,8 @@ type UpdateResourcePayload struct {
 	HeartbeatGrace          *int                 `json:"heartbeat_grace,omitempty"`
 	Keyword                 *string              `json:"keyword,omitempty"`
 	KeywordMode             *string              `json:"keyword_mode,omitempty"`
+	ProtocolType            *string              `json:"protocol_type,omitempty"`
+	ProtocolPort            *int                 `json:"protocol_port,omitempty"`
 }
 
 // UptimeStatResponse represents hourly uptime percentage for the last 24 hours

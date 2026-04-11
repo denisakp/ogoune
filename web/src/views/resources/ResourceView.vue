@@ -316,6 +316,7 @@ const flappingTransitionText = computed(() => {
 })
 
 const isHeartbeat = computed(() => resource.value?.type === 'heartbeat')
+const isProtocol = computed(() => resource.value?.type === 'protocol')
 
 // Heartbeat monitors report status='up' from creation, but also expose waiting=true
 // until the first ping arrives. Use effectiveStatus so UI always shows 'waiting'
@@ -793,6 +794,21 @@ const goBack = () => {
               <div>
                 <ResponseTimeChart :data="resource.response_times" :height="300" />
               </div>
+            </a-card>
+
+            <!-- Protocol Info -->
+            <a-card v-if="isProtocol && resource" style="margin-bottom: 16px" data-testid="protocol-info-card">
+              <template #title>
+                <div style="font-size: 14px; font-weight: 600">Protocol details</div>
+              </template>
+              <a-descriptions :column="2" size="small">
+                <a-descriptions-item label="Protocol">
+                  <a-tag color="blue">{{ resource.protocol_type?.toUpperCase() ?? '—' }}</a-tag>
+                </a-descriptions-item>
+                <a-descriptions-item label="Port">
+                  {{ resource.protocol_port ?? 'Default' }}
+                </a-descriptions-item>
+              </a-descriptions>
             </a-card>
 
             <!-- Recent Incidents -->

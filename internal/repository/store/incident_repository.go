@@ -141,6 +141,38 @@ func (r *IncidentRepositoryImpl) FindActiveByResourceID(ctx context.Context, res
 	return &incident, nil
 }
 
+// HasActiveIncident returns true when at least one incident has no resolved_at timestamp.
+func (r *IncidentRepositoryImpl) HasActiveIncident(ctx context.Context) (bool, error) {
+	var count int64
+	err := r.db.WithContext(ctx).
+		Model(&domain.Incident{}).
+		Where("resolved_at IS NULL").
+		Limit(1).
+		Count(&count).Error
+	if err != nil {
+		return false, fmt.Errorf("failed to check for active incident: %w", err)
+	}
+	return count > 0, nil
+}
+
+// FindLastResolved returns the most recently resolved incident ordered by resolved_at DESC.
+// Returns repository.ErrNotFound when no resolved incident exists.
+func (r *IncidentRepositoryImpl) FindLastResolved(ctx context.Context) (*domain.Incident, error) {
+	var incident domain.Incident
+	err := r.db.WithContext(ctx).
+		Where("resolved_at IS NOT NULL").
+		Order("resolved_at DESC").
+		Limit(1).
+		First(&incident).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, repository.ErrNotFound
+		}
+		return nil, fmt.Errorf("failed to find last resolved incident: %w", err)
+	}
+	return &incident, nil
+}
+
 // GetIncidentStats retrieves incident statistics for a given time range.
 // Returns: total incidents count, affected monitors count, error
 func (r *IncidentRepositoryImpl) GetIncidentStats(ctx context.Context, hours int) (int, int, error) {

@@ -356,11 +356,12 @@ func main() {
 		// Start in-process dispatcher that consumes timingwheel check jobs.
 		if tw, ok := runtimeScheduler.(*scheduler.TimingWheelScheduler); ok {
 			strategies := map[domain.ResourceType]domain.CheckStrategy{
-				domain.ResourceHTTP:    strategy.NewHTTPStrategy(30 * time.Second),
-				domain.ResourceTCP:     strategy.NewTCPStrategy(30 * time.Second),
-				domain.ResourceDNS:     strategy.NewDNSStrategy(30 * time.Second),
-				domain.ResourceICMP:    strategy.NewICMPStrategy(),
-				domain.ResourceKeyword: strategy.NewKeywordStrategy(30 * time.Second),
+				domain.ResourceHTTP:     strategy.NewHTTPStrategy(30 * time.Second),
+				domain.ResourceTCP:      strategy.NewTCPStrategy(30 * time.Second),
+				domain.ResourceDNS:      strategy.NewDNSStrategy(30 * time.Second),
+				domain.ResourceICMP:     strategy.NewICMPStrategy(),
+				domain.ResourceKeyword:  strategy.NewKeywordStrategy(30 * time.Second),
+				domain.ResourceProtocol: strategy.NewProtocolStrategy(30 * time.Second),
 			}
 			executor := domain.NewCheckExecutor(strategies)
 
@@ -483,11 +484,12 @@ func main() {
 
 		// Initialize monitoring services for worker
 		strategies := map[domain.ResourceType]domain.CheckStrategy{
-			domain.ResourceHTTP:    strategy.NewHTTPStrategy(30 * time.Second),
-			domain.ResourceTCP:     strategy.NewTCPStrategy(30 * time.Second),
-			domain.ResourceDNS:     strategy.NewDNSStrategy(30 * time.Second),
-			domain.ResourceICMP:    strategy.NewICMPStrategy(),
-			domain.ResourceKeyword: strategy.NewKeywordStrategy(30 * time.Second),
+			domain.ResourceHTTP:     strategy.NewHTTPStrategy(30 * time.Second),
+			domain.ResourceTCP:      strategy.NewTCPStrategy(30 * time.Second),
+			domain.ResourceDNS:      strategy.NewDNSStrategy(30 * time.Second),
+			domain.ResourceICMP:     strategy.NewICMPStrategy(),
+			domain.ResourceKeyword:  strategy.NewKeywordStrategy(30 * time.Second),
+			domain.ResourceProtocol: strategy.NewProtocolStrategy(30 * time.Second),
 		}
 		executor := domain.NewCheckExecutor(strategies)
 
