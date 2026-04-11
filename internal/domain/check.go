@@ -57,6 +57,10 @@ const (
 	// keyword
 	KeywordNotFound CheckFailureCause = "keyword_not_found"
 	KeywordFound    CheckFailureCause = "keyword_found"
+
+	// protocol
+	ProtocolHandshakeFailed    CheckFailureCause = "Protocol Handshake Failed"
+	ProtocolUnexpectedResponse CheckFailureCause = "Unexpected Protocol Response"
 )
 
 // KeywordCheckContext carries keyword-specific results from KeywordStrategy.Execute

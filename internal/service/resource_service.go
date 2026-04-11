@@ -179,6 +179,14 @@ func (s *ResourceService) CreateResource(ctx context.Context, payload *dto.Creat
 		}
 	}
 
+	if payload.Type == domain.ResourceProtocol {
+		if err := validateProtocolFields(payload.ProtocolType, payload.ProtocolPort); err != nil {
+			return nil, err
+		}
+		resource.ProtocolType = payload.ProtocolType
+		resource.ProtocolPort = payload.ProtocolPort
+	}
+
 	// Optional component assignment
 	// Apply smart alerting config defaults and per-resource overrides
 	cfg := config.Load()
@@ -478,6 +486,18 @@ func (s *ResourceService) UpdateResource(ctx context.Context, id string, payload
 		}
 	}
 
+	if resource.Type == domain.ResourceProtocol {
+		if payload.ProtocolType != nil {
+			resource.ProtocolType = payload.ProtocolType
+		}
+		if payload.ProtocolPort != nil {
+			resource.ProtocolPort = payload.ProtocolPort
+		}
+		if err := validateProtocolFields(resource.ProtocolType, resource.ProtocolPort); err != nil {
+			return nil, err
+		}
+	}
+
 	// Defer SSL/WHOIS enrichment to avoid blocking the update request
 	resource.MetadataPending = true
 	go s.asyncEnrichAndPersist(resource)
@@ -626,6 +646,21 @@ func validateKeywordFields(keyword *string, keywordMode *string) error {
 	}
 	if keywordMode != nil && *keywordMode != "contains" && *keywordMode != "not_contains" {
 		return fmt.Errorf("%w: keyword_mode must be 'contains' or 'not_contains'", ErrValidationFailed)
+	}
+	return nil
+}
+
+// validateProtocolFields validates protocol-specific fields when resource type is protocol.
+func validateProtocolFields(protocolType *string, protocolPort *int) error {
+	if protocolType == nil || *protocolType == "" {
+		return fmt.Errorf("%w: protocol_type is required when resource type is 'protocol'", ErrValidationFailed)
+	}
+	validTypes := map[string]bool{"redis": true, "mongodb": true, "ftp": true, "ssh": true}
+	if !validTypes[*protocolType] {
+		return fmt.Errorf("%w: protocol_type must be one of: redis, mongodb, ftp, ssh", ErrValidationFailed)
+	}
+	if protocolPort != nil && (*protocolPort < 1 || *protocolPort > 65535) {
+		return fmt.Errorf("%w: protocol_port must be between 1 and 65535", ErrValidationFailed)
 	}
 	return nil
 }

@@ -13,13 +13,15 @@ func TestStrategyMapCompleteness(t *testing.T) {
 		domain.ResourceTCP,
 		domain.ResourceDNS,
 		domain.ResourceICMP,
+		domain.ResourceProtocol,
 	}
 
 	strategies := map[domain.ResourceType]domain.CheckStrategy{
-		domain.ResourceHTTP: NewHTTPStrategy(30 * time.Second),
-		domain.ResourceTCP:  NewTCPStrategy(30 * time.Second),
-		domain.ResourceDNS:  NewDNSStrategy(30 * time.Second),
-		domain.ResourceICMP: NewICMPStrategy(),
+		domain.ResourceHTTP:     NewHTTPStrategy(30 * time.Second),
+		domain.ResourceTCP:      NewTCPStrategy(30 * time.Second),
+		domain.ResourceDNS:      NewDNSStrategy(30 * time.Second),
+		domain.ResourceICMP:     NewICMPStrategy(),
+		domain.ResourceProtocol: NewProtocolStrategy(30 * time.Second),
 	}
 
 	for _, rt := range expectedTypes {

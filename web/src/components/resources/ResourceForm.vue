@@ -36,10 +36,20 @@ const form = ref<CreateResource & { component_id?: string }>({
   heartbeat_grace: 60,
   keyword: undefined,
   keyword_mode: 'contains' as 'contains' | 'not_contains',
+  protocol_type: undefined,
+  protocol_port: undefined,
 })
 
 const isHeartbeat = computed(() => form.value.type === 'heartbeat')
 const isKeyword = computed(() => form.value.type === 'keyword')
+const isProtocol = computed(() => form.value.type === 'protocol')
+
+const protocolDefaultPorts: Record<string, number> = {
+  redis: 6379,
+  mongodb: 27017,
+  ftp: 21,
+  ssh: 22,
+}
 
 const loading = ref(false)
 
@@ -67,6 +77,8 @@ watch(
         heartbeat_grace: resource.heartbeat_grace ?? 60,
         keyword: resource.keyword ?? undefined,
         keyword_mode: (resource.keyword_mode as 'contains' | 'not_contains') ?? 'contains',
+        protocol_type: (resource.protocol_type as 'redis' | 'mongodb' | 'ftp' | 'ssh') ?? undefined,
+        protocol_port: resource.protocol_port ?? undefined,
       }
     } else {
       form.value = {
@@ -89,10 +101,28 @@ watch(
         heartbeat_grace: 60,
         keyword: undefined,
         keyword_mode: 'contains',
+        protocol_type: undefined,
+        protocol_port: undefined,
       }
     }
   },
   { immediate: true },
+)
+
+// Auto-fill protocol_port when protocol_type changes and port hasn't been manually set.
+let protocolPortManuallySet = false
+watch(
+  () => form.value.protocol_port,
+  () => { protocolPortManuallySet = true },
+)
+watch(
+  () => form.value.protocol_type,
+  (newType) => {
+    if (newType && !protocolPortManuallySet) {
+      form.value.protocol_port = protocolDefaultPorts[newType]
+    }
+    protocolPortManuallySet = false
+  },
 )
 
 const handleSubmit = async () => {
@@ -128,6 +158,11 @@ const handleSubmit = async () => {
     if (!form.value.keyword?.trim()) return
     if ((form.value.keyword?.length ?? 0) > 500) return
   }
+  if (isProtocol.value) {
+    if (!form.value.protocol_type) return
+    const port = form.value.protocol_port
+    if (port !== undefined && (port < 1 || port > 65535)) return
+  }
   const thresholds = form.value.expiry_alert_thresholds?.trim()
   if (thresholds) {
     const parts = thresholds.split(',').map((s) => s.trim())
@@ -161,6 +196,8 @@ const handleSubmit = async () => {
         heartbeat_grace: isHeartbeat.value ? form.value.heartbeat_grace : undefined,
         keyword: isKeyword.value ? form.value.keyword : undefined,
         keyword_mode: isKeyword.value ? form.value.keyword_mode : undefined,
+        protocol_type: isProtocol.value ? form.value.protocol_type : undefined,
+        protocol_port: isProtocol.value ? form.value.protocol_port : undefined,
       }
       await updateResourceData(props.resource.id, updateData)
     } else {
@@ -242,6 +279,7 @@ const icmpWarning = computed(() => {
             <a-select-option value="icmp">ICMP (Ping)</a-select-option>
             <a-select-option value="heartbeat">Heartbeat / Push</a-select-option>
             <a-select-option value="keyword">Keyword / Content Check</a-select-option>
+            <a-select-option value="protocol">Protocol Check</a-select-option>
           </a-select>
         </a-form-item>
       </a-col>
@@ -280,6 +318,38 @@ const icmpWarning = computed(() => {
               style="width: 100%"
               placeholder="e.g. 60 (1 min)"
               data-testid="heartbeat-grace"
+            />
+          </a-form-item>
+        </a-col>
+      </a-row>
+    </template>
+
+    <!-- Protocol fields -->
+    <template v-if="isProtocol">
+      <a-row :gutter="16">
+        <a-col :xs="24" :sm="12">
+          <a-form-item label="Protocol" required>
+            <a-select
+              v-model:value="form.protocol_type"
+              placeholder="Select protocol"
+              data-testid="protocol-type-select"
+            >
+              <a-select-option value="redis">Redis</a-select-option>
+              <a-select-option value="mongodb">MongoDB</a-select-option>
+              <a-select-option value="ftp">FTP</a-select-option>
+              <a-select-option value="ssh">SSH</a-select-option>
+            </a-select>
+          </a-form-item>
+        </a-col>
+        <a-col :xs="24" :sm="12">
+          <a-form-item label="Port (optional — leave blank for default)">
+            <a-input-number
+              v-model:value="form.protocol_port"
+              :min="1"
+              :max="65535"
+              style="width: 100%"
+              placeholder="e.g. 6379"
+              data-testid="protocol-port-input"
             />
           </a-form-item>
         </a-col>
