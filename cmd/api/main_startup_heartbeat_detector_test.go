@@ -76,7 +76,6 @@ func TestHeartbeatDetector_CadenceReliability(t *testing.T) {
 	detector := service.NewHeartbeatDetectorService(repo, &stubDetectorIncidents{})
 
 	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
 
 	err := detector.Start(ctx, 20*time.Millisecond)
 	require.NoError(t, err)
@@ -89,7 +88,14 @@ func TestHeartbeatDetector_CadenceReliability(t *testing.T) {
 		case <-runCh:
 			fired++
 		case <-deadline:
+			cancel()
+			detector.Wait()
 			t.Fatalf("detector fired only %d time(s) before deadline, expected at least 3", fired)
 		}
 	}
+
+	// Cancel and wait for the goroutine to finish before returning, so the log output
+	// from "[heartbeat-detector] stopped" does not race with the next test's log.SetOutput.
+	cancel()
+	detector.Wait()
 }
