@@ -1,14 +1,24 @@
 package database
 
 import (
+	"os"
 	"testing"
 	"time"
 
 	"github.com/denisakp/ogoune/internal/domain"
+	"github.com/denisakp/ogoune/pkg/crypto"
 	"github.com/stretchr/testify/require"
 )
 
 func TestSQLiteJSONAndBinaryFieldsRoundTrip(t *testing.T) {
+	const testKey = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+	os.Setenv("APP_SECRET_KEY", testKey)
+	crypto.SetGlobalProvider(&crypto.EnvKeyProvider{})
+	t.Cleanup(func() {
+		os.Unsetenv("APP_SECRET_KEY")
+		crypto.SetGlobalProvider(&crypto.EnvKeyProvider{})
+	})
+
 	runtime := openSQLiteTestRuntime(t)
 	now := time.Now().UTC().Round(time.Second)
 
@@ -39,10 +49,11 @@ func TestSQLiteJSONAndBinaryFieldsRoundTrip(t *testing.T) {
 	}
 	require.NoError(t, runtime.DB.Create(&diagnostics).Error)
 
+	originalConfig := []byte(`{"recipient":"ops@example.com"}`)
 	channel := domain.NotificationChannel{
 		Name:   "Primary SMTP",
 		Type:   domain.NotificationChannelTypeSMTP,
-		Config: []byte(`{"recipient":"ops@example.com"}`),
+		Config: originalConfig,
 	}
 	require.NoError(t, runtime.DB.Create(&channel).Error)
 
@@ -60,7 +71,8 @@ func TestSQLiteJSONAndBinaryFieldsRoundTrip(t *testing.T) {
 
 	var storedChannel domain.NotificationChannel
 	require.NoError(t, runtime.DB.First(&storedChannel, "id = ?", channel.ID).Error)
-	require.Equal(t, channel.Config, storedChannel.Config)
+	// BeforeCreate encrypts in-memory; AfterFind decrypts — compare to original plaintext.
+	require.Equal(t, originalConfig, storedChannel.Config)
 
 	var storedUser domain.User
 	require.NoError(t, runtime.DB.First(&storedUser, "id = ?", user.ID).Error)

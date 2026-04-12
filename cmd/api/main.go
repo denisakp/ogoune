@@ -29,6 +29,7 @@ import (
 	"github.com/denisakp/ogoune/internal/scheduler"
 	"github.com/denisakp/ogoune/internal/service"
 	"github.com/denisakp/ogoune/internal/worker"
+	"github.com/denisakp/ogoune/pkg/crypto"
 	"github.com/go-chi/chi/v5"
 	"github.com/hibiken/asynq"
 	"github.com/prometheus/client_golang/prometheus"
@@ -160,6 +161,13 @@ func main() {
 
 	// Load database configuration
 	cfg := config.MustInit()
+
+	// Fail fast if APP_SECRET_KEY is missing or malformed — before any I/O.
+	crypto.SetGlobalProvider(&crypto.EnvKeyProvider{})
+	if err := crypto.ValidateKey(); err != nil {
+		log.Fatalf("[startup] crypto: %v", err)
+	}
+	log.Println("✓ Encryption key validated")
 
 	// Initialize database connection
 	if err := dbruntime.Init(context.Background(), dbruntime.Config{
