@@ -21,6 +21,7 @@ import (
 	"github.com/denisakp/ogoune/internal/ee/license"
 	icmppkg "github.com/denisakp/ogoune/internal/icmp"
 	"github.com/denisakp/ogoune/internal/maintenance"
+	"github.com/denisakp/ogoune/internal/metrics"
 	"github.com/denisakp/ogoune/internal/monitoring"
 	"github.com/denisakp/ogoune/internal/monitoring/strategy"
 	"github.com/denisakp/ogoune/internal/repository"
@@ -30,6 +31,8 @@ import (
 	"github.com/denisakp/ogoune/internal/worker"
 	"github.com/go-chi/chi/v5"
 	"github.com/hibiken/asynq"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/collectors"
 )
 
 const appVersion = "1.0.0"
@@ -206,6 +209,26 @@ func main() {
 	apiKeyRepo := store.NewAPIKeyRepository(db)
 
 	// ========================================
+	// Initialize metrics (recorder + optional endpoint)
+	// ========================================
+	var metricsRecorder domain.MetricsRecorder = metrics.NewNoopRecorder()
+	var metricsReg *prometheus.Registry
+	if cfg.MetricsEnabled {
+		if cfg.MetricsToken == "" {
+			log.Println("[metrics] WARN metrics endpoint is unauthenticated — set METRICS_TOKEN or restrict access at the network level")
+		}
+		metricsReg = prometheus.NewRegistry()
+		metricsReg.MustRegister(
+			collectors.NewGoCollector(),
+			collectors.NewProcessCollector(collectors.ProcessCollectorOpts{}),
+		)
+		metricsRecorder = metrics.NewPrometheusRecorder(metricsReg)
+		ogouneCollector := metrics.NewOgouneCollector(resourceRepo, incidentRepo, monitoringActivityRepo)
+		metricsReg.MustRegister(ogouneCollector)
+		log.Println("[metrics] Prometheus metrics endpoint enabled")
+	}
+
+	// ========================================
 	// Initialize scheduler based on configuration
 	// ========================================
 	schedulerCfg := &scheduler.Config{
@@ -363,7 +386,7 @@ func main() {
 				domain.ResourceKeyword:  strategy.NewKeywordStrategy(30 * time.Second),
 				domain.ResourceProtocol: strategy.NewProtocolStrategy(30 * time.Second),
 			}
-			executor := domain.NewCheckExecutor(strategies)
+			executor := domain.NewCheckExecutor(strategies, metricsRecorder)
 
 			incidentService := monitoring.NewIncidentService(
 				incidentRepo,
@@ -491,7 +514,7 @@ func main() {
 			domain.ResourceKeyword:  strategy.NewKeywordStrategy(30 * time.Second),
 			domain.ResourceProtocol: strategy.NewProtocolStrategy(30 * time.Second),
 		}
-		executor := domain.NewCheckExecutor(strategies)
+		executor := domain.NewCheckExecutor(strategies, metricsRecorder)
 
 		// Initialize incident service with dynamic notification channel dispatch
 		incidentService := monitoring.NewIncidentService(
@@ -622,6 +645,10 @@ func main() {
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte("OK"))
 	})
+	if cfg.MetricsEnabled && metricsReg != nil {
+		rootRouter.Handle("/metrics", metrics.NewHandler(cfg.MetricsToken, metricsReg))
+		log.Println("[metrics] /metrics route registered")
+	}
 
 	// ========================================
 	// STEP 4: SERVE STATIC FILES (SPA Support)

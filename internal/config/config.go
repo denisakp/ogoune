@@ -45,6 +45,10 @@ type Config struct {
 	GroupingWindowSeconds   int
 	// ICMP configuration
 	EnableICMP bool
+
+	// Metrics configuration
+	MetricsEnabled bool
+	MetricsToken   string
 }
 
 // Load reads configuration from environment variables.
@@ -67,6 +71,8 @@ func Load() Config {
 	reminderIntervalMinutes := parseInt(GetEnv("REMINDER_INTERVAL_MINUTES", "0"))
 	groupingWindowSeconds := parseInt(GetEnv("GROUPING_WINDOW_SECONDS", "30"))
 	enableICMP := parseBool(GetEnv("ENABLE_ICMP", "false"), false)
+	metricsEnabled := parseBool(GetEnv("ENABLE_METRICS", "false"), false)
+	metricsToken := GetEnv("METRICS_TOKEN", "")
 
 	cfg := Config{
 		RedisUrl:         GetEnv("REDIS_URL", "localhost:6379"),
@@ -99,6 +105,8 @@ func Load() Config {
 		ReminderIntervalMinutes:        reminderIntervalMinutes,
 		GroupingWindowSeconds:          groupingWindowSeconds,
 		EnableICMP:                     enableICMP,
+		MetricsEnabled:                 metricsEnabled,
+		MetricsToken:                   metricsToken,
 	}
 	return cfg
 }

@@ -86,6 +86,8 @@ type IncidentRepository interface {
 	// FindLastResolved returns the most recently resolved incident ordered by resolved_at DESC.
 	// Returns ErrNotFound when no resolved incident exists.
 	FindLastResolved(ctx context.Context) (*domain.Incident, error)
+	// CountByResourceID returns the total count of all incidents (resolved + unresolved) for the given resource.
+	CountByResourceID(ctx context.Context, resourceID string) (int64, error)
 }
 
 // IncidentEventStepRepository manages lifecycle steps

@@ -43,7 +43,7 @@ func setupMonitoringHandlerForEnrichmentTests(
 	executor := domain.NewCheckExecutor(map[domain.ResourceType]domain.CheckStrategy{
 		domain.ResourceHTTP: strategy,
 		domain.ResourceICMP: strategy,
-	})
+	}, &noopRecorder{})
 
 	created, err := resourceRepo.Create(context.Background(), resource)
 	require.NoError(t, err)

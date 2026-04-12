@@ -57,3 +57,56 @@ func TestEnableICMPSetFalseExplicit(t *testing.T) {
 		t.Error("expected EnableICMP to be false when ENABLE_ICMP=false")
 	}
 }
+
+func TestMetricsEnabledDefault(t *testing.T) {
+	os.Unsetenv("ENABLE_METRICS")
+
+	cfg := Load()
+
+	if cfg.MetricsEnabled {
+		t.Error("expected MetricsEnabled default to be false")
+	}
+}
+
+func TestMetricsEnabledSetTrue(t *testing.T) {
+	os.Setenv("ENABLE_METRICS", "true")
+	defer os.Unsetenv("ENABLE_METRICS")
+
+	cfg := Load()
+
+	if !cfg.MetricsEnabled {
+		t.Error("expected MetricsEnabled to be true when ENABLE_METRICS=true")
+	}
+}
+
+func TestMetricsEnabledInvalidValueFalse(t *testing.T) {
+	os.Setenv("ENABLE_METRICS", "notabool")
+	defer os.Unsetenv("ENABLE_METRICS")
+
+	cfg := Load()
+
+	if cfg.MetricsEnabled {
+		t.Error("expected MetricsEnabled to be false for invalid value (fail-closed)")
+	}
+}
+
+func TestMetricsTokenDefault(t *testing.T) {
+	os.Unsetenv("METRICS_TOKEN")
+
+	cfg := Load()
+
+	if cfg.MetricsToken != "" {
+		t.Errorf("expected MetricsToken default to be empty, got %q", cfg.MetricsToken)
+	}
+}
+
+func TestMetricsTokenSet(t *testing.T) {
+	os.Setenv("METRICS_TOKEN", "test-secret")
+	defer os.Unsetenv("METRICS_TOKEN")
+
+	cfg := Load()
+
+	if cfg.MetricsToken != "test-secret" {
+		t.Errorf("expected MetricsToken %q, got %q", "test-secret", cfg.MetricsToken)
+	}
+}

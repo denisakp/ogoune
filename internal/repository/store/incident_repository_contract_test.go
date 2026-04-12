@@ -7,6 +7,7 @@ import (
 
 	"github.com/denisakp/ogoune/internal/domain"
 	"github.com/denisakp/ogoune/internal/repository/fake"
+	"github.com/denisakp/ogoune/internal/repository/internaltest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -220,4 +221,48 @@ func TestIncidentRepository_Contract(t *testing.T) {
 		require.NoError(t, err)
 		assert.Empty(t, incidents)
 	})
+}
+
+// T022: Integration test for CountByResourceID against a real test DB.
+func TestIncidentRepository_CountByResourceID(t *testing.T) {
+	db := internaltest.GetTestDB(t)
+	resourceRepo := NewResourceRepository(db)
+	repo := NewIncidentRepository(db)
+
+	// Create a resource to attach incidents to
+	resource := &domain.Resource{
+		Name:     "count-test-resource",
+		Type:     domain.ResourceHTTP,
+		Target:   "https://example.com",
+		Interval: 60,
+		Timeout:  30,
+		IsActive: true,
+	}
+	_, err := resourceRepo.Create(context.Background(), resource)
+	require.NoError(t, err)
+
+	// Empty resource — count must be 0
+	count, err := repo.CountByResourceID(context.Background(), resource.ID)
+	require.NoError(t, err)
+	assert.EqualValues(t, 0, count)
+
+	// Create 3 incidents
+	for i := 0; i < 3; i++ {
+		incident := &domain.Incident{
+			ResourceID: resource.ID,
+			Cause:      "test_cause",
+			StartedAt:  time.Now(),
+		}
+		_, err := repo.Create(context.Background(), incident)
+		require.NoError(t, err)
+	}
+
+	count, err = repo.CountByResourceID(context.Background(), resource.ID)
+	require.NoError(t, err)
+	assert.EqualValues(t, 3, count)
+
+	// Count for an unrelated resource must still be 0
+	count, err = repo.CountByResourceID(context.Background(), "nonexistent-resource-id")
+	require.NoError(t, err)
+	assert.EqualValues(t, 0, count)
 }
