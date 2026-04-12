@@ -12,6 +12,51 @@ import (
 	"os"
 )
 
+// KeyProvider abstracts the source of the master encryption key.
+// Community Edition ships with EnvKeyProvider.
+// Enterprise Edition plugs in VaultKeyProvider without modifying this package.
+type KeyProvider interface {
+	GetEncryptionKey() ([]byte, error)
+}
+
+// EnvKeyProvider reads the encryption key from the APP_SECRET_KEY environment variable.
+type EnvKeyProvider struct{}
+
+// GetEncryptionKey returns the 32-byte key decoded from APP_SECRET_KEY (64-char hex).
+func (p *EnvKeyProvider) GetEncryptionKey() ([]byte, error) {
+	hexKey := os.Getenv("APP_SECRET_KEY")
+	if hexKey == "" {
+		return nil, errors.New("APP_SECRET_KEY is required")
+	}
+	if len(hexKey) != 64 {
+		return nil, fmt.Errorf("APP_SECRET_KEY must be a 64-character hex string")
+	}
+	key, err := hex.DecodeString(hexKey)
+	if err != nil {
+		return nil, fmt.Errorf("APP_SECRET_KEY must be valid hex: %w", err)
+	}
+	return key, nil
+}
+
+var globalProvider KeyProvider = &EnvKeyProvider{}
+
+// SetGlobalProvider replaces the active KeyProvider. Call before Encrypt/Decrypt.
+func SetGlobalProvider(p KeyProvider) {
+	globalProvider = p
+}
+
+// GlobalProvider returns the active KeyProvider.
+func GlobalProvider() KeyProvider {
+	return globalProvider
+}
+
+// ValidateKey calls GlobalProvider().GetEncryptionKey() and discards the result.
+// Used at startup to fail-fast before serving traffic.
+func ValidateKey() error {
+	_, err := globalProvider.GetEncryptionKey()
+	return err
+}
+
 func Encrypt(plaintext string) (string, error) {
 	if plaintext == "" {
 		return "", nil
@@ -82,17 +127,5 @@ func Decrypt(ciphertext string) (string, error) {
 }
 
 func loadKey() ([]byte, error) {
-	hexKey := os.Getenv("APP_SECRET_KEY")
-	if hexKey == "" {
-		return nil, errors.New("APP_SECRET_KEY is required")
-	}
-	if len(hexKey) != 64 {
-		return nil, fmt.Errorf("APP_SECRET_KEY must be a 64-character hex string")
-	}
-
-	key, err := hex.DecodeString(hexKey)
-	if err != nil {
-		return nil, fmt.Errorf("APP_SECRET_KEY must be valid hex: %w", err)
-	}
-	return key, nil
+	return globalProvider.GetEncryptionKey()
 }
