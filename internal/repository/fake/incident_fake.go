@@ -223,6 +223,19 @@ func (r *IncidentFake) FindLastResolved(ctx context.Context) (*domain.Incident, 
 	return latest, nil
 }
 
+func (r *IncidentFake) CountByResourceID(ctx context.Context, resourceID string) (int64, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	var count int64
+	for _, inc := range r.incidents {
+		if inc.ResourceID == resourceID {
+			count++
+		}
+	}
+	return count, nil
+}
+
 func (r *IncidentFake) FindActiveByResourceID(ctx context.Context, resourceID string) (*domain.Incident, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()

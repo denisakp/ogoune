@@ -101,15 +101,22 @@ type CheckStrategy interface {
 	Execute(ctx context.Context, resource *Resource) (CheckResult, error)
 }
 
+// MetricsRecorder records check execution metrics.
+type MetricsRecorder interface {
+	RecordCheck(resourceID, name string, resourceType ResourceType, duration time.Duration, status string)
+}
+
 // CheckExecutor executes health checks using the appropriate strategy for each resource type.
 type CheckExecutor struct {
 	strategies map[ResourceType]CheckStrategy
+	recorder   MetricsRecorder
 }
 
-// NewCheckExecutor creates a new CheckExecutor with the given strategies.
-func NewCheckExecutor(strategies map[ResourceType]CheckStrategy) *CheckExecutor {
+// NewCheckExecutor creates a new CheckExecutor with the given strategies and metrics recorder.
+func NewCheckExecutor(strategies map[ResourceType]CheckStrategy, recorder MetricsRecorder) *CheckExecutor {
 	return &CheckExecutor{
 		strategies: strategies,
+		recorder:   recorder,
 	}
 }
 
@@ -125,7 +132,22 @@ func (e *CheckExecutor) ExecuteCheck(resource *Resource) (CheckResult, error) {
 	}
 
 	ctx := context.Background()
-	return strategy.Execute(ctx, resource)
+	start := time.Now()
+	result, err := strategy.Execute(ctx, resource)
+	elapsed := time.Since(start)
+
+	var statusString string
+	switch result.Status {
+	case "timeout":
+		statusString = "timeout"
+	case "success":
+		statusString = "success"
+	default:
+		statusString = "failure"
+	}
+	e.recorder.RecordCheck(resource.ID, resource.Name, resource.Type, elapsed, statusString)
+
+	return result, err
 }
 
 // GenerateErrorSummary creates a human-friendly explanation from a failure type and HTTP status code.

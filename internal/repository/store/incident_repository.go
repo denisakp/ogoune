@@ -173,6 +173,16 @@ func (r *IncidentRepositoryImpl) FindLastResolved(ctx context.Context) (*domain.
 	return &incident, nil
 }
 
+// CountByResourceID returns the total count of all incidents (resolved + unresolved) for the given resource.
+func (r *IncidentRepositoryImpl) CountByResourceID(ctx context.Context, resourceID string) (int64, error) {
+	var count int64
+	err := r.db.WithContext(ctx).Model(&domain.Incident{}).Where("resource_id = ?", resourceID).Count(&count).Error
+	if err != nil {
+		return 0, fmt.Errorf("failed to count incidents for resource %s: %w", resourceID, err)
+	}
+	return count, nil
+}
+
 // GetIncidentStats retrieves incident statistics for a given time range.
 // Returns: total incidents count, affected monitors count, error
 func (r *IncidentRepositoryImpl) GetIncidentStats(ctx context.Context, hours int) (int, int, error) {
