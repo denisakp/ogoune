@@ -127,12 +127,16 @@ DATABASE_URL=postgres://ogoune:ogoune@postgres:5432/ogoune
 REDIS_URL=redis://redis:6379
 JWT_SECRET=a-long-random-secret-string
 ADMIN_EMAIL=admin@yourdomain.com
+APP_SECRET_KEY=<output of: openssl rand -hex 32>
 ```
 
-Generate a strong JWT secret:
+Generate strong secrets:
 ```bash
-openssl rand -hex 32
+openssl rand -hex 32   # use once for JWT_SECRET, once for APP_SECRET_KEY
 ```
+
+> **Important**: `APP_SECRET_KEY` is required — the application will not start without it.
+> Store it securely: losing this key makes all stored notification channel credentials permanently unrecoverable.
 
 Start everything:
 
@@ -211,7 +215,11 @@ JWT_SECRET=dev-secret-change-in-production
 AUTH_EMAIL=admin@ogoune.test
 PORT=8080
 STATIC_DIR=web/dist
+APP_SECRET_KEY=<output of: openssl rand -hex 32>
 ```
+
+> **Required**: `APP_SECRET_KEY` must be set — the app exits at startup without it.
+> Generate with `openssl rand -hex 32` and store securely.
 
 ### Run the backend
 
