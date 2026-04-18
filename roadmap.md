@@ -118,7 +118,7 @@ Community Edition — expanding monitoring coverage, observability, and security
 ### API & Security
 
 - [ ] **Public API v1** — versioned REST API with OpenAPI spec
-- [ ] **Credential encryption (AES-256-GCM)** — SMTP passwords and webhook tokens encrypted at rest
+- [x] **Credential encryption (AES-256-GCM)** — SMTP passwords and webhook tokens encrypted at rest
 
 ---
 
@@ -154,8 +154,7 @@ Community Edition — reporting, tooling, and observability depth.
 
 ### Enterprise Edition — enterprise
 
-- [ ] **Scheduled reports — Enterprise** — configurable frequency (daily / weekly / custom cron),
-  filterable scope (by tag or component), multiple recipients. Built on the Community report engine.
+- [ ] **Scheduled reports — Enterprise** — configurable frequency (daily / weekly / custom cron), filterable scope (by tag or component), multiple recipients. Built on the Community report engine.
 - [ ] **SSO / SAML**
 - [ ] **Vault-backed credential encryption** — plug external secret managers
   (HashiCorp Vault, AWS KMS, Azure Key Vault, GCP Secret Manager) as the key provider. Replaces APP_SECRET_KEY with enterprise-grade key management.
@@ -171,6 +170,7 @@ Community Edition — reporting, tooling, and observability depth.
 - [ ] **PagerDuty / OpsGenie**
 - [ ] **Cloud integrations** — Azure, Vercel, Cloudflare, Coolify
 - [ ] **Agent device monitoring** — CPU, memory, disk via lightweight Go agent
+- [ ] **Vault-backed credential encryption** — plug external secret managers (HashiCorp Vault, AWS KMS, Azure Key Vault, GCP Secret Manager) as the key provider. Replaces APP_SECRET_KEY with enterprise-grade key management. Depends on credential encryption (AES-256-GCM) shipped in H2.
 
 ---
 

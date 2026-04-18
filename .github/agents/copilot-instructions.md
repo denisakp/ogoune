@@ -1,6 +1,6 @@
 # ogoune Development Guidelines
 
-Auto-generated from all feature plans. Last updated: 2026-03-30
+Auto-generated from all feature plans. Last updated: 2026-04-18
 
 ## Active Technologies
 - Go 1.25.x (backend at repository root: `./`) and TypeScript 5 + Vue 3 (frontend in `./web`).
@@ -12,6 +12,8 @@ Auto-generated from all feature plans. Last updated: 2026-03-30
 - PostgreSQL (primary) or SQLite (Community mode); new columns on `monitors` table (020-heartbeat-monitoring)
 - Go 1.21+, Vue 3 + TypeScrip + Chi router, GORM, Asynq/TimingWheel scheduler, existing incident and notification services (020-heartbeat-monitoring)
 - PostgreSQL (primary) and SQLite (community mode), heartbeat fields persisted in existing resources persistence layer (020-heartbeat-monitoring)
+- Go 1.25.1 + Chi v5.2.3 (router), GORM v1.31.0 (ORM), swaggo/swag (new — dev tool, not runtime), swaggo/http-swagger (new — runtime, gated by ENABLE_SWAGGER) (027-public-api-v1)
+- SQLite (community) / PostgreSQL (hosted) — no schema changes (027-public-api-v1)
 
 ## Project Structure
 
@@ -37,9 +39,9 @@ Go (backend): standard gofmt/go test conventions and existing service-repository
 TypeScript/Vue (web frontend): existing composable/store/service separation and Ant Design Vue patterns.
 
 ## Recent Changes
+- 027-public-api-v1: Added Go 1.25.1 + Chi v5.2.3 (router), GORM v1.31.0 (ORM), swaggo/swag (new — dev tool, not runtime), swaggo/http-swagger (new — runtime, gated by ENABLE_SWAGGER)
 - 020-heartbeat-monitoring: Added Go 1.21+, Vue 3 + TypeScrip + Chi router, GORM, Asynq/TimingWheel scheduler, existing incident and notification services
 - 020-heartbeat-monitoring: Added Go 1.21+, Vue 3 + TypeScrip + Chi (HTTP router), GORM (persistence), Asynq or TimingWheel (scheduler), existing incident/notification services
-- feat/019-ping-icmp-check: Added Go 1.25.1 (backend), TypeScript + Vue 3 (web UI) + `golang.org/x/net/icmp`, existing scheduler/monitoring services, existing Vue + Ant Design Vue stack
 
 
 <!-- MANUAL ADDITIONS START -->

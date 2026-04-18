@@ -13,8 +13,10 @@ import (
 	"syscall"
 	"time"
 
+	_ "github.com/denisakp/ogoune/docs"
 	"github.com/denisakp/ogoune/internal/api"
 	"github.com/denisakp/ogoune/internal/api/handler"
+	v1handler "github.com/denisakp/ogoune/internal/api/handler/v1"
 	"github.com/denisakp/ogoune/internal/config"
 	dbruntime "github.com/denisakp/ogoune/internal/database"
 	"github.com/denisakp/ogoune/internal/domain"
@@ -153,6 +155,14 @@ func logICMPCapabilityState(enableICMP bool, capability icmppkg.CapabilityResult
 	log.Println("[ICMP] ICMP probing disabled (set ENABLE_ICMP=true to enable)")
 }
 
+// @title Ogoune Public API
+// @version 1.0
+// @description Ogoune uptime monitoring — Public REST API v1.
+// @host localhost:8080
+// @BasePath /api/v1
+// @securityDefinitions.apikey BearerAuth
+// @in header
+// @name Authorization
 func main() {
 	log.Println("========================================")
 	log.Println("Starting Ogoune Application...")
@@ -278,7 +288,8 @@ func main() {
 	var maintenanceScheduler *maintenance.SchedulerService
 	var detectorIncidentSvc *monitoring.IncidentService
 
-	if schedulerCfg.Mode == scheduler.ModeTimingWheel {
+	switch schedulerCfg.Mode {
+	case scheduler.ModeTimingWheel:
 		runtimeScheduler, err = scheduler.New(schedulerCfg)
 		if err != nil {
 			log.Fatalf("Failed to create scheduler: %v", err)
@@ -297,7 +308,7 @@ func main() {
 		// Actually, we should handle maintenance differently for non-Asynq
 		maintenanceScheduler = nil
 
-	} else if schedulerCfg.Mode == scheduler.ModeAsynq {
+	case scheduler.ModeAsynq:
 		log.Println("✓ Using Asynq scheduler (SaaS Edition with Redis)")
 
 		// Initialize Redis connection
@@ -348,7 +359,7 @@ func main() {
 			log.Printf("Failed to ensure maintenance schedules: %v", err)
 		}
 
-	} else {
+	default:
 		log.Fatalf("Invalid scheduler mode: %s", schedulerCfg.Mode)
 	}
 
@@ -640,9 +651,18 @@ func main() {
 	accountHandler := handler.NewAccountHandler(authService, apiKeyService)
 	componentHandler := handler.NewComponentHandler(componentService)
 
+	// V1 handlers
+	monitorV1Handler := v1handler.NewMonitorHandler(resourceService)
+	incidentV1Handler := v1handler.NewIncidentHandler(incidentAPIService)
+	channelV1Handler := v1handler.NewNotificationChannelHandler(notificationService)
+	componentV1Handler := v1handler.NewComponentHandler(componentRepo)
+	tagV1Handler := v1handler.NewTagHandler(tagService)
+	statusPageV1Handler := v1handler.NewStatusPageV1Handler(componentRepo)
+	heartbeatV1Handler := v1handler.NewHeartbeatV1Handler(resourceService)
+
 	// Create router with injected handlers
 	os.Setenv("APP_VERSION", appVersion)
-	apiHandler := api.NewRouter(resourceHandler, pingHandler, activityHandler, tagHandler, componentHandler, statusPageHandler, statusPageSettingsHandler, incidentHandler, notificationHandler, maintenanceHandler, statsHandler, systemHandler, authHandler, accountHandler, authService, apiKeyService)
+	apiHandler := api.NewRouter(resourceHandler, pingHandler, activityHandler, tagHandler, componentHandler, statusPageHandler, statusPageSettingsHandler, incidentHandler, notificationHandler, maintenanceHandler, statsHandler, systemHandler, authHandler, accountHandler, authService, apiKeyService, monitorV1Handler, incidentV1Handler, channelV1Handler, componentV1Handler, tagV1Handler, statusPageV1Handler, heartbeatV1Handler, cfg.EnableSwagger)
 
 	// Root router: mount JSON API under /api
 	rootRouter := chi.NewRouter()

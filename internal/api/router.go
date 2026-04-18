@@ -2,12 +2,15 @@ package api
 
 import (
 	"net/http"
+	"os"
 
 	"github.com/denisakp/ogoune/internal/api/handler"
+	v1handler "github.com/denisakp/ogoune/internal/api/handler/v1"
 	"github.com/denisakp/ogoune/internal/api/middleware"
 	"github.com/denisakp/ogoune/internal/service"
 	"github.com/go-chi/chi/v5"
 	chimiddleware "github.com/go-chi/chi/v5/middleware"
+	httpSwagger "github.com/swaggo/http-swagger"
 )
 
 // NewRouter creates and configures the main HTTP router with all JSON API routes.
@@ -29,6 +32,14 @@ func NewRouter(
 	accountHandler *handler.AccountHandler,
 	authService *service.AuthService,
 	apiKeyService *service.APIKeyService,
+	monitorV1Handler *v1handler.MonitorHandler,
+	incidentV1Handler *v1handler.IncidentHandler,
+	channelV1Handler *v1handler.NotificationChannelHandler,
+	componentV1Handler *v1handler.ComponentHandler,
+	tagV1Handler *v1handler.TagHandler,
+	statusPageV1Handler *v1handler.StatusPageV1Handler,
+	heartbeatV1Handler *v1handler.HeartbeatV1Handler,
+	enableSwagger bool,
 ) http.Handler {
 	r := chi.NewRouter()
 
@@ -166,6 +177,72 @@ func NewRouter(
 		statusPageSettingsHandler.RegisterRoutes(r)
 	})
 
+	// ========================================
+	// Public API v1 Routes
+	// ========================================
+	// Note: the router is mounted at /api by main.go, so /v1 here becomes /api/v1 publicly.
+	r.Route("/v1", func(r chi.Router) {
+		// Unauthenticated v1 sub-group (heartbeat ping, OpenAPI spec)
+		// Individual routes registered per user story (T021, T036)
+		// Heartbeat ping — public, no auth required (T037)
+		r.Post("/heartbeat/ping/{slug}", heartbeatV1Handler.Ping)
+		// OpenAPI spec — always active
+		r.Get("/openapi.json", serveOpenAPISpec)
+
+		// Swagger UI — only when enabled
+		if enableSwagger {
+			registerSwaggerUI(r)
+		}
+
+		// Authenticated v1 sub-group
+		r.Group(func(r chi.Router) {
+			r.Use(middleware.AuthMiddleware(authService, apiKeyService))
+			// Monitors
+			r.Route("/monitors", func(r chi.Router) {
+				r.Get("/", monitorV1Handler.List)
+				r.With(middleware.RequireReadWrite).Post("/", monitorV1Handler.Create)
+				r.Get("/{id}", monitorV1Handler.Get)
+				r.With(middleware.RequireReadWrite).Put("/{id}", monitorV1Handler.Update)
+				r.With(middleware.RequireReadWrite).Delete("/{id}", monitorV1Handler.Delete)
+				r.With(middleware.RequireReadWrite).Post("/{id}/pause", monitorV1Handler.Pause)
+				r.With(middleware.RequireReadWrite).Post("/{id}/resume", monitorV1Handler.Resume)
+			})
+			// Incident routes — registered in T029
+			r.Route("/incidents", func(r chi.Router) {
+				r.Get("/", incidentV1Handler.List)
+				r.Get("/{id}", incidentV1Handler.Get)
+			})
+			// Notification channel routes — registered in T029
+			r.Route("/notification-channels", func(r chi.Router) {
+				r.Get("/", channelV1Handler.List)
+				r.With(middleware.RequireReadWrite).Post("/", channelV1Handler.Create)
+				r.Get("/{id}", channelV1Handler.Get)
+				r.With(middleware.RequireReadWrite).Put("/{id}", channelV1Handler.Update)
+				r.With(middleware.RequireReadWrite).Delete("/{id}", channelV1Handler.Delete)
+			})
+			// Component routes — registered in T034
+			r.Route("/components", func(r chi.Router) {
+				r.Get("/", componentV1Handler.List)
+				r.With(middleware.RequireReadWrite).Post("/", componentV1Handler.Create)
+				r.Get("/{id}", componentV1Handler.Get)
+				r.With(middleware.RequireReadWrite).Put("/{id}", componentV1Handler.Update)
+				r.With(middleware.RequireReadWrite).Delete("/{id}", componentV1Handler.Delete)
+			})
+			// Tag routes — registered in T034
+			r.Route("/tags", func(r chi.Router) {
+				r.Get("/", tagV1Handler.List)
+				r.With(middleware.RequireReadWrite).Post("/", tagV1Handler.Create)
+				r.Get("/{id}", tagV1Handler.Get)
+				r.With(middleware.RequireReadWrite).Put("/{id}", tagV1Handler.Update)
+				r.With(middleware.RequireReadWrite).Delete("/{id}", tagV1Handler.Delete)
+			})
+			// Status page routes — registered in T034
+			r.Route("/status-pages", func(r chi.Router) {
+				r.Get("/", statusPageV1Handler.List)
+			})
+		})
+	})
+
 	return r
 }
 
@@ -188,4 +265,26 @@ func corsMiddleware(next http.Handler) http.Handler {
 
 		next.ServeHTTP(w, r)
 	})
+}
+
+// serveOpenAPISpec serves the generated OpenAPI spec JSON file.
+// Returns 503 SPEC_NOT_AVAILABLE if docs/swagger.json has not been generated yet.
+func serveOpenAPISpec(w http.ResponseWriter, r *http.Request) {
+	const specPath = "docs/swagger.json"
+	data, err := os.ReadFile(specPath)
+	if err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusServiceUnavailable)
+		w.Write([]byte(`{"error":{"code":"SPEC_NOT_AVAILABLE","message":"OpenAPI spec not generated; run make swag"}}`))
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	w.Write(data)
+}
+
+// registerSwaggerUI mounts the Swagger UI handler under /api/v1/docs/*.
+// Only called when ENABLE_SWAGGER=true.
+func registerSwaggerUI(r chi.Router) {
+	r.Get("/docs/*", httpSwagger.Handler(httpSwagger.URL("/api/v1/openapi.json")))
 }
