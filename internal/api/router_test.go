@@ -60,6 +60,14 @@ func TestNewRouter_PingIsPublicAndResourcesAreProtected(t *testing.T) {
 		accountHandler,
 		nil,
 		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		false,
 	)
 
 	pingReq := httptest.NewRequest(http.MethodGet, "/ping/550e8400-e29b-41d4-a716-446655440111", nil)
