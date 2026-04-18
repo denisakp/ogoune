@@ -395,3 +395,30 @@ Issues or PRs that are disrespectful will be closed without comment.
 ---
 
 *Thanks for taking the time to contribute — it means a lot.*
+---
+
+## API Versioning Policy
+
+### Stable public API (`/api/v1/`)
+
+All endpoints under `/api/v1/` form the stable public API surface. Changes to these endpoints must follow the rules below:
+
+- **Non-breaking changes** (adding optional fields, new endpoints) are allowed in any release.
+- **Breaking changes** (removing fields, changing field types, removing endpoints, changing auth requirements) require a new API version (`/api/v2/`) and a deprecation notice in the release notes.
+- **Internal APIs** under `/api/` (non-versioned) are not subject to semver guarantees and may change at any time.
+
+### Adding a new v1 endpoint
+
+1. Define the handler in `internal/api/handler/v1/` using the v1 handler pattern (interface + implementation).
+2. Add request/response DTOs to `internal/dto/v1/`.
+3. Wire the route in `internal/api/router.go` inside the authenticated or unauthenticated v1 sub-group as appropriate.
+4. Add swaggo annotations (`@Summary`, `@Tags`, `@Security`, `@Router`) to the handler method.
+5. Run `make swag` to regenerate `docs/`.
+6. Write tests for scope enforcement (read-only key must get 403 on write endpoints).
+
+### Swagger / OpenAPI spec
+
+- The spec is generated from source annotations via `make swag`.
+- `GET /api/v1/openapi.json` always serves the spec (no auth required).
+- The Swagger UI at `GET /api/v1/docs/*` is gated by `ENABLE_SWAGGER=true` (default: false in production).
+- Always commit the generated `docs/` directory after running `make swag`.

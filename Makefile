@@ -2,7 +2,7 @@ SHELL := /bin/sh
 
 BINARY := dist/ogoune
 
-.PHONY: build build-be build-fe test test-be test-fe lint clean docker
+.PHONY: build build-be build-fe test test-be test-fe lint clean docker swag
 
 build: build-fe build-be
 
@@ -31,3 +31,6 @@ clean:
 
 docker:
 	docker build -t ogoune:test .
+
+swag:
+	swag init -g cmd/api/main.go --output docs --parseDependency --parseInternal
