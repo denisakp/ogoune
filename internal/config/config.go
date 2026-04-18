@@ -49,6 +49,9 @@ type Config struct {
 	// Metrics configuration
 	MetricsEnabled bool
 	MetricsToken   string
+
+	// Swagger configuration
+	EnableSwagger bool
 }
 
 // Load reads configuration from environment variables.
@@ -73,6 +76,7 @@ func Load() Config {
 	enableICMP := parseBool(GetEnv("ENABLE_ICMP", "false"), false)
 	metricsEnabled := parseBool(GetEnv("ENABLE_METRICS", "false"), false)
 	metricsToken := GetEnv("METRICS_TOKEN", "")
+	enableSwagger := parseBool(GetEnv("ENABLE_SWAGGER", "false"), false)
 
 	cfg := Config{
 		RedisUrl:         GetEnv("REDIS_URL", "localhost:6379"),
@@ -107,6 +111,7 @@ func Load() Config {
 		EnableICMP:                     enableICMP,
 		MetricsEnabled:                 metricsEnabled,
 		MetricsToken:                   metricsToken,
+		EnableSwagger:                  enableSwagger,
 	}
 	return cfg
 }
