@@ -1,5 +1,5 @@
 <div align="right">
-  <img src="./static/ico.png" width="40" alt="Ogoune" />
+  <img src="./static/logo.png" width="40" alt="Ogoune" />
 </div>
 
 # Ogoune
@@ -11,9 +11,9 @@
 ![Go](https://img.shields.io/badge/go-1.24%2B-00ADD8)
 ![Vue](https://img.shields.io/badge/vue-3.x-4FC08D)
 ![Docker](https://img.shields.io/badge/docker-ready-2496ED)
-[![GitHub Stars](https://img.shields.io/github/stars/denisakp/ogoune?style=flat)](https://github.com/denisakp/ogoune)
-
-**CI/CD**: [![GitHub Actions](https://img.shields.io/badge/GitHub%20Actions-passing-brightgreen?logo=github)](https://github.com/denisakp/ogoune/actions) [![GitLab CI/CD](https://img.shields.io/badge/GitLab%20CI-ready-orange?logo=gitlab)](./specs/021-gitlab-ci-workflows/quickstart.md)
+[![GitHub Stars](https://img.shields.io/github/stars/denis-yaovi/ogoune?style=flat)](https://github.com/denis-yaovi/ogoune)
+[![GitHub Actions](https://img.shields.io/badge/GitHub%20Actions-passing-brightgreen?logo=github)](https://github.com/denis-yaovi/ogoune/actions)
+[![GitLab CI/CD](https://img.shields.io/badge/GitLab%20CI-ready-orange?logo=gitlab)](./specs/021-gitlab-ci-workflows/quickstart.md)
 
 Ogoune monitors your websites, APIs, and services. When something goes down, it **verifies the failure** before 
 alerting you. No more 3am pages for a 2-second network blip.
@@ -48,7 +48,7 @@ No PostgreSQL. No Redis. No reverse proxy. One container.
 <summary>Or with Docker Compose</summary>
 
 ```bash
-curl -o compose.yml https://raw.githubusercontent.com/denisakp/ogoune/main/docker-compose.community.yml
+curl -o compose.yml https://raw.githubusercontent.com/denis-yaovi/ogoune/main/docker-compose.community.yml
 docker compose up -d
 ```
 
@@ -58,7 +58,7 @@ docker compose up -d
 <summary>Or with the full stack (PostgreSQL + Redis)</summary>
 
 ```bash
-git clone https://github.com/denisakp/ogoune.git
+git clone https://github.com/denis-yaovi/ogoune.git
 cd ogoune
 cp .env.example .env
 docker compose up -d
@@ -287,9 +287,9 @@ Ogoune welcomes contributions. See [CONTRIBUTING.md](./CONTRIBUTING.md).
 
 All contributors must sign the **CLA** — the bot handles this automatically on your first PR.
 
-- **Report bugs** → [GitHub Issues](https://github.com/denisakp/ogoune/issues)
-- **Request features** → [GitHub Discussions](https://github.com/denisakp/ogoune/discussions)
-- **Good first issues** → [`good first issue`](https://github.com/denisakp/ogoune/labels/good%20first%20issue)
+- **Report bugs** → [GitHub Issues](https://github.com/denis-yaovi/ogoune/issues)
+- **Request features** → [GitHub Discussions](https://github.com/denis-yaovi/ogoune/discussions)
+- **Good first issues** → [`good first issue`](https://github.com/denis-yaovi/ogoune/labels/good%20first%20issue)
 
 ---
 
@@ -309,7 +309,7 @@ model.
 
 <div align="center">
 
-Built with ❤️ by [denisakp](https://github.com/denisakp)
+Built with ❤️ by [Denis Yaovi](https://github.com/denis-yaovi)
 
 **[⬆ Back to top](#ogoune)**
 
