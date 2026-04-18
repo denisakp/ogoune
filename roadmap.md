@@ -103,7 +103,7 @@ Community Edition — expanding monitoring coverage, observability, and security
 - [x] **Ping / ICMP** — check network reachability of any host
 - [x] **Heartbeat / Push** — detect silent failures in cron jobs and background workers
 - [x] **Keyword / content check** — verify a page contains an expected string, not just a 200 OK
-- [ ] **Protocol-aware checks** — application-layer handshake verification for Redis, MongoDB, FTP, and SSH.
+- [x] **Protocol-aware checks** — application-layer handshake verification for Redis, MongoDB, FTP, and SSH.
   Confirms the service responds correctly at the protocol level, not just that the port is open.
   No credentials required. Extensible architecture — RabbitMQ, Kafka, and others are community contribution candidates.
 - [ ] ~~**IMAP / SMTP**~~ — deferred indefinitely. Low demand, complex auth dependency. Webhook covers
@@ -111,14 +111,14 @@ Community Edition — expanding monitoring coverage, observability, and security
 
 ### Observability
 
-- [ ] **Prometheus metrics endpoint** — `GET /metrics` exposing runtime Go metrics and business metrics
+- [x] **Prometheus metrics endpoint** — `GET /metrics` exposing runtime Go metrics and business metrics
   (resource status, check latency, incident counts, uptime ratios) for Grafana integration.
   Opt-in via `ENABLE_METRICS=true`. Optional bearer token auth via `METRICS_TOKEN`.
 
 ### API & Security
 
 - [ ] **Public API v1** — versioned REST API with OpenAPI spec
-- [ ] **Credential encryption (AES-256-GCM)** — SMTP passwords and webhook tokens encrypted at rest
+- [x] **Credential encryption (AES-256-GCM)** — SMTP passwords and webhook tokens encrypted at rest
 
 ---
 
@@ -154,8 +154,7 @@ Community Edition — reporting, tooling, and observability depth.
 
 ### Enterprise Edition — enterprise
 
-- [ ] **Scheduled reports — Enterprise** — configurable frequency (daily / weekly / custom cron),
-  filterable scope (by tag or component), multiple recipients. Built on the Community report engine.
+- [ ] **Scheduled reports — Enterprise** — configurable frequency (daily / weekly / custom cron), filterable scope (by tag or component), multiple recipients. Built on the Community report engine.
 - [ ] **SSO / SAML**
 - [ ] **Team management** — roles (Owner, Admin, Member, Viewer)
 - [ ] **Audit logs** — SOC 2 readiness
@@ -168,6 +167,7 @@ Community Edition — reporting, tooling, and observability depth.
 - [ ] **PagerDuty / OpsGenie**
 - [ ] **Cloud integrations** — Azure, Vercel, Cloudflare, Coolify
 - [ ] **Agent device monitoring** — CPU, memory, disk via lightweight Go agent
+- [ ] **Vault-backed credential encryption** — plug external secret managers (HashiCorp Vault, AWS KMS, Azure Key Vault, GCP Secret Manager) as the key provider. Replaces APP_SECRET_KEY with enterprise-grade key management. Depends on credential encryption (AES-256-GCM) shipped in H2.
 
 ---
 
