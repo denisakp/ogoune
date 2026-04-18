@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/denisakp/ogoune/pkg/crypto"
 	"github.com/oklog/ulid/v2"
 	"gorm.io/gorm"
 )
@@ -435,6 +436,67 @@ type NotificationChannel struct {
 }
 
 func (NotificationChannel) TableName() string { return "notification_channels" }
+
+// BeforeCreate encrypts Config before INSERT.
+func (n *NotificationChannel) BeforeCreate(tx *gorm.DB) error {
+	if err := n.Base.BeforeCreate(tx); err != nil {
+		return err
+	}
+	if len(n.Config) == 0 {
+		return nil
+	}
+	ciphertext, err := crypto.Encrypt(string(n.Config))
+	if err != nil {
+		return err
+	}
+	n.Config = []byte(ciphertext)
+	return nil
+}
+
+// BeforeUpdate encrypts Config before UPDATE.
+func (n *NotificationChannel) BeforeUpdate(tx *gorm.DB) error {
+	if len(n.Config) == 0 {
+		return nil
+	}
+	ciphertext, err := crypto.Encrypt(string(n.Config))
+	if err != nil {
+		return err
+	}
+	n.Config = []byte(ciphertext)
+	return nil
+}
+
+// AfterFind decrypts Config after SELECT.
+// For legacy plaintext records (starts with '{'): re-encrypts synchronously and persists.
+// For already-encrypted records: decrypts in-place.
+// Returns error if decryption fails — never returns empty or partial credential silently.
+func (n *NotificationChannel) AfterFind(tx *gorm.DB) error {
+	if len(n.Config) == 0 {
+		return nil
+	}
+	if n.Config[0] == '{' {
+		// Legacy plaintext — lazy migration: encrypt and persist synchronously.
+		plaintext := make([]byte, len(n.Config))
+		copy(plaintext, n.Config)
+		ciphertext, err := crypto.Encrypt(string(plaintext))
+		if err != nil {
+			return err
+		}
+		if err := tx.Model(n).UpdateColumn("config", []byte(ciphertext)).Error; err != nil {
+			return err
+		}
+		// Restore plaintext so the caller receives usable config.
+		n.Config = plaintext
+		return nil
+	}
+	// Already encrypted — decrypt for the caller.
+	plaintext, err := crypto.Decrypt(string(n.Config))
+	if err != nil {
+		return err
+	}
+	n.Config = []byte(plaintext)
+	return nil
+}
 
 type MaintenanceStrategy string
 
