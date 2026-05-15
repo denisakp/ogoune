@@ -5,30 +5,20 @@ on:
     branches:
       - dev
     paths:
-      - '**/*.go'
-      - 'go.mod'
-      - 'go.sum'
-      - 'web/**'
+      - 'backend/**'
       - '.github/workflows/test.yml'
   pull_request:
     branches:
       - dev
     paths:
-      - '**/*.go'
-      - 'go.mod'
-      - 'go.sum'
-      - 'web/**'
+      - 'backend/**'
       - '.github/workflows/test.yml'
 
 jobs:
   test:
     runs-on: ubuntu-latest
-    env:
-      DB_DRIVER: sqlite
-      SQLITE_PATH: /tmp/ogoune-ci.db
-      DB_LOG_LEVEL: error
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v5
       
       - name: setup Go
         uses: actions/setup-go@v6
@@ -36,7 +26,7 @@ jobs:
           go-version: '1.25.1'
       
       - name: cache Go modules
-        uses: actions/cache@v5
+        uses: actions/cache@v4
         with:
           path: |
             ~/go/pkg/mod
@@ -46,4 +36,4 @@ jobs:
             ${{ runner.os }}-go-
       
       - name: run tests
-        run: go test -C . -v -race -timeout 120s ./...
+        run: go test -C ./backend -v -race ./...

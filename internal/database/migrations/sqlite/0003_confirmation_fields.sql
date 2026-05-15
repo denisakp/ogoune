@@ -1,2 +1,0 @@
-ALTER TABLE resources ADD COLUMN confirmation_checks INTEGER NOT NULL DEFAULT 2;
-ALTER TABLE resources ADD COLUMN confirmation_interval INTEGER NOT NULL DEFAULT 30;
