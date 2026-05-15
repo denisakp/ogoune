@@ -1,0 +1,141 @@
+stages:
+  - test
+  - build
+  - update-tag
+
+# ─── Variables ───────────────────────────────────────────────────────────────
+
+variables:
+  IMAGE_NAME: ogoune
+  GO_VERSION: "1.25.1"
+
+# ─── Defaults (apply to all jobs) ────────────────────────────────────────────
+
+default:
+  retry: 1
+
+# ─── Test (mirrors .github/workflows/test.yml) ───────────────────────────────
+
+backend-tests:
+  stage: test
+  image: golang:${GO_VERSION}
+  variables:
+    DB_DRIVER: sqlite
+    SQLITE_PATH: /tmp/ogoune-ci.db
+    DB_LOG_LEVEL: error
+  cache:
+    key:
+      files:
+        - go.sum
+    paths:
+      - /root/go/pkg/mod
+      - .cache/go-build
+  before_script:
+    - mkdir -p .cache/go-build
+    - export GOPATH=/root/go
+    - export GOCACHE=$CI_PROJECT_DIR/.cache/go-build
+  script:
+    - go test -v -race -timeout 120s ./...
+  rules:
+    # Run on push/MR to dev, scoped to Go + web file changes
+    - if: '$CI_COMMIT_BRANCH == "dev"'
+      changes:
+        - "**/*.go"
+        - go.mod
+        - go.sum
+        - web/**/*
+        - .gitlab-ci.yml
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event" && $CI_MERGE_REQUEST_TARGET_BRANCH_NAME == "dev"'
+      changes:
+        - "**/*.go"
+        - go.mod
+        - go.sum
+        - web/**/*
+        - .gitlab-ci.yml
+    # Also run on main (required before build)
+    - if: '$CI_COMMIT_BRANCH == "main"'
+    - if: '$CI_PIPELINE_SOURCE == "web"'
+
+# ─── Build & Push (mirrors ci.yml build-and-push job) ────────────────────────
+
+build-and-push:
+  stage: build
+  image: docker:27
+  services:
+    - docker:27-dind
+  variables:
+    DOCKER_TLS_CERTDIR: "/certs"
+  needs:
+    - job: backend-tests
+      optional: false
+  before_script:
+    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" "$CI_REGISTRY"
+    - docker login -u "$DOCKER_USERNAME" -p "$DOCKER_PAT"
+  script:
+    - SHORT_SHA=$(echo "$CI_COMMIT_SHA" | cut -c1-7)
+    - IMAGE_REPO="${CI_REGISTRY_IMAGE}"
+    - HUB_REPO="docker.io/${DOCKER_USERNAME}/${IMAGE_NAME}"
+    - |
+      docker buildx create --use --name ci-builder || true
+      docker buildx build \
+        --file backend/Dockerfile \
+        --push \
+        --cache-from type=registry,ref=${IMAGE_REPO}:cache \
+        --cache-to   type=registry,ref=${IMAGE_REPO}:cache,mode=max \
+        --tag "${IMAGE_REPO}:${SHORT_SHA}" \
+        --tag "${IMAGE_REPO}:latest" \
+        --tag "${HUB_REPO}:${SHORT_SHA}" \
+        --tag "${HUB_REPO}:latest" \
+        .
+    # Capture the digest of the pushed image
+    - DIGEST=$(docker buildx imagetools inspect "${IMAGE_REPO}:latest" --format '{{.Manifest.Digest}}')
+    - echo "IMAGE_REPO=${IMAGE_REPO}" >> build.env
+    - echo "SHORT_SHA=${SHORT_SHA}" >> build.env
+    - echo "DIGEST=${DIGEST}" >> build.env
+  artifacts:
+    reports:
+      dotenv: build.env
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "main" && $CI_COMMIT_MESSAGE !~ /\[skip ci\]/'
+    - if: '$CI_PIPELINE_SOURCE == "web"'
+
+# ─── Update docker-compose.yml (mirrors ci.yml update-tag job) ───────────────
+
+update-tag:
+  stage: update-tag
+  image: alpine:3.20
+  needs:
+    - job: build-and-push
+      artifacts: true
+  before_script:
+    - apk add --no-cache git jq curl
+    - |
+      YQ_VERSION="v4.44.3"
+      curl -sSL "https://github.com/mikefarah/yq/releases/download/${YQ_VERSION}/yq_linux_amd64" \
+        -o /usr/local/bin/yq && chmod +x /usr/local/bin/yq
+    - yq --version
+    - jq --version
+    # Configure git for auto-commit using deploy token (write_repository scope)
+    # Required CI/CD variables: GL_DEPLOY_TOKEN_USER, GL_DEPLOY_TOKEN (both masked)
+    - git config --global user.email "ci@gitlab"
+    - git config --global user.name "GitLab CI"
+    - git remote set-url origin "https://${GL_DEPLOY_TOKEN_USER}:${GL_DEPLOY_TOKEN}@${CI_SERVER_HOST}/${CI_PROJECT_PATH}.git"
+    - git fetch origin main
+    - git checkout main
+  script:
+    - OGOUNE_IMAGE="${IMAGE_REPO}@${DIGEST}"
+    - export OGOUNE_IMAGE
+    - yq -i ".services.ogoune.image = \"${OGOUNE_IMAGE}\"" docker-compose.yml
+    - |
+      if ! git diff --quiet docker-compose.yml; then
+        echo "Changes detected:"
+        git diff docker-compose.yml
+        git add docker-compose.yml
+        git commit -m "ci: update image digest for ogoune [skip ci]"
+        git push origin main
+      else
+        echo "No changes detected, skipping commit"
+      fi
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "main" && $CI_COMMIT_MESSAGE !~ /\[skip ci\]/'
+    - if: '$CI_PIPELINE_SOURCE == "web"'

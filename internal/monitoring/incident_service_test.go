@@ -1,0 +1,552 @@
+package monitoring
+
+import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"log"
+	"net/http"
+	"net/http/httptest"
+	"strings"
+	"sync/atomic"
+	"testing"
+
+	"github.com/denisakp/ogoune/internal/domain"
+	"github.com/denisakp/ogoune/internal/repository/fake"
+	"github.com/hibiken/asynq"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+)
+
+type cooldownEventStepRepo struct {
+	*fake.IncidentEventStepFake
+	returnExisting bool
+}
+
+func (r *cooldownEventStepRepo) FindLastByIncidentAndStep(ctx context.Context, incidentID string, step domain.IncidentEventStepType) (*domain.IncidentEventStep, error) {
+	if r.returnExisting && step == domain.IncidentEventStepDownAlert {
+		return &domain.IncidentEventStep{IncidentID: incidentID, Step: step}, nil
+	}
+	return r.IncidentEventStepFake.FindLastByIncidentAndStep(ctx, incidentID, step)
+}
+
+// Test helpers
+func setupTestService() (*IncidentService, *fake.IncidentFake, *fake.IncidentEventStepFake, *fake.NotificationFake, *fake.NotificationChannelFake, *asynq.Client) {
+	incidentRepo := fake.NewIncidentFake()
+	eventStepRepoInterface := fake.NewIncidentEventStepFake()
+	notificationRepo := fake.NewNotificationFake()
+	notificationChannelRepo := fake.NewNotificationChannelFake()
+	diagnosticsRepo := fake.NewIncidentDiagnosticsFake()
+	asynqClient := asynq.NewClient(asynq.RedisClientOpt{Addr: "localhost:6379"})
+
+	service := NewIncidentService(
+		incidentRepo,
+		eventStepRepoInterface,
+		notificationRepo,
+		notificationChannelRepo,
+		diagnosticsRepo,
+		asynqClient,
+	)
+
+	// Type assert to concrete types for test access
+	eventStepRepo := eventStepRepoInterface.(*fake.IncidentEventStepFake)
+
+	return service, incidentRepo, eventStepRepo, notificationRepo, notificationChannelRepo, asynqClient
+}
+
+// ============================================================
+// UNIT TESTS - Testing internal behavior and edge cases
+// ============================================================
+
+func TestExtractCause(t *testing.T) {
+	tests := []struct {
+		name     string
+		result   domain.CheckResult
+		expected string
+	}{
+		{
+			name: "connection timeout",
+			result: domain.CheckResult{
+				Status:       "down",
+				ResponseData: "connection timeout exceeded",
+			},
+			expected: "connection_timeout",
+		},
+		{
+			name: "connection refused",
+			result: domain.CheckResult{
+				Status:       "down",
+				ResponseData: "connection refused by server",
+			},
+			expected: "connection_refused",
+		},
+		{
+			name: "invalid status code",
+			result: domain.CheckResult{
+				Status:       "down",
+				ResponseData: "received status code 500",
+			},
+			expected: "invalid_status_code",
+		},
+		{
+			name: "dns failure",
+			result: domain.CheckResult{
+				Status:       "down",
+				ResponseData: "failed to resolve dns name",
+			},
+			expected: "dns_resolution_failure",
+		},
+		{
+			name: "ssl error",
+			result: domain.CheckResult{
+				Status:       "down",
+				ResponseData: "ssl certificate verification failed",
+			},
+			expected: "ssl_certificate_error",
+		},
+		{
+			name: "generic down",
+			result: domain.CheckResult{
+				Status:       "down",
+				ResponseData: "",
+			},
+			expected: "health_check_failed",
+		},
+		{
+			name: "execution error",
+			result: domain.CheckResult{
+				Status:       "error",
+				ResponseData: "some error",
+			},
+			expected: "check_execution_error",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := extractCause(tt.result)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+}
+
+func TestExtractCause_PrioritizesStructuredCause(t *testing.T) {
+	structured := domain.DNSResolutionFailed
+	result := domain.CheckResult{
+		Status:       "down",
+		ResponseData: "connection refused",
+		Cause:        &structured,
+	}
+
+	assert.Equal(t, string(domain.DNSResolutionFailed), extractCause(result))
+}
+
+func TestExtractCause_DNSNoSuchHostFallback(t *testing.T) {
+	result := domain.CheckResult{
+		Status:       "down",
+		ResponseData: "dial tcp: lookup bad.host: no such host",
+	}
+
+	assert.Equal(t, "dns_resolution_failure", extractCause(result))
+}
+
+func TestHumanizeCause_KnownAndUnknown(t *testing.T) {
+	assert.Equal(t, "DNS resolution failed", humanizeCause(string(domain.DNSResolutionFailed)))
+	assert.Equal(t, "Health check failed", humanizeCause("some_future_cause"))
+}
+
+// ============================================================
+// INTEGRATION TESTS - Testing incident lifecycle
+// ============================================================
+
+func TestIncidentService_CreateIncident_Success(t *testing.T) {
+	service, incidentRepo, eventStepRepo, _, _, asynqClient := setupTestService()
+	defer asynqClient.Close()
+
+	ctx := context.Background()
+
+	// Create test resource
+	resource := &domain.Resource{
+		Base:         domain.Base{ID: "res-123"},
+		Name:         "Example API",
+		Target:       "https://example.com",
+		Type:         domain.ResourceHTTP,
+		Timeout:      30,
+		IsActive:     true,
+		FailureCount: 0,
+		Status:       domain.StatusUp,
+	}
+
+	// Create test result
+	result := domain.CheckResult{
+		Status:       "down",
+		ResponseData: "connection timeout",
+	}
+
+	// Create incident
+	err := service.CreateIncident(ctx, resource, result)
+	require.NoError(t, err)
+
+	// Verify incident was created
+	incidents, err := incidentRepo.FindByResource(ctx, resource.ID, 10, 0)
+	require.NoError(t, err)
+	require.Equal(t, 1, len(incidents))
+	assert.Equal(t, resource.ID, incidents[0].ResourceID)
+	assert.Nil(t, incidents[0].ResolvedAt)
+	assert.Equal(t, "connection_timeout", incidents[0].Cause)
+
+	// Verify event step was created
+	steps, err := eventStepRepo.List(ctx, 10, 0)
+	require.NoError(t, err)
+	assert.Greater(t, len(steps), 0)
+	assert.Equal(t, domain.IncidentEventStepDetected, steps[0].Step)
+	require.NotNil(t, steps[0].Message)
+	assert.NotContains(t, *steps[0].Message, "dns_resolution_failure")
+}
+
+func TestIncidentService_ResolveNotificationChannels_DefaultFallback(t *testing.T) {
+	service, _, _, _, channelRepo, asynqClient := setupTestService()
+	defer asynqClient.Close()
+
+	ctx := context.Background()
+
+	defaultChannel := &domain.NotificationChannel{
+		Base:             domain.Base{ID: "default-channel-1"},
+		Name:             "Default Channel",
+		Type:             domain.NotificationChannelType("webhook"),
+		Config:           []byte(`{"url":"https://example.com"}`),
+		EnabledByDefault: true,
+	}
+	require.NoError(t, channelRepo.Create(ctx, defaultChannel))
+
+	resource := &domain.Resource{Base: domain.Base{ID: "res-default"}}
+	channels := service.resolveNotificationChannels(ctx, resource)
+	require.Len(t, channels, 1)
+	assert.Equal(t, "default-channel-1", channels[0].ID)
+}
+
+func TestIncidentService_CreateIncident_LogsActionableWarningWhenNoChannels(t *testing.T) {
+	service, _, _, _, _, asynqClient := setupTestService()
+	defer asynqClient.Close()
+
+	var logBuffer bytes.Buffer
+	originalWriter := log.Writer()
+	log.SetOutput(&logBuffer)
+	defer log.SetOutput(originalWriter)
+
+	resource := &domain.Resource{
+		Base:   domain.Base{ID: "res-no-channels"},
+		Target: "https://example.com",
+	}
+
+	err := service.CreateIncident(context.Background(), resource, domain.CheckResult{Status: "down", ResponseData: "timeout"})
+	require.NoError(t, err)
+
+	out := logBuffer.String()
+	assert.True(t, strings.Contains(out, "no alert was sent"))
+	assert.True(t, strings.Contains(out, "Configure a resource, component, or default notification channel"))
+}
+
+func TestIncidentService_BuildIncidentDiagnostics_PropagatesAndSanitizesHeaders(t *testing.T) {
+	service, _, _, _, _, asynqClient := setupTestService()
+	defer asynqClient.Close()
+
+	resource := &domain.Resource{Timeout: 10}
+	result := domain.CheckResult{
+		RequestHeaders: map[string]string{
+			"Authorization": "Bearer secret",
+			"X-Trace":       "trace-1",
+		},
+		ResponseHeaders: map[string]string{
+			"Content-Type": "application/json",
+		},
+	}
+
+	diag := service.buildIncidentDiagnostics("inc-diag-1", result, resource)
+
+	_, found := diag.RequestHeaders["Authorization"]
+	assert.False(t, found)
+	assert.Equal(t, "trace-1", diag.RequestHeaders["X-Trace"])
+	assert.Equal(t, "application/json", diag.ResponseHeaders["Content-Type"])
+}
+
+func TestIncidentService_CreateIncident_DuplicatePrevention(t *testing.T) {
+	service, incidentRepo, _, _, _, asynqClient := setupTestService()
+	defer asynqClient.Close()
+
+	ctx := context.Background()
+
+	resource := &domain.Resource{
+		Base:         domain.Base{ID: "res-456"},
+		Name:         "API Server",
+		Target:       "https://api.example.com",
+		Type:         domain.ResourceHTTP,
+		IsActive:     true,
+		FailureCount: 0,
+		Status:       domain.StatusDown,
+	}
+
+	result := domain.CheckResult{
+		Status:       "down",
+		ResponseData: "connection refused",
+	}
+
+	// Create first incident
+	err := service.CreateIncident(ctx, resource, result)
+	require.NoError(t, err)
+
+	// Try to create second incident - should be skipped
+	err = service.CreateIncident(ctx, resource, result)
+	require.NoError(t, err)
+
+	// Verify only one incident exists
+	incidents, err := incidentRepo.FindByResource(ctx, resource.ID, 10, 0)
+	require.NoError(t, err)
+	assert.Equal(t, 1, len(incidents))
+}
+
+func TestCooldown_NoDuplicateDownAlert(t *testing.T) {
+	incidentRepo := fake.NewIncidentFake()
+	baseEventRepo := fake.NewIncidentEventStepFake().(*fake.IncidentEventStepFake)
+	eventRepo := &cooldownEventStepRepo{IncidentEventStepFake: baseEventRepo, returnExisting: true}
+	notificationRepo := fake.NewNotificationFake()
+	notificationChannelRepo := fake.NewNotificationChannelFake()
+	diagnosticsRepo := fake.NewIncidentDiagnosticsFake()
+	service := NewIncidentService(incidentRepo, eventRepo, notificationRepo, notificationChannelRepo, diagnosticsRepo, nil)
+
+	var hitCount atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		hitCount.Add(1)
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+
+	channelConfig, err := json.Marshal(map[string]string{"url": server.URL})
+	require.NoError(t, err)
+	channel := &domain.NotificationChannel{
+		Base:   domain.Base{ID: "channel-cooldown"},
+		Name:   "webhook",
+		Type:   domain.NotificationChannelType("webhook"),
+		Config: channelConfig,
+	}
+	require.NoError(t, notificationChannelRepo.Create(context.Background(), channel))
+	notificationChannelRepo.AssociateChannelWithResource("res-cooldown", channel.ID)
+
+	resource := &domain.Resource{
+		Base:     domain.Base{ID: "res-cooldown"},
+		Name:     "Cooldown API",
+		Target:   "https://example.com",
+		Type:     domain.ResourceHTTP,
+		IsActive: true,
+		Status:   domain.StatusDown,
+	}
+
+	err = service.CreateIncident(context.Background(), resource, domain.CheckResult{Status: "down", ResponseData: "connection timeout"})
+	require.NoError(t, err)
+	assert.Equal(t, int32(0), hitCount.Load())
+}
+
+func TestIncidentService_ResolveIncident_Success(t *testing.T) {
+	service, incidentRepo, eventStepRepo, _, _, asynqClient := setupTestService()
+	defer asynqClient.Close()
+
+	ctx := context.Background()
+
+	resource := &domain.Resource{
+		Base:         domain.Base{ID: "res-789"},
+		Name:         "Database",
+		Target:       "db.example.com:5432",
+		Type:         domain.ResourceTCP,
+		IsActive:     true,
+		FailureCount: 3,
+		Status:       domain.StatusDown,
+	}
+
+	downResult := domain.CheckResult{
+		Status:       "down",
+		ResponseData: "connection timeout",
+	}
+
+	// Create incident
+	err := service.CreateIncident(ctx, resource, downResult)
+	require.NoError(t, err)
+
+	// Now resolve it
+	upResult := domain.CheckResult{
+		Status:       "up",
+		ResponseData: "OK",
+	}
+
+	err = service.ResolveIncident(ctx, resource, upResult)
+	require.NoError(t, err)
+
+	// Verify incident is resolved
+	incidents, err := incidentRepo.FindByResource(ctx, resource.ID, 10, 0)
+	require.NoError(t, err)
+	require.Equal(t, 1, len(incidents))
+	assert.NotNil(t, incidents[0].ResolvedAt)
+
+	// Verify resolved event step was created
+	steps, err := eventStepRepo.List(ctx, 10, 0)
+	require.NoError(t, err)
+	foundResolved := false
+	for _, step := range steps {
+		if step.Step == domain.IncidentEventStepResolved {
+			foundResolved = true
+			break
+		}
+	}
+	assert.True(t, foundResolved, "Resolved event step should have been created")
+}
+
+func TestIncidentService_ResolveIncident_NoActiveIncident(t *testing.T) {
+	service, _, _, _, _, asynqClient := setupTestService()
+	defer asynqClient.Close()
+
+	ctx := context.Background()
+
+	resource := &domain.Resource{
+		Base:     domain.Base{ID: "res-999"},
+		Name:     "Orphaned Resource",
+		Target:   "orphan.example.com",
+		Type:     domain.ResourceHTTP,
+		IsActive: true,
+		Status:   domain.StatusUp,
+	}
+
+	upResult := domain.CheckResult{
+		Status:       "up",
+		ResponseData: "OK",
+	}
+
+	// Try to resolve without creating incident - should return nil (no error)
+	err := service.ResolveIncident(ctx, resource, upResult)
+	require.NoError(t, err)
+}
+
+func TestIncidentService_CreateIncident_WithSMTPEnabled(t *testing.T) {
+	service, incidentRepo, eventStepRepo, notificationRepo, notificationChannelRepo, asynqClient := setupTestService()
+	defer asynqClient.Close()
+
+	ctx := context.Background()
+
+	resource := &domain.Resource{
+		Base:         domain.Base{ID: "res-smtp"},
+		Name:         "SMTP Test Resource",
+		Target:       "smtp-test.example.com",
+		Type:         domain.ResourceHTTP,
+		IsActive:     true,
+		FailureCount: 0,
+		Status:       domain.StatusUp,
+	}
+
+	// Create a notification channel for this resource
+	channel := &domain.NotificationChannel{
+		Base:   domain.Base{ID: "channel-smtp-1"},
+		Name:   "Test SMTP Channel",
+		Type:   domain.NotificationChannelTypeSMTP,
+		Config: []byte(`{"recipient":"admin@example.com","sender":"noreply@example.com","host":"smtp.example.com","port":"587","user":"testuser","password":"testpass"}`),
+	}
+	err := notificationChannelRepo.Create(ctx, channel)
+	require.NoError(t, err)
+	notificationChannelRepo.AssociateChannelWithResource(resource.ID, channel.ID)
+
+	result := domain.CheckResult{
+		Status:       "down",
+		ResponseData: "connection refused",
+	}
+
+	// Create incident with notification channel configured
+	err = service.CreateIncident(ctx, resource, result)
+	require.NoError(t, err)
+
+	// Verify incident was created
+	incidents, err := incidentRepo.FindByResource(ctx, resource.ID, 10, 0)
+	require.NoError(t, err)
+	require.Equal(t, 1, len(incidents))
+
+	// Verify event steps include down alert
+	steps, err := eventStepRepo.List(ctx, 10, 0)
+	require.NoError(t, err)
+	foundDownAlert := false
+	for _, step := range steps {
+		if step.Step == domain.IncidentEventStepDownAlert {
+			foundDownAlert = true
+			break
+		}
+	}
+	assert.True(t, foundDownAlert, "Down alert event step should have been created when SMTP is enabled")
+
+	// Verify notification event was created
+	notifications, err := notificationRepo.List(ctx, 10, 0)
+	require.NoError(t, err)
+	assert.Greater(t, len(notifications), 0)
+}
+
+func TestIncidentService_ResolveIncident_WithSMTPEnabled(t *testing.T) {
+	service, _, eventStepRepo, notificationRepo, notificationChannelRepo, asynqClient := setupTestService()
+	defer asynqClient.Close()
+
+	ctx := context.Background()
+
+	resource := &domain.Resource{
+		Base:         domain.Base{ID: "res-resolve-smtp"},
+		Name:         "Resolve SMTP Test",
+		Target:       "resolve-test.example.com",
+		Type:         domain.ResourceHTTP,
+		IsActive:     true,
+		FailureCount: 3,
+		Status:       domain.StatusDown,
+	}
+
+	// Create a notification channel for this resource
+	channel := &domain.NotificationChannel{
+		Base:   domain.Base{ID: "channel-resolve-1"},
+		Name:   "Test SMTP Channel for Resolve",
+		Type:   domain.NotificationChannelTypeSMTP,
+		Config: []byte(`{"recipient":"admin@example.com","sender":"noreply@example.com","host":"smtp.example.com","port":"587","user":"testuser","password":"testpass"}`),
+	}
+	err := notificationChannelRepo.Create(ctx, channel)
+	require.NoError(t, err)
+	notificationChannelRepo.AssociateChannelWithResource(resource.ID, channel.ID)
+
+	// Create incident
+	downResult := domain.CheckResult{
+		Status:       "down",
+		ResponseData: "timeout",
+	}
+	err = service.CreateIncident(ctx, resource, downResult)
+	require.NoError(t, err)
+
+	// Resolve incident
+	upResult := domain.CheckResult{
+		Status:       "up",
+		ResponseData: "OK",
+	}
+	err = service.ResolveIncident(ctx, resource, upResult)
+	require.NoError(t, err)
+
+	// Verify event steps include up alert
+	steps, err := eventStepRepo.List(ctx, 10, 0)
+	require.NoError(t, err)
+	foundUpAlert := false
+	for _, step := range steps {
+		if step.Step == domain.IncidentEventStepUpAlert {
+			foundUpAlert = true
+			break
+		}
+	}
+	assert.True(t, foundUpAlert, "Up alert event step should have been created when SMTP is enabled")
+
+	// Verify notification events were created (both down and up)
+	notifications, err := notificationRepo.List(ctx, 100, 0)
+	require.NoError(t, err)
+	assert.GreaterOrEqual(t, len(notifications), 2, "Should have at least down and up notifications")
+}
+
+func TestStringPtr(t *testing.T) {
+	testStr := "test"
+	result := stringPtr(testStr)
+	require.NotNil(t, result)
+	assert.Equal(t, testStr, *result)
+}

@@ -1,169 +1,316 @@
-<div align="right" width="100%">
-    <img src="./static/ico.png" width="40" alt="PulseGuard Logo" />
+<div align="right">
+  <img src="./static/logo.png" width="40" alt="Ogoune" />
 </div>
 
-# PulseGuard
+# Ogoune
 
-**Simple, self-hosted uptime monitoring. Check if your websites and services are up.**
+**Uptime monitoring that confirms before it cries wolf.**
 
-![License](https://img.shields.io/badge/license-MIT-blue)
-![Go](https://img.shields.io/badge/go-1.25%2B-00ADD8)
+![License](https://img.shields.io/badge/license-AGPL%20v3-blue)
+![Version](https://img.shields.io/badge/version-v1.0.0-green)
+![Go](https://img.shields.io/badge/go-1.24%2B-00ADD8)
 ![Vue](https://img.shields.io/badge/vue-3.x-4FC08D)
-[![GitHub Stars](https://img.shields.io/github/stars/denisakp/pulseguard?style=flat)](https://github.com/denisakp/pulseguard)
+![Docker](https://img.shields.io/badge/docker-ready-2496ED)
+[![GitHub Stars](https://img.shields.io/github/stars/denis-yaovi/ogoune?style=flat)](https://github.com/denis-yaovi/ogoune)
+[![GitHub Actions](https://img.shields.io/badge/GitHub%20Actions-passing-brightgreen?logo=github)](https://github.com/denis-yaovi/ogoune/actions)
+[![GitLab CI/CD](https://img.shields.io/badge/GitLab%20CI-ready-orange?logo=gitlab)](./specs/021-gitlab-ci-workflows/quickstart.md)
 
-PulseGuard monitors your websites, APIs, and services. If something goes down, you get notified. That's it.
+Ogoune monitors your websites, APIs, and services. When something goes down, it **verifies the failure** before 
+alerting you. No more 3am pages for a 2-second network blip.
 
-No complex setup. No overwhelming dashboards. Just pure uptime monitoring.
+> Most monitoring tools alert on the first failed check. Ogoune confirms failures before creating an incident.
+> Every alert is real.
 
-<img src="./static/dashboard.png" alt="PulseGuard Dashboard" width="100%" style="border-radius: 8px; margin-top: 20px;" />
-
----
-
-## 🤔 Why PulseGuard?
-
-I started exploring monitoring stacks like Prometheus, Grafana, Tempo, and AlertManager. But configuring dozens of config files just to check if my websites were up seemed crazy.
-
-So I built this during my internship in 2023 with TypeScript and NestJS. Later, I rewrote it in Go while learning the language. Now it's a simple, straightforward monitoring tool that just works.
+<img src="./static/dashboard.png" alt="Ogoune Dashboard" width="100%" style="border-radius: 8px; margin-top: 16px;" />
 
 ---
 
-##  Get Started in 30 Seconds
+## Get started in 10 seconds
 
 ```bash
-git clone https://github.com/denisakp/pulseguard.git
-cd pulseguard
+docker run -d \
+  -p 8080:8080 \
+  -v ogoune:/data \
+  --name ogoune \
+  ogoune/community:latest
+```
+
+Open **http://localhost:8080** and log in:
+
+| | |
+|---|---|
+| Email | `admin@ogoune.test` |
+| Password | `ogu3n3@rd` |
+
+No PostgreSQL. No Redis. No reverse proxy. One container.
+
+<details>
+<summary>Or with Docker Compose</summary>
+
+```bash
+curl -o compose.yml https://raw.githubusercontent.com/denis-yaovi/ogoune/main/docker-compose.community.yml
 docker compose up -d
 ```
 
-Open **http://localhost:8080** and log in with:
-- Email: `admin@pulseguard.test`
-- Password: `puls3gu@rd`
+</details>
 
-Change the password on first login.
-<img src="./static/login.png" alt="PulseGuard Login Screen" width="100%" style="border-radius: 8px; margin-top: 20px;" />
----
-
-## ✨ What You Get
-
-- 🌐 **Monitor Websites** – HTTP/HTTPS checks
-- 🔌 **Monitor Services** – TCP port checks
-- 🔔 **Get Notified** – Email, Slack, Webhooks
-- 📊 **Track Incidents** – See when things went wrong
-- 🌍 **Status Page** – Share status with customers
-- 🛠️ **Maintenance Windows** – Avoid false alarms during updates
-- 🏷️ **Organize** – Tag and group monitors
-- 🔐 **Secure** – 2FA support
-
-<img src="./static/monitored-resource.png" alt="Create and Monitor Resources" width="100%" style="border-radius: 8px; margin-top: 20px;" />
-
----
-
-## 📑 Table of Contents
-
-- [Installation](#installation)
-- [How It Works](#how-it-works)
-- [Configuration](#configuration)
-- [Contributing](#contributing)
-- [License](#license)
-
----
-
-## Installation
-
-### Docker (Recommended)
+<details>
+<summary>Or with the full stack (PostgreSQL + Redis)</summary>
 
 ```bash
-git clone https://github.com/denisakp/pulseguard.git
-cd pulseguard
+git clone https://github.com/denis-yaovi/ogoune.git
+cd ogoune
 cp .env.example .env
 docker compose up -d
 ```
 
-Access at **http://localhost:8080**
-
-The docker-compose includes everything: app, database, Redis, and reverse proxy.
+</details>
 
 ---
 
-## How It Works
+## Why Ogoune
 
-1. **Add Monitors** – Tell PulseGuard what to check (websites, APIs, services)
-2. **Automatic Checks** – It checks every 5 minutes by default (customizable)
-3. **Track Status** – See uptime history and incident timeline
-4. **Get Alerts** – Email notifications when things go down
-5. **Status Page** – Share public status with customers
+**The false positive problem.** Most open-source monitors alert the moment a single check fails. Network hiccups, DNS
+timeouts, rolling deploys, they all trigger alerts. After a few weeks, you stop reading them. Then you miss the real
+outage.
 
-That's it. No complexity.
+Ogoune solves this by **confirming every failure** before alerting:
 
-<img src="./static/incident.png" alt="Incident Tracking and Timeline" width="100%" style="border-radius: 8px; margin-top: 20px;" />
+```
+Check 1 → DOWN  →  waiting 30s, not alerting yet...
+Check 2 → DOWN  →  confirmed. incident created. alert sent. ✓
 
-<img src="./static/notification-configuration.png" alt="Notification Channels Setup" width="100%" style="border-radius: 8px; margin-top: 20px;" />
+Check 1 → DOWN  →  waiting 30s...
+Check 2 → UP    →  false positive. no incident. no noise. ✓
+```
 
-<img src="./static/maintenance.png" alt="Maintenance Windows" width="100%" style="border-radius: 8px; margin-top: 20px;" />
+Configure per monitor:
 
-<img src="./static/public-status-page.png" alt="Public Status Page" width="100%" style="border-radius: 8px; margin-top: 20px;" />
+```
+confirmation_checks: 2     # failures before alerting
+confirmation_interval: 30s # gap between confirmation checks
+```
+
+Set `confirmation_checks: 1` to restore immediate alerts.
+
+---
+
+## What you get
+
+| | |
+|---|---|
+| HTTP / HTTPS checks | Monitor websites and APIs |
+| TCP port checks | Monitor any service port |
+| DNS checks | Verify DNS resolution |
+| ICMP ping checks | Optional host reachability monitoring when the runtime has raw-socket capability |
+| Heartbeat / Push monitoring | Verify cron jobs and background workers actually ran |
+| Keyword / content check monitor | Verify response body contains (or does not contain) a string — catches HTTP 200s with degraded content |
+| SSL expiry warnings | Get notified before certs expire |
+| Domain expiry warnings | Get notified before domains expire |
+| Confirmation window | N consecutive failures before alerting |
+| Flap detection | Suppress alerts for unstable resources |
+| Alert grouping | One notification for simultaneous component failures |
+| Incidents & timeline | Full lifecycle with rich diagnostics |
+| SMTP notifications | Email alerts |
+| Webhook notifications | Slack, Google Chat, Teams, Discord, any HTTP endpoint |
+| Status page | Public page for your customers |
+| Maintenance windows | One-time and recurring (cron) |
+| 2FA | TOTP-based two-factor auth |
+| Tags & components | Organize your monitors |
+| API keys | Programmatic access (`read` / `read_write`) |
+| Uptime statistics | 2h / 24h / 7d / 30d aggregates |
+
+---
+
+## Zero dependencies
+
+The Community Edition runs on **embedded SQLite** with an **in-process scheduler**.
+
+```env
+DB_DRIVER=sqlite               # Community (default)
+DB_DRIVER=postgres             # Production
+SCHEDULER_DRIVER=timingwheel   # Community (default)
+SCHEDULER_DRIVER=asynq         # Production (requires Redis)
+```
+
+---
+
+## Comparison
+
+| | Ogoune | Uptime Kuma | UptimeRobot | Prometheus + Alertmanager |
+|---|---|---|---|---|
+| Self-hosted | ✅ | ✅ | ❌ | ✅ |
+| Zero dependencies | ✅ | ✅ | — | ❌ |
+| False positive protection | ✅ | ❌ | ❌ | Manual |
+| Flap detection | ✅ | ❌ | ❌ | Manual |
+| SSL + domain expiry | ✅ | ✅ / ❌ | Paid | Manual |
+| DNS monitoring | ✅ | ✅ | Paid | Manual |
+| Open source | AGPL v3 | MIT | ❌ | Apache |
+| Go backend | ✅ | ❌ | — | ✅ |
+| Setup complexity | Low | Low | None | Very high |
 
 ---
 
 ## Configuration
 
-### Environment Variables
+All settings via environment variables. See [`.env.example`](./.env.example).
 
 ```env
 # Database
-DATABASE_URL=postgres://user:password@host:5432/pulseguard
-REDIS_URL=localhost:6379
+DB_DRIVER=sqlite
+SQLITE_PATH=/data/ogoune.db
 
+# Scheduler
+SCHEDULER_DRIVER=timingwheel
+
+# Security — generate before production
+JWT_SECRET=change-me
+APP_SECRET_KEY=change-me    # openssl rand -hex 32
+
+# Open Core
+ENTERPRISE_LICENSE_KEY=     # leave empty for Community Edition
 ```
 
-All options in `.env.example`
+### Optional ICMP monitoring
+
+ICMP monitoring is opt-in because raw ICMP sockets depend on host/container capabilities that are not universally available by default.
+
+Enable it only when you want ping-based monitoring or ICMP-backed network diagnostics for incidents:
+
+```env
+ENABLE_ICMP=true
+```
+
+When `ENABLE_ICMP=false` (default), Ogoune keeps HTTP, TCP, and DNS behavior unchanged and skips ICMP-specific checks and diagnostics.
+
+When `ENABLE_ICMP=true`, Ogoune starts normally in both cases:
+
+- if the runtime has the required capability, ICMP monitor creation and ICMP-backed diagnostics are available
+- if the runtime does not have the required capability, startup continues, the UI/API report ICMP as unavailable, and ICMP monitor creation is rejected until capability is granted
 
 ---
 
----
+### Heartbeat / Push monitoring
 
-## 💭 Feedback & Testing
+Heartbeat monitoring lets you verify that cron jobs and background workers actually ran. Instead of Ogoune polling a target, your job calls Ogoune at the end of a successful run.
 
-We're actively developing PulseGuard and value your input! Help us improve by:
+```bash
+# At the end of your script, ping Ogoune
+curl -fsS "https://your-ogoune-host/ping/<slug>" >/dev/null
+```
 
-- **[Share Your Feedback](https://kawa-bunga.notion.site/2d1e5ad0a17d80dc8859e77817d901e3)** (Anonymous form) – Tell us what you think about the UI, features, and user experience
-- **Report Bugs** – Found something broken? Open an [issue](https://github.com/denisakp/pulseguard/issues)
-- **Suggest Features** – Have ideas? Start a [discussion](https://github.com/denisakp/pulseguard/discussions)
+**How it works:**
+- Create a Heartbeat monitor with an interval and grace period.
+- Copy the generated ping URL and add it to your script.
+- Ogoune waits. If no ping arrives within interval + grace seconds, an incident is created.
+- A recovery ping resolves the incident automatically.
 
-Your feedback helps shape the future of PulseGuard. The feedback form is completely anonymous and takes about 2 minutes.
+**No authentication required.** The slug itself is the token (UUID v4, unguessable). A per-slug rate limit of 100 requests/min applies.
 
-## 💬 Contributing
-
-Found a bug? Have an idea? Let us know!
-
-- **[GitHub Issues](https://github.com/denisakp/pulseguard/issues)** – Report bugs or request features
-- **[GitHub Discussions](https://github.com/denisakp/pulseguard/discussions)** – Ask questions
-
-We welcome pull requests. Please read [CONTRIBUTING.md](./CONTRIBUTING.md) first.
+See [QUICKSTART.md](./QUICKSTART.md) for step-by-step integration.
 
 ---
 
-## 📄 License
+## Roadmap
 
-MIT License – See [LICENSE](./LICENSE) for details.
+See [ROADMAP.md](./ROADMAP.md) for the full roadmap.
 
-You can use PulseGuard for commercial or personal projects.
+**Coming in H2:** Keyword checks, Prometheus metrics, IMAP/SMTP, Telegram, Digest
+notifications, API v1, credential encryption.
+
+**Coming in H3:** Toolbox, Enterprise Edition (multi-tenancy, SSO, billing, agent device monitoring).
 
 ---
 
-## 📚 More Info
+## Prometheus Metrics Endpoint
 
-- **[Quick Start Guide](./QUICKSTART.md)** – Detailed setup walkthrough
-- **[Contributing Guidelines](./CONTRIBUTING.md)** – How to help
-- **[Architecture Docs](./backend/ARCHITECTURE.md)** – How it works under the hood
-- **[Security Policy](./SECURITY.md)** – Reporting security issues
+Ogoune exposes a standard Prometheus-compatible `GET /metrics` endpoint for observability.
+
+### Configuration
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `ENABLE_METRICS` | `false` | Set to `true` to enable the `/metrics` endpoint |
+| `METRICS_TOKEN` | _(empty)_ | Optional bearer token. When set, requests must include `Authorization: Bearer <token>`. Leave empty only on private/firewalled networks (a startup warning is logged). |
+
+### Access modes
+
+| `ENABLE_METRICS` | `METRICS_TOKEN` | Result |
+|-----------------|-----------------|--------|
+| `false` | any | `404 Not Found` — route not registered |
+| `true` | _(empty)_ | `200 OK` — unauthenticated (startup warning logged) |
+| `true` | `<token>` | `200 OK` with correct `Authorization: Bearer <token>` header; `401` otherwise |
+
+### Available metrics
+
+| Metric | Type | Description |
+|--------|------|-------------|
+| `go_goroutines` | Gauge | Active goroutines |
+| `go_memstats_heap_alloc_bytes` | Gauge | Heap memory in use |
+| `go_gc_duration_seconds` | Summary | GC pause durations |
+| `ogoune_resource_up` | Gauge | `1`=up, `0`=down per resource |
+| `ogoune_resource_status` | Gauge | `0`=unknown `1`=up `2`=down `3`=paused |
+| `ogoune_check_duration_seconds` | Histogram | Check latency in seconds |
+| `ogoune_checks_total` | Counter | Check executions by `status` label (`success`/`failure`/`timeout`) |
+| `ogoune_incidents_total` | Gauge | All-time incident count per resource |
+| `ogoune_incidents_active` | Gauge | Currently open incidents per resource |
+| `ogoune_uptime_ratio` | Gauge | Uptime `0.0–1.0` for `window` label `24h`, `7d`, `30d` |
+
+All `ogoune_*` metrics carry labels: `id`, `name`, `type`.
+
+### Prometheus scrape config
+
+Without authentication:
+```yaml
+scrape_configs:
+  - job_name: ogoune
+    scrape_interval: 30s
+    static_configs:
+      - targets: ["ogoune:8080"]
+```
+
+With bearer token:
+```yaml
+scrape_configs:
+  - job_name: ogoune
+    scrape_interval: 30s
+    bearer_token: your-secret-token-here
+    static_configs:
+      - targets: ["ogoune:8080"]
+```
+
+---
+
+## Contributing
+
+Ogoune welcomes contributions. See [CONTRIBUTING.md](./CONTRIBUTING.md).
+
+All contributors must sign the **CLA** — the bot handles this automatically on your first PR.
+
+- **Report bugs** → [GitHub Issues](https://github.com/denis-yaovi/ogoune/issues)
+- **Request features** → [GitHub Discussions](https://github.com/denis-yaovi/ogoune/discussions)
+- **Good first issues** → [`good first issue`](https://github.com/denis-yaovi/ogoune/labels/good%20first%20issue)
+
+---
+
+## Licence
+
+Ogoune is licensed under **AGPL v3** — see [LICENSE](./LICENSE).
+
+The `internal/ee/` directory contains Enterprise Edition features and is covered by a separate proprietary licence.
+see [LICENSE_EE](./LICENSE_EE).
+
+A valid licence key is required to use those features, whether self-hosted or via our Cloud. The rest of the codebase 
+is free, open source, and self-hostable with no licence key required. See [ROADMAP.md](./ROADMAP.md) for the Open Core
+model.
+
 
 ---
 
 <div align="center">
 
-**[⬆ Back to top](#pulseguard)**
+Built with ❤️ by [Denis Yaovi](https://github.com/denis-yaovi)
 
-Built with ❤️ by [denisakp](https://github.com/denisakp)
+**[⬆ Back to top](#ogoune)**
 
 </div>

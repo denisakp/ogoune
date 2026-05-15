@@ -1,0 +1,595 @@
+package domain
+
+import (
+	"math/rand"
+	"strconv"
+	"strings"
+	"time"
+
+	"github.com/denisakp/ogoune/pkg/crypto"
+	"github.com/oklog/ulid/v2"
+	"gorm.io/gorm"
+)
+
+// Base define a base model with common fields
+type Base struct {
+	ID        string    `json:"id" gorm:"primaryKey"`
+	CreatedAt time.Time `json:"created_at" gorm:"index"`
+	UpdatedAt time.Time `json:"updated_at"`
+}
+
+// BeforeCreate hook to set timestamps before creating a record
+func (base *Base) BeforeCreate(tx *gorm.DB) (err error) {
+	if base.ID == "" {
+		// generate a new ULID for the ID field
+		t := time.Now()
+		entropy := ulid.Monotonic(rand.New(rand.NewSource(t.UnixNano())), 0)
+		base.ID = ulid.MustNew(ulid.Timestamp(t), entropy).String()
+	}
+	return
+}
+
+// Tags represents a tag that can be associated with multiple resources
+type Tags struct {
+	Base
+	Name        string      `json:"name" gorm:"uniqueIndex"`
+	Color       *string     `json:"color,omitempty"`
+	Description *string     `json:"description,omitempty"`
+	Resources   []*Resource `json:"resources" gorm:"many2many:resource_tags;joinForeignKey:tag_id;joinReferences:resource_id;"`
+}
+
+func (Tags) TableName() string { return "tags" }
+
+type ResourceType string
+
+const (
+	ResourceHTTP      ResourceType = "http"
+	ResourceTCP       ResourceType = "tcp"
+	ResourceDNS       ResourceType = "dns"
+	ResourceICMP      ResourceType = "icmp"
+	ResourceHeartbeat ResourceType = "heartbeat"
+	ResourceKeyword   ResourceType = "keyword"
+	ResourceProtocol  ResourceType = "protocol"
+)
+
+type ResourceStatus string
+
+const (
+	StatusUp       ResourceStatus = "up"
+	StatusDown     ResourceStatus = "down"
+	StatusError    ResourceStatus = "error"
+	StatusUnknown  ResourceStatus = "unknown"
+	StatusPaused   ResourceStatus = "paused"
+	StatusPending  ResourceStatus = "pending"
+	StatusWarn     ResourceStatus = "warning"
+	StatusFlapping ResourceStatus = "flapping"
+)
+
+// ComponentStatus represents the derived health of a logical group of resources.
+type ComponentStatus string
+
+const (
+	ComponentStatusUp       ComponentStatus = "up"
+	ComponentStatusDegraded ComponentStatus = "degraded"
+	ComponentStatusDown     ComponentStatus = "down"
+)
+
+// ResourceMetaData collect domain and ssl metadata form resource
+type ResourceMetaData struct {
+	SSLExpirationDate    *time.Time `json:"ssl_expiration_date" gorm:"column:ssl_expiration_date"`
+	SSLIssuer            string     `json:"ssl_issuer" gorm:"column:ssl_issuer"`
+	DomainExpirationDate *time.Time `json:"domain_expiration_date" gorm:"column:domain_expiration_date"`
+	DomainRegistrar      string     `json:"domain_registrar" gorm:"column:domain_registrar"`
+}
+
+// A Resource is something that can be monitored, such as a website or server.
+type Resource struct {
+	Base
+	Name                    string                 `json:"name"`
+	Type                    ResourceType           `json:"type"  gorm:"index"`
+	Interval                int                    `json:"interval" gorm:"default:300"` // in seconds
+	Timeout                 int                    `json:"timeout" gorm:"default:10"`   // in seconds
+	Target                  string                 `json:"target"`
+	LastChecked             *time.Time             `json:"last_checked"`
+	Status                  ResourceStatus         `json:"status" gorm:"default:pending"`
+	IsActive                bool                   `json:"is_active" gorm:"default:true"`
+	FailureCount            int                    `json:"failure_count" gorm:"default:0"`
+	ConfirmationChecks      int                    `json:"confirmation_checks" gorm:"default:2"`
+	ConfirmationInterval    int                    `json:"confirmation_interval" gorm:"default:30"`
+	ExpiryAlertThresholds   *string                `json:"expiry_alert_thresholds" gorm:"column:expiry_alert_thresholds"`
+	Metadata                *ResourceMetaData      `json:"metadata" gorm:"embedded"`
+	Incidents               []Incident             `json:"incidents"`
+	Tags                    []*Tags                `json:"tags" gorm:"many2many:resource_tags;joinForeignKey:resource_id;joinReferences:tag_id;"`
+	NotificationChannels    []*NotificationChannel `json:"notification_channels" gorm:"many2many:resource_notification_channels;"`
+	ComponentID             *string                `json:"component_id" gorm:"index"`
+	Component               *Component             `json:"component" gorm:"foreignKey:ComponentID"`
+	FlapDetectionEnabled    bool                   `json:"flap_detection_enabled" gorm:"default:true"`
+	FlapThreshold           int                    `json:"flap_threshold" gorm:"default:4"`
+	FlapWindowSeconds       int                    `json:"flap_window_seconds" gorm:"default:600"`
+	FlapMaxDurationMinutes  int                    `json:"flap_max_duration_minutes" gorm:"default:30"`
+	LastStatusTransition    *time.Time             `json:"last_status_transition" gorm:"index"`
+	FlapStartedAt           *time.Time             `json:"flap_started_at"`
+	ReminderIntervalMinutes int                    `json:"reminder_interval_minutes" gorm:"default:0"`
+	HeartbeatSlug           *string                `json:"heartbeat_slug,omitempty" gorm:"column:heartbeat_slug;index"`
+	HeartbeatInterval       *int                   `json:"heartbeat_interval,omitempty" gorm:"column:heartbeat_interval"`
+	HeartbeatGrace          *int                   `json:"heartbeat_grace,omitempty" gorm:"column:heartbeat_grace"`
+	LastPingAt              *time.Time             `json:"last_ping_at,omitempty" gorm:"column:last_ping_at;index"`
+	Keyword                 *string                `json:"keyword,omitempty" gorm:"column:keyword"`
+	KeywordMode             *string                `json:"keyword_mode,omitempty" gorm:"column:keyword_mode"`
+	ProtocolType            *string                `json:"protocol_type,omitempty" gorm:"column:protocol_type"`
+	ProtocolPort            *int                   `json:"protocol_port,omitempty" gorm:"column:protocol_port"`
+	MetadataPending         bool                   `json:"metadata_pending" gorm:"-"`
+}
+
+// IsHeartbeatWaiting reports whether a heartbeat resource has never been pinged.
+func (r *Resource) IsHeartbeatWaiting() bool {
+	return r != nil && r.Type == ResourceHeartbeat && r.LastPingAt == nil
+}
+
+func (Resource) TableName() string { return "resources" }
+
+// ExpiryStatus represents the computed expiry state of a resource's SSL certificate or domain.
+type ExpiryStatus string
+
+const (
+	ExpiryStatusOK       ExpiryStatus = "ok"
+	ExpiryStatusWarning  ExpiryStatus = "warning"
+	ExpiryStatusCritical ExpiryStatus = "critical"
+	ExpiryStatusExpired  ExpiryStatus = "expired"
+)
+
+// ComputeExpiryStatus returns the expiry status for the given number of days remaining.
+func ComputeExpiryStatus(daysRemaining int) ExpiryStatus {
+	switch {
+	case daysRemaining <= 0:
+		return ExpiryStatusExpired
+	case daysRemaining <= 7:
+		return ExpiryStatusCritical
+	case daysRemaining <= 30:
+		return ExpiryStatusWarning
+	default:
+		return ExpiryStatusOK
+	}
+}
+
+// AggregateExpiryStatus returns the worst-case ExpiryStatus across ssl and domain timelines.
+func AggregateExpiryStatus(ssl, domain ExpiryStatus) ExpiryStatus {
+	rank := map[ExpiryStatus]int{
+		ExpiryStatusOK:       0,
+		ExpiryStatusWarning:  1,
+		ExpiryStatusCritical: 2,
+		ExpiryStatusExpired:  3,
+	}
+	if rank[domain] > rank[ssl] {
+		return domain
+	}
+	return ssl
+}
+
+// DefaultExpiryThresholds returns the hardcoded fallback threshold list.
+func DefaultExpiryThresholds() []int {
+	return []int{30, 14, 7, 1}
+}
+
+// ExpiryThresholds returns the resolved alert thresholds for this resource.
+// Priority: resource-level field → globalDefaults → hardcoded defaults.
+func (r *Resource) ExpiryThresholds(globalDefaults []int) []int {
+	if r.ExpiryAlertThresholds == nil || *r.ExpiryAlertThresholds == "" {
+		if len(globalDefaults) > 0 {
+			return globalDefaults
+		}
+		return DefaultExpiryThresholds()
+	}
+	parsed := parseThresholds(*r.ExpiryAlertThresholds)
+	if len(parsed) == 0 {
+		if len(globalDefaults) > 0 {
+			return globalDefaults
+		}
+		return DefaultExpiryThresholds()
+	}
+	return parsed
+}
+
+// parseThresholds parses a comma-separated threshold string (e.g. "30,14,7,1").
+// Values that are not positive integers or exceed 365 are silently ignored.
+func parseThresholds(s string) []int {
+	parts := strings.Split(s, ",")
+	result := make([]int, 0, len(parts))
+	for _, p := range parts {
+		v, err := strconv.Atoi(strings.TrimSpace(p))
+		if err != nil || v <= 0 || v > 365 {
+			continue
+		}
+		result = append(result, v)
+	}
+	return result
+}
+
+// ParseThresholds parses a comma-separated threshold string (exported for use in validation).
+func ParseThresholds(s string) []int {
+	return parseThresholds(s)
+}
+
+// ExpiryNotificationLog records that a threshold alert was dispatched for a specific
+// resource and expiry type. It prevents duplicate notifications across daily check runs.
+type ExpiryNotificationLog struct {
+	Base
+	ResourceID string    `json:"resource_id" gorm:"index;not null"`
+	Resource   Resource  `json:"resource"    gorm:"foreignKey:ResourceID;constraint:OnDelete:CASCADE"`
+	ExpiryType string    `json:"expiry_type" gorm:"index;not null"`
+	Threshold  int       `json:"threshold"   gorm:"index;not null"`
+	SentAt     time.Time `json:"sent_at"     gorm:"not null"`
+}
+
+func (ExpiryNotificationLog) TableName() string { return "expiry_notification_logs" }
+
+// Component is a logical grouping of resources. Its status is derived from member resources.
+type Component struct {
+	Base
+	Name                   string          `json:"name" gorm:"uniqueIndex"`
+	Description            *string         `json:"description,omitempty"`
+	Resources              []*Resource     `json:"resources,omitempty" gorm:"foreignKey:ComponentID"`
+	LastNotificationStatus ComponentStatus `json:"last_notification_status" gorm:"default:'up'"`
+	GroupingWindowSeconds  int             `json:"grouping_window_seconds" gorm:"default:30"`
+}
+
+func (Component) TableName() string { return "components" }
+
+// Incident represents an event where a Resource is down or experiencing issues.
+type Incident struct {
+	Base
+	ResourceID          string               `json:"resource_id" gorm:"index"`
+	Resource            Resource             `json:"resource" gorm:"foreignKey:ResourceID"`
+	Cause               string               `json:"cause" gorm:"index;default:unknown_failure"`
+	ResolvedAt          *time.Time           `json:"resolved_at" gorm:"index"` // nil = active, timestamp = resolved
+	StartedAt           time.Time            `json:"started_at" gorm:"index"`
+	Details             []byte               `json:"details"`
+	EventStep           []IncidentEventStep  `json:"event_steps"`
+	IncidentDiagnostics *IncidentDiagnostics `json:"diagnostics" gorm:"foreignKey:IncidentID"`
+}
+
+func (Incident) TableName() string { return "incidents" }
+
+// IncidentDiagnostics contains enriched diagnostic information about an incident
+// including request/response details, failure classification, and timing breakdown.
+// This is populated when an incident is created and provides users with detailed
+// context for debugging and understanding what caused the failure.
+type IncidentDiagnostics struct {
+	Base
+	IncidentID        string            `json:"incident_id" gorm:"uniqueIndex;index"`
+	Incident          Incident          `json:"incident" gorm:"foreignKey:IncidentID;constraint:OnDelete:CASCADE"`
+	RequestMethod     string            `json:"request_method"`                           // GET, HEAD, POST, etc.
+	RequestURL        string            `json:"request_url"`                              // Full URL being checked
+	RequestHeaders    map[string]string `json:"request_headers" gorm:"serializer:json"`   // Sanitized request headers
+	RequestTimeout    int               `json:"request_timeout"`                          // Timeout in seconds
+	HTTPStatusCode    int               `json:"http_status_code" gorm:"index;default:-1"` // HTTP status code (-1 if N/A)
+	ResponseHeaders   map[string]string `json:"response_headers" gorm:"serializer:json"`  // Response headers
+	ResponseBody      string            `json:"response_body"`                            // Base64 encoded if needed, truncated to 5KB
+	ResponseSize      int               `json:"response_size"`                            // Actual response size in bytes
+	FailureType       string            `json:"failure_type" gorm:"index"`                // e.g., connection_timeout, invalid_status_code
+	ErrorMessage      string            `json:"error_message"`                            // Machine-readable error from Go
+	ErrorSummary      string            `json:"error_summary"`                            // Human-friendly explanation
+	TotalDuration     int               `json:"total_duration"`                           // Milliseconds
+	DNSDuration       int               `json:"dns_duration"`                             // Milliseconds (0 if not measured)
+	TLSDuration       int               `json:"tls_duration"`                             // Milliseconds (0 if not applicable)
+	FirstByteDuration int               `json:"first_byte_duration"`                      // Milliseconds (0 if body not captured)
+	BodyTruncated     bool              `json:"body_truncated"`                           // true if response body was truncated
+	BodyEncoded       bool              `json:"body_encoded"`                             // true if response body is base64 encoded
+
+	// Keyword enrichment fields (populated for keyword monitor incidents only)
+	Keyword      *string `json:"keyword,omitempty" gorm:"column:keyword"`
+	KeywordMode  *string `json:"keyword_mode,omitempty" gorm:"column:keyword_mode"`
+	KeywordFound *bool   `json:"keyword_found,omitempty" gorm:"column:keyword_found"`
+
+	// ICMP enrichment fields (H2: populated by diagnostic enricher for all DOWN incidents)
+	ICMPAvailable *bool  `json:"icmp_available" gorm:"default:null"` // whether ICMP capability was available at enrichment time
+	ICMPReachable *bool  `json:"icmp_reachable" gorm:"default:null"` // whether host replied to ICMP echo
+	ICMPRttMs     *int   `json:"icmp_rtt_ms" gorm:"default:null"`    // round-trip time in ms; null when unreachable
+	RootCauseHint string `json:"root_cause_hint" gorm:"default:''"`  // enum: icmp_unavailable|host_unreachable|service_down|""
+}
+
+func (IncidentDiagnostics) TableName() string { return "incident_diagnostics" }
+
+// WithICMP merges ICMP enrichment results into diagnostics.
+// This is called after a DOWN check fails to populate network diagnostic fields.
+func (d *IncidentDiagnostics) WithICMP(icmpAvailable, icmpReachable *bool, icmpRttMs *int, rootCauseHint string) *IncidentDiagnostics {
+	if d == nil {
+		return d
+	}
+	d.ICMPAvailable = icmpAvailable
+	d.ICMPReachable = icmpReachable
+	d.ICMPRttMs = icmpRttMs
+	d.RootCauseHint = rootCauseHint
+	return d
+}
+
+type IncidentEventStepType string
+
+const (
+	IncidentEventStepDetected           IncidentEventStepType = "detected"
+	IncidentEventStepResolved           IncidentEventStepType = "resolved"
+	IncidentEventStepAlert              IncidentEventStepType = "alert_sent"
+	IncidentEventStepDownAlert          IncidentEventStepType = "resource_down_alert"
+	IncidentEventStepUpAlert            IncidentEventStepType = "resource_up_alert"
+	IncidentEventStepFlapping           IncidentEventStepType = "flapping"
+	IncidentEventStepFlappingStabilized IncidentEventStepType = "flapping_stabilized"
+	IncidentEventStepReminder           IncidentEventStepType = "reminder"
+	IncidentEventStepComponentAlert     IncidentEventStepType = "component_alert"
+)
+
+// IncidentEventStep represents a step in the lifecycle of an incident, such as detection or resolution.
+type IncidentEventStep struct {
+	Base
+	IncidentID string                `json:"incident_id" gorm:"index"`
+	Incident   Incident              `json:"incident" gorm:"foreignKey:IncidentID"`
+	Step       IncidentEventStepType `json:"step" gorm:"index"`
+	Message    *string               `json:"message"`
+}
+
+func (IncidentEventStep) TableName() string { return "incident_event_steps" }
+
+// EventType Event type constants for notification event types (avoid magic strings)
+type EventType string
+
+const (
+	EventTypeDown   EventType = "down"
+	EventTypeUp     EventType = "up"
+	EventTypeExpiry EventType = "expiry"
+)
+
+type NotificationEventType string
+
+const (
+	NotificationEventTypeUp         NotificationEventType = "up"
+	NotificationEventTypeDown       NotificationEventType = "down"
+	NotificationEventTypeExpiry     NotificationEventType = "expiry"
+	NotificationEventTypeFlapping   NotificationEventType = "flapping"
+	NotificationEventTypeStabilized NotificationEventType = "stabilized"
+	NotificationEventTypeReminder   NotificationEventType = "reminder"
+)
+
+type NotificationEventStatusType string
+
+const (
+	NotificationEventStatusSent      NotificationEventStatusType = "sent"
+	NotificationEventStatusFailed    NotificationEventStatusType = "failed"
+	NotificationEventStatusPending   NotificationEventStatusType = "pending"
+	NotificationEventStatusExpired   NotificationEventStatusType = "expired"
+	NotificationEventStatusDelivered NotificationEventStatusType = "delivered"
+	NotificationEventStatusRead      NotificationEventStatusType = "read"
+)
+
+type NotificationEvent struct {
+	Base
+	IncidentID  string                      `json:"incident_id" gorm:"index"`
+	Incident    Incident                    `json:"incident" gorm:"foreignKey:IncidentID"`
+	Type        NotificationEventType       `json:"type" gorm:"index"`
+	Status      NotificationEventStatusType `json:"status" gorm:"index;default:pending"`
+	ClaimOwner  *string                     `json:"claim_owner,omitempty" gorm:"index"`
+	ClaimedAt   *time.Time                  `json:"claimed_at,omitempty"`
+	ProcessedAt *time.Time                  `json:"processed_at,omitempty"`
+	LastError   string                      `json:"last_error" gorm:"default:''"`
+}
+
+func (NotificationEvent) TableName() string { return "notification_events" }
+
+type MonitoringActivity struct {
+	Base
+	ResourceID    string   `json:"resource_id" gorm:"index"`
+	Resource      Resource `json:"resource" gorm:"foreignKey:ResourceID"`
+	Message       string   `json:"message"`
+	Success       bool     `json:"success"`
+	ResponseTime  int      `json:"response_time"`
+	ResponseData  []byte   `json:"response_data"`
+	IsMaintenance bool     `json:"is_maintenance" gorm:"default:false"`
+}
+
+func (MonitoringActivity) TableName() string { return "monitoring_activities" }
+
+// UptimeStat represents aggregated uptime data for a specific hour
+type UptimeStat struct {
+	Hour            time.Time `json:"hour"`
+	UptimePercent   float64   `json:"uptime_percent"`
+	SuccessfulCount int       `json:"successful_count"`
+	TotalCount      int       `json:"total_count"`
+}
+
+// ResponseTimePoint represents a single response time measurement with timestamp
+type ResponseTimePoint struct {
+	Timestamp    time.Time `json:"timestamp"`
+	ResponseTime int       `json:"response_time"` // in milliseconds
+}
+
+// GlobalStats represents aggregated statistics across all monitored resources
+type GlobalStats struct {
+	OverallUptime            float64 // Average uptime percentage across all resources
+	TotalIncidents           int     // Total number of incidents in the time range
+	WithoutIncidentsDuration int64   // Duration in seconds without any incidents
+	AffectedMonitors         int     // Number of distinct resources with incidents
+}
+
+// NotificationChannelType represents the type of notification channel
+type NotificationChannelType string
+
+const (
+	NotificationChannelTypeSMTP  NotificationChannelType = "smtp"
+	NotificationChannelTypeSlack NotificationChannelType = "slack"
+	NotificationChannelTypeSMS   NotificationChannelType = "sms"
+)
+
+// IsValid checks if the notification channel type is valid
+func (t NotificationChannelType) IsValid() bool {
+	switch t {
+	case NotificationChannelTypeSMTP, NotificationChannelTypeSlack, NotificationChannelTypeSMS:
+		return true
+	}
+	return false
+}
+
+// NotificationChannel represents a configured notification channel
+type NotificationChannel struct {
+	Base
+	Name             string                  `json:"name" gorm:"not null"`
+	Type             NotificationChannelType `json:"type" gorm:"not null;index"`
+	Config           []byte                  `json:"config" gorm:"not null"` // JSON configuration specific to channel type
+	EnabledByDefault bool                    `json:"enabled_by_default" gorm:"default:false"`
+}
+
+func (NotificationChannel) TableName() string { return "notification_channels" }
+
+// BeforeCreate encrypts Config before INSERT.
+func (n *NotificationChannel) BeforeCreate(tx *gorm.DB) error {
+	if err := n.Base.BeforeCreate(tx); err != nil {
+		return err
+	}
+	if len(n.Config) == 0 {
+		return nil
+	}
+	ciphertext, err := crypto.Encrypt(string(n.Config))
+	if err != nil {
+		return err
+	}
+	n.Config = []byte(ciphertext)
+	return nil
+}
+
+// BeforeUpdate encrypts Config before UPDATE.
+func (n *NotificationChannel) BeforeUpdate(tx *gorm.DB) error {
+	if len(n.Config) == 0 {
+		return nil
+	}
+	ciphertext, err := crypto.Encrypt(string(n.Config))
+	if err != nil {
+		return err
+	}
+	n.Config = []byte(ciphertext)
+	return nil
+}
+
+// AfterFind decrypts Config after SELECT.
+// For legacy plaintext records (starts with '{'): re-encrypts synchronously and persists.
+// For already-encrypted records: decrypts in-place.
+// Returns error if decryption fails — never returns empty or partial credential silently.
+func (n *NotificationChannel) AfterFind(tx *gorm.DB) error {
+	if len(n.Config) == 0 {
+		return nil
+	}
+	if n.Config[0] == '{' {
+		// Legacy plaintext — lazy migration: encrypt and persist synchronously.
+		plaintext := make([]byte, len(n.Config))
+		copy(plaintext, n.Config)
+		ciphertext, err := crypto.Encrypt(string(plaintext))
+		if err != nil {
+			return err
+		}
+		if err := tx.Model(n).UpdateColumn("config", []byte(ciphertext)).Error; err != nil {
+			return err
+		}
+		// Restore plaintext so the caller receives usable config.
+		n.Config = plaintext
+		return nil
+	}
+	// Already encrypted — decrypt for the caller.
+	plaintext, err := crypto.Decrypt(string(n.Config))
+	if err != nil {
+		return err
+	}
+	n.Config = []byte(plaintext)
+	return nil
+}
+
+type MaintenanceStrategy string
+
+const (
+	OneTime MaintenanceStrategy = "one_time"
+	Cron    MaintenanceStrategy = "cron"
+)
+
+type Maintenance struct {
+	Base
+	Title       string              `json:"title" gorm:"not null"`
+	Description *string             `json:"description,omitempty"`
+	Strategy    MaintenanceStrategy `json:"strategy" gorm:"not null;index"`
+	Status      string              `json:"status" gorm:"index"` // scheduled | active | finished | cancelled
+	// One-time window
+	StartAt *time.Time `json:"start_at" gorm:"index"`
+	EndAt   *time.Time `json:"end_at" gorm:"index"`
+	// Cron-based window
+	CronExpr      *string `json:"cron_expr" gorm:"index"`
+	WindowMinutes *int    `json:"window_minutes"`
+	Timezone      *string `json:"timezone"`
+	// Optional: restricts when recurring maintenance can execute
+	EffectiveFrom  *time.Time  `json:"effective_from" gorm:"index"`
+	EffectiveUntil *time.Time  `json:"effective_until" gorm:"index"`
+	StartedAt      *time.Time  `json:"started_at" gorm:"index"`
+	EndedAt        *time.Time  `json:"ended_at" gorm:"index"`
+	Resources      []*Resource `json:"resources" gorm:"many2many:maintenance_resources;"`
+}
+
+func (Maintenance) TableName() string { return "maintenances" }
+
+type StatusPageSettings struct {
+	Base
+	Name                 string `json:"name" gorm:"default:'Status Page'"`
+	HomepageURL          string `json:"homepage_url"`
+	CustomDomain         string `json:"custom_domain"`
+	GoogleAnalyticsID    string `json:"google_analytics_id"`
+	EnableDetailsPage    bool   `json:"enable_details_page" gorm:"default:true"`
+	ShowUptimePercentage bool   `json:"show_uptime_percentage" gorm:"default:true"`
+	HidePausedMonitors   bool   `json:"hide_paused_monitors" gorm:"default:true"`
+	ShowIncidentHistory  bool   `json:"show_incident_history" gorm:"default:true"`
+}
+
+func (StatusPageSettings) TableName() string { return "status_page_settings" }
+
+// APIKeyScope controls which routes an API key can access.
+type APIKeyScope string
+
+const (
+	APIKeyScopeRead      APIKeyScope = "read"
+	APIKeyScopeReadWrite APIKeyScope = "read_write"
+)
+
+// APIKey stores hashed API credentials for programmatic access.
+type APIKey struct {
+	Base
+	UserID     string      `json:"user_id" gorm:"index;not null"`
+	Name       string      `json:"name" gorm:"not null"`
+	KeyHash    string      `json:"-" gorm:"uniqueIndex;not null"`
+	KeyPrefix  string      `json:"key_prefix" gorm:"not null"`
+	Scope      APIKeyScope `json:"scope" gorm:"not null;default:'read'"`
+	ExpiresAt  *time.Time  `json:"expires_at"`
+	LastUsedAt *time.Time  `json:"last_used_at"`
+	LastUsedIP string      `json:"last_used_ip" gorm:"default:''"`
+	IsActive   bool        `json:"is_active" gorm:"default:true"`
+}
+
+func (APIKey) TableName() string { return "api_keys" }
+
+// User represents a user account with authentication credentials
+type User struct {
+	Base
+	Email                string     `json:"email" gorm:"uniqueIndex;not null"`
+	Name                 string     `json:"name"`
+	HashedPassword       string     `json:"-" gorm:"not null"` // Never serialize
+	PasswordInitialized  bool       `json:"password_initialized" gorm:"default:false"`
+	ForcePasswordChange  bool       `json:"force_password_change" gorm:"default:false"`
+	TwoFactorEnabled     bool       `json:"two_factor_enabled" gorm:"default:false"`
+	TwoFactorSecret      string     `json:"-" gorm:"default:null"` // TOTP secret, never serialize
+	TwoFactorBackupCodes []byte     `json:"-" gorm:"default:null"` // Encrypted backup codes
+	LastLoginAt          *time.Time `json:"last_login_at"`
+	CreatedAt            time.Time  `json:"created_at" gorm:"index"`
+	UpdatedAt            time.Time  `json:"updated_at"`
+}
+
+func (User) TableName() string { return "users" }
+
+// IsPasswordInitialized returns true if the user has set a custom password
+func (u *User) IsPasswordInitialized() bool {
+	return u.PasswordInitialized
+}
+
+// HasTwoFactor returns true if the user has 2FA enabled
+func (u *User) HasTwoFactor() bool {
+	return u.TwoFactorEnabled && u.TwoFactorSecret != ""
+}

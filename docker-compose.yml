@@ -1,89 +1,23 @@
-name: pulse-guard
-networks:
-  pulseguard:
-    name: pulse-guard
+name: ogoune
+
 volumes:
-  postgres-data:
-  redis-data:
-  traefik-data:
+  ogoune-data:
+
 services:
-  postgres:
-    image: postgres:17-alpine
-    environment:
-      PGPASSWORD: ${PG_PASSWORD}
-      POSTGRES_DB: ${PG_DATABASE}
-      POSTGRES_USER: ${PG_USERNAME}
-      POSTGRES_PASSWORD: ${PG_PASSWORD}
-    volumes:
-      - postgres-data:/var/lib/postgresql/data
-    networks:
-      - pulseguard
-    healthcheck:
-      test: ["CMD", "pg_isready", "-q", "-d", "${PG_DATABASE}", "-U", "${PG_USERNAME}"]
-      timeout: 5s
-      retries: 3
-  redis:
-    image: 'redis:alpine'
-    volumes:
-      - 'redis-data:/data'
-    networks:
-      - pulseguard
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      retries: 3
-      timeout: 5s
-  pulseguard:
-    image: ghcr.io/denisakp/pulseguard@sha256:1b981c891b2564471e1c080103c800c3ace4aba4d5579d38bf5d0ec0e74f589f
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    networks:
-      - pulseguard
+  ogoune:
+    image: ghcr.io/denisakp/ogoune:latest
     ports:
-      - '${APP_PORT:-8080}:8080'
+      - "${APP_PORT:-8080}:8080"
     environment:
-      DATABASE_URL: postgres://${PG_USERNAME}:${PG_PASSWORD}@postgres:5432/${PG_DATABASE}
-      REDIS_URL: ${REDIS_URL}D}
-    healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/health"]
-      retries: 3
-      timeout: 5s
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.pulseguard.rule=Host(`${PULSEGUARD_DOMAIN}`)"
-      - "traefik.http.routers.pulseguard.entrypoints=websecure"
-      - "traefik.http.routers.pulseguard.tls.certresolver=le"
-      - "traefik.http.services.pulseguard.loadbalancer.server.port=${APP_PORT}"
-  traefik:
-    image: traefik:v3
-    restart: unless-stopped
-    security_opt:
-      - no-new-privileges:true
-    networks:
-      - pulseguard
-    ports:
-      - "80:80"
-      - "443:443"
-    environment:
-      ACME_EMAIL: ${ACME_EMAIL}
+      DB_DRIVER: sqlite
+      SQLITE_PATH: /data/ogoune.db
+      DB_LOG_LEVEL: error
+      # Scheduler runs in-process without Redis
+      SCHEDULER_MODE: timingwheel
+      SCHEDULER_MAX_WORKERS: 10
+      SCHEDULER_TICK_INTERVAL: 1s
+      SCHEDULER_SHUTDOWN_TIMEOUT: 30s
+      STATIC_DIR: /app/static
+      PORT: 8080
     volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-      - traefik-letsencrypt:/letsencrypt
-      - $PWD/scripts/traefik/traefik.yml:/etc/traefik/traefik.yml:ro
-    command:
-      - "--api.dashboard=true"
-      - "--logs.level=ERROR"
-      - "--providers.docker=true"
-      - "--providers.docker.endpoint=unix:///var/run/docker.sock"
-      - "--providers.docker.exposedbydefault=false"
-      - "--providers.docker.network=pulseguard"
-      - "--entryPoints.web.address=:80"
-      - "--entryPoints.websecure.address=:443"
-      - "--entryPoints.websecure.http.tls=true"
-      - "--entryPoints.web.http.redirections.entryPoint.to=websecure"
-      - "--entryPoints.web.http.redirections.entryPoint.scheme=https"
-      - "--certificatesresolvers.le.acme.email=${ACME_EMAIL}"
-      - "--certificatesresolvers.le.acme.storage=/letsencrypt/acme.json"
-      - "--certificatesresolvers.le.acme.httpchallenge.entrypoint=web"
+      - ogoune-data:/data
