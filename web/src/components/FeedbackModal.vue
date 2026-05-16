@@ -21,7 +21,7 @@ onMounted(() => {
 
 const openForm = () => {
   // Open feedback form and mark as completed to avoid showing again
-  window.open(FEEDBACK_FORM_URL, '_blank')
+  window.open(FEEDBACK_FORM_URL, '_blank', 'noopener,noreferrer')
   localStorage.setItem(FEEDBACK_COMPLETED_KEY, 'true')
   showModal.value = false
 }
