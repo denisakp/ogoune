@@ -7,17 +7,17 @@ import (
 
 	"github.com/denisakp/ogoune/internal/domain"
 	"github.com/denisakp/ogoune/internal/dto"
-	"github.com/denisakp/ogoune/internal/maintenance"
+	"github.com/denisakp/ogoune/internal/port"
 	"github.com/denisakp/ogoune/internal/repository"
 )
 
 // MaintenanceService orchestrates maintenance CRUD and scheduling
 type MaintenanceService struct {
-	repo      repository.MaintenanceRepository
-	scheduler *maintenance.SchedulerService
+	repo      port.MaintenanceRepository
+	scheduler port.MaintenanceScheduler
 }
 
-func NewMaintenanceService(repo repository.MaintenanceRepository, scheduler *maintenance.SchedulerService) *MaintenanceService {
+func NewMaintenanceService(repo port.MaintenanceRepository, scheduler port.MaintenanceScheduler) *MaintenanceService {
 	return &MaintenanceService{repo: repo, scheduler: scheduler}
 }
 

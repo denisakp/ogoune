@@ -5,16 +5,16 @@ import (
 	"strings"
 
 	"github.com/denisakp/ogoune/internal/domain"
-	"github.com/denisakp/ogoune/internal/repository"
+	"github.com/denisakp/ogoune/internal/port"
 )
 
 // StatusPageSettingsService handles status page settings logic
 type StatusPageSettingsService struct {
-	repo repository.StatusPageSettingsRepository
+	repo port.StatusPageSettingsRepository
 }
 
 // NewStatusPageSettingsService creates a new service instance
-func NewStatusPageSettingsService(repo repository.StatusPageSettingsRepository) *StatusPageSettingsService {
+func NewStatusPageSettingsService(repo port.StatusPageSettingsRepository) *StatusPageSettingsService {
 	return &StatusPageSettingsService{repo: repo}
 }
 

@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/denisakp/ogoune/internal/domain"
+	"github.com/denisakp/ogoune/internal/port"
 	"github.com/denisakp/ogoune/internal/repository"
 	"gorm.io/gorm"
 )
@@ -17,7 +18,7 @@ type ResourceRepositoryImpl struct {
 }
 
 // NewResourceRepository creates a new ResourceRepository using GORM
-func NewResourceRepository(db *gorm.DB) repository.ResourceRepository {
+func NewResourceRepository(db *gorm.DB) port.ResourceRepository {
 	return &ResourceRepositoryImpl{db: db}
 }
 

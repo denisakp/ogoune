@@ -7,7 +7,7 @@ import (
 	"time"
 
 	domain "github.com/denisakp/ogoune/internal/domain"
-	"github.com/denisakp/ogoune/internal/repository"
+	"github.com/denisakp/ogoune/internal/port"
 )
 
 type IncidentEventStepFake struct {
@@ -16,7 +16,7 @@ type IncidentEventStepFake struct {
 }
 
 // NewIncidentEventStepFake creates a new in-memory fake implementation of IncidentEventStepRepository
-func NewIncidentEventStepFake() repository.IncidentEventStepRepository {
+func NewIncidentEventStepFake() port.IncidentEventStepRepository {
 	return &IncidentEventStepFake{
 		steps: make(map[string]*domain.IncidentEventStep),
 	}

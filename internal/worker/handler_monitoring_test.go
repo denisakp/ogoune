@@ -8,7 +8,7 @@ import (
 
 	"github.com/denisakp/ogoune/internal/domain"
 	"github.com/denisakp/ogoune/internal/monitoring"
-	"github.com/denisakp/ogoune/internal/repository"
+	"github.com/denisakp/ogoune/internal/port"
 	"github.com/denisakp/ogoune/internal/repository/fake"
 	"github.com/denisakp/ogoune/internal/service"
 	"github.com/hibiken/asynq"
@@ -20,7 +20,7 @@ func setupMonitoringHandlerForEnrichmentTests(
 	t *testing.T,
 	resource *domain.Resource,
 	strategy domain.CheckStrategy,
-) (*MonitoringTaskHandler, *fake.ResourceFake, *fake.IncidentFake, repository.IncidentDiagnosticsRepository) {
+) (*MonitoringTaskHandler, *fake.ResourceFake, *fake.IncidentFake, port.IncidentDiagnosticsRepository) {
 	t.Helper()
 
 	resourceRepo := fake.NewResourceFake()

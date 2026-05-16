@@ -11,7 +11,7 @@ import (
 	"time"
 
 	icmppkg "github.com/denisakp/ogoune/internal/icmp"
-	"github.com/denisakp/ogoune/internal/repository"
+	"github.com/denisakp/ogoune/internal/port"
 	"github.com/denisakp/ogoune/internal/scheduler"
 	"github.com/denisakp/ogoune/internal/service"
 	"github.com/go-chi/chi/v5"
@@ -19,7 +19,7 @@ import (
 
 // resourceRepositoryAdapter adapts ResourceRepository to implement ActiveResourceRepository
 type resourceRepositoryAdapter struct {
-	repo repository.ResourceRepository
+	repo port.ResourceRepository
 }
 
 func (a *resourceRepositoryAdapter) FindScheduledResources(ctx context.Context) ([]scheduler.ScheduleItem, error) {
@@ -42,7 +42,7 @@ func (a *resourceRepositoryAdapter) FindScheduledResources(ctx context.Context) 
 }
 
 // NewResourceRepositoryAdapter creates a new adapter for the scheduler's resource loader.
-func NewResourceRepositoryAdapter(repo repository.ResourceRepository) *resourceRepositoryAdapter {
+func NewResourceRepositoryAdapter(repo port.ResourceRepository) *resourceRepositoryAdapter {
 	return &resourceRepositoryAdapter{repo: repo}
 }
 

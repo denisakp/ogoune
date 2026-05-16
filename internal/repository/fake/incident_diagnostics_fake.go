@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/denisakp/ogoune/internal/domain"
+	"github.com/denisakp/ogoune/internal/port"
 	"github.com/denisakp/ogoune/internal/repository"
 )
 
@@ -14,7 +15,7 @@ type IncidentDiagnosticsFake struct {
 }
 
 // NewIncidentDiagnosticsFake creates a new fake diagnostics repository
-func NewIncidentDiagnosticsFake() repository.IncidentDiagnosticsRepository {
+func NewIncidentDiagnosticsFake() port.IncidentDiagnosticsRepository {
 	return &IncidentDiagnosticsFake{
 		diagnostics: make(map[string]*domain.IncidentDiagnostics),
 		idCounter:   0,

@@ -7,19 +7,20 @@ import (
 
 	"github.com/denisakp/ogoune/internal/domain"
 	"github.com/denisakp/ogoune/internal/dto"
+	"github.com/denisakp/ogoune/internal/port"
 	"github.com/denisakp/ogoune/internal/repository"
 )
 
 // IncidentService provides business logic for incident management operations.
 type IncidentService struct {
-	incidents  repository.IncidentRepository
-	eventSteps repository.IncidentEventStepRepository
+	incidents  port.IncidentRepository
+	eventSteps port.IncidentEventStepRepository
 }
 
 // NewIncidentService creates a new IncidentService with the given repository dependencies.
 func NewIncidentService(
-	incidents repository.IncidentRepository,
-	eventSteps repository.IncidentEventStepRepository,
+	incidents port.IncidentRepository,
+	eventSteps port.IncidentEventStepRepository,
 ) *IncidentService {
 	return &IncidentService{
 		incidents:  incidents,

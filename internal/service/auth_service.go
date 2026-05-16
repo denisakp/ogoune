@@ -11,6 +11,7 @@ import (
 
 	"github.com/denisakp/ogoune/internal/domain"
 	"github.com/denisakp/ogoune/internal/dto"
+	"github.com/denisakp/ogoune/internal/port"
 	"github.com/denisakp/ogoune/internal/repository"
 	"github.com/pquerna/otp/totp"
 	"golang.org/x/crypto/bcrypt"
@@ -29,14 +30,14 @@ const (
 
 // AuthService handles authentication logic with database persistence
 type AuthService struct {
-	userRepo       repository.UserRepository
+	userRepo       port.UserRepository
 	jwtManager     *JWTManager
 	legacyEmail    string
 	legacyPassword string
 }
 
 // NewAuthService creates a new authentication service with database support
-func NewAuthService(userRepo repository.UserRepository, jwtManager *JWTManager) *AuthService {
+func NewAuthService(userRepo port.UserRepository, jwtManager *JWTManager) *AuthService {
 	return &AuthService{
 		userRepo:   userRepo,
 		jwtManager: jwtManager,
@@ -422,14 +423,14 @@ func generateRandomString(length int) string {
 // generateBackupCodes generates backup codes for account recovery
 func generateBackupCodes(count int) []string {
 	codes := make([]string, count)
-	for i := 0; i < count; i++ {
+	for i := range count {
 		codes[i] = generateRandomString(8)
 	}
 	return codes
 }
 
 // imageToDataURL converts an image to a data URL for QR codes
-func imageToDataURL(img interface{}) string {
+func imageToDataURL(_ any) string {
 	// In production, this would encode the image properly
 	// For now, return a placeholder
 	return "data:image/png;base64,..."

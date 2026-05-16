@@ -5,7 +5,7 @@ import (
 	"log/slog"
 
 	"github.com/denisakp/ogoune/internal/domain"
-	"github.com/denisakp/ogoune/internal/repository"
+	"github.com/denisakp/ogoune/internal/port"
 	"github.com/hibiken/asynq"
 )
 
@@ -35,7 +35,7 @@ type activeResourceLister interface {
 // stale log entries. Per-resource errors are logged but do not abort the run.
 type ExpiryTaskHandler struct {
 	resources activeResourceLister
-	channels  repository.NotificationChannelRepository
+	channels  port.NotificationChannelRepository
 	enricher  enricher
 	expiry    expiryChecker
 }
@@ -43,7 +43,7 @@ type ExpiryTaskHandler struct {
 // NewExpiryTaskHandler creates a new ExpiryTaskHandler.
 func NewExpiryTaskHandler(
 	resources activeResourceLister,
-	channels repository.NotificationChannelRepository,
+	channels port.NotificationChannelRepository,
 	enricher enricher,
 	expiry expiryChecker,
 ) *ExpiryTaskHandler {

@@ -9,6 +9,7 @@ import (
 
 	"github.com/denisakp/ogoune/internal/domain"
 	"github.com/denisakp/ogoune/internal/dto"
+	"github.com/denisakp/ogoune/internal/port"
 	"github.com/denisakp/ogoune/internal/repository"
 	"github.com/denisakp/ogoune/pkg/apikey"
 )
@@ -23,12 +24,12 @@ type AuthenticatedAPIKey struct {
 
 // APIKeyService orchestrates API key business logic.
 type APIKeyService struct {
-	repo     repository.APIKeyRepository
-	userRepo repository.UserRepository
+	repo     port.APIKeyRepository
+	userRepo port.UserRepository
 	now      func() time.Time
 }
 
-func NewAPIKeyService(repo repository.APIKeyRepository, userRepo repository.UserRepository) *APIKeyService {
+func NewAPIKeyService(repo port.APIKeyRepository, userRepo port.UserRepository) *APIKeyService {
 	return &APIKeyService{
 		repo:     repo,
 		userRepo: userRepo,

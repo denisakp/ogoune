@@ -12,6 +12,7 @@ import (
 	"github.com/denisakp/ogoune/internal/domain"
 	"github.com/denisakp/ogoune/internal/dto"
 	icmppkg "github.com/denisakp/ogoune/internal/icmp"
+	"github.com/denisakp/ogoune/internal/port"
 	"github.com/denisakp/ogoune/internal/repository"
 	"github.com/google/uuid"
 )
@@ -25,22 +26,22 @@ const (
 // This service demonstrates the dependency injection pattern and serves as an example
 // of how to compose repository operations while maintaining clean boundaries.
 type ResourceService struct {
-	resources          repository.ResourceRepository
-	incidents          repository.IncidentRepository
-	tags               repository.TagsRepository
-	scheduler          repository.Scheduler
-	monitoringActivity repository.MonitoringActivityRepository
+	resources          port.ResourceRepository
+	incidents          port.IncidentRepository
+	tags               port.TagsRepository
+	scheduler          port.ResourceScheduler
+	monitoringActivity port.MonitoringActivityRepository
 	enrichment         *EnrichmentService
 	components         *ComponentService
 }
 
 // NewResourceService creates a new ResourceService with the given repository dependencies.
 func NewResourceService(
-	resources repository.ResourceRepository,
-	incidents repository.IncidentRepository,
-	tags repository.TagsRepository,
-	scheduler repository.Scheduler,
-	monitoringActivity repository.MonitoringActivityRepository,
+	resources port.ResourceRepository,
+	incidents port.IncidentRepository,
+	tags port.TagsRepository,
+	scheduler port.ResourceScheduler,
+	monitoringActivity port.MonitoringActivityRepository,
 	enrichment *EnrichmentService,
 	components *ComponentService,
 ) *ResourceService {

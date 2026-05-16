@@ -11,6 +11,7 @@ import (
 	"github.com/denisakp/ogoune/internal/domain"
 	"github.com/denisakp/ogoune/internal/maintenance"
 	"github.com/denisakp/ogoune/internal/monitoring"
+	"github.com/denisakp/ogoune/internal/port"
 	"github.com/denisakp/ogoune/internal/scheduler"
 	"github.com/hibiken/asynq"
 )
@@ -57,9 +58,7 @@ func InitScheduler(app *App) {
 
 		slog.Info("using TimingWheel scheduler (Community Edition - no Redis required)")
 		app.SchedulerAdapter = scheduler.NewRepositorySchedulerAdapter(app.RuntimeScheduler)
-		if rs, ok := app.SchedulerAdapter.(interface {
-			ScheduleWithInterval(ctx context.Context, resource *domain.Resource, interval time.Duration) error
-		}); ok {
+		if rs, ok := app.SchedulerAdapter.(port.ConfirmationRescheduler); ok {
 			app.ConfirmationScheduler = rs
 		}
 
@@ -99,9 +98,7 @@ func InitScheduler(app *App) {
 		}
 
 		app.SchedulerAdapter = scheduler.NewRepositorySchedulerAdapter(app.RuntimeScheduler)
-		if rs, ok := app.SchedulerAdapter.(interface {
-			ScheduleWithInterval(ctx context.Context, resource *domain.Resource, interval time.Duration) error
-		}); ok {
+		if rs, ok := app.SchedulerAdapter.(port.ConfirmationRescheduler); ok {
 			app.ConfirmationScheduler = rs
 		}
 

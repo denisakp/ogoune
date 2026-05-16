@@ -6,16 +6,16 @@ import (
 
 	"github.com/denisakp/ogoune/internal/domain"
 	"github.com/denisakp/ogoune/internal/dto"
-	"github.com/denisakp/ogoune/internal/repository"
+	"github.com/denisakp/ogoune/internal/port"
 )
 
 // MonitoringActivityService handles business logic for monitoring activities.
 type MonitoringActivityService struct {
-	repo repository.MonitoringActivityRepository
+	repo port.MonitoringActivityRepository
 }
 
 // NewMonitoringActivityService creates a new monitoring activity service.
-func NewMonitoringActivityService(repo repository.MonitoringActivityRepository) *MonitoringActivityService {
+func NewMonitoringActivityService(repo port.MonitoringActivityRepository) *MonitoringActivityService {
 	return &MonitoringActivityService{repo: repo}
 }
 

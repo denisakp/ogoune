@@ -70,8 +70,9 @@ Handlers never run checks or query DB directly. Scheduling goes through the Sche
 - **HTTP**: `internal/api/router.go` (Chi router), handlers in `internal/api/handler/`
 - **Domain models**: `internal/domain/models.go` — source of truth, IDs are ULIDs (set in `BeforeCreate` GORM hook)
 - **Services**: `internal/service/` — business logic, domain-level errors (not HTTP errors)
-- **Repositories**: `internal/repository/interfaces.go` (contracts), implementations in `internal/repository/store/database/`
-- **Scheduler**: `internal/scheduler/` — `Scheduler` interface with TimingWheel and Asynq implementations
+- **Ports (contracts)**: `internal/port/` — all interface definitions (repository, scheduler, notifier, monitoring)
+- **Repositories**: `internal/repository/store/` — GORM implementations of port interfaces; `internal/repository/interfaces.go` holds only error sentinels
+- **Scheduler**: `internal/scheduler/` — TimingWheel and Asynq implementations of `port.Scheduler`
 - **Workers**: `internal/worker/` — `handler_monitoring.go` (check execution + incident triggering), `handler_expiry.go`, `handler_notification.go`
 - **Check strategies**: `internal/monitoring/strategy/` — HTTP, TCP, DNS, ICMP, Keyword, Protocol
 - **Incident logic**: `internal/monitoring/incident_service.go` — confirmation window, flap detection, alert grouping
@@ -103,10 +104,18 @@ Vue 3 Composition API + TypeScript + Pinia + Ant Design Vue.
 
 ### Adding a new notification channel
 
-1. Implement `Notifier` in `pkg/notifier/yournotifier.go`
-2. Add constant to `internal/domain/models.go`
-3. Add dispatch case in `internal/monitoring/incident_service.go`
-4. Add config validation in `internal/service/notification_service.go`
+1. Implement `port.Notifier` in `pkg/notifier/yournotifier.go`
+2. Add compile-time check in `pkg/notifier/verify.go`: `var _ Notifier = (*YourNotifier)(nil)`
+3. Add constant to `internal/domain/models.go`
+4. Add dispatch case in `internal/monitoring/incident_service.go`
+5. Add config validation in `internal/service/notification_service.go`
+
+### Adding a new repository
+
+1. Define interface in `internal/port/repository.go`
+2. Implement in `internal/repository/store/yourrepo.go`
+3. Add compile-time check in `internal/repository/store/verify.go`: `var _ port.YourRepository = (*YourRepoImpl)(nil)`
+4. Wire in `internal/platform/bootstrap/database.go`
 
 ### Adding a new v1 API endpoint
 
@@ -177,5 +186,5 @@ Before completing any task or commit, you MUST:
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan
 # currentDate
-@specs/035-bootstrap-extraction/plan.md
+@specs/036-port-extraction/plan.md
 <!-- SPECKIT END -->

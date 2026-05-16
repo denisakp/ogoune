@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/denisakp/ogoune/internal/domain"
+	"github.com/denisakp/ogoune/internal/port"
 	"github.com/denisakp/ogoune/internal/repository"
 	"gorm.io/gorm"
 )
@@ -16,7 +17,7 @@ type ComponentRepositoryImpl struct {
 }
 
 // NewComponentRepository creates a new component repository backed by GORM.
-func NewComponentRepository(db *gorm.DB) repository.ComponentRepository {
+func NewComponentRepository(db *gorm.DB) port.ComponentRepository {
 	return &ComponentRepositoryImpl{db: db}
 }
 

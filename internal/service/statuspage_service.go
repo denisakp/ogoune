@@ -7,27 +7,27 @@ import (
 
 	"github.com/denisakp/ogoune/internal/domain"
 	"github.com/denisakp/ogoune/internal/dto"
-	"github.com/denisakp/ogoune/internal/repository"
+	"github.com/denisakp/ogoune/internal/port"
 )
 
 // StatusPageService provides data aggregation for public status pages.
 type StatusPageService struct {
-	resourceRepo           repository.ResourceRepository
-	incidentRepo           repository.IncidentRepository
-	monitoringActivityRepo repository.MonitoringActivityRepository
-	maintenanceRepo        repository.MaintenanceRepository
-	settingsRepo           repository.StatusPageSettingsRepository
-	componentRepo          repository.ComponentRepository
+	resourceRepo           port.ResourceRepository
+	incidentRepo           port.IncidentRepository
+	monitoringActivityRepo port.MonitoringActivityRepository
+	maintenanceRepo        port.MaintenanceRepository
+	settingsRepo           port.StatusPageSettingsRepository
+	componentRepo          port.ComponentRepository
 }
 
 // NewStatusPageService creates a new StatusPageService instance.
 func NewStatusPageService(
-	resourceRepo repository.ResourceRepository,
-	incidentRepo repository.IncidentRepository,
-	monitoringActivityRepo repository.MonitoringActivityRepository,
-	maintenanceRepo repository.MaintenanceRepository,
-	settingsRepo repository.StatusPageSettingsRepository,
-	componentRepo repository.ComponentRepository,
+	resourceRepo port.ResourceRepository,
+	incidentRepo port.IncidentRepository,
+	monitoringActivityRepo port.MonitoringActivityRepository,
+	maintenanceRepo port.MaintenanceRepository,
+	settingsRepo port.StatusPageSettingsRepository,
+	componentRepo port.ComponentRepository,
 ) *StatusPageService {
 	return &StatusPageService{
 		resourceRepo:           resourceRepo,

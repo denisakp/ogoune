@@ -6,12 +6,12 @@ import (
 	"time"
 
 	"github.com/denisakp/ogoune/internal/domain"
-	"github.com/denisakp/ogoune/internal/repository"
+	"github.com/denisakp/ogoune/internal/port"
 )
 
-// RepositorySchedulerAdapter adapts the runtime Scheduler interface to the repository.Scheduler interface.
+// RepositorySchedulerAdapter adapts the runtime Scheduler interface to the port.ResourceScheduler interface.
 // This allows services (ResourceService, MaintenanceService) to call Schedule/Unschedule via the
-// repository interface while internally delegating to the runtime scheduler (TimingWheel or Asynq).
+// port interface while internally delegating to the runtime scheduler (TimingWheel or Asynq).
 type RepositorySchedulerAdapter struct {
 	scheduler Scheduler
 }
@@ -22,13 +22,13 @@ type IntervalScheduler interface {
 }
 
 // NewRepositorySchedulerAdapter creates a new adapter wrapping a runtime scheduler.
-func NewRepositorySchedulerAdapter(rtScheduler Scheduler) repository.Scheduler {
+func NewRepositorySchedulerAdapter(rtScheduler Scheduler) port.ResourceScheduler {
 	return &RepositorySchedulerAdapter{
 		scheduler: rtScheduler,
 	}
 }
 
-// Schedule implements repository.Scheduler.Schedule()
+// Schedule implements port.ResourceScheduler.Schedule()
 // Converts a domain.Resource to a schedule call on the runtime scheduler.
 func (a *RepositorySchedulerAdapter) Schedule(ctx context.Context, resource *domain.Resource) error {
 	if resource == nil {
@@ -81,7 +81,7 @@ func (a *RepositorySchedulerAdapter) ScheduleWithInterval(ctx context.Context, r
 	return a.scheduler.Schedule(resource.ID, interval)
 }
 
-// Unschedule implements repository.Scheduler.Unschedule()
+// Unschedule implements port.ResourceScheduler.Unschedule()
 // Removes a resource from the runtime scheduler.
 func (a *RepositorySchedulerAdapter) Unschedule(ctx context.Context, resourceID string) error {
 	if resourceID == "" {

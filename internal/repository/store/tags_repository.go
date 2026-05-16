@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	domain "github.com/denisakp/ogoune/internal/domain"
+	"github.com/denisakp/ogoune/internal/port"
 	"github.com/denisakp/ogoune/internal/repository"
 	"gorm.io/gorm"
 )
@@ -15,7 +16,7 @@ type TagsRepositoryImpl struct {
 }
 
 // NewTagsRepository creates a new TagsRepository using GORM
-func NewTagsRepository(db *gorm.DB) repository.TagsRepository {
+func NewTagsRepository(db *gorm.DB) port.TagsRepository {
 	return &TagsRepositoryImpl{db: db}
 }
 

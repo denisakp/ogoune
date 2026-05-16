@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/denisakp/ogoune/internal/domain"
-	"github.com/denisakp/ogoune/internal/repository"
+	"github.com/denisakp/ogoune/internal/port"
 	"github.com/denisakp/ogoune/pkg/notifier"
 )
 
@@ -25,10 +25,10 @@ type PendingNotificationRetrySummary struct {
 
 // PendingNotificationRetryService retries pending notification events during startup.
 type PendingNotificationRetryService struct {
-	notifications repository.NotificationRepository
-	incidents     repository.IncidentRepository
-	channels      repository.NotificationChannelRepository
-	components    repository.ComponentRepository
+	notifications port.NotificationRepository
+	incidents     port.IncidentRepository
+	channels      port.NotificationChannelRepository
+	components    port.ComponentRepository
 	claimOwner    string
 	staleAfter    time.Duration
 	now           func() time.Time
@@ -36,10 +36,10 @@ type PendingNotificationRetryService struct {
 
 // NewPendingNotificationRetryService creates a startup retry service.
 func NewPendingNotificationRetryService(
-	notifications repository.NotificationRepository,
-	incidents repository.IncidentRepository,
-	channels repository.NotificationChannelRepository,
-	components repository.ComponentRepository,
+	notifications port.NotificationRepository,
+	incidents port.IncidentRepository,
+	channels port.NotificationChannelRepository,
+	components port.ComponentRepository,
 	claimOwner string,
 	staleAfter time.Duration,
 ) *PendingNotificationRetryService {

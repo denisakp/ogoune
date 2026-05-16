@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/denisakp/ogoune/internal/repository"
+	"github.com/denisakp/ogoune/internal/port"
 	"github.com/hibiken/asynq"
 )
 
@@ -13,14 +13,14 @@ import (
 // Note: Notifications are now handled directly in the IncidentService,
 // so this handler is kept for backward compatibility but not actively used.
 type NotificationTaskHandler struct {
-	incidents     repository.IncidentRepository
-	notifications repository.NotificationRepository
+	incidents     port.IncidentRepository
+	notifications port.NotificationRepository
 }
 
 // NewNotificationTaskHandler creates a new notification task handler.
 func NewNotificationTaskHandler(
-	incidents repository.IncidentRepository,
-	notifications repository.NotificationRepository,
+	incidents port.IncidentRepository,
+	notifications port.NotificationRepository,
 ) *NotificationTaskHandler {
 	return &NotificationTaskHandler{
 		incidents:     incidents,

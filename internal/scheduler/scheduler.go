@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/denisakp/ogoune/internal/domain"
+	"github.com/denisakp/ogoune/internal/port"
 )
 
 // ScheduleMode represents the scheduler implementation mode.
@@ -22,21 +23,8 @@ const (
 	NotificationEventResourceUpAlert   NotificationEventType = "resource_up_alert"
 )
 
-// Scheduler defines the interface for scheduling monitoring checks.
-type Scheduler interface {
-	// Start initializes and starts the scheduler.
-	Start(ctx context.Context, repo ActiveResourceRepository) error
-	// Schedule adds or updates a resource's check schedule.
-	Schedule(resourceID string, interval time.Duration) error
-	// Unschedule removes a resource from the scheduling queue.
-	Unschedule(resourceID string) error
-	// Pause temporarily stops scheduling for a resource.
-	Pause(resourceID string) error
-	// Resume resumes scheduling for a paused resource.
-	Resume(resourceID string) error
-	// Stop gracefully shuts down the scheduler.
-	Stop(ctx context.Context) error
-}
+// Scheduler is an alias for port.Scheduler.
+type Scheduler = port.Scheduler
 
 // Config holds the scheduler configuration.
 type Config struct {
@@ -67,29 +55,17 @@ type AsynqConfig struct {
 // AsynqResourceLoader resolves a monitored resource for hosted Asynq scheduling.
 type AsynqResourceLoader func(ctx context.Context, resourceID string) (*domain.Resource, error)
 
-// AsynqSchedulerAdapter bridges the scheduler runtime to the existing Asynq-backed scheduler service.
-type AsynqSchedulerAdapter interface {
-	Schedule(ctx context.Context, r *domain.Resource) error
-	Unschedule(ctx context.Context, resourceID string) error
-}
+// AsynqSchedulerAdapter is an alias for port.AsynqSchedulerAdapter.
+type AsynqSchedulerAdapter = port.AsynqSchedulerAdapter
 
-// AsynqSchedulerAdapterWithInterval optionally supports scheduling with a temporary interval override.
-type AsynqSchedulerAdapterWithInterval interface {
-	AsynqSchedulerAdapter
-	ScheduleWithInterval(ctx context.Context, r *domain.Resource, interval time.Duration) error
-}
+// AsynqSchedulerAdapterWithInterval is an alias for port.AsynqSchedulerAdapterWithInterval.
+type AsynqSchedulerAdapterWithInterval = port.AsynqSchedulerAdapterWithInterval
 
-// ActiveResourceRepository defines the interface for accessing active resources.
-type ActiveResourceRepository interface {
-	FindScheduledResources(ctx context.Context) ([]ScheduleItem, error)
-}
+// ActiveResourceRepository is an alias for port.ActiveResourceRepository.
+type ActiveResourceRepository = port.ActiveResourceRepository
 
-// ScheduleItem represents a schedulable resource.
-type ScheduleItem struct {
-	ResourceID string
-	Interval   time.Duration
-	Paused     bool
-}
+// ScheduleItem is an alias for port.ScheduleItem.
+type ScheduleItem = port.ScheduleItem
 
 // Error types
 var (

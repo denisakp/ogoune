@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/denisakp/ogoune/internal/repository"
+	"github.com/denisakp/ogoune/internal/port"
 )
 
 type FlapConfig struct {
@@ -15,11 +15,11 @@ type FlapConfig struct {
 }
 
 type FlapDetector struct {
-	activities repository.MonitoringActivityRepository
+	activities port.MonitoringActivityRepository
 	cfg        FlapConfig
 }
 
-func NewFlapDetector(activities repository.MonitoringActivityRepository, cfg FlapConfig) *FlapDetector {
+func NewFlapDetector(activities port.MonitoringActivityRepository, cfg FlapConfig) *FlapDetector {
 	return &FlapDetector{activities: activities, cfg: cfg}
 }
 

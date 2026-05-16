@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/denisakp/ogoune/internal/domain"
+	"github.com/denisakp/ogoune/internal/port"
 	"github.com/denisakp/ogoune/internal/repository"
 	"github.com/denisakp/ogoune/pkg/notifier"
 	"github.com/hibiken/asynq"
@@ -18,22 +19,22 @@ import (
 // It creates incidents only after 3 consecutive failures and tracks the full lifecycle.
 // Notifications are sent via user-configured notification channels (SMTP, Webhook, etc.).
 type IncidentService struct {
-	incidents            repository.IncidentRepository
-	eventSteps           repository.IncidentEventStepRepository
-	notifications        repository.NotificationRepository
-	notificationChannels repository.NotificationChannelRepository
-	diagnostics          repository.IncidentDiagnosticsRepository
-	components           repository.ComponentRepository
+	incidents            port.IncidentRepository
+	eventSteps           port.IncidentEventStepRepository
+	notifications        port.NotificationRepository
+	notificationChannels port.NotificationChannelRepository
+	diagnostics          port.IncidentDiagnosticsRepository
+	components           port.ComponentRepository
 	client               *asynq.Client
 }
 
 // NewIncidentService creates a new incident service with the given dependencies.
 func NewIncidentService(
-	incidents repository.IncidentRepository,
-	eventSteps repository.IncidentEventStepRepository,
-	notifications repository.NotificationRepository,
-	notificationChannels repository.NotificationChannelRepository,
-	diagnostics repository.IncidentDiagnosticsRepository,
+	incidents port.IncidentRepository,
+	eventSteps port.IncidentEventStepRepository,
+	notifications port.NotificationRepository,
+	notificationChannels port.NotificationChannelRepository,
+	diagnostics port.IncidentDiagnosticsRepository,
 	client *asynq.Client,
 ) *IncidentService {
 	return &IncidentService{
@@ -47,7 +48,7 @@ func NewIncidentService(
 }
 
 // SetComponentRepository sets the component repository for notification resolution
-func (s *IncidentService) SetComponentRepository(repo repository.ComponentRepository) {
+func (s *IncidentService) SetComponentRepository(repo port.ComponentRepository) {
 	s.components = repo
 }
 

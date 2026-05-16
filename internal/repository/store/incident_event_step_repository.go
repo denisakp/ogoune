@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	domain "github.com/denisakp/ogoune/internal/domain"
+	"github.com/denisakp/ogoune/internal/port"
 	"github.com/denisakp/ogoune/internal/repository"
 	"gorm.io/gorm"
 )
@@ -15,7 +16,7 @@ type IncidentEventStepRepositoryImpl struct {
 }
 
 // NewIncidentEventStepRepository creates a new IncidentEventStepRepository using GORM
-func NewIncidentEventStepRepository(db *gorm.DB) repository.IncidentEventStepRepository {
+func NewIncidentEventStepRepository(db *gorm.DB) port.IncidentEventStepRepository {
 	return &IncidentEventStepRepositoryImpl{db: db}
 }
 

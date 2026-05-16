@@ -1,8 +1,8 @@
 package monitoring
 
 import (
-	"github.com/denisakp/ogoune/internal/repository"
+	"github.com/denisakp/ogoune/internal/port"
 )
 
-// Ensure SchedulerService implements the repository.Scheduler interface
-var _ repository.Scheduler = (*SchedulerService)(nil)
+// Ensure SchedulerService implements the port.ResourceScheduler interface
+var _ port.ResourceScheduler = (*SchedulerService)(nil)

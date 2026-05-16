@@ -6,17 +6,17 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/denisakp/ogoune/internal/repository"
+	"github.com/denisakp/ogoune/internal/port"
 	"github.com/hibiken/asynq"
 )
 
 // TaskHandler processes maintenance start/end tasks
 type TaskHandler struct {
-	repo     repository.MaintenanceRepository
+	repo     port.MaintenanceRepository
 	enqueuer TaskEnqueuer
 }
 
-func NewTaskHandler(repo repository.MaintenanceRepository, enqueuer TaskEnqueuer) *TaskHandler {
+func NewTaskHandler(repo port.MaintenanceRepository, enqueuer TaskEnqueuer) *TaskHandler {
 	return &TaskHandler{repo: repo, enqueuer: enqueuer}
 }
 

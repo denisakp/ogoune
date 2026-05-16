@@ -7,19 +7,20 @@ import (
 	"time"
 
 	"github.com/denisakp/ogoune/internal/dto"
+	"github.com/denisakp/ogoune/internal/port"
 	"github.com/denisakp/ogoune/internal/repository"
 )
 
 // StatsService handles business logic for aggregated statistics.
 type StatsService struct {
-	monitoringActivity repository.MonitoringActivityRepository
-	incidents          repository.IncidentRepository
+	monitoringActivity port.MonitoringActivityRepository
+	incidents          port.IncidentRepository
 }
 
 // NewStatsService creates a new stats service.
 func NewStatsService(
-	monitoringActivity repository.MonitoringActivityRepository,
-	incidents repository.IncidentRepository,
+	monitoringActivity port.MonitoringActivityRepository,
+	incidents port.IncidentRepository,
 ) *StatsService {
 	return &StatsService{
 		monitoringActivity: monitoringActivity,

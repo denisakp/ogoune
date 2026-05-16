@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/denisakp/ogoune/internal/domain"
+	"github.com/denisakp/ogoune/internal/port"
 	"github.com/denisakp/ogoune/internal/repository"
 	"gorm.io/gorm"
 )
@@ -17,7 +18,7 @@ type IncidentRepositoryImpl struct {
 }
 
 // NewIncidentRepository creates a new IncidentRepository using GORM
-func NewIncidentRepository(db *gorm.DB) repository.IncidentRepository {
+func NewIncidentRepository(db *gorm.DB) port.IncidentRepository {
 	return &IncidentRepositoryImpl{db: db}
 }
 

@@ -3,18 +3,13 @@
 package bootstrap
 
 import (
-	"context"
 	"log/slog"
 	"net/http"
-	"time"
 
 	"github.com/denisakp/ogoune/internal/config"
 	"github.com/denisakp/ogoune/internal/domain"
 	"github.com/denisakp/ogoune/internal/ee/license"
-	"github.com/denisakp/ogoune/internal/maintenance"
-	"github.com/denisakp/ogoune/internal/monitoring"
-	"github.com/denisakp/ogoune/internal/repository"
-	"github.com/denisakp/ogoune/internal/repository/store"
+	"github.com/denisakp/ogoune/internal/port"
 	"github.com/denisakp/ogoune/internal/scheduler"
 	"github.com/denisakp/ogoune/internal/service"
 	"github.com/denisakp/ogoune/internal/worker"
@@ -34,19 +29,19 @@ type App struct {
 
 	// Database phase
 	DB                      *gorm.DB
-	ResourceRepo            repository.ResourceRepository
-	IncidentRepo            repository.IncidentRepository
-	IncidentEventStepRepo   repository.IncidentEventStepRepository
-	IncidentDiagnosticsRepo repository.IncidentDiagnosticsRepository
-	NotificationRepo        repository.NotificationRepository
-	MaintenanceRepo         *store.MaintenanceRepository
-	NotificationChannelRepo *store.NotificationChannelRepository
-	MonitoringActivityRepo  repository.MonitoringActivityRepository
-	TagsRepo                repository.TagsRepository
-	StatusPageSettingsRepo  *store.StatusPageSettingsRepository
-	ComponentRepo           repository.ComponentRepository
-	UserRepo                *store.UserRepository
-	APIKeyRepo              repository.APIKeyRepository
+	ResourceRepo            port.ResourceRepository
+	IncidentRepo            port.IncidentRepository
+	IncidentEventStepRepo   port.IncidentEventStepRepository
+	IncidentDiagnosticsRepo port.IncidentDiagnosticsRepository
+	NotificationRepo        port.NotificationRepository
+	MaintenanceRepo         port.MaintenanceRepository
+	NotificationChannelRepo port.NotificationChannelRepository
+	MonitoringActivityRepo  port.MonitoringActivityRepository
+	TagsRepo                port.TagsRepository
+	StatusPageSettingsRepo  port.StatusPageSettingsRepository
+	ComponentRepo           port.ComponentRepository
+	UserRepo                port.UserRepository
+	APIKeyRepo              port.APIKeyRepository
 
 	// Metrics phase
 	MetricsRecorder domain.MetricsRecorder
@@ -55,19 +50,17 @@ type App struct {
 	// Scheduler phase
 	SchedulerCfg          *scheduler.Config
 	RuntimeScheduler      scheduler.Scheduler
-	SchedulerAdapter      repository.Scheduler
-	ConfirmationScheduler interface {
-		ScheduleWithInterval(ctx context.Context, resource *domain.Resource, interval time.Duration) error
-	}
+	SchedulerAdapter      port.ResourceScheduler
+	ConfirmationScheduler port.ConfirmationRescheduler
 	AsynqClient          *asynq.Client
 	AsynqInspector       *asynq.Inspector
 	AsynqScheduler       *asynq.Scheduler
 	RedisOpt             asynq.RedisClientOpt
-	MaintenanceScheduler *maintenance.SchedulerService
+	MaintenanceScheduler port.MaintenanceScheduler
 
 	// Worker phase
 	Processor           *worker.Processor
-	DetectorIncidentSvc *monitoring.IncidentService
+	DetectorIncidentSvc port.MonitoringIncidentProcessor
 
 	// Services phase
 	ResourceService  *service.ResourceService

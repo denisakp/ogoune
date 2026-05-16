@@ -6,16 +6,17 @@ import (
 	"fmt"
 
 	"github.com/denisakp/ogoune/internal/domain"
+	"github.com/denisakp/ogoune/internal/port"
 	"github.com/denisakp/ogoune/internal/repository"
 )
 
 // TagService provides business logic for tag management operations.
 type TagService struct {
-	tags repository.TagsRepository
+	tags port.TagsRepository
 }
 
 // NewTagService creates a new TagService with the given repository dependency.
-func NewTagService(tags repository.TagsRepository) *TagService {
+func NewTagService(tags port.TagsRepository) *TagService {
 	return &TagService{
 		tags: tags,
 	}

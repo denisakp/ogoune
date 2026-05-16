@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/denisakp/ogoune/internal/domain"
+	"github.com/denisakp/ogoune/internal/port"
 	"github.com/denisakp/ogoune/internal/repository"
 	"gorm.io/gorm"
 )
@@ -18,7 +19,7 @@ type MonitoringActivityRepositoryImpl struct {
 }
 
 // NewMonitoringActivityRepository creates a new MonitoringActivityRepository using GORM.
-func NewMonitoringActivityRepository(db *gorm.DB) repository.MonitoringActivityRepository {
+func NewMonitoringActivityRepository(db *gorm.DB) port.MonitoringActivityRepository {
 	return &MonitoringActivityRepositoryImpl{db: db}
 }
 

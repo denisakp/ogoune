@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/denisakp/ogoune/internal/domain"
-	"github.com/denisakp/ogoune/internal/repository"
+	"github.com/denisakp/ogoune/internal/port"
 	"github.com/hibiken/asynq"
 )
 
@@ -15,10 +15,10 @@ import (
 type SchedulerService struct {
 	enqueuer  TaskEnqueuer
 	registrar PeriodicTaskRegistrar
-	repo      repository.MaintenanceRepository
+	repo      port.MaintenanceRepository
 }
 
-func NewSchedulerService(enqueuer TaskEnqueuer, registrar PeriodicTaskRegistrar, repo repository.MaintenanceRepository) *SchedulerService {
+func NewSchedulerService(enqueuer TaskEnqueuer, registrar PeriodicTaskRegistrar, repo port.MaintenanceRepository) *SchedulerService {
 	return &SchedulerService{enqueuer: enqueuer, registrar: registrar, repo: repo}
 }
 

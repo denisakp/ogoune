@@ -9,22 +9,22 @@ import (
 	"time"
 
 	"github.com/denisakp/ogoune/internal/domain"
-	"github.com/denisakp/ogoune/internal/repository"
+	"github.com/denisakp/ogoune/internal/port"
 	"github.com/denisakp/ogoune/pkg/notifier"
 )
 
 // ExpiryNotificationService drives per-resource expiry alerting with deduplication.
 // A daily expiry:check task calls CheckAndNotify for every active HTTP resource.
 type ExpiryNotificationService struct {
-	logs             repository.ExpiryNotificationLogRepository
-	channels         repository.NotificationChannelRepository
+	logs             port.ExpiryNotificationLogRepository
+	channels         port.NotificationChannelRepository
 	globalThresholds []int
 }
 
 // NewExpiryNotificationService creates a new ExpiryNotificationService.
 func NewExpiryNotificationService(
-	logs repository.ExpiryNotificationLogRepository,
-	channels repository.NotificationChannelRepository,
+	logs port.ExpiryNotificationLogRepository,
+	channels port.NotificationChannelRepository,
 	globalThresholds []int,
 ) *ExpiryNotificationService {
 	return &ExpiryNotificationService{

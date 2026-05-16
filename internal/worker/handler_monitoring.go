@@ -11,7 +11,7 @@ import (
 	"github.com/denisakp/ogoune/internal/domain"
 	icmppkg "github.com/denisakp/ogoune/internal/icmp"
 	"github.com/denisakp/ogoune/internal/monitoring"
-	"github.com/denisakp/ogoune/internal/repository"
+	"github.com/denisakp/ogoune/internal/port"
 	"github.com/denisakp/ogoune/internal/service"
 	"github.com/hibiken/asynq"
 )
@@ -27,6 +27,7 @@ func normalizeConfirmationChecks(value int) int {
 	return value
 }
 
+// incidentManager is satisfied by port.MonitoringIncidentProcessor.
 type incidentManager interface {
 	CreateIncident(ctx context.Context, r *domain.Resource, result domain.CheckResult) error
 	ResolveIncident(ctx context.Context, r *domain.Resource, result domain.CheckResult) error
@@ -36,21 +37,17 @@ type incidentManager interface {
 	FindLatestIncidentForResource(ctx context.Context, resourceID string) (*domain.Incident, error)
 }
 
-type confirmationRescheduler interface {
-	ScheduleWithInterval(ctx context.Context, resource *domain.Resource, interval time.Duration) error
-}
-
 // MonitoringTaskHandler processes monitoring tasks from the Asynq queue.
 // It executes health checks and handles status changes with direct service calls.
 type MonitoringTaskHandler struct {
-	resources    repository.ResourceRepository
-	activities   repository.MonitoringActivityRepository
-	maintenances repository.MaintenanceRepository
-	diagnostics  repository.IncidentDiagnosticsRepository
+	resources    port.ResourceRepository
+	activities   port.MonitoringActivityRepository
+	maintenances port.MaintenanceRepository
+	diagnostics  port.IncidentDiagnosticsRepository
 	executor     *domain.CheckExecutor
 	incidents    incidentManager
 	components   *service.ComponentService
-	scheduler    confirmationRescheduler
+	scheduler    port.ConfirmationRescheduler
 
 	lockMu        sync.Mutex
 	resourceLocks map[string]*sync.Mutex
@@ -58,14 +55,14 @@ type MonitoringTaskHandler struct {
 
 // NewMonitoringTaskHandler creates a new monitoring task handler.
 func NewMonitoringTaskHandler(
-	resources repository.ResourceRepository,
-	activities repository.MonitoringActivityRepository,
-	maintenances repository.MaintenanceRepository,
-	diagnostics repository.IncidentDiagnosticsRepository,
+	resources port.ResourceRepository,
+	activities port.MonitoringActivityRepository,
+	maintenances port.MaintenanceRepository,
+	diagnostics port.IncidentDiagnosticsRepository,
 	executor *domain.CheckExecutor,
-	incidents *monitoring.IncidentService,
+	incidents incidentManager,
 	components *service.ComponentService,
-	scheduler confirmationRescheduler,
+	scheduler port.ConfirmationRescheduler,
 ) *MonitoringTaskHandler {
 	return &MonitoringTaskHandler{
 		resources:     resources,

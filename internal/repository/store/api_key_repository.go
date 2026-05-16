@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/denisakp/ogoune/internal/domain"
+	"github.com/denisakp/ogoune/internal/port"
 	"github.com/denisakp/ogoune/internal/repository"
 	"gorm.io/gorm"
 )
@@ -18,7 +19,7 @@ type APIKeyRepositoryImpl struct {
 }
 
 // NewAPIKeyRepository creates an API key repository.
-func NewAPIKeyRepository(db *gorm.DB) repository.APIKeyRepository {
+func NewAPIKeyRepository(db *gorm.DB) port.APIKeyRepository {
 	return &APIKeyRepositoryImpl{db: db}
 }
 

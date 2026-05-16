@@ -4,10 +4,10 @@ import (
 	"context"
 
 	"github.com/denisakp/ogoune/internal/domain"
-	"github.com/denisakp/ogoune/internal/repository"
+	"github.com/denisakp/ogoune/internal/port"
 )
 
-// SchedulerFake is a mock implementation of repository.Scheduler for testing.
+// SchedulerFake is a mock implementation of port.ResourceScheduler for testing.
 type SchedulerFake struct {
 	scheduledResources   map[string]*domain.Resource
 	unscheduledResources map[string]bool
@@ -37,7 +37,7 @@ func (s *SchedulerFake) Unschedule(ctx context.Context, resourceID string) error
 }
 
 // Ensure SchedulerFake implements the repository.Scheduler interface
-var _ repository.Scheduler = (*SchedulerFake)(nil)
+var _ port.ResourceScheduler = (*SchedulerFake)(nil)
 
 // IsScheduled checks if a resource is scheduled (for testing).
 func (s *SchedulerFake) IsScheduled(resourceID string) bool {

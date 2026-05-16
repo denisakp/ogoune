@@ -10,24 +10,25 @@ import (
 	"github.com/denisakp/ogoune/internal/config"
 	"github.com/denisakp/ogoune/internal/domain"
 	"github.com/denisakp/ogoune/internal/dto"
+	"github.com/denisakp/ogoune/internal/port"
 	"github.com/denisakp/ogoune/internal/repository"
 	"github.com/denisakp/ogoune/pkg/notifier"
 )
 
 // ComponentService manages logical components and their derived status/notifications.
 type ComponentService struct {
-	components    repository.ComponentRepository
-	resources     repository.ResourceRepository
-	channels      repository.NotificationChannelRepository
+	components    port.ComponentRepository
+	resources     port.ResourceRepository
+	channels      port.NotificationChannelRepository
 	cfg           *config.Config
 	pendingTimers sync.Map // componentID -> *time.Timer
 }
 
 // NewComponentService creates a new ComponentService.
 func NewComponentService(
-	components repository.ComponentRepository,
-	resources repository.ResourceRepository,
-	channels repository.NotificationChannelRepository,
+	components port.ComponentRepository,
+	resources port.ResourceRepository,
+	channels port.NotificationChannelRepository,
 ) *ComponentService {
 	return &ComponentService{
 		components: components,
@@ -38,9 +39,9 @@ func NewComponentService(
 
 // NewComponentServiceWithConfig creates a ComponentService with smart alerting configuration.
 func NewComponentServiceWithConfig(
-	components repository.ComponentRepository,
-	resources repository.ResourceRepository,
-	channels repository.NotificationChannelRepository,
+	components port.ComponentRepository,
+	resources port.ResourceRepository,
+	channels port.NotificationChannelRepository,
 	cfg *config.Config,
 ) *ComponentService {
 	svc := &ComponentService{
@@ -271,10 +272,11 @@ func (s *ComponentService) dispatchComponentAlertImmediate(ctx context.Context, 
 
 	for _, ch := range channels {
 		sent := false
-		for attempt := 0; attempt < maxAttempts; attempt++ {
+		for attempt := range maxAttempts {
 			if backoff[attempt] > 0 {
 				time.Sleep(backoff[attempt])
 			}
+
 			if err := s.sendNotification(ctx, payload, ch); err != nil {
 				lastErr = err
 				continue

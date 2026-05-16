@@ -6,15 +6,16 @@ import (
 	"log/slog"
 
 	"github.com/denisakp/ogoune/internal/domain"
+	"github.com/denisakp/ogoune/internal/port"
 	"github.com/denisakp/ogoune/internal/repository"
 	"github.com/prometheus/client_golang/prometheus"
 )
 
 // OgouneCollector implements prometheus.Collector and emits the 5 DB-backed per-resource metrics.
 type OgouneCollector struct {
-	resourceRepo        repository.ResourceRepository
-	incidentRepo        repository.IncidentRepository
-	activityRepo        repository.MonitoringActivityRepository
+	resourceRepo        port.ResourceRepository
+	incidentRepo        port.IncidentRepository
+	activityRepo        port.MonitoringActivityRepository
 	descResourceUp      *prometheus.Desc
 	descResourceStatus  *prometheus.Desc
 	descIncidentsTotal  *prometheus.Desc
@@ -23,7 +24,7 @@ type OgouneCollector struct {
 }
 
 // NewOgouneCollector creates a new OgouneCollector with the given repositories.
-func NewOgouneCollector(rr repository.ResourceRepository, ir repository.IncidentRepository, ar repository.MonitoringActivityRepository) *OgouneCollector {
+func NewOgouneCollector(rr port.ResourceRepository, ir port.IncidentRepository, ar port.MonitoringActivityRepository) *OgouneCollector {
 	labels := []string{"id", "name", "type"}
 	return &OgouneCollector{
 		resourceRepo: rr,

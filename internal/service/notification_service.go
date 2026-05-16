@@ -8,20 +8,21 @@ import (
 
 	"github.com/denisakp/ogoune/internal/domain"
 	"github.com/denisakp/ogoune/internal/dto"
+	"github.com/denisakp/ogoune/internal/port"
 	"github.com/denisakp/ogoune/internal/repository"
 	"github.com/denisakp/ogoune/pkg/notifier"
 )
 
 // NotificationService provides business logic for notification operations.
 type NotificationService struct {
-	resources repository.ResourceRepository
-	channels  repository.NotificationChannelRepository
+	resources port.ResourceRepository
+	channels  port.NotificationChannelRepository
 }
 
 // NewNotificationService creates a new NotificationService.
 func NewNotificationService(
-	resources repository.ResourceRepository,
-	channels repository.NotificationChannelRepository,
+	resources port.ResourceRepository,
+	channels port.NotificationChannelRepository,
 ) *NotificationService {
 	return &NotificationService{
 		resources: resources,

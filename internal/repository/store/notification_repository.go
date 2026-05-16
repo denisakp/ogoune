@@ -7,6 +7,7 @@ import (
 	"time"
 
 	domain "github.com/denisakp/ogoune/internal/domain"
+	"github.com/denisakp/ogoune/internal/port"
 	"github.com/denisakp/ogoune/internal/repository"
 	"gorm.io/gorm"
 )
@@ -16,7 +17,7 @@ type NotificationRepositoryImpl struct {
 }
 
 // NewNotificationRepository creates a new NotificationRepository using GORM
-func NewNotificationRepository(db *gorm.DB) repository.NotificationRepository {
+func NewNotificationRepository(db *gorm.DB) port.NotificationRepository {
 	return &NotificationRepositoryImpl{db: db}
 }
 
