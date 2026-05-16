@@ -186,5 +186,5 @@ Before completing any task or commit, you MUST:
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan
 # currentDate
-@specs/036-port-extraction/plan.md
+@specs/037-service-decomposition/plan.md
 <!-- SPECKIT END -->

@@ -94,7 +94,7 @@ The CLA bot handles this automatically on your first PR.
 
 ---
 
-## H2 — In progress
+## H2 — SHipped
 
 Community Edition — expanding monitoring coverage, observability, and security.
 

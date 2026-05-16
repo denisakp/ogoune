@@ -551,35 +551,6 @@ func (s *ResourceService) UpdateResource(ctx context.Context, id string, payload
 	return resource, nil
 }
 
-// asyncEnrichAndPersist performs metadata enrichment in the background and updates the resource
-// without blocking the HTTP request lifecycle. It intentionally uses a background context with
-// a bounded timeout to avoid leaking long-running WHOIS/SSL lookups.
-func (s *ResourceService) asyncEnrichAndPersist(r *domain.Resource) {
-	if r == nil || s.enrichment == nil {
-		return
-	}
-
-	// Use a background context with a soft timeout to keep enrichment bounded
-	ctx, cancel := context.WithTimeout(context.Background(), 8*time.Second)
-	defer cancel()
-
-	// Copy the minimal data needed for enrichment to avoid accidental mutation
-	resourceCopy := &domain.Resource{Target: r.Target, Type: r.Type, Timeout: r.Timeout}
-
-	metadata, err := s.enrichment.Enrich(ctx, resourceCopy)
-	if err != nil {
-		// Best-effort enrichment; log and exit without impacting the created resource
-		// (actual logging handled upstream if needed)
-		return
-	}
-
-	if metadata == nil {
-		return
-	}
-
-	// Persist the metadata without touching tags/associations
-	_ = s.resources.UpdateMetadata(context.Background(), r.ID, metadata)
-}
 
 // DeleteResource soft deletes a resource and unschedules its monitoring.
 func (s *ResourceService) DeleteResource(ctx context.Context, resourceID string) error {
@@ -632,64 +603,6 @@ func (s *ResourceService) ListResourcesByTag(ctx context.Context, tagName string
 	return s.resources.FindByTag(ctx, tagName, limit, offset)
 }
 
-func confirmationDefaults() (int, int) {
-	cfg := config.Load()
-	checks := cfg.ConfirmationChecks
-	if checks < 1 {
-		checks = defaultConfirmationChecks
-	}
-	interval := cfg.ConfirmationInterval
-	if interval <= 0 {
-		interval = defaultConfirmationInterval
-	}
-	return checks, interval
-}
-
-// validateKeywordFields validates keyword-specific fields when resource type is keyword.
-func validateKeywordFields(keyword *string, keywordMode *string) error {
-	if keyword == nil || *keyword == "" {
-		return fmt.Errorf("%w: keyword is required for keyword monitor type", ErrValidationFailed)
-	}
-	if len(*keyword) > 500 {
-		return fmt.Errorf("%w: keyword must not exceed 500 characters", ErrValidationFailed)
-	}
-	if keywordMode != nil && *keywordMode != "contains" && *keywordMode != "not_contains" {
-		return fmt.Errorf("%w: keyword_mode must be 'contains' or 'not_contains'", ErrValidationFailed)
-	}
-	return nil
-}
-
-// validateProtocolFields validates protocol-specific fields when resource type is protocol.
-func validateProtocolFields(protocolType *string, protocolPort *int) error {
-	if protocolType == nil || *protocolType == "" {
-		return fmt.Errorf("%w: protocol_type is required when resource type is 'protocol'", ErrValidationFailed)
-	}
-	validTypes := map[string]bool{"redis": true, "mongodb": true, "ftp": true, "ssh": true}
-	if !validTypes[*protocolType] {
-		return fmt.Errorf("%w: protocol_type must be one of: redis, mongodb, ftp, ssh", ErrValidationFailed)
-	}
-	if protocolPort != nil && (*protocolPort < 1 || *protocolPort > 65535) {
-		return fmt.Errorf("%w: protocol_port must be between 1 and 65535", ErrValidationFailed)
-	}
-	return nil
-}
-
-// validateSmartAlertingFields validates the smart alerting configuration fields.
-func validateSmartAlertingFields(flapThreshold, flapWindowSeconds, flapMaxDurationMinutes, reminderIntervalMinutes int) error {
-	if flapThreshold < 2 {
-		return fmt.Errorf("%w: flap_threshold must be >= 2 (got %d)", ErrValidationFailed, flapThreshold)
-	}
-	if flapWindowSeconds < 60 || flapWindowSeconds > 3600 {
-		return fmt.Errorf("%w: flap_window_seconds must be between 60 and 3600 (got %d)", ErrValidationFailed, flapWindowSeconds)
-	}
-	if flapMaxDurationMinutes < 0 {
-		return fmt.Errorf("%w: flap_max_duration_minutes must be >= 0 (got %d)", ErrValidationFailed, flapMaxDurationMinutes)
-	}
-	if reminderIntervalMinutes < 0 {
-		return fmt.Errorf("%w: reminder_interval_minutes must be >= 0 (got %d)", ErrValidationFailed, reminderIntervalMinutes)
-	}
-	return nil
-}
 
 // ListUnresolvedIncidents returns unresolved incidents for a specific resource.
 func (s *ResourceService) ListUnresolvedIncidents(ctx context.Context, resourceID string) ([]*domain.Incident, error) {
@@ -710,69 +623,6 @@ func (s *ResourceService) ListAll(ctx context.Context) ([]*domain.Resource, erro
 	return s.resources.List(ctx, 1000, 0)
 }
 
-// PauseMonitoring pauses monitoring for a specific resource by setting IsActive to false
-// and unscheduling its monitoring tasks.
-func (s *ResourceService) PauseMonitoring(ctx context.Context, resourceID string) error {
-	// Retrieve the resource
-	resource, err := s.resources.FindByID(ctx, resourceID)
-	if err != nil {
-		return err
-	}
-
-	// Check if already paused
-	if !resource.IsActive {
-		return nil // Already paused, nothing to do
-	}
-
-	// Set IsActive to false
-	resource.IsActive = false
-
-	// Update the resource in the database
-	if err := s.resources.Update(ctx, resource); err != nil {
-		return err
-	}
-
-	// Unschedule monitoring tasks for this resource
-	if err := s.scheduler.Unschedule(ctx, resourceID); err != nil {
-		// Log the error but consider the pause operation successful
-		// since the database state has been updated
-		return err
-	}
-
-	return nil
-}
-
-// ResumeMonitoring resumes monitoring for a specific resource by setting IsActive to true
-// and rescheduling its monitoring tasks.
-func (s *ResourceService) ResumeMonitoring(ctx context.Context, resourceID string) error {
-	// Retrieve the resource
-	resource, err := s.resources.FindByID(ctx, resourceID)
-	if err != nil {
-		return err
-	}
-
-	// Check if already active
-	if resource.IsActive {
-		return nil // Already active, nothing to do
-	}
-
-	// Set IsActive to true
-	resource.IsActive = true
-
-	// Update the resource in the database
-	if err := s.resources.Update(ctx, resource); err != nil {
-		return err
-	}
-
-	// Schedule monitoring tasks for this resource
-	if err := s.scheduler.Schedule(ctx, resource); err != nil {
-		// Log the error but consider the resume operation successful
-		// since the database state has been updated
-		return err
-	}
-
-	return nil
-}
 
 // AddTagsToResource adds multiple tags to a resource using GORM's Association mode.
 func (s *ResourceService) AddTagsToResource(ctx context.Context, resourceID string, tagIDs []string) error {
@@ -854,56 +704,3 @@ func (s *ResourceService) RemoveTagFromResource(ctx context.Context, resourceID 
 	return nil
 }
 
-// GetResourceByHeartbeatSlug retrieves a resource by its heartbeat slug.
-func (s *ResourceService) GetResourceByHeartbeatSlug(ctx context.Context, slug string) (*domain.Resource, error) {
-	resource, err := s.resources.FindByHeartbeatSlug(ctx, slug)
-	if err != nil {
-		if errors.Is(err, repository.ErrNotFound) {
-			return nil, ErrResourceNotFound
-		}
-		return nil, err
-	}
-	return resource, nil
-}
-
-// MarkHeartbeatPing records a ping timestamp for the given heartbeat resource.
-func (s *ResourceService) MarkHeartbeatPing(ctx context.Context, resourceID string, at time.Time) error {
-	if err := s.resources.UpdateLastPingAt(ctx, resourceID, at); err != nil {
-		if errors.Is(err, repository.ErrNotFound) {
-			return ErrResourceNotFound
-		}
-		return err
-	}
-	return nil
-}
-
-// HandleHeartbeatRecovery resolves the active incident for a previously-down heartbeat monitor.
-// It updates the resource status to 'up' and marks the most recent unresolved incident as resolved.
-// Errors are non-fatal from the caller's perspective — the ping has already been recorded.
-func (s *ResourceService) HandleHeartbeatRecovery(ctx context.Context, resource *domain.Resource) error {
-	// Persist the status transition to 'up' using a targeted column update.
-	// The generic Update() uses a map that intentionally excludes 'status' (monitoring-controlled),
-	// so we use UpdateStatus here to avoid that exclusion.
-	if err := s.resources.UpdateStatus(ctx, resource.ID, domain.StatusUp); err != nil {
-		return fmt.Errorf("failed to update heartbeat monitor status on recovery: %w", err)
-	}
-
-	// Resolve the latest unresolved incident for this resource
-	recentIncidents, err := s.incidents.FindByResource(ctx, resource.ID, 10, 0)
-	if err != nil {
-		return fmt.Errorf("failed to find incidents for heartbeat recovery: %w", err)
-	}
-
-	for _, incident := range recentIncidents {
-		if incident.ResolvedAt == nil {
-			now := time.Now()
-			incident.ResolvedAt = &now
-			if err := s.incidents.Update(ctx, incident); err != nil {
-				return fmt.Errorf("failed to resolve heartbeat incident: %w", err)
-			}
-			break
-		}
-	}
-
-	return nil
-}
