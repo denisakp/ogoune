@@ -104,7 +104,7 @@ func Load() Config {
 	cfg := Config{
 		RedisUrl:         GetEnv("REDIS_URL", "localhost:6379"),
 		DBDriver:         GetEnv("DB_DRIVER", "sqlite"),
-		DatabaseUrl:      GetEnv("DATABASE_URL", "postgres://ogoune:EE94PPHGz3TZ@postgres:5432/pulse?sslmode=disable"),
+		DatabaseUrl:      GetEnv("DATABASE_URL", ""),
 		SQLitePath:       GetEnv("SQLITE_PATH", "ogoune.db"),
 		DBLogLevel:       GetEnv("DB_LOG_LEVEL", "error"),
 		Port:             GetEnv("PORT", "8080"),

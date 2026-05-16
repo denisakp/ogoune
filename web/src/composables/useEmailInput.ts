@@ -16,7 +16,7 @@ export function useEmailValidation() {
   const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/
 
   const validateRmailArray = (allowEmpty = true) => {
-    return (_rule: any, value: string[]) => {
+    return (_rule: unknown, value: string[]) => {
       if (!value || value.length === 0) {
         return allowEmpty
           ? Promise.resolve()
@@ -33,7 +33,7 @@ export function useEmailValidation() {
   }
 
   const validateEmailString = () => {
-    return (_rule: any, value: string) => {
+    return (_rule: unknown, value: string) => {
       if (!value) return Promise.resolve()
 
       if (!emailRegex.test(value)) return Promise.reject(new Error('Invalid email address.'))

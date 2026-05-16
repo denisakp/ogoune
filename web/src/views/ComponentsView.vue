@@ -78,7 +78,7 @@ const handleRemoveResource = async (componentId: string, resourceId: string) => 
         await bulkRemoveFromComponent(payload)
         message.success('Resource removed from component')
         await componentStore.loadComponents()
-      } catch (error) {
+      } catch {
         message.error('Failed to remove resource')
       }
     },

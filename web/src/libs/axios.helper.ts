@@ -17,8 +17,6 @@ interface CustomRequestConfig {
   successMessage?: string
 }
 
-interface RequestConfig extends InternalAxiosRequestConfig, CustomRequestConfig {}
-
 // Create axios instance with default config
 const axiosClient: AxiosInstance = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL,
@@ -175,4 +173,5 @@ export default axiosClient
 // Export types to allow custom configuration
 export type { CustomRequestConfig }
 // Helper type to use when passing config objects to axios methods
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type CustomAxiosConfig<D = any> = AxiosRequestConfig<D> & CustomRequestConfig

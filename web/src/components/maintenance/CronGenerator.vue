@@ -79,7 +79,7 @@ function generateCron(): string {
 function parseCron(expr: string) {
   const parts = expr.trim().split(/\s+/)
   if (parts.length !== 5) return // unsupported; keep raw
-  const [mStr, hStr, dom, _mon, dow] = parts
+  const [mStr, hStr, dom, , dow] = parts
   const m = Number(mStr)
   const h = Number(hStr)
   if (!Number.isNaN(m) && m >= 0 && m <= 59) state.minute = m

@@ -18,7 +18,7 @@ const emit = defineEmits<Emits>()
 const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/
 
 // Custom validator for email arrays
-const validateEmailArray = (_rule: any, value: string[]) => {
+const validateEmailArray = (_rule: unknown, value: string[]) => {
   if (!value || value.length === 0) return Promise.resolve()
 
   const invalidEmails = value.filter((email) => !emailRegex.test(email))

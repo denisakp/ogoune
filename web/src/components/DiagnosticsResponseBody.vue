@@ -34,7 +34,7 @@ const decodedBody = computed(() => {
       } catch {
         return `[Binary data - ${binaryString.length} bytes]`
       }
-    } catch (e) {
+    } catch {
       return '[Failed to decode base64]'
     }
   }
@@ -84,7 +84,7 @@ const copyToClipboard = async () => {
     await navigator.clipboard.writeText(text)
     const { message } = await import('ant-design-vue')
     message.success('Copied to clipboard')
-  } catch (err) {
+  } catch {
     const { message } = await import('ant-design-vue')
     message.error('Failed to copy')
   }

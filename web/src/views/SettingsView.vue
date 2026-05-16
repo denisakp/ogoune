@@ -1,14 +1,12 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import { useRouter } from 'vue-router'
-import { EyeOutlined, SaveOutlined, RightOutlined } from '@ant-design/icons-vue'
+import { EyeOutlined, SaveOutlined } from '@ant-design/icons-vue'
 
 import TagSettings from '@/components/settings/TagSettings.vue'
 import StatusPageSettings from '@/components/settings/StatusPageSettings.vue'
 import NotificationSettings from '@/components/settings/NotificationSettings.vue'
 import AccountSettings from '@/components/settings/AccountSettings.vue'
 
-const router = useRouter()
 const activeKey = ref('1')
 // Exposed API from StatusPageSettings: handleSave, saving, formData (ref)
 const settingsRef = ref<{

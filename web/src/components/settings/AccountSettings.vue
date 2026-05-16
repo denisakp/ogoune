@@ -109,7 +109,7 @@ async function loadProfile() {
     profileForm.name = profile.name
     profileForm.email = profile.email
     is2FAEnabled.value = profile.two_factor_enabled
-  } catch (error) {
+  } catch {
     message.error('Failed to load profile')
   } finally {
     isLoading.value = false
@@ -122,7 +122,7 @@ async function handleUpdateProfile() {
     profileForm.name = updatedProfile.name
     profileForm.email = updatedProfile.email
     message.success('Profile updated successfully')
-  } catch (error) {
+  } catch {
     message.error('Failed to update profile')
   }
 }
@@ -158,7 +158,7 @@ async function submitChangePassword() {
     changePasswordForm.confirmPassword = ''
     isChangePasswordModalOpen.value = false
     message.success('Password changed successfully')
-  } catch (error) {
+  } catch {
     message.error('Failed to change password')
   } finally {
     isChangePasswordSubmitting.value = false
@@ -177,7 +177,7 @@ async function handleEnable2FA() {
     } else {
       message.error('No QR code received from server')
     }
-  } catch (error) {
+  } catch {
     message.error('Failed to enable 2FA')
   } finally {
     enable2FALoading.value = false
@@ -202,7 +202,7 @@ async function handleConfirm2FA() {
     confirm2FAForm.otp = ''
     pending2FASecret.value = ''
     message.success('Two-factor authentication enabled successfully')
-  } catch (error) {
+  } catch {
     message.error('Invalid OTP. Please try again')
   }
 }
@@ -217,7 +217,7 @@ async function handleDisable2FA() {
     await accountService.disable2FA(otp)
     is2FAEnabled.value = false
     message.success('Two-factor authentication disabled')
-  } catch (error) {
+  } catch {
     message.error('Failed to disable 2FA')
   }
 }
@@ -243,7 +243,7 @@ async function handleCreateAPIKey() {
     isCreateAPIKeyModalOpen.value = false
     isRevealAPIKeyModalOpen.value = true
     message.success('API key created')
-  } catch (_error) {
+  } catch {
     message.error('Failed to create API key')
   }
 }
@@ -262,7 +262,7 @@ async function handleRevokeAPIKey(id: string) {
   try {
     await revokeKey(id)
     message.success('API key revoked')
-  } catch (_error) {
+  } catch {
     message.error('Failed to revoke API key')
   }
 }

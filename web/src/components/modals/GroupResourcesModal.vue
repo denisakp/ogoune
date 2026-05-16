@@ -197,7 +197,7 @@ const handleCreateComponent = async () => {
     formData.description = ''
     formData.resource_ids = []
     isVisible.value = false
-  } catch (error) {
+  } catch {
     message.error('Failed to create component')
   } finally {
     isCreating.value = false

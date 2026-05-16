@@ -80,6 +80,7 @@ describe('resourceService', () => {
       const created = { id: 'r2', ...newResource }
       mockPost.mockResolvedValue({ data: created })
 
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const result = await createResource(newResource as any)
 
       expect(mockPost).toHaveBeenCalledOnce()
@@ -100,6 +101,7 @@ describe('resourceService', () => {
       const updated = { id: 'r1', name: 'Updated Monitor' }
       mockPatch.mockResolvedValue({ data: updated })
 
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const result = await updateResource('r1', updates as any)
 
       expect(mockPatch).toHaveBeenCalledOnce()

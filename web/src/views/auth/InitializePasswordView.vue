@@ -55,7 +55,7 @@ const handleInitializePassword = async () => {
     message.success('Password initialized successfully! Please log in.')
     authStore.clearPasswordInitRequired()
     await router.push('/login')
-  } catch (error) {
+  } catch {
     // Error is already handled by axios interceptor
   } finally {
     isLoading.value = false

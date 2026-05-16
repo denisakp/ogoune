@@ -77,7 +77,8 @@ watch(monitorId, async (newId) => {
   if (newId) {
     try {
       await store.loadMonitorDetail(newId)
-    } catch (error) {
+    } catch {
+      // silently ignore - handled by interceptor
     }
   }
 })

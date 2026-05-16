@@ -9,6 +9,7 @@ describe('useMonitorLive', () => {
   beforeEach(() => {
     vi.useFakeTimers()
     vi.spyOn(liveService, 'fetchLiveSnapshot').mockResolvedValue({
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       resource: {} as any,
       stats: {
         uptime_2h: null,
@@ -151,6 +152,7 @@ describe('useMonitorLive', () => {
 
     vi.mocked(liveService.fetchLiveSnapshot).mockRejectedValueOnce({
       response: { status: 404 },
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } as any)
 
     await composable.refresh()

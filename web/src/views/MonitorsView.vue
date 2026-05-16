@@ -218,7 +218,7 @@ const handleRemoveFromComponent = async () => {
         message.success('Resources removed from components')
         selectedRowKeys.value = []
         await resourceStore.loadResources()
-      } catch (error) {
+      } catch {
         message.error('Failed to remove resources from components')
       }
     },
