@@ -3,6 +3,7 @@ package v1_test
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -11,8 +12,10 @@ import (
 	v1 "github.com/denisakp/ogoune/internal/api/handler/v1"
 	"github.com/denisakp/ogoune/internal/api/middleware"
 	"github.com/denisakp/ogoune/internal/domain"
+	dtoV1 "github.com/denisakp/ogoune/internal/dto/v1"
 	"github.com/go-chi/chi/v5"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // --- mock component repository ---
@@ -301,4 +304,72 @@ func TestTagHandler_ScopeEnforcement_ReadKey_NotForbiddenOnGet(t *testing.T) {
 	rr := httptest.NewRecorder()
 	router.ServeHTTP(rr, req)
 	assert.NotEqual(t, http.StatusForbidden, rr.Code)
+}
+
+// ============================================================
+// Pagination validation tests
+// ============================================================
+
+func TestTagHandler_List_InvalidPagination_Returns422WithFields(t *testing.T) {
+	svc := &mockTagService{}
+	router := newTagRouter(svc)
+
+	cases := []struct {
+		name          string
+		query         string
+		expectedField string
+	}{
+		{"per_page=0", "?per_page=0", "per_page"},
+		{"page=-1", "?page=-1", "page"},
+		{"page=abc", "?page=abc", "page"},
+		{"per_page=xyz", "?per_page=xyz", "per_page"},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodGet, "/api/v1/tags"+tc.query, nil)
+			rr := httptest.NewRecorder()
+			router.ServeHTTP(rr, req)
+
+			require.Equal(t, http.StatusUnprocessableEntity, rr.Code)
+			var out dtoV1.ErrorResponse
+			require.NoError(t, json.Unmarshal(rr.Body.Bytes(), &out))
+			assert.Equal(t, "VALIDATION_FAILED", out.Error.Code)
+			require.NotEmpty(t, out.Error.Fields, "error.fields should be non-empty")
+			assert.Equal(t, tc.expectedField, out.Error.Fields[0].Field)
+			assert.Equal(t, "must be a positive integer", out.Error.Fields[0].Message)
+		})
+	}
+}
+
+func TestComponentHandler_List_InvalidPagination_Returns422WithFields(t *testing.T) {
+	repo := &mockComponentRepo{}
+	router := newComponentRouter(repo)
+
+	cases := []struct {
+		name          string
+		query         string
+		expectedField string
+	}{
+		{"per_page=0", "?per_page=0", "per_page"},
+		{"page=-1", "?page=-1", "page"},
+		{"page=abc", "?page=abc", "page"},
+		{"per_page=xyz", "?per_page=xyz", "per_page"},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodGet, "/api/v1/components"+tc.query, nil)
+			rr := httptest.NewRecorder()
+			router.ServeHTTP(rr, req)
+
+			require.Equal(t, http.StatusUnprocessableEntity, rr.Code)
+			var out dtoV1.ErrorResponse
+			require.NoError(t, json.Unmarshal(rr.Body.Bytes(), &out))
+			assert.Equal(t, "VALIDATION_FAILED", out.Error.Code)
+			require.NotEmpty(t, out.Error.Fields, "error.fields should be non-empty")
+			assert.Equal(t, tc.expectedField, out.Error.Fields[0].Field)
+			assert.Equal(t, "must be a positive integer", out.Error.Fields[0].Message)
+		})
+	}
 }

@@ -354,7 +354,11 @@ func main() {
 		}
 
 		// Initialize maintenance scheduler
-		maintenanceScheduler = maintenance.NewSchedulerService(asynqClient, asynqInspector, asynqScheduler, maintenanceRepo)
+		maintenanceScheduler = maintenance.NewSchedulerService(
+			&maintenance.AsynqClientAdapter{Client: asynqClient},
+			&maintenance.AsynqSchedulerAdapter{Scheduler: asynqScheduler},
+			maintenanceRepo,
+		)
 		if err := maintenanceScheduler.EnsureScheduled(context.Background()); err != nil {
 			log.Printf("Failed to ensure maintenance schedules: %v", err)
 		}
@@ -548,7 +552,7 @@ func main() {
 
 		// Initialize task handlers
 		monitoringHandler := worker.NewMonitoringTaskHandler(resourceRepo, monitoringActivityRepo, maintenanceRepo, incidentDiagnosticsRepo, executor, incidentService, componentService, confirmationScheduler)
-		maintenanceTaskHandler := maintenance.NewTaskHandler(maintenanceRepo, asynqClient)
+		maintenanceTaskHandler := maintenance.NewTaskHandler(maintenanceRepo, &maintenance.AsynqClientAdapter{Client: asynqClient})
 
 		// Initialize expiry notification service and handler
 		expiryNotificationLogRepo := store.NewExpiryNotificationLogRepository(db)

@@ -13,14 +13,13 @@ import (
 
 // SchedulerService schedules maintenance windows using Asynq.
 type SchedulerService struct {
-	client    *asynq.Client
-	inspector *asynq.Inspector
-	scheduler *asynq.Scheduler
+	enqueuer  TaskEnqueuer
+	registrar PeriodicTaskRegistrar
 	repo      repository.MaintenanceRepository
 }
 
-func NewSchedulerService(client *asynq.Client, inspector *asynq.Inspector, scheduler *asynq.Scheduler, repo repository.MaintenanceRepository) *SchedulerService {
-	return &SchedulerService{client: client, inspector: inspector, scheduler: scheduler, repo: repo}
+func NewSchedulerService(enqueuer TaskEnqueuer, registrar PeriodicTaskRegistrar, repo repository.MaintenanceRepository) *SchedulerService {
+	return &SchedulerService{enqueuer: enqueuer, registrar: registrar, repo: repo}
 }
 
 // EnsureScheduled registers periodic and one-time start tasks for maintenances.
@@ -34,7 +33,7 @@ func (s *SchedulerService) EnsureScheduled(ctx context.Context) error {
 			payload := map[string]any{"maintenance_id": m.ID}
 			task := asynq.NewTask("maintenance:start", mustJSON(payload))
 			entryID := fmt.Sprintf("maintenance:start:%s", m.ID)
-			_, err := s.scheduler.Register(*m.CronExpr, task, asynq.Queue("maintenance"), asynq.TaskID(entryID))
+			_, err := s.registrar.Register(*m.CronExpr, task, asynq.Queue("maintenance"), asynq.TaskID(entryID))
 			if err != nil {
 				// ignore duplicate or failure; continue
 			}
@@ -46,14 +45,14 @@ func (s *SchedulerService) EnsureScheduled(ctx context.Context) error {
 				payload := map[string]any{"maintenance_id": m.ID}
 				startBytes, _ := json.Marshal(payload)
 				task := asynq.NewTask("maintenance:start", startBytes)
-				_, _ = s.client.Enqueue(task, asynq.Queue("maintenance"), asynq.ProcessAt(*m.StartAt))
+				_, _ = s.enqueuer.Enqueue(task, asynq.Queue("maintenance"), asynq.ProcessAt(*m.StartAt))
 			}
 			// schedule end if EndAt provided
 			if m.EndAt != nil && m.EndAt.After(time.Now()) {
 				payload := map[string]any{"maintenance_id": m.ID}
 				endBytes, _ := json.Marshal(payload)
 				task := asynq.NewTask("maintenance:end", endBytes)
-				_, _ = s.client.Enqueue(task, asynq.Queue("maintenance"), asynq.ProcessAt(*m.EndAt))
+				_, _ = s.enqueuer.Enqueue(task, asynq.Queue("maintenance"), asynq.ProcessAt(*m.EndAt))
 			}
 		}
 	}

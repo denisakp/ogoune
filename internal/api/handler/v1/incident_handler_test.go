@@ -159,6 +159,21 @@ func TestIncidentHandler_MonitorIDFilter_FiltersResult(t *testing.T) {
 	}
 }
 
+func TestIncidentHandler_Get_NotFound_Returns404(t *testing.T) {
+	svc := &mockIncidentService{incident: nil, getErr: nil}
+	router := newIncidentRouter(svc)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/incidents/nonexistent-id", nil)
+	rr := httptest.NewRecorder()
+	router.ServeHTTP(rr, req)
+
+	require.Equal(t, http.StatusNotFound, rr.Code)
+	var out dtoV1.ErrorResponse
+	require.NoError(t, json.Unmarshal(rr.Body.Bytes(), &out))
+	assert.Equal(t, "RESOURCE_NOT_FOUND", out.Error.Code)
+	assert.Contains(t, out.Error.Message, "incident not found")
+}
+
 func TestIncidentHandler_CombinedFilter_AppliesBoth(t *testing.T) {
 	inc1 := &domain.Incident{
 		Base:       domain.Base{ID: "inc-1", CreatedAt: time.Now(), UpdatedAt: time.Now()},

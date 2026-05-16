@@ -130,6 +130,41 @@ Vue 3 Composition API + TypeScript + Pinia + Ant Design Vue.
 - `go test -race ./...` must pass
 - Frontend: Vitest + jsdom, `*.spec.ts` files
 
+## Code Quality — SonarQube (MANDATORY)
+
+Before completing any task or commit, you MUST:
+
+1. **Ensure coverage reports are generated** (both stacks):
+   ```bash
+   make test-be          # generates coverage/unit.out (Go)
+   make test-fe          # generates web/coverage/lcov.info (Vue/TS)
+   ```
+
+2. **Run the SonarQube scanner**:
+   ```bash
+   sonar-scanner -Dsonar.token=<YOUR_TOKEN>
+   ```
+   (Set `SONAR_TOKEN` env var or pass via `-D` flag. Config is in `sonar-project.properties`.)
+
+3. **Verify quality gate** via SonarQube dashboard (local: http://localhost:9009):
+   - Project: `ogoune`
+   - Check for **CRITICAL** and **BLOCKER** issues in **both**:
+     - Go backend (`cmd/`, `internal/`, `pkg/`)
+     - Vue frontend (`web/src/`)
+
+4. **If issues are detected**:
+   - **Go issues**: fix in `cmd/`, `internal/`, `pkg/`, re-run `make test-be && sonar-scanner`
+   - **TS/Vue issues**: fix in `web/src/`, re-run `make test-fe && sonar-scanner`
+   - **Maximum 3 cycles total** — if still failing after 3 attempts, stop and report remaining issues
+   
+5. **Never merge with Quality Gate = FAILED**
+   - This is in addition to `make lint` and `make test` (which also remain mandatory)
+
+### Why monorepo matters
+- Two coverage reports are required (Go + TS/lcov)
+- Each stack may have different critical issues
+- Fixing one stack's issue doesn't block the other
+
 ## Gotchas
 
 - `APP_SECRET_KEY` env var is mandatory — app refuses to start without it
@@ -142,5 +177,5 @@ Vue 3 Composition API + TypeScript + Pinia + Ant Design Vue.
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan
 # currentDate
-@specs/031-security-headers-middleware/plan.md
+@specs/032-test-coverage-gaps/plan.md
 <!-- SPECKIT END -->

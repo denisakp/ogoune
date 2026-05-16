@@ -12,12 +12,12 @@ import (
 
 // TaskHandler processes maintenance start/end tasks
 type TaskHandler struct {
-	repo   repository.MaintenanceRepository
-	client *asynq.Client
+	repo     repository.MaintenanceRepository
+	enqueuer TaskEnqueuer
 }
 
-func NewTaskHandler(repo repository.MaintenanceRepository, client *asynq.Client) *TaskHandler {
-	return &TaskHandler{repo: repo, client: client}
+func NewTaskHandler(repo repository.MaintenanceRepository, enqueuer TaskEnqueuer) *TaskHandler {
+	return &TaskHandler{repo: repo, enqueuer: enqueuer}
 }
 
 // ProcessStart activates a maintenance and schedules its end if cron-based.
@@ -44,7 +44,7 @@ func (h *TaskHandler) ProcessStart(ctx context.Context, task *asynq.Task) error 
 		endBytes, _ := json.Marshal(endPayload)
 		endTask := asynq.NewTask("maintenance:end", endBytes)
 		delay := time.Duration(*m.WindowMinutes) * time.Minute
-		_, _ = h.client.Enqueue(endTask, asynq.Queue("maintenance"), asynq.ProcessIn(delay))
+		_, _ = h.enqueuer.Enqueue(endTask, asynq.Queue("maintenance"), asynq.ProcessIn(delay))
 	}
 	return nil
 }
