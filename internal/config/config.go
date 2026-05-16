@@ -54,6 +54,9 @@ type Config struct {
 	// Swagger configuration
 	EnableSwagger bool
 
+	// Environment
+	AppEnv string
+
 	// Security configuration
 	CORSAllowedOrigins    []string
 	RateLimitAuth         int
@@ -85,6 +88,7 @@ func Load() Config {
 	metricsEnabled := parseBool(GetEnv("ENABLE_METRICS", "false"), false)
 	metricsToken := GetEnv("METRICS_TOKEN", "")
 	enableSwagger := parseBool(GetEnv("ENABLE_SWAGGER", "false"), false)
+	appEnv := GetEnv("APP_ENV", "development")
 
 	// Security configuration
 	corsOrigins := parseCORSOrigins(GetEnv("CORS_ALLOWED_ORIGINS", ""))
@@ -125,6 +129,7 @@ func Load() Config {
 		MetricsEnabled:                 metricsEnabled,
 		MetricsToken:                   metricsToken,
 		EnableSwagger:                  enableSwagger,
+		AppEnv:                         appEnv,
 
 		CORSAllowedOrigins:    corsOrigins,
 		RateLimitAuth:         rateLimitAuthCount,

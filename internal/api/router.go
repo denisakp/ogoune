@@ -51,6 +51,11 @@ func NewRouter(
 	// Standard middleware stack for logging, recovery, and request tracking
 	r.Use(chimiddleware.RequestID)
 	r.Use(chimiddleware.RealIP)
+	r.Use(middleware.SecurityHeaders(middleware.SecurityHeadersConfig{
+		AppEnv:            cfg.AppEnv,
+		EnableSwagger:     enableSwagger,
+		SwaggerPathPrefix: "/v1/docs/",
+	}))
 	r.Use(chimiddleware.Logger)
 	r.Use(chimiddleware.Recoverer)
 	r.Use(chimiddleware.SetHeader("Content-Type", "application/json"))
