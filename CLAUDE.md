@@ -142,5 +142,5 @@ Vue 3 Composition API + TypeScript + Pinia + Ant Design Vue.
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan
 # currentDate
-@specs/029-security-perimeter-hardening/plan.md
+@specs/030-fix-incident-query-bug/plan.md
 <!-- SPECKIT END -->
