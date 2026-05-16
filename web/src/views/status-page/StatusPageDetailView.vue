@@ -4,13 +4,14 @@ import { useRouter, useRoute } from 'vue-router'
 import { ArrowLeftOutlined } from '@ant-design/icons-vue'
 
 import StatusPageDetail from '@/components/status-page/StatusPageDetail.vue'
-import { useStatusPage } from '@/composables/useStatusPage.ts'
+import { storeToRefs } from 'pinia'
+import { useStatusPageStore } from '@/stores/statusPageStore'
 
 const router = useRouter()
 const route = useRoute()
 
-// Get composable
-const { monitorDetail, loading, loadMonitorDetail, clearMonitorDetail } = useStatusPage()
+const store = useStatusPageStore()
+const { monitorDetail, detailLoading: loading } = storeToRefs(store)
 
 // Get monitor ID from route
 const monitorId = computed(() => route.params.id as string)
@@ -64,9 +65,9 @@ const formatTimestamp = (timestamp: string): string => {
 onMounted(async () => {
   if (monitorId.value) {
     try {
-      await loadMonitorDetail(monitorId.value)
-    } catch (error) {
-      console.error('Failed to load monitor detail:', error)
+      await store.loadMonitorDetail(monitorId.value)
+    } catch {
+      // error handled by store
     }
   }
 })
@@ -75,16 +76,15 @@ onMounted(async () => {
 watch(monitorId, async (newId) => {
   if (newId) {
     try {
-      await loadMonitorDetail(newId)
+      await store.loadMonitorDetail(newId)
     } catch (error) {
-      console.error('Failed to load monitor detail:', error)
     }
   }
 })
 
 // Clear data on unmount
 const goBack = () => {
-  clearMonitorDetail()
+  store.clearMonitorDetail()
   router.push('/status')
 }
 </script>

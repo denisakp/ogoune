@@ -34,7 +34,6 @@ export const fetchIncidents = async (
  */
 export const fetchIncidentById = async (id: string): Promise<Incident> => {
   const { data } = await axiosHelper.get<Incident>(`/incidents/${id}`)
-  console.log('Fetched incident:', data)
   return data
 }
 

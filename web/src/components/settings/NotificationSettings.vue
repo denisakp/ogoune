@@ -4,6 +4,7 @@ import { message } from 'ant-design-vue'
 import { PlusOutlined } from '@ant-design/icons-vue'
 import type {
   NotificationChannelType,
+  NotificationConfig,
   CreateNotificationChannel,
   NotificationChannel,
 } from '@/types'
@@ -34,7 +35,7 @@ const formState = reactive({
   name: '',
   type: 'smtp' as NotificationChannelType,
   enabled_by_default: false,
-  config: {} as Record<string, any>,
+  config: {} as Record<string, unknown>,
 })
 
 const formRef = ref()
@@ -97,7 +98,7 @@ const columns = [
 const loadChannelsHandler = async () => {
   try {
     await loadChannels()
-  } catch (err) {
+  } catch {
     // Error already handled by composable
   }
 }
@@ -135,7 +136,7 @@ const handleOk = async () => {
   try {
     // Validate form first
     await formRef.value?.validate()
-  } catch (err) {
+  } catch {
     // Validation failed, don't submit
     return
   }
@@ -151,7 +152,7 @@ const handleOk = async () => {
       name: formState.name.trim(),
       type: formState.type,
       enabled_by_default: formState.enabled_by_default,
-      config: formState.config,
+      config: formState.config as unknown as NotificationConfig,
     }
 
     if (isEditMode.value && currentChannel.value) {
@@ -211,7 +212,7 @@ const testConfig = async () => {
   try {
     // Validate form first
     await formRef.value?.validate()
-  } catch (err) {
+  } catch {
     // Validation failed
     message.error('Please fill in all required fields correctly')
     return
@@ -226,7 +227,7 @@ const testConfig = async () => {
   try {
     await testChannelConfig({
       type: formState.type,
-      config: formState.config,
+      config: formState.config as unknown as NotificationConfig,
     })
     message.success('Configuration validated and tested successfully!')
   } catch (err) {
@@ -360,7 +361,7 @@ onMounted(() => {
         <component
           :is="currentConfigComponent"
           v-model="formState.config"
-          @update:modelValue="(value: Record<string, any>) => (formState.config = value)"
+          @update:modelValue="(value: Record<string, unknown>) => (formState.config = value)"
         />
 
         <!-- Test Configuration Button -->

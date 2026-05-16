@@ -177,5 +177,5 @@ Before completing any task or commit, you MUST:
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan
 # currentDate
-@specs/033-structured-logging/plan.md
+@specs/034-frontend-quality-improvements/plan.md
 <!-- SPECKIT END -->

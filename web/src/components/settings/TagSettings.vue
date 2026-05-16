@@ -2,11 +2,13 @@
 import { onMounted, reactive, ref } from 'vue'
 import { message } from 'ant-design-vue'
 
-import { useTags } from '@/composables/useTags'
+import { storeToRefs } from 'pinia'
+import { useTagStore } from '@/stores/tagStore'
 import type { Tag, CreateTag } from '@/types'
 
-// Use composables
-const { tags, loading, error, loadTags: fetchTags, addTag, updateTag, deleteTag } = useTags()
+const store = useTagStore()
+const { tags, loading, error } = storeToRefs(store)
+const { fetchTags, addTag, updateTag, deleteTag } = store
 
 // Modal and form state
 const isModalVisible = ref(false)

@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-
+import { withStoreAction } from '@/utils/storeHelpers'
 import * as statsService from '@/services/statsService'
 import type { StatsSummary } from '@/types'
 
@@ -10,18 +10,14 @@ export const useStatsStore = defineStore('stats', () => {
   const error = ref<string | null>(null)
 
   const loadStatsSummary = async (range: string): Promise<StatsSummary | null> => {
-    loading.value = true
-    error.value = null
     try {
-      const data = await statsService.fetchStatsSummary(range)
-      summary.value = data
-      return data
-    } catch (err) {
-      error.value = err instanceof Error ? err.message : 'Failed to load stats summary'
-      console.error('Error loading stats summary:', err)
+      return await withStoreAction(loading, error, async () => {
+        const data = await statsService.fetchStatsSummary(range)
+        summary.value = data
+        return data
+      })
+    } catch {
       return null
-    } finally {
-      loading.value = false
     }
   }
 

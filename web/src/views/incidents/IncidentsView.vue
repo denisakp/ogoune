@@ -3,12 +3,13 @@ import { onMounted, ref, reactive, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { message } from 'ant-design-vue'
 
-import { useIncidents } from '@/composables/useIncidents.ts'
+import { storeToRefs } from 'pinia'
+import { useIncidentStore } from '@/stores/incidentStore'
 import type { Incident, IncidentsQueryParams } from '@/types'
 
 const router = useRouter()
 
-// Use composable
+const incidentStore = useIncidentStore()
 const {
   incidents,
   loading,
@@ -17,8 +18,7 @@ const {
   unresolvedCount,
   resolvedCount,
   unresolvedIncidents,
-  fetchIncidents,
-} = useIncidents()
+} = storeToRefs(incidentStore)
 
 // UI State
 const filterMode = ref<'all' | 'unresolved' | 'resolved'>('all')
@@ -121,7 +121,7 @@ const loadIncidents = async () => {
   }
 
   try {
-    await fetchIncidents(params)
+    await incidentStore.fetchIncidents(params)
   } catch (err) {
     const errorMsg = err instanceof Error ? err.message : 'Failed to load incidents'
     message.error(errorMsg)

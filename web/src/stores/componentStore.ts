@@ -1,108 +1,70 @@
 import { defineStore } from 'pinia'
-import { ref } from 'vue'
-
+import { ref, computed } from 'vue'
+import { withStoreAction } from '@/utils/storeHelpers'
 import * as componentService from '@/services/componentService'
 import type { Component, CreateComponent, UpdateComponent } from '@/types'
 
 export const useComponentStore = defineStore('component', () => {
   const components = ref<Component[]>([])
-  const loading = ref(false)
-  const error = ref<string | null>(null)
+  const loadLoading = ref(false)
+  const loadError = ref<string | null>(null)
+  const addLoading = ref(false)
+  const addError = ref<string | null>(null)
+  const updateLoading = ref(false)
+  const updateError = ref<string | null>(null)
+  const removeLoading = ref(false)
+  const removeError = ref<string | null>(null)
+  const loading = computed(() => loadLoading.value || addLoading.value || updateLoading.value || removeLoading.value)
+  const error = computed(() => loadError.value ?? addError.value ?? updateError.value ?? removeError.value)
 
-  const loadComponents = async () => {
-    loading.value = true
-    error.value = null
-    try {
+  const loadComponents = () =>
+    withStoreAction(loadLoading, loadError, async () => {
       components.value = await componentService.fetchComponents()
-    } catch (err) {
-      error.value = err instanceof Error ? err.message : 'Failed to load components'
-      throw err
-    } finally {
-      loading.value = false
-    }
-  }
+    })
 
-  const loadComponent = async (id: string): Promise<Component | null> => {
-    loading.value = true
-    error.value = null
-    try {
+  const loadComponent = (id: string) =>
+    withStoreAction(loadLoading, loadError, async () => {
       const component = await componentService.fetchComponent(id)
-
       const index = components.value.findIndex((c) => c.id === id)
-      if (index !== -1) {
-        components.value[index] = component
-      } else {
-        components.value.push(component)
-      }
-
+      if (index !== -1) components.value[index] = component
+      else components.value.push(component)
       return component
-    } catch (err) {
-      error.value = err instanceof Error ? err.message : 'Failed to load component'
-      throw err
-    } finally {
-      loading.value = false
-    }
-  }
+    })
 
-  const addComponent = async (component: CreateComponent): Promise<Component> => {
-    loading.value = true
-    error.value = null
-    try {
+  const addComponent = (component: CreateComponent) =>
+    withStoreAction(addLoading, addError, async () => {
       const newComponent = await componentService.createComponent(component)
       components.value.push(newComponent)
       return newComponent
-    } catch (err) {
-      error.value = err instanceof Error ? err.message : 'Failed to create component'
-      throw err
-    } finally {
-      loading.value = false
-    }
-  }
+    })
 
-  const updateComponentData = async (
-    id: string,
-    component: UpdateComponent,
-  ): Promise<Component> => {
-    loading.value = true
-    error.value = null
-    try {
+  const updateComponentData = (id: string, component: UpdateComponent) =>
+    withStoreAction(updateLoading, updateError, async () => {
       const updated = await componentService.updateComponent(id, component)
-
       const index = components.value.findIndex((c) => c.id === id)
-      if (index !== -1) {
-        components.value[index] = updated
-      }
-
+      if (index !== -1) components.value[index] = updated
       return updated
-    } catch (err) {
-      error.value = err instanceof Error ? err.message : 'Failed to update component'
-      throw err
-    } finally {
-      loading.value = false
-    }
-  }
+    })
 
-  const removeComponent = async (id: string) => {
-    loading.value = true
-    error.value = null
-    try {
+  const removeComponent = (id: string) =>
+    withStoreAction(removeLoading, removeError, async () => {
       await componentService.deleteComponent(id)
       const index = components.value.findIndex((c) => c.id === id)
-      if (index !== -1) {
-        components.value.splice(index, 1)
-      }
-    } catch (err) {
-      error.value = err instanceof Error ? err.message : 'Failed to delete component'
-      throw err
-    } finally {
-      loading.value = false
-    }
-  }
+      if (index !== -1) components.value.splice(index, 1)
+    })
 
   return {
     components,
     loading,
     error,
+    loadLoading,
+    loadError,
+    addLoading,
+    addError,
+    updateLoading,
+    updateError,
+    removeLoading,
+    removeError,
     loadComponents,
     loadComponent,
     addComponent,

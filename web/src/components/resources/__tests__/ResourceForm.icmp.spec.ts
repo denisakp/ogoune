@@ -3,6 +3,18 @@ import type { ComponentPublicInstance } from 'vue'
 import { mount } from '@vue/test-utils'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+vi.mock('pinia', () => ({
+  storeToRefs: (store: Record<string, unknown>) => {
+    const refs: Record<string, unknown> = {}
+    for (const key of Object.keys(store)) {
+      if (key.startsWith('$') || typeof store[key] === 'function') continue
+      refs[key] = store[key]
+    }
+    return refs
+  },
+  defineStore: vi.fn(),
+}))
+
 import ResourceForm from '@/components/resources/ResourceForm.vue'
 import type { CreateResource, SystemCapabilities } from '@/types'
 
@@ -17,26 +29,29 @@ const { addResourceMock, updateResourceDataMock, loadCapabilitiesMock, capabilit
     }
   })
 
-vi.mock('@/composables/useResources.ts', () => ({
-  useResources: () => ({
+vi.mock('@/stores/resourceStore', () => ({
+  useResourceStore: () => ({
     addResource: addResourceMock,
     updateResourceData: updateResourceDataMock,
     capabilities: capabilitiesProxy,
     loadCapabilities: loadCapabilitiesMock,
+    $id: 'resource',
   }),
 }))
 
-vi.mock('@/composables/useTags.ts', () => ({
-  useTags: () => ({
+vi.mock('@/stores/tagStore', () => ({
+  useTagStore: () => ({
     tags: ref([]),
-    loadTags: vi.fn(),
+    fetchTags: vi.fn(),
+    $id: 'tag',
   }),
 }))
 
-vi.mock('@/composables/useComponents.ts', () => ({
-  useComponents: () => ({
+vi.mock('@/stores/componentStore', () => ({
+  useComponentStore: () => ({
     components: ref([]),
     loadComponents: vi.fn(),
+    $id: 'component',
   }),
 }))
 

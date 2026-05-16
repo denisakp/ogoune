@@ -45,8 +45,7 @@ onMounted(async () => {
       showMonitorUrl: false, // Not stored in backend yet
       hidePausedMonitors: settings.hide_paused_monitors,
     }
-  } catch (error) {
-    console.error('Failed to load settings:', error)
+  } catch {
     message.error('Failed to load settings')
   } finally {
     loading.value = false
@@ -69,8 +68,7 @@ const handleSave = async () => {
     })
     message.success('Settings saved successfully!')
     emit('save')
-  } catch (error) {
-    console.error('Failed to save settings:', error)
+  } catch {
     message.error('Failed to save settings')
   } finally {
     saving.value = false

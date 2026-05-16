@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, watch, computed } from 'vue'
-import { useComponents } from '@/composables/useComponents'
+import { useComponentStore } from '@/stores/componentStore'
 import type { Component, UpdateComponentPayload } from '@/types'
 
 const props = defineProps<{
@@ -19,7 +19,7 @@ const visibleModel = computed({
   set: (val) => emit('update:visible', val),
 })
 
-const { updateComponent } = useComponents()
+const componentStore = useComponentStore()
 
 const form = ref({
   name: '',
@@ -62,16 +62,14 @@ const handleSubmit = async () => {
         description: form.value.description || undefined,
         grouping_window_seconds: form.value.groupingWindowSeconds,
       }
-      await updateComponent(props.editing.id, payload)
+      await componentStore.updateComponentData(props.editing.id, payload)
       emit('submit')
       emit('close')
     } else {
       // Create is not supported directly - components must be created via bulk grouping in MonitorsView
-      console.warn('Components should be created via bulk grouping in Monitors')
       emit('close')
     }
-  } catch (err) {
-    console.error('Failed to save component:', err)
+  } catch {
   } finally {
     loading.value = false
   }

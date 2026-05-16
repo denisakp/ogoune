@@ -15,7 +15,6 @@ export function useActivities() {
       activities.value = await activityService.fetchActivities(resourceId)
     } catch (err) {
       error.value = err instanceof Error ? err.message : 'Failed to load activities'
-      console.error('Error loading activities:', err)
     } finally {
       loading.value = false
     }

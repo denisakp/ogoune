@@ -22,7 +22,7 @@ export function useNotificationChannels() {
       channels.value = await notificationChannelService.fetchChannels()
     } catch (err) {
       error.value = err instanceof Error ? err.message : 'Failed to load notification channels'
-      console.error('Error loading notification channels:', err)
+
       throw err
     } finally {
       loading.value = false
@@ -39,7 +39,7 @@ export function useNotificationChannels() {
       return newChannel
     } catch (err) {
       error.value = err instanceof Error ? err.message : 'Failed to create notification channel'
-      console.error('Error creating notification channel:', err)
+
       throw err
     }
   }
@@ -57,7 +57,7 @@ export function useNotificationChannels() {
       return updated
     } catch (err) {
       error.value = err instanceof Error ? err.message : 'Failed to update notification channel'
-      console.error('Error updating notification channel:', err)
+
       throw err
     }
   }
@@ -71,7 +71,7 @@ export function useNotificationChannels() {
       channels.value = channels.value.filter((c) => c.id !== id)
     } catch (err) {
       error.value = err instanceof Error ? err.message : 'Failed to delete notification channel'
-      console.error('Error deleting notification channel:', err)
+
       throw err
     }
   }
@@ -84,7 +84,7 @@ export function useNotificationChannels() {
       await notificationChannelService.testChannel(id)
     } catch (err) {
       error.value = err instanceof Error ? err.message : 'Failed to test notification channel'
-      console.error('Error testing notification channel:', err)
+
       throw err
     }
   }
@@ -97,7 +97,7 @@ export function useNotificationChannels() {
       await notificationChannelService.testChannelConfig(data)
     } catch (err) {
       error.value = err instanceof Error ? err.message : 'Failed to validate configuration'
-      console.error('Error validating channel configuration:', err)
+
       throw err
     }
   }

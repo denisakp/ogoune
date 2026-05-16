@@ -11,9 +11,10 @@ import {
   FolderOutlined,
 } from '@ant-design/icons-vue'
 
-import { useResources } from '@/composables/useResources'
-import { useDateTime } from '@/composables/useDateTime'
-import { useComponents } from '@/composables/useComponents'
+import { storeToRefs } from 'pinia'
+import { useResourceStore } from '@/stores/resourceStore'
+import { useComponentStore } from '@/stores/componentStore'
+import { timeAgo } from '@/libs/date-time.helper'
 import ResourceModal from '@/components/resources/ResourceModal.vue'
 import GroupResourcesModal from '@/components/modals/GroupResourcesModal.vue'
 import ExpiryBadge from '@/components/resources/ExpiryBadge.vue'
@@ -22,20 +23,10 @@ import Last24HoursStatsCard from '@/components/Last24HoursStatsCard.vue'
 import type { Resource } from '@/types'
 import { bulkRemoveFromComponent } from '@/services/componentService'
 
-const {
-  resources,
-  loading,
-  error,
-  loadResources,
-  removeResource,
-  pauseResource,
-  resumeResource,
-  loadUptimeStats,
-} = useResources()
-
-const { components, loadComponents } = useComponents()
-
-const { timeAgo } = useDateTime()
+const resourceStore = useResourceStore()
+const { resources, loading, error } = storeToRefs(resourceStore)
+const componentStore = useComponentStore()
+const { components } = storeToRefs(componentStore)
 const router = useRouter()
 
 const showModal = ref(false)
@@ -55,7 +46,7 @@ const filterComponent = ref<string[]>([])
 const orderBy = ref<'newest' | 'oldest' | 'up_first' | 'down_first'>('newest')
 
 onMounted(async () => {
-  await Promise.all([loadResources(), loadComponents()])
+  await Promise.all([resourceStore.loadResources(), componentStore.loadComponents()])
   await loadUptimeStatsForAll()
 })
 
@@ -66,7 +57,7 @@ const loadUptimeStatsForAll = async () => {
   // Load uptime stats for each resource
   await Promise.all(
     resources.value.map(async (resource) => {
-      const stats = await loadUptimeStats(resource.id)
+      const stats = await resourceStore.loadUptimeStats(resource.id)
       if (stats) {
         resource.hourly_uptime = stats
       }
@@ -81,7 +72,7 @@ const openCreateModal = () => {
 
 const handleFormSubmit = async () => {
   showModal.value = false
-  await loadResources()
+  await resourceStore.loadResources()
   await loadUptimeStatsForAll()
 }
 
@@ -93,16 +84,16 @@ const handleDelete = async (id: string) => {
     okType: 'danger',
     cancelText: 'Cancel',
     async onOk() {
-      await removeResource(id)
+      await resourceStore.removeResource(id)
     },
   })
 }
 
 const handleTogglePause = async (resource: Resource) => {
   if (resource.status === 'paused') {
-    await resumeResource(resource.id)
+    await resourceStore.resumeMonitoring(resource.id)
   } else {
-    await pauseResource(resource.id)
+    await resourceStore.pauseMonitoring(resource.id)
   }
 }
 
@@ -226,9 +217,8 @@ const handleRemoveFromComponent = async () => {
         })
         message.success('Resources removed from components')
         selectedRowKeys.value = []
-        await loadResources()
+        await resourceStore.loadResources()
       } catch (error) {
-        console.error('Failed to remove resources:', error)
         message.error('Failed to remove resources from components')
       }
     },
@@ -618,7 +608,7 @@ const handleRowClick = (record: Resource) => {
         () => {
           showGroupModal = false
           selectedRowKeys = []
-          loadResources()
+          resourceStore.loadResources()
         }
       "
     />

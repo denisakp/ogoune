@@ -3,18 +3,20 @@ import { onMounted, computed, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useGtag } from 'vue-gtag-next'
 import StatusPage from '@/components/status-page/StatusPage.vue'
-import { useStatusPage } from '@/composables/useStatusPage.ts'
+import { storeToRefs } from 'pinia'
+import { useStatusPageStore } from '@/stores/statusPageStore'
 
 const router = useRouter()
-const { statusPageData, loading, loadStatusPageData } = useStatusPage()
+const store = useStatusPageStore()
+const { statusPageData, loadLoading: loading } = storeToRefs(store)
 const gtag = useGtag()
 
 // Load status page data on mount
 onMounted(async () => {
   try {
-    await loadStatusPageData()
-  } catch (error) {
-    console.error('Failed to load status page data:', error)
+    await store.loadStatusPageData()
+  } catch {
+    // error handled by store
   }
 })
 

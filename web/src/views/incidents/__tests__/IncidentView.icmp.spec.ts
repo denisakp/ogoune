@@ -25,10 +25,11 @@ vi.mock('ant-design-vue', async (importOriginal) => {
 const getIncidentByIdMock = vi.fn()
 const resolveIncidentMock = vi.fn()
 
-vi.mock('@/composables/useIncidents.ts', () => ({
-  useIncidents: () => ({
+vi.mock('@/stores/incidentStore', () => ({
+  useIncidentStore: () => ({
     getIncidentById: getIncidentByIdMock,
     resolveIncident: resolveIncidentMock,
+    $id: 'incident',
   }),
 }))
 

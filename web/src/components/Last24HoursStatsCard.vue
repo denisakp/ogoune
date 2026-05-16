@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { ref, onMounted, watch } from 'vue'
 
-import { useStats } from '@/composables/useStats'
+import { storeToRefs } from 'pinia'
+import { useStatsStore } from '@/stores/statsStore'
 
 interface Props {
   defaultRange?: '2h' | '24h' | '7d' | '30d'
@@ -11,18 +12,19 @@ const props = withDefaults(defineProps<Props>(), {
   defaultRange: '24h',
 })
 
-const { summary, loading, loadStatsSummary } = useStats()
+const store = useStatsStore()
+const { summary, loading } = storeToRefs(store)
 
 const timeRange = ref<'2h' | '24h' | '7d' | '30d'>(props.defaultRange)
 
 // Load stats on mount
 onMounted(async () => {
-  await loadStatsSummary(timeRange.value)
+  await store.loadStatsSummary(timeRange.value)
 })
 
 // Watch for time range changes
 watch(timeRange, async (newRange) => {
-  await loadStatsSummary(newRange)
+  await store.loadStatsSummary(newRange)
 })
 
 // Get color for uptime percentage

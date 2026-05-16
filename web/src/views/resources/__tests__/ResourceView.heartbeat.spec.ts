@@ -25,17 +25,17 @@ vi.mock('ant-design-vue', () => ({
   },
 }))
 
-vi.mock('@/composables/useDateTime.ts', () => ({
-  useDateTime: () => ({
-    getTimeRangeCutoff: () => new Date('2025-01-01T00:00:00.000Z'),
-  }),
+vi.mock('@/libs/date-time.helper', () => ({
+  getTimeRangeCutoff: () => new Date('2025-01-01T00:00:00.000Z'),
+  timeAgo: () => '',
 }))
 
-vi.mock('@/composables/useResources.ts', () => ({
-  useResources: () => ({
-    loading: ref(false),
-    pauseResource: pauseResourceMock,
+vi.mock('@/stores/resourceStore', () => ({
+  useResourceStore: () => ({
+    fetchLoading: ref(false),
+    pauseMonitoring: pauseResourceMock,
     loadResourceWithResponseTimes: loadResourceWithResponseTimesMock,
+    $id: 'resource',
   }),
 }))
 

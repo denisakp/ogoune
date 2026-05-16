@@ -108,7 +108,7 @@ import { computed, reactive, ref, watch } from 'vue'
 import { message } from 'ant-design-vue'
 import type { Resource, CreateComponent } from '@/types'
 import { createComponent } from '@/services/componentService'
-import { useComponents } from '@/composables/useComponents'
+import { useComponentStore } from '@/stores/componentStore'
 
 interface Props {
   visible: boolean
@@ -144,7 +144,7 @@ const showResourceSelector = ref(false)
 const isCreating = ref(false)
 const loadingResources = ref(false)
 const resourceSelectionMap = reactive<Record<string, boolean>>({})
-const { loadComponents } = useComponents()
+const componentStore = useComponentStore()
 
 const selectedResources = computed(() => {
   return props.resources.filter((r) => formData.resource_ids.includes(r.id))
@@ -190,7 +190,7 @@ const handleCreateComponent = async () => {
     const component = await createComponent(formData)
     message.success('Component created successfully')
     emit('success', component.id)
-    await loadComponents()
+    await componentStore.loadComponents()
 
     // Reset form
     formData.name = ''
@@ -198,7 +198,6 @@ const handleCreateComponent = async () => {
     formData.resource_ids = []
     isVisible.value = false
   } catch (error) {
-    console.error('Failed to create component:', error)
     message.error('Failed to create component')
   } finally {
     isCreating.value = false

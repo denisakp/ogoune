@@ -446,7 +446,7 @@ export interface NotificationChannel {
   id: string
   name: string
   type: NotificationChannelType
-  config: Record<string, any>
+  config: NotificationConfig
   enabled_by_default: boolean
   created_at: string
   updated_at: string
@@ -455,7 +455,7 @@ export interface NotificationChannel {
 export interface CreateNotificationChannel {
   name: string
   type: NotificationChannelType
-  config: Record<string, any>
+  config: NotificationConfig
   enabled_by_default: boolean
 }
 
@@ -463,7 +463,7 @@ export type UpdateNotificationChannel = Partial<CreateNotificationChannel>
 
 export interface TestNotificationChannelConfig {
   type: NotificationChannelType
-  config: Record<string, any>
+  config: NotificationConfig
 }
 
 // Maintenance windows

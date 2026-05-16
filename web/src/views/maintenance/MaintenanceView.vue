@@ -4,7 +4,8 @@ import { Modal } from 'ant-design-vue'
 import MaintenanceForm from '@/components/maintenance/MaintenanceForm.vue'
 import MaintenanceTable from '@/components/maintenance/MaintenanceTable.vue'
 import { useMaintenance } from '@/composables/useMaintenance'
-import { useResources } from '@/composables/useResources'
+import { storeToRefs } from 'pinia'
+import { useResourceStore } from '@/stores/resourceStore'
 import type { CreateMaintenance, Maintenance, UpdateMaintenance } from '@/types'
 
 const {
@@ -17,7 +18,8 @@ const {
   finishMaintenance,
 } = useMaintenance()
 
-const { resources, loadResources } = useResources()
+const resourceStore = useResourceStore()
+const { resources } = storeToRefs(resourceStore)
 
 const isModalOpen = ref(false)
 const modalMode = ref<'create' | 'edit'>('create')
@@ -87,7 +89,7 @@ const handleTabChange = async (key: string) => {
 }
 
 onMounted(async () => {
-  await Promise.all([loadResources(), loadMaintenances()])
+  await Promise.all([resourceStore.loadResources(), loadMaintenances()])
 })
 </script>
 

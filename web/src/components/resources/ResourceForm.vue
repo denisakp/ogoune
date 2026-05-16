@@ -3,9 +3,10 @@ import { ref, watch, onMounted, computed } from 'vue'
 import { FolderOutlined } from '@ant-design/icons-vue'
 
 import type { Resource, CreateResource } from '@/types'
-import { useResources } from '@/composables/useResources.ts'
-import { useTags } from '@/composables/useTags.ts'
-import { useComponents } from '@/composables/useComponents.ts'
+import { storeToRefs } from 'pinia'
+import { useResourceStore } from '@/stores/resourceStore'
+import { useTagStore } from '@/stores/tagStore'
+import { useComponentStore } from '@/stores/componentStore'
 
 interface Props {
   resource?: Resource
@@ -14,7 +15,8 @@ interface Props {
 const props = defineProps<Props>()
 const emit = defineEmits<{ submit: [] }>()
 
-const { addResource, updateResourceData, capabilities, loadCapabilities } = useResources()
+const resourceStore = useResourceStore()
+const { capabilities } = storeToRefs(resourceStore)
 
 const form = ref<CreateResource & { component_id?: string }>({
   name: '',
@@ -199,9 +201,9 @@ const handleSubmit = async () => {
         protocol_type: isProtocol.value ? form.value.protocol_type : undefined,
         protocol_port: isProtocol.value ? form.value.protocol_port : undefined,
       }
-      await updateResourceData(props.resource.id, updateData)
+      await resourceStore.updateResourceData(props.resource.id, updateData)
     } else {
-      await addResource(form.value)
+      await resourceStore.addResource(form.value)
     }
     emit('submit')
   } catch {
@@ -210,13 +212,15 @@ const handleSubmit = async () => {
   }
 }
 
-const { tags, loadTags } = useTags()
-const { components, loadComponents } = useComponents()
+const tagStore = useTagStore()
+const { tags } = storeToRefs(tagStore)
+const componentStore = useComponentStore()
+const { components } = storeToRefs(componentStore)
 
 onMounted(() => {
-  loadTags()
-  loadComponents()
-  loadCapabilities()
+  tagStore.fetchTags()
+  componentStore.loadComponents()
+  resourceStore.loadCapabilities()
 })
 
 const tagsOptions = computed(() => tags.value.map((tag) => ({ value: tag.name, label: tag.name })))

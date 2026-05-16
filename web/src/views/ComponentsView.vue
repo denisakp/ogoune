@@ -9,22 +9,22 @@ import {
   DeleteFilled,
 } from '@ant-design/icons-vue'
 
-import { useComponents } from '@/composables/useComponents'
-import { useDateTime } from '@/composables/useDateTime'
+import { storeToRefs } from 'pinia'
+import { useComponentStore } from '@/stores/componentStore'
+import { timeAgo } from '@/libs/date-time.helper'
 import ComponentModal from '@/components/modals/ComponentModal.vue'
 import type { Component, BulkRemovePayload } from '@/types'
 import { bulkRemoveFromComponent } from '@/services/componentService'
 
-const { components, loading, loadComponents, removeComponent } = useComponents()
-
-const { timeAgo } = useDateTime()
+const componentStore = useComponentStore()
+const { components, loading } = storeToRefs(componentStore)
 
 const showModal = ref(false)
 const editingComponent = ref<Component | null>(null)
 const expandedComponents = ref<Set<string>>(new Set())
 
 onMounted(async () => {
-  await loadComponents()
+  await componentStore.loadComponents()
 })
 
 const openEditModal = (component: Component) => {
@@ -34,7 +34,7 @@ const openEditModal = (component: Component) => {
 
 const handleFormSubmit = async () => {
   showModal.value = false
-  await loadComponents()
+  await componentStore.loadComponents()
 }
 
 const toggleExpand = (componentId: string) => {
@@ -57,8 +57,8 @@ const handleDelete = async (id: string) => {
     okType: 'danger',
     cancelText: 'Cancel',
     async onOk() {
-      await removeComponent(id)
-      await loadComponents()
+      await componentStore.removeComponent(id)
+      await componentStore.loadComponents()
     },
   })
 }
@@ -77,9 +77,8 @@ const handleRemoveResource = async (componentId: string, resourceId: string) => 
         }
         await bulkRemoveFromComponent(payload)
         message.success('Resource removed from component')
-        await loadComponents()
+        await componentStore.loadComponents()
       } catch (error) {
-        console.error('Failed to remove resource:', error)
         message.error('Failed to remove resource')
       }
     },

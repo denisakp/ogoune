@@ -1,7 +1,6 @@
 import { computed, type Ref } from 'vue'
 
 export function useEmailInput(emailArray: Ref<string[] | undefined>) {
-  console.log('useEmailInput initialized with:', emailArray.value)
   return computed({
     get: () => (Array.isArray(emailArray.value) ? emailArray.value.join(', ') : ' '),
     set: (value: string) => {

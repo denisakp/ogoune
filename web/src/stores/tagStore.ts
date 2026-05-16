@@ -1,81 +1,60 @@
 import { defineStore } from 'pinia'
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
+import { withStoreAction } from '@/utils/storeHelpers'
 import * as tagService from '@/services/tagService'
 import type { Tag, CreateTag } from '@/types'
 
 export const useTagStore = defineStore('tag', () => {
   const tags = ref<Tag[]>([])
-  const loading = ref(false)
-  const error = ref<string | null>(null)
+  const fetchLoading = ref(false)
+  const fetchError = ref<string | null>(null)
+  const addLoading = ref(false)
+  const addError = ref<string | null>(null)
+  const updateLoading = ref(false)
+  const updateError = ref<string | null>(null)
+  const deleteLoading = ref(false)
+  const deleteError = ref<string | null>(null)
+  const loading = computed(() => fetchLoading.value || addLoading.value || updateLoading.value || deleteLoading.value)
+  const error = computed(() => fetchError.value ?? addError.value ?? updateError.value ?? deleteError.value)
 
-  /**
-   * Fetch all tags from the API
-   */
-  const fetchTags = async () => {
-    loading.value = true
-    error.value = null
-    try {
+  const fetchTags = () =>
+    withStoreAction(fetchLoading, fetchError, async () => {
       tags.value = await tagService.fetchTags()
-    } catch (err) {
-      error.value = err instanceof Error ? err.message : 'Failed to load tags'
-      console.error('Error loading tags:', err)
-      throw err
-    } finally {
-      loading.value = false
-    }
-  }
+    })
 
-  /**
-   * Add a new tag
-   */
-  const addTag = async (data: CreateTag) => {
-    try {
+  const addTag = (data: CreateTag) =>
+    withStoreAction(addLoading, addError, async () => {
       const newTag = await tagService.createTag(data)
       tags.value.push(newTag)
       return newTag
-    } catch (err) {
-      error.value = err instanceof Error ? err.message : 'Failed to create tag'
-      console.error('Error creating tag:', err)
-      throw err
-    }
-  }
+    })
 
-  /**
-   * Update an existing tag
-   */
-  const updateTag = async (id: string, data: Partial<Tag>) => {
-    try {
+  const updateTag = (id: string, data: Partial<Tag>) =>
+    withStoreAction(updateLoading, updateError, async () => {
       const updated = await tagService.updateTag(id, data)
       const index = tags.value.findIndex((t) => t.id === id)
-      if (index !== -1) {
-        tags.value[index] = updated
-      }
+      if (index !== -1) tags.value[index] = updated
       return updated
-    } catch (err) {
-      error.value = err instanceof Error ? err.message : 'Failed to update tag'
-      console.error('Error updating tag:', err)
-      throw err
-    }
-  }
+    })
 
-  /**
-   * Delete a tag
-   */
-  const deleteTag = async (id: string) => {
-    try {
+  const deleteTag = (id: string) =>
+    withStoreAction(deleteLoading, deleteError, async () => {
       await tagService.deleteTag(id)
       tags.value = tags.value.filter((t) => t.id !== id)
-    } catch (err) {
-      error.value = err instanceof Error ? err.message : 'Failed to delete tag'
-      console.error('Error deleting tag:', err)
-      throw err
-    }
-  }
+    })
 
   return {
     tags,
     loading,
     error,
+    fetchLoading,
+    fetchError,
+    addLoading,
+    addError,
+    updateLoading,
+    updateError,
+    deleteLoading,
+    deleteError,
     fetchTags,
     addTag,
     updateTag,

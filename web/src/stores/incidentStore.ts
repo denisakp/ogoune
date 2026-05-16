@@ -1,107 +1,58 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-
+import { withStoreAction } from '@/utils/storeHelpers'
 import * as incidentService from '@/services/incidentService'
-import type { Incident, IncidentsQueryParams, PaginatedResponse } from '@/types'
+import type { Incident, IncidentsQueryParams } from '@/types'
 
 export const useIncidentStore = defineStore('incident', () => {
   const incidents = ref<Incident[]>([])
-  const loading = ref(false)
-  const error = ref<string | null>(null)
+  const pagination = ref({ total: 0, limit: 50, offset: 0 })
+  const fetchLoading = ref(false)
+  const fetchError = ref<string | null>(null)
+  const getLoading = ref(false)
+  const getError = ref<string | null>(null)
+  const resolveLoading = ref(false)
+  const resolveError = ref<string | null>(null)
+  const loading = computed(() => fetchLoading.value || getLoading.value || resolveLoading.value)
+  const error = computed(() => fetchError.value ?? getError.value ?? resolveError.value)
 
-  // Pagination state
-  const pagination = ref({
-    total: 0,
-    limit: 50,
-    offset: 0,
-  })
-
-  /**
-   * Fetch incidents with optional filters
-   */
-  const fetchIncidents = async (params?: IncidentsQueryParams) => {
-    loading.value = true
-    error.value = null
-    try {
+  const fetchIncidents = (params?: IncidentsQueryParams) =>
+    withStoreAction(fetchLoading, fetchError, async () => {
       const result = await incidentService.fetchIncidents(params)
-
-      // Handle both array and paginated response formats
       if (Array.isArray(result)) {
         incidents.value = result
       } else {
         incidents.value = result.data
-        pagination.value = {
-          total: result.total,
-          limit: result.limit,
-          offset: result.offset,
-        }
+        pagination.value = { total: result.total, limit: result.limit, offset: result.offset }
       }
-    } catch (err) {
-      error.value = err instanceof Error ? err.message : 'Failed to load incidents'
-      console.error('Error loading incidents:', err)
-      throw err
-    } finally {
-      loading.value = false
-    }
-  }
+    })
 
-  /**
-   * Fetch a single incident by ID
-   */
-  const getIncidentById = async (id: string) => {
-    try {
-      return await incidentService.fetchIncidentById(id)
-    } catch (err) {
-      error.value = err instanceof Error ? err.message : 'Failed to fetch incident'
-      console.error('Error fetching incident:', err)
-      throw err
-    }
-  }
+  const getIncidentById = (id: string) =>
+    withStoreAction(getLoading, getError, () => incidentService.fetchIncidentById(id))
 
-  /**
-   * Resolve an incident
-   */
-  const resolveIncident = async (id: string) => {
-    try {
+  const resolveIncident = (id: string) =>
+    withStoreAction(resolveLoading, resolveError, async () => {
       const updated = await incidentService.resolveIncident(id)
       const index = incidents.value.findIndex((i) => i.id === id)
-      if (index !== -1) {
-        incidents.value[index] = updated
-      }
+      if (index !== -1) incidents.value[index] = updated
       return updated
-    } catch (err) {
-      error.value = err instanceof Error ? err.message : 'Failed to resolve incident'
-      console.error('Error resolving incident:', err)
-      throw err
-    }
-  }
+    })
 
-  /**
-   * Get unresolved incidents count
-   */
-  const unresolvedCount = computed(() => {
-    return incidents.value.filter((i) => !i.resolved_at).length
-  })
-
-  /**
-   * Get resolved incidents count
-   */
-  const resolvedCount = computed(() => {
-    return incidents.value.filter((i) => i.resolved_at).length
-  })
-
-  /**
-   * Get only unresolved incidents
-   */
-  const unresolvedIncidents = computed(() => {
-    return incidents.value.filter((i) => !i.resolved_at)
-  })
+  const unresolvedCount = computed(() => incidents.value.filter((i) => !i.resolved_at).length)
+  const resolvedCount = computed(() => incidents.value.filter((i) => i.resolved_at).length)
+  const unresolvedIncidents = computed(() => incidents.value.filter((i) => !i.resolved_at))
 
   return {
     incidents,
     loading,
     error,
     pagination,
+    fetchLoading,
+    fetchError,
+    getLoading,
+    getError,
+    resolveLoading,
+    resolveError,
     fetchIncidents,
     getIncidentById,
     resolveIncident,

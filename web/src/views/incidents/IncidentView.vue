@@ -4,7 +4,7 @@ import { useRouter, useRoute } from 'vue-router'
 import { message } from 'ant-design-vue'
 import { ArrowLeftOutlined } from '@ant-design/icons-vue'
 
-import { useIncidents } from '@/composables/useIncidents.ts'
+import { useIncidentStore } from '@/stores/incidentStore'
 import type { Incident, IncidentEventStep } from '@/types'
 import DiagnosticsErrorSummary from '@/components/DiagnosticsErrorSummary.vue'
 import DiagnosticsHeadersDisplay from '@/components/DiagnosticsHeadersDisplay.vue'
@@ -14,7 +14,7 @@ import DiagnosticsTimingBreakdown from '@/components/DiagnosticsTimingBreakdown.
 const router = useRouter()
 const route = useRoute()
 
-const { resolveIncident, getIncidentById } = useIncidents()
+const incidentStore = useIncidentStore()
 
 // State
 const incident = ref<Incident | null>(null)
@@ -38,7 +38,7 @@ const loadIncident = async () => {
 
   loading.value = true
   try {
-    incident.value = await getIncidentById(incidentId.value)
+    incident.value = await incidentStore.getIncidentById(incidentId.value)
   } catch (err) {
     const errorMsg = err instanceof Error ? err.message : 'Failed to load incident'
     message.error(errorMsg)
@@ -183,7 +183,7 @@ const handleResolveIncident = () => {
     )
   ) {
     isSubmitting.value = true
-    resolveIncident(incident.value.id)
+    incidentStore.resolveIncident(incident.value.id)
       .then((resolved) => {
         incident.value = resolved
         message.success('Incident resolved successfully')
