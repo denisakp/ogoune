@@ -367,6 +367,14 @@ func (s *ResourceService) UpdateResource(ctx context.Context, id string, payload
 		resource.Type = *payload.Type
 	}
 	if payload.Target != nil {
+		// Determine the resource type for validation (use new type if provided, else existing)
+		resType := resource.Type
+		if payload.Type != nil {
+			resType = *payload.Type
+		}
+		if err := domain.ValidateResourceTarget(*payload.Target, resType); err != nil {
+			return nil, fmt.Errorf("%w: %v", ErrValidationFailed, err)
+		}
 		resource.Target = *payload.Target
 	}
 	if payload.Interval != nil {

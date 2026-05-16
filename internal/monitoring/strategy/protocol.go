@@ -6,12 +6,14 @@ import (
 	"context"
 	"encoding/binary"
 	"fmt"
+	"log"
 	"net"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/denisakp/ogoune/internal/domain"
+	"github.com/denisakp/ogoune/pkg/safenet"
 )
 
 // protocolHandler describes how to probe a single protocol variant.
@@ -120,11 +122,12 @@ func buildMongoOPMsg(key string) []byte {
 
 // ProtocolStrategy performs application-layer handshake checks for Redis, MongoDB, FTP, and SSH.
 type ProtocolStrategy struct {
-	timeout time.Duration
+	timeout  time.Duration
+	dialFunc DialFunc
 }
 
 func NewProtocolStrategy(timeout time.Duration) *ProtocolStrategy {
-	return &ProtocolStrategy{timeout: timeout}
+	return &ProtocolStrategy{timeout: timeout, dialFunc: safenet.SafeDial}
 }
 
 func (s *ProtocolStrategy) Execute(ctx context.Context, r *domain.Resource) (domain.CheckResult, error) {
@@ -161,7 +164,9 @@ func (s *ProtocolStrategy) Execute(ctx context.Context, r *domain.Resource) (dom
 	}
 
 	start := time.Now()
-	conn, err := net.DialTimeout("tcp", addr, timeout)
+	dialCtx, dialCancel := context.WithTimeout(ctx, timeout)
+	defer dialCancel()
+	conn, err := s.dialFunc(dialCtx, "tcp", addr)
 	if err != nil {
 		elapsed := time.Since(start)
 		cause := domain.ConnectionRefused
@@ -169,6 +174,9 @@ func (s *ProtocolStrategy) Execute(ctx context.Context, r *domain.Resource) (dom
 		if netErr, ok := err.(net.Error); ok && netErr.Timeout() {
 			cause = domain.ConnectionTimeout
 			msg = fmt.Sprintf("timeout connecting to %s", addr)
+		}
+		if strings.Contains(err.Error(), "blocked") {
+			log.Printf("[security] event=ssrf_block strategy=protocol target=%s reason=%v", addr, err)
 		}
 		return domain.CheckResult{
 			Status:       string(domain.StatusDown),
@@ -289,7 +297,9 @@ func (s *ProtocolStrategy) sendProbeAndRead(conn net.Conn, h protocolHandler, r 
 // mongoIsMasterFallback opens a fresh connection and retries with the isMaster probe.
 func (s *ProtocolStrategy) mongoIsMasterFallback(addr string, timeout time.Duration) (domain.CheckResult, error) {
 	start := time.Now()
-	conn, err := net.DialTimeout("tcp", addr, timeout)
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+	conn, err := s.dialFunc(ctx, "tcp", addr)
 	if err != nil {
 		elapsed := time.Since(start)
 		cause := domain.ProtocolHandshakeFailed

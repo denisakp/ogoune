@@ -4,6 +4,7 @@ import (
 	"log"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/denisakp/ogoune/internal/scheduler"
@@ -52,6 +53,13 @@ type Config struct {
 
 	// Swagger configuration
 	EnableSwagger bool
+
+	// Security configuration
+	CORSAllowedOrigins    []string
+	RateLimitAuth         int
+	RateLimitAuthWindow   time.Duration
+	RateLimitGlobal       int
+	RateLimitGlobalWindow time.Duration
 }
 
 // Load reads configuration from environment variables.
@@ -77,6 +85,11 @@ func Load() Config {
 	metricsEnabled := parseBool(GetEnv("ENABLE_METRICS", "false"), false)
 	metricsToken := GetEnv("METRICS_TOKEN", "")
 	enableSwagger := parseBool(GetEnv("ENABLE_SWAGGER", "false"), false)
+
+	// Security configuration
+	corsOrigins := parseCORSOrigins(GetEnv("CORS_ALLOWED_ORIGINS", ""))
+	rateLimitAuthCount, rateLimitAuthWindow := parseRateLimit(GetEnv("RATE_LIMIT_AUTH", "10/1m"), 10, 1*time.Minute)
+	rateLimitGlobalCount, rateLimitGlobalWindow := parseRateLimit(GetEnv("RATE_LIMIT_GLOBAL", "100/1m"), 100, 1*time.Minute)
 
 	cfg := Config{
 		RedisUrl:         GetEnv("REDIS_URL", "localhost:6379"),
@@ -112,6 +125,12 @@ func Load() Config {
 		MetricsEnabled:                 metricsEnabled,
 		MetricsToken:                   metricsToken,
 		EnableSwagger:                  enableSwagger,
+
+		CORSAllowedOrigins:    corsOrigins,
+		RateLimitAuth:         rateLimitAuthCount,
+		RateLimitAuthWindow:   rateLimitAuthWindow,
+		RateLimitGlobal:       rateLimitGlobalCount,
+		RateLimitGlobalWindow: rateLimitGlobalWindow,
 	}
 	return cfg
 }
@@ -165,6 +184,47 @@ func parseInt(s string) int {
 		return 0 // Default fallback
 	}
 	return i
+}
+
+// parseCORSOrigins splits a comma-separated list of origins, trimming whitespace.
+// Returns nil if the input is empty.
+func parseCORSOrigins(s string) []string {
+	if s == "" {
+		return nil
+	}
+	parts := strings.Split(s, ",")
+	origins := make([]string, 0, len(parts))
+	for _, p := range parts {
+		trimmed := strings.TrimSpace(p)
+		if trimmed != "" {
+			origins = append(origins, trimmed)
+		}
+	}
+	if len(origins) == 0 {
+		return nil
+	}
+	return origins
+}
+
+// parseRateLimit parses a rate limit string in "count/duration" format (e.g., "10/1m").
+// Returns the provided defaults on any parse error.
+func parseRateLimit(s string, defaultCount int, defaultWindow time.Duration) (int, time.Duration) {
+	parts := strings.SplitN(s, "/", 2)
+	if len(parts) != 2 {
+		log.Printf("[config] invalid rate limit format %q, using defaults", s)
+		return defaultCount, defaultWindow
+	}
+	count, err := strconv.Atoi(strings.TrimSpace(parts[0]))
+	if err != nil || count <= 0 {
+		log.Printf("[config] invalid rate limit count %q, using defaults", parts[0])
+		return defaultCount, defaultWindow
+	}
+	window, err := time.ParseDuration(strings.TrimSpace(parts[1]))
+	if err != nil || window <= 0 {
+		log.Printf("[config] invalid rate limit window %q, using defaults", parts[1])
+		return defaultCount, defaultWindow
+	}
+	return count, window
 }
 
 func parseBool(s string, defaultValue bool) bool {

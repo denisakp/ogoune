@@ -81,37 +81,37 @@ func TestValidateResourceTarget_HTTP(t *testing.T) {
 	}{
 		{
 			name:        "valid http URL",
-			target:      "http://example.com",
+			target:      "http://93.184.216.34",
 			expectError: false,
 		},
 		{
 			name:        "valid https URL",
-			target:      "https://example.com",
+			target:      "https://93.184.216.34",
 			expectError: false,
 		},
 		{
 			name:        "valid URL with path",
-			target:      "https://api.example.com/health",
+			target:      "https://93.184.216.34/health",
 			expectError: false,
 		},
 		{
 			name:        "valid URL with query params",
-			target:      "https://example.com/api?version=v1",
+			target:      "https://93.184.216.34/api?version=v1",
 			expectError: false,
 		},
 		{
-			name:        "valid URL with port",
+			name:        "blocked - localhost with port",
 			target:      "http://localhost:8080",
-			expectError: false,
+			expectError: true,
 		},
 		{
-			name:        "valid URL with IP address",
+			name:        "blocked - private IP address",
 			target:      "http://192.168.1.1:8080",
-			expectError: false,
+			expectError: true,
 		},
 		{
-			name:        "valid URL with subdomain",
-			target:      "https://api.staging.example.com/health",
+			name:        "valid URL with public IP",
+			target:      "https://8.8.8.8/health",
 			expectError: false,
 		},
 		{
@@ -170,33 +170,33 @@ func TestValidateResourceTarget_TCP(t *testing.T) {
 		errorMsg    string
 	}{
 		{
-			name:        "valid IP with port",
+			name:        "blocked - private IP with port",
 			target:      "192.168.1.1:3306",
-			expectError: false,
+			expectError: true,
 		},
 		{
-			name:        "valid localhost with port",
+			name:        "blocked - localhost with port",
 			target:      "localhost:6379",
+			expectError: true,
+		},
+		{
+			name:        "valid public IP with port",
+			target:      "93.184.216.34:5432",
 			expectError: false,
 		},
 		{
-			name:        "valid hostname with port",
-			target:      "db.example.com:5432",
-			expectError: false,
-		},
-		{
-			name:        "valid IPv4 with high port",
+			name:        "blocked - private 10.x with high port",
 			target:      "10.0.0.1:65535",
-			expectError: false,
+			expectError: true,
 		},
 		{
-			name:        "valid IPv4 with low port",
+			name:        "blocked - private 10.x with low port",
 			target:      "10.0.0.1:1",
-			expectError: false,
+			expectError: true,
 		},
 		{
-			name:        "valid hostname with standard port",
-			target:      "redis.local:6379",
+			name:        "valid public IP with standard port",
+			target:      "8.8.8.8:6379",
 			expectError: false,
 		},
 		{
@@ -284,6 +284,48 @@ func TestValidateResourceTarget_UnsupportedType(t *testing.T) {
 	assert.NoError(t, err, "Unsupported types should not error")
 }
 
+func TestValidateResourceTarget_SSRFBlocking(t *testing.T) {
+	tests := []struct {
+		name         string
+		target       string
+		resourceType ResourceType
+		expectError  bool
+	}{
+		// HTTP loopback/private
+		{"HTTP loopback", "http://127.0.0.1/path", ResourceHTTP, true},
+		{"HTTP private 10.x", "http://10.0.0.1/path", ResourceHTTP, true},
+		{"HTTP private 172.16.x", "http://172.16.0.1/path", ResourceHTTP, true},
+		{"HTTP private 192.168.x", "http://192.168.1.1/path", ResourceHTTP, true},
+		{"HTTP link-local", "http://169.254.1.1/path", ResourceHTTP, true},
+		{"HTTP IPv6 loopback", "http://[::1]/path", ResourceHTTP, true},
+		// HTTP public - allowed
+		{"HTTP public", "http://93.184.216.34/path", ResourceHTTP, false},
+		{"HTTP public domain", "https://93.184.216.34", ResourceHTTP, false},
+		// Keyword same as HTTP
+		{"Keyword loopback", "http://127.0.0.1/search", ResourceKeyword, true},
+		{"Keyword public", "https://93.184.216.34/search", ResourceKeyword, false},
+		// TCP loopback/private
+		{"TCP loopback", "127.0.0.1:3306", ResourceTCP, true},
+		{"TCP private", "10.0.0.1:5432", ResourceTCP, true},
+		{"TCP public", "93.184.216.34:443", ResourceTCP, false},
+		// ICMP
+		{"ICMP loopback", "127.0.0.1", ResourceICMP, true},
+		{"ICMP private", "192.168.1.1", ResourceICMP, true},
+		{"ICMP public IP", "8.8.8.8", ResourceICMP, false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := ValidateResourceTarget(tt.target, tt.resourceType)
+			if tt.expectError {
+				assert.Error(t, err, "Expected SSRF block for %s", tt.target)
+			} else {
+				assert.NoError(t, err, "Expected no error for %s", tt.target)
+			}
+		})
+	}
+}
+
 func TestValidateResourceTarget_EdgeCases(t *testing.T) {
 	tests := []struct {
 		name         string
@@ -294,43 +336,43 @@ func TestValidateResourceTarget_EdgeCases(t *testing.T) {
 	}{
 		{
 			name:         "HTTP - URL with fragment",
-			target:       "https://example.com/page#section",
+			target:       "https://93.184.216.34/page#section",
 			resourceType: ResourceHTTP,
 			expectError:  false,
 		},
 		{
 			name:         "HTTP - URL with authentication",
-			target:       "https://user:pass@example.com",
+			target:       "https://user:pass@93.184.216.34",
 			resourceType: ResourceHTTP,
 			expectError:  false,
 		},
 		{
-			name:         "TCP - IPv6 loopback (requires brackets)",
+			name:         "TCP - IPv6 loopback blocked",
 			target:       "[::1]:8080",
 			resourceType: ResourceTCP,
-			expectError:  false,
+			expectError:  true,
 		},
 		{
-			name:         "TCP - 127.0.0.1 loopback",
+			name:         "TCP - 127.0.0.1 loopback blocked",
 			target:       "127.0.0.1:8080",
 			resourceType: ResourceTCP,
-			expectError:  false,
+			expectError:  true,
 		},
 		{
 			name:         "HTTP - very long but valid URL",
-			target:       "https://example.com/" + strings.Repeat("a", 1000),
+			target:       "https://93.184.216.34/" + strings.Repeat("a", 1000),
 			resourceType: ResourceHTTP,
 			expectError:  false,
 		},
 		{
-			name:         "TCP - hostname with hyphen",
-			target:       "my-database-host.example.com:5432",
+			name:         "TCP - public IP with port",
+			target:       "8.8.4.4:5432",
 			resourceType: ResourceTCP,
 			expectError:  false,
 		},
 		{
-			name:         "TCP - hostname with underscore",
-			target:       "my_database_host:5432",
+			name:         "TCP - another public IP",
+			target:       "1.1.1.1:5432",
 			resourceType: ResourceTCP,
 			expectError:  false,
 		},

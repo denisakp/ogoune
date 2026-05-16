@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/denisakp/ogoune/pkg/safenet"
 	"github.com/google/uuid"
 )
 
@@ -95,13 +96,18 @@ func ValidateResourceTarget(target string, resourceType ResourceType) error {
 		}
 		// If it's a valid IP address, accept it directly
 		if net.ParseIP(target) != nil {
-			return nil
-		}
-		// Otherwise validate as hostname
-		if !isValidHostname(target) {
+			// Still need SSRF check below
+		} else if !isValidHostname(target) {
+			// Otherwise validate as hostname
 			return errors.New("invalid hostname or IP address for ICMP target")
 		}
 	}
+
+	// SSRF validation: check target against blocked IP ranges
+	if err := safenet.ValidateAddress(target, string(resourceType)); err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -140,8 +146,7 @@ func isValidHostname(hostname string) bool {
 	}
 
 	// Split into labels and validate each
-	labels := strings.Split(hostname, ".")
-	for _, label := range labels {
+	for label := range strings.SplitSeq(hostname, ".") {
 		if len(label) == 0 || len(label) > 63 {
 			return false
 		}

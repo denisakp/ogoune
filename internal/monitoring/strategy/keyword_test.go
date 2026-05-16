@@ -25,7 +25,7 @@ func TestKeywordStrategy_ContainsMode_KeywordPresent_UP(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	s := NewKeywordStrategy(5 * time.Second)
+	s := NewKeywordStrategyWithClient(&http.Client{Timeout: 5 * time.Second})
 	result, err := s.Execute(context.Background(), keywordResource(ts.URL, "operational", "contains"))
 	require.NoError(t, err)
 	assert.Equal(t, string(domain.StatusUp), result.Status)
@@ -41,7 +41,7 @@ func TestKeywordStrategy_ContainsMode_KeywordAbsent_DOWN(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	s := NewKeywordStrategy(5 * time.Second)
+	s := NewKeywordStrategyWithClient(&http.Client{Timeout: 5 * time.Second})
 	result, err := s.Execute(context.Background(), keywordResource(ts.URL, "operational", "contains"))
 	require.NoError(t, err)
 	assert.Equal(t, string(domain.StatusDown), result.Status)
@@ -58,7 +58,7 @@ func TestKeywordStrategy_NotContainsMode_KeywordAbsent_UP(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	s := NewKeywordStrategy(5 * time.Second)
+	s := NewKeywordStrategyWithClient(&http.Client{Timeout: 5 * time.Second})
 	result, err := s.Execute(context.Background(), keywordResource(ts.URL, "error", "not_contains"))
 	require.NoError(t, err)
 	assert.Equal(t, string(domain.StatusUp), result.Status)
@@ -72,7 +72,7 @@ func TestKeywordStrategy_NotContainsMode_KeywordPresent_DOWN(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	s := NewKeywordStrategy(5 * time.Second)
+	s := NewKeywordStrategyWithClient(&http.Client{Timeout: 5 * time.Second})
 	result, err := s.Execute(context.Background(), keywordResource(ts.URL, "error", "not_contains"))
 	require.NoError(t, err)
 	assert.Equal(t, string(domain.StatusDown), result.Status)
@@ -82,7 +82,7 @@ func TestKeywordStrategy_NotContainsMode_KeywordPresent_DOWN(t *testing.T) {
 
 // TC5: HTTP failure → DOWN with HTTP cause, keyword not evaluated
 func TestKeywordStrategy_HTTPFailure_NoKeywordEvaluation(t *testing.T) {
-	s := NewKeywordStrategy(1 * time.Second)
+	s := NewKeywordStrategyWithClient(&http.Client{Timeout: 1 * time.Second})
 	result, err := s.Execute(context.Background(), keywordResource("http://127.0.0.1:19999", "operational", "contains"))
 	require.NoError(t, err)
 	assert.Equal(t, string(domain.StatusDown), result.Status)
@@ -100,7 +100,7 @@ func TestKeywordStrategy_BodyExactly512KB_NotTruncated(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	s := NewKeywordStrategy(10 * time.Second)
+	s := NewKeywordStrategyWithClient(&http.Client{Timeout: 10 * time.Second})
 	result, err := s.Execute(context.Background(), keywordResource(ts.URL, "zzz", "contains"))
 	require.NoError(t, err)
 	assert.False(t, result.BodyTruncated)
@@ -115,7 +115,7 @@ func TestKeywordStrategy_BodyExceeds512KB_Truncated(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	s := NewKeywordStrategy(10 * time.Second)
+	s := NewKeywordStrategyWithClient(&http.Client{Timeout: 10 * time.Second})
 	result, err := s.Execute(context.Background(), keywordResource(ts.URL, "zzz", "contains"))
 	require.NoError(t, err)
 	assert.True(t, result.BodyTruncated)
@@ -128,7 +128,7 @@ func TestKeywordStrategy_EmptyBody_ContainsMode_DOWN(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	s := NewKeywordStrategy(5 * time.Second)
+	s := NewKeywordStrategyWithClient(&http.Client{Timeout: 5 * time.Second})
 	result, err := s.Execute(context.Background(), keywordResource(ts.URL, "operational", "contains"))
 	require.NoError(t, err)
 	assert.Equal(t, string(domain.StatusDown), result.Status)
@@ -143,7 +143,7 @@ func TestKeywordStrategy_CaseSensitive_MismatchedCase_DOWN(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	s := NewKeywordStrategy(5 * time.Second)
+	s := NewKeywordStrategyWithClient(&http.Client{Timeout: 5 * time.Second})
 	result, err := s.Execute(context.Background(), keywordResource(ts.URL, "Operational", "contains"))
 	require.NoError(t, err)
 	assert.Equal(t, string(domain.StatusDown), result.Status)

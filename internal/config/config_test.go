@@ -3,6 +3,7 @@ package config
 import (
 	"os"
 	"testing"
+	"time"
 )
 
 func TestStaticDirDefault(t *testing.T) {
@@ -108,5 +109,70 @@ func TestMetricsTokenSet(t *testing.T) {
 
 	if cfg.MetricsToken != "test-secret" {
 		t.Errorf("expected MetricsToken %q, got %q", "test-secret", cfg.MetricsToken)
+	}
+}
+
+func TestParseRateLimit(t *testing.T) {
+	tests := []struct {
+		name          string
+		input         string
+		defaultCount  int
+		defaultWindow time.Duration
+		wantCount     int
+		wantWindow    time.Duration
+	}{
+		{"valid 10/1m", "10/1m", 5, 30 * time.Second, 10, 1 * time.Minute},
+		{"valid 20/2m", "20/2m", 5, 30 * time.Second, 20, 2 * time.Minute},
+		{"valid 100/60s", "100/60s", 5, 30 * time.Second, 100, 60 * time.Second},
+		{"missing slash", "101m", 5, 30 * time.Second, 5, 30 * time.Second},
+		{"empty string", "", 5, 30 * time.Second, 5, 30 * time.Second},
+		{"non-numeric count", "abc/1m", 5, 30 * time.Second, 5, 30 * time.Second},
+		{"invalid duration", "10/xyz", 5, 30 * time.Second, 5, 30 * time.Second},
+		{"zero count", "0/1m", 5, 30 * time.Second, 5, 30 * time.Second},
+		{"negative count", "-1/1m", 5, 30 * time.Second, 5, 30 * time.Second},
+		{"spaces around", " 10 / 1m ", 5, 30 * time.Second, 10, 1 * time.Minute},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			count, window := parseRateLimit(tt.input, tt.defaultCount, tt.defaultWindow)
+			if count != tt.wantCount {
+				t.Errorf("parseRateLimit(%q) count = %d, want %d", tt.input, count, tt.wantCount)
+			}
+			if window != tt.wantWindow {
+				t.Errorf("parseRateLimit(%q) window = %v, want %v", tt.input, window, tt.wantWindow)
+			}
+		})
+	}
+}
+
+func TestParseCORSOrigins(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+		want  int // expected number of origins, -1 for nil
+	}{
+		{"empty string", "", -1},
+		{"single origin", "https://example.com", 1},
+		{"two origins", "https://a.com,https://b.com", 2},
+		{"with spaces", " https://a.com , https://b.com ", 2},
+		{"trailing comma", "https://a.com,", 1},
+		{"only commas", ",,,", -1},
+		{"whitespace only entries", " , , ", -1},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := parseCORSOrigins(tt.input)
+			if tt.want == -1 {
+				if got != nil {
+					t.Errorf("parseCORSOrigins(%q) = %v, want nil", tt.input, got)
+				}
+			} else {
+				if len(got) != tt.want {
+					t.Errorf("parseCORSOrigins(%q) len = %d, want %d", tt.input, len(got), tt.want)
+				}
+			}
+		})
 	}
 }

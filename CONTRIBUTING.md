@@ -397,6 +397,40 @@ Issues or PRs that are disrespectful will be closed without comment.
 *Thanks for taking the time to contribute — it means a lot.*
 ---
 
+## Security Configuration
+
+Ogoune includes three security controls configured via environment variables. All are active by default with safe defaults.
+
+### CORS (Cross-Origin Request Protection)
+
+```bash
+# Comma-separated allowed origins. Empty = same-origin only (no cross-origin).
+CORS_ALLOWED_ORIGINS=https://app.example.com,https://staging.example.com
+```
+
+When empty, all cross-origin requests are rejected. Only listed origins receive `Access-Control-Allow-Origin` headers. Rejected origins are logged with `[security] event=cors_reject`.
+
+### SSRF Protection (Server-Side Request Forgery)
+
+Monitor targets are validated at both creation and execution time against a blocklist of internal/private IP ranges (127.0.0.0/8, 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16, 169.254.0.0/16, ::1/128, fe80::/10, fc00::/7). This is always on and not configurable — there is no legitimate reason to monitor internal addresses from a public instance.
+
+- **Creation time**: `ValidateResourceTarget()` rejects blocked targets with a 422 error
+- **Execution time**: `SafeTransport` / `SafeDial` block DNS rebinding attacks where a hostname resolves to an internal IP at check time
+
+Blocked attempts are logged with `[security] event=ssrf_block`.
+
+### Rate Limiting
+
+```bash
+# Format: <count>/<duration>  (e.g., 10/1m = 10 requests per minute)
+RATE_LIMIT_AUTH=10/1m      # Auth endpoints (/auth/login, /auth/verify-2fa, etc.)
+RATE_LIMIT_GLOBAL=100/1m   # All authenticated endpoints
+```
+
+Rate-limited requests receive HTTP 429 with a `Retry-After` header. Events are logged with `[security] event=rate_limit`.
+
+---
+
 ## API Versioning Policy
 
 ### Stable public API (`/api/v1/`)

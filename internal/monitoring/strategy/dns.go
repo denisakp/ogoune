@@ -3,11 +3,13 @@ package strategy
 import (
 	"context"
 	"fmt"
+	"log"
 	"net"
 	"strings"
 	"time"
 
 	"github.com/denisakp/ogoune/internal/domain"
+	"github.com/denisakp/ogoune/pkg/safenet"
 )
 
 type DNSStrategy struct{}
@@ -28,6 +30,14 @@ func (s *DNSStrategy) Execute(ctx context.Context, resource *domain.Resource) (d
 			ResponseData: fmt.Sprintf("DNS résolution failed: %v", err),
 			Cause:        &cause,
 		}, nil
+	}
+
+	// Informational SSRF warning: DNS strategy resolves but does not connect
+	for _, addr := range addrs {
+		ip := net.ParseIP(addr)
+		if ip != nil && safenet.IsBlockedIP(ip) {
+			log.Printf("[security] event=ssrf_warning strategy=dns target=%s resolved_ip=%s reason=resolved to blocked IP range", resource.Target, addr)
+		}
 	}
 
 	data := fmt.Sprintf("Resolved IPs: %s ", strings.Join(addrs, ", "))

@@ -24,3 +24,6 @@ vendor/
 Thumbs.db
 
 .vroom
+.prds/
+.specify/
+.claude/

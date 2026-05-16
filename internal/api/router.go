@@ -1,15 +1,19 @@
 package api
 
 import (
+	"log"
 	"net/http"
 	"os"
 
 	"github.com/denisakp/ogoune/internal/api/handler"
 	v1handler "github.com/denisakp/ogoune/internal/api/handler/v1"
 	"github.com/denisakp/ogoune/internal/api/middleware"
+	"github.com/denisakp/ogoune/internal/config"
 	"github.com/denisakp/ogoune/internal/service"
 	"github.com/go-chi/chi/v5"
 	chimiddleware "github.com/go-chi/chi/v5/middleware"
+	"github.com/go-chi/cors"
+	"github.com/go-chi/httprate"
 	httpSwagger "github.com/swaggo/http-swagger"
 )
 
@@ -40,6 +44,7 @@ func NewRouter(
 	statusPageV1Handler *v1handler.StatusPageV1Handler,
 	heartbeatV1Handler *v1handler.HeartbeatV1Handler,
 	enableSwagger bool,
+	cfg *config.Config,
 ) http.Handler {
 	r := chi.NewRouter()
 
@@ -50,8 +55,25 @@ func NewRouter(
 	r.Use(chimiddleware.Recoverer)
 	r.Use(chimiddleware.SetHeader("Content-Type", "application/json"))
 
-	// CORS middleware
-	r.Use(corsMiddleware)
+	// CORS middleware — configurable origin allow-list
+	corsOpts := cors.Options{
+		AllowedMethods:   []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
+		AllowedHeaders:   []string{"Content-Type", "Authorization", "X-API-Key"},
+		AllowCredentials: true,
+		MaxAge:           3600,
+	}
+	if len(cfg.CORSAllowedOrigins) > 0 {
+		corsOpts.AllowedOrigins = cfg.CORSAllowedOrigins
+	}
+	// When AllowedOrigins is empty, go-chi/cors defaults to ["*"].
+	// To enforce same-origin only, we use a validator that rejects everything.
+	if len(cfg.CORSAllowedOrigins) == 0 {
+		corsOpts.AllowOriginFunc = func(r *http.Request, origin string) bool {
+			return false
+		}
+	}
+	r.Use(cors.Handler(corsOpts))
+	r.Use(corsRejectionLogger)
 
 	// Health check endpoint
 	r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
@@ -64,8 +86,10 @@ func NewRouter(
 	// Public Routes (no authentication required)
 	// ========================================
 
-	// Authentication endpoints
+	// Authentication endpoints — rate limited per IP
 	r.Route("/auth", func(r chi.Router) {
+		r.Use(httprate.LimitByIP(cfg.RateLimitAuth, cfg.RateLimitAuthWindow))
+		r.Use(rateLimitLogger("auth"))
 		r.Post("/login", authHandler.Login)                            // POST /auth/login - authenticate user
 		r.Post("/initialize-password", authHandler.InitializePassword) // POST /auth/initialize-password
 		r.Post("/verify-2fa", authHandler.Verify2FA)                   // POST /auth/verify-2fa
@@ -89,6 +113,9 @@ func NewRouter(
 	r.Group(func(r chi.Router) {
 		// Apply auth middleware to all routes in this group
 		r.Use(middleware.AuthMiddleware(authService, apiKeyService))
+		// Global rate limiting for authenticated endpoints
+		r.Use(httprate.LimitByIP(cfg.RateLimitGlobal, cfg.RateLimitGlobalWindow))
+		r.Use(rateLimitLogger("global"))
 
 		// Account Management API
 		r.Route("/account", func(r chi.Router) {
@@ -246,25 +273,33 @@ func NewRouter(
 	return r
 }
 
-// corsMiddleware handles Cross-Origin Resource Sharing (CORS) headers
-// Allows frontend running on different port to communicate with the API
-func corsMiddleware(next http.Handler) http.Handler {
+// corsRejectionLogger logs a [security] event when a cross-origin request is rejected.
+// It runs after the CORS middleware: if an Origin header was present but no
+// Access-Control-Allow-Origin was set in the response, the origin was rejected.
+func corsRejectionLogger(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Allow requests from any origin during development
-		// In production, set this to specific domain
-		w.Header().Set("Access-Control-Allow-Origin", "*")
-		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-API-Key")
-		w.Header().Set("Access-Control-Max-Age", "3600")
-
-		// Handle preflight requests
-		if r.Method == "OPTIONS" {
-			w.WriteHeader(http.StatusNoContent)
-			return
-		}
-
 		next.ServeHTTP(w, r)
+		origin := r.Header.Get("Origin")
+		if origin != "" && w.Header().Get("Access-Control-Allow-Origin") == "" {
+			log.Printf("[security] event=cors_reject source_ip=%s origin=%s endpoint=%s %s",
+				r.RemoteAddr, origin, r.URL.Path, r.Method)
+		}
 	})
+}
+
+// rateLimitLogger returns middleware that logs a [security] event when a rate limit
+// response (429) is about to be sent.
+func rateLimitLogger(scope string) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			ww := chimiddleware.NewWrapResponseWriter(w, r.ProtoMajor)
+			next.ServeHTTP(ww, r)
+			if ww.Status() == http.StatusTooManyRequests {
+				log.Printf("[security] event=rate_limit scope=%s source_ip=%s endpoint=%s %s",
+					scope, r.RemoteAddr, r.URL.Path, r.Method)
+			}
+		})
+	}
 }
 
 // serveOpenAPISpec serves the generated OpenAPI spec JSON file.

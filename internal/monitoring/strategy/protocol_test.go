@@ -42,6 +42,16 @@ func startMockTCP(t *testing.T, handler func(net.Conn)) (string, int) {
 
 // ─── Redis ────────────────────────────────────────────────────────────────────
 
+// unsafeDialer bypasses SafeDial for tests using loopback mock servers.
+func unsafeDialer(ctx context.Context, network, addr string) (net.Conn, error) {
+	var d net.Dialer
+	return d.DialContext(ctx, network, addr)
+}
+
+func newTestProtocolStrategy(timeout time.Duration) *ProtocolStrategy {
+	return &ProtocolStrategy{timeout: timeout, dialFunc: unsafeDialer}
+}
+
 func TestRedisProbe_Success(t *testing.T) {
 	host, port := startMockTCP(t, func(conn net.Conn) {
 		buf := make([]byte, 32)
@@ -49,7 +59,7 @@ func TestRedisProbe_Success(t *testing.T) {
 		conn.Write([]byte("+PONG\r\n"))
 	})
 	r := protoResource(host, port, "redis")
-	result, err := NewProtocolStrategy(2*time.Second).Execute(context.Background(), r)
+	result, err := newTestProtocolStrategy(2*time.Second).Execute(context.Background(), r)
 	require.NoError(t, err)
 	assert.Equal(t, string(domain.StatusUp), result.Status)
 	assert.Equal(t, "PONG received", result.ResponseData)
@@ -64,7 +74,7 @@ func TestRedisProbe_WrongResponse(t *testing.T) {
 		conn.Write([]byte("-NOAUTH Authentication required\r\n"))
 	})
 	r := protoResource(host, port, "redis")
-	result, err := NewProtocolStrategy(2*time.Second).Execute(context.Background(), r)
+	result, err := newTestProtocolStrategy(2*time.Second).Execute(context.Background(), r)
 	require.NoError(t, err)
 	assert.Equal(t, string(domain.StatusDown), result.Status)
 	require.NotNil(t, result.Cause)
@@ -79,7 +89,7 @@ func TestRedisProbe_ConnectionRefused(t *testing.T) {
 	ln.Close()
 
 	r := protoResource("127.0.0.1", port, "redis")
-	result, err := NewProtocolStrategy(2*time.Second).Execute(context.Background(), r)
+	result, err := newTestProtocolStrategy(2*time.Second).Execute(context.Background(), r)
 	require.NoError(t, err)
 	assert.Equal(t, string(domain.StatusDown), result.Status)
 	assert.NotNil(t, result.Cause)
@@ -98,7 +108,7 @@ func TestRedisProbe_Timeout(t *testing.T) {
 		ProtocolType: &protoType,
 		ProtocolPort: &port,
 	}
-	result, err := NewProtocolStrategy(100*time.Millisecond).Execute(context.Background(), r)
+	result, err := newTestProtocolStrategy(100*time.Millisecond).Execute(context.Background(), r)
 	require.NoError(t, err)
 	assert.Equal(t, string(domain.StatusDown), result.Status)
 	assert.NotNil(t, result.Cause)
@@ -119,7 +129,7 @@ func TestMongoProbe_HelloSuccess(t *testing.T) {
 		conn.Write(validMongoResponse)
 	})
 	r := protoResource(host, port, "mongodb")
-	result, err := NewProtocolStrategy(2*time.Second).Execute(context.Background(), r)
+	result, err := newTestProtocolStrategy(2*time.Second).Execute(context.Background(), r)
 	require.NoError(t, err)
 	assert.Equal(t, string(domain.StatusUp), result.Status)
 	assert.Nil(t, result.Cause)
@@ -153,7 +163,7 @@ func TestMongoProbe_HelloFallbackToIsMaster(t *testing.T) {
 	}()
 
 	r := protoResource("127.0.0.1", port, "mongodb")
-	result, err := NewProtocolStrategy(2*time.Second).Execute(context.Background(), r)
+	result, err := newTestProtocolStrategy(2*time.Second).Execute(context.Background(), r)
 	require.NoError(t, err)
 	assert.Equal(t, string(domain.StatusUp), result.Status)
 	assert.Nil(t, result.Cause)
@@ -195,7 +205,7 @@ func TestMongoProbe_InvalidBSON(t *testing.T) {
 	}()
 
 	r := protoResource("127.0.0.1", badPort, "mongodb")
-	result, err := NewProtocolStrategy(2*time.Second).Execute(context.Background(), r)
+	result, err := newTestProtocolStrategy(2*time.Second).Execute(context.Background(), r)
 	require.NoError(t, err)
 	assert.Equal(t, string(domain.StatusDown), result.Status)
 	require.NotNil(t, result.Cause)
@@ -217,7 +227,7 @@ func TestMongoProbe_Timeout(t *testing.T) {
 		ProtocolType: &protoType,
 		ProtocolPort: &port,
 	}
-	result, err := NewProtocolStrategy(100*time.Millisecond).Execute(context.Background(), r)
+	result, err := newTestProtocolStrategy(100*time.Millisecond).Execute(context.Background(), r)
 	require.NoError(t, err)
 	assert.Equal(t, string(domain.StatusDown), result.Status)
 	assert.NotNil(t, result.Cause)
@@ -230,7 +240,7 @@ func TestFTPProbe_Success(t *testing.T) {
 		conn.Write([]byte("220 ProFTPD server ready\r\n"))
 	})
 	r := protoResource(host, port, "ftp")
-	result, err := NewProtocolStrategy(2*time.Second).Execute(context.Background(), r)
+	result, err := newTestProtocolStrategy(2*time.Second).Execute(context.Background(), r)
 	require.NoError(t, err)
 	assert.Equal(t, string(domain.StatusUp), result.Status)
 	assert.Equal(t, "220 banner received", result.ResponseData)
@@ -242,7 +252,7 @@ func TestFTPProbe_WrongBanner(t *testing.T) {
 		conn.Write([]byte("530 Login incorrect\r\n"))
 	})
 	r := protoResource(host, port, "ftp")
-	result, err := NewProtocolStrategy(2*time.Second).Execute(context.Background(), r)
+	result, err := newTestProtocolStrategy(2*time.Second).Execute(context.Background(), r)
 	require.NoError(t, err)
 	assert.Equal(t, string(domain.StatusDown), result.Status)
 	require.NotNil(t, result.Cause)
@@ -256,7 +266,7 @@ func TestSSHProbe_Success(t *testing.T) {
 		conn.Write([]byte("SSH-2.0-OpenSSH_8.9\r\n"))
 	})
 	r := protoResource(host, port, "ssh")
-	result, err := NewProtocolStrategy(2*time.Second).Execute(context.Background(), r)
+	result, err := newTestProtocolStrategy(2*time.Second).Execute(context.Background(), r)
 	require.NoError(t, err)
 	assert.Equal(t, string(domain.StatusUp), result.Status)
 	assert.Equal(t, "SSH-2.0- banner received", result.ResponseData)
@@ -268,9 +278,28 @@ func TestSSHProbe_WrongBanner(t *testing.T) {
 		conn.Write([]byte("SSH-1.99-OpenSSH_old\r\n")) // SSHv1 not accepted
 	})
 	r := protoResource(host, port, "ssh")
-	result, err := NewProtocolStrategy(2*time.Second).Execute(context.Background(), r)
+	result, err := newTestProtocolStrategy(2*time.Second).Execute(context.Background(), r)
 	require.NoError(t, err)
 	assert.Equal(t, string(domain.StatusDown), result.Status)
 	require.NotNil(t, result.Cause)
 	assert.Equal(t, domain.ProtocolUnexpectedResponse, *result.Cause)
+}
+
+// ─── SSRF Protection ────────────────────────────────────────────────────────
+
+func TestProtocolStrategy_SSRFBlocksLoopback(t *testing.T) {
+	protoType := "redis"
+	port := 6379
+	r := &domain.Resource{
+		Target:       "127.0.0.1",
+		Timeout:      1,
+		ProtocolType: &protoType,
+		ProtocolPort: &port,
+	}
+	// Use real NewProtocolStrategy (with SafeDial) — should block loopback
+	result, err := NewProtocolStrategy(2*time.Second).Execute(context.Background(), r)
+	require.NoError(t, err)
+	assert.Equal(t, string(domain.StatusDown), result.Status)
+	// SafeDial blocks with "safenet: connection to ... blocked"
+	assert.Contains(t, result.ResponseData, "127.0.0.1")
 }

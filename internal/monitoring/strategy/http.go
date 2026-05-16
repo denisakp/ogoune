@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/denisakp/ogoune/internal/domain"
+	"github.com/denisakp/ogoune/pkg/safenet"
 )
 
 type HTTPStrategy struct {
@@ -16,7 +17,12 @@ type HTTPStrategy struct {
 }
 
 func NewHTTPStrategy(timeout time.Duration) *HTTPStrategy {
-	return &HTTPStrategy{client: &http.Client{Timeout: timeout}}
+	return &HTTPStrategy{client: &http.Client{Timeout: timeout, Transport: safenet.NewSafeTransport()}}
+}
+
+// NewHTTPStrategyWithClient creates an HTTPStrategy with a custom HTTP client (for testing).
+func NewHTTPStrategyWithClient(client *http.Client) *HTTPStrategy {
+	return &HTTPStrategy{client: client}
 }
 
 func (s *HTTPStrategy) Execute(ctx context.Context, resource *domain.Resource) (domain.CheckResult, error) {

@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/denisakp/ogoune/internal/api/handler"
+	"github.com/denisakp/ogoune/internal/config"
 	"github.com/denisakp/ogoune/internal/domain"
 	"github.com/denisakp/ogoune/internal/service"
 	"github.com/stretchr/testify/assert"
@@ -68,6 +69,12 @@ func TestNewRouter_PingIsPublicAndResourcesAreProtected(t *testing.T) {
 		nil,
 		nil,
 		false,
+		&config.Config{
+			RateLimitAuth:         10,
+			RateLimitAuthWindow:   1 * time.Minute,
+			RateLimitGlobal:       100,
+			RateLimitGlobalWindow: 1 * time.Minute,
+		},
 	)
 
 	pingReq := httptest.NewRequest(http.MethodGet, "/ping/550e8400-e29b-41d4-a716-446655440111", nil)

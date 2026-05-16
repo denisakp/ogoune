@@ -2,10 +2,12 @@ package strategy
 
 import (
 	"context"
+	"log"
 	"time"
 
 	"github.com/denisakp/ogoune/internal/domain"
 	"github.com/denisakp/ogoune/internal/icmp"
+	"github.com/denisakp/ogoune/pkg/safenet"
 )
 
 // ICMPStrategy implements domain.CheckStrategy for ICMP echo monitors.
@@ -24,6 +26,19 @@ func (s *ICMPStrategy) Execute(ctx context.Context, resource *domain.Resource) (
 	timeout := time.Duration(resource.Timeout) * time.Second
 	if timeout <= 0 {
 		timeout = 30 * time.Second
+	}
+
+	if err := safenet.ValidateResolvedIPs(resource.Target); err != nil {
+		log.Printf("[security] event=ssrf_block strategy=icmp target=%s reason=%v", resource.Target, err)
+		cause := domain.HostUnreachable
+		return domain.CheckResult{
+			Status:       string(domain.StatusDown),
+			ResponseTime: 0,
+			ResponseData: "target blocked by security policy",
+			Cause:        &cause,
+			RequestURL:   resource.Target,
+			ErrorMessage: err.Error(),
+		}, nil
 	}
 
 	result := icmp.Probe(resource.Target, timeout)

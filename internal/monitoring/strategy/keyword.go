@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/denisakp/ogoune/internal/domain"
+	"github.com/denisakp/ogoune/pkg/safenet"
 )
 
 const maxKeywordBodyBytes = 512 * 1024 // 512 KB
@@ -21,7 +22,12 @@ type KeywordStrategy struct {
 
 // NewKeywordStrategy creates a KeywordStrategy with the given HTTP timeout.
 func NewKeywordStrategy(timeout time.Duration) *KeywordStrategy {
-	return &KeywordStrategy{client: &http.Client{Timeout: timeout}}
+	return &KeywordStrategy{client: &http.Client{Timeout: timeout, Transport: safenet.NewSafeTransport()}}
+}
+
+// NewKeywordStrategyWithClient creates a KeywordStrategy with a custom HTTP client (for testing).
+func NewKeywordStrategyWithClient(client *http.Client) *KeywordStrategy {
+	return &KeywordStrategy{client: client}
 }
 
 // Execute runs the keyword check against the resource target.
