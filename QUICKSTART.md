@@ -756,7 +756,7 @@ Keyword matching is **case-sensitive**. The keyword `"Operational"` will not mat
 
 ## Next steps
 
-- [Architecture documentation](./ARCHITECTURE.md) — how Ogoune works under the hood
+- [Architecture documentation](./docs/architecture/ARCHITECTURE.md) — how Ogoune works under the hood
 - [Contributing guidelines](./CONTRIBUTING.md) — how to contribute code or feedback
 - [GitHub Discussions](https://github.com/denisakp/ogoune/discussions) — ask questions
 - [GitHub Issues](https://github.com/denisakp/ogoune/issues) — report bugs

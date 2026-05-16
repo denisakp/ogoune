@@ -32,7 +32,8 @@ Runtime components:
 
 ## 3) Project Layout (Key Paths)
 
-- `cmd/api/main.go`: app bootstrap (config, DB, scheduler, worker, HTTP)
+- `cmd/api/main.go`: thin entry point (~26 lines), delegates to bootstrap package
+- `internal/platform/bootstrap/`: application composition root (config, DB, scheduler, worker, HTTP)
 - `internal/api/router.go`: routes and middleware wiring
 - `internal/api/handler/*`: transport handlers (JSON)
 - `internal/service/*`: business orchestration layer
@@ -188,7 +189,7 @@ Hosted lane:
 
 For deeper service behavior, inspect:
 
-- `cmd/api/main.go`
+- `internal/platform/bootstrap/` (application wiring)
 - `internal/worker/handler_monitoring.go`
 - `internal/monitoring/incident_service.go`
 - `internal/service/statuspage_service.go`

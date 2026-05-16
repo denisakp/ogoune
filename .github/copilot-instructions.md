@@ -24,9 +24,9 @@ Purpose: help AI coding agents be productive immediately in this monorepo. Keep 
 
 ## Backend architecture and conventions
 
-- Entry point: `cmd/api/main.go`
-  - Bootstraps DB, repositories, scheduler runtime (Asynq or TimingWheel), worker, HTTP server.
-  - Registers monitoring strategies: HTTP/TCP in `internal/monitoring/strategy/*` via a map in `main.go`.
+- Entry point: `cmd/api/main.go` (thin orchestrator, ~26 lines)
+  - Delegates to `internal/platform/bootstrap/` which wires DB, repositories, scheduler runtime (Asynq or TimingWheel), worker, HTTP server.
+  - Registers monitoring strategies: HTTP/TCP in `internal/monitoring/strategy/*` via `bootstrap/strategies.go`.
 - HTTP layer:
   - Router: `internal/api/router.go` (Chi). JSON-only; CORS enabled; sets `Content-Type: application/json`.
   - Handlers in `internal/api/handler/*` call services; handlers do not perform DB queries or checks directly.
@@ -57,7 +57,7 @@ Purpose: help AI coding agents be productive immediately in this monorepo. Keep 
   2. Add handler in `internal/api/handler/*` and route in `internal/api/router.go`.
   3. If scheduling/monitoring-related, go through `repository.Scheduler` instead of running checks.
 - New monitor type:
-  - Implement `domain.CheckStrategy` in `internal/monitoring/strategy/`, register in `main.go` strategies map.
+  - Implement `domain.CheckStrategy` in `internal/monitoring/strategy/`, register in `internal/platform/bootstrap/strategies.go`.
 - Frontend page/feature:
   - Add service in `web/src/services/`, types in `web/src/types/`, composable/store in `web/src/composables/` or `web/src/stores/`, route in `web/src/router/index.ts`, and a view in `web/src/views/`.
 
@@ -71,5 +71,5 @@ Purpose: help AI coding agents be productive immediately in this monorepo. Keep 
 
 ## Key files to reference
 
-- Backend: `cmd/api/main.go`, `internal/api/router.go`, `internal/service/resource_service.go`, `internal/worker/handler_monitoring.go`, `internal/monitoring/incident_service.go`, `internal/repository/interfaces.go`, `internal/domain/models.go`.
+- Backend: `internal/platform/bootstrap/` (app wiring), `internal/api/router.go`, `internal/service/resource_service.go`, `internal/worker/handler_monitoring.go`, `internal/monitoring/incident_service.go`, `internal/repository/interfaces.go`, `internal/domain/models.go`.
 - Frontend: `web/src/libs/axios.helper.ts`, `web/src/services/resourceService.ts`, `web/src/composables/useResources.ts`, `web/src/router/index.ts`, `web/src/types/index.ts`, `web/src/App.vue`.

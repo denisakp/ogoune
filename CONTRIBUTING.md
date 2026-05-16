@@ -123,7 +123,8 @@ npm run test
 
 ```
 ogoune/
-├── cmd/api/              → main entrypoint (server + worker)
+├── cmd/api/              → thin entry point (delegates to bootstrap)
+├── internal/platform/bootstrap/ → application composition root (wiring)
 ├── internal/
 │   ├── api/              → HTTP router, handlers, middleware
 │   ├── domain/           → models, constants (models.go is the source of truth)
@@ -151,7 +152,7 @@ ogoune/
 The best starting point for understanding the codebase:
 - `internal/domain/models.go` — all data models
 - `internal/api/router.go` — all API routes
-- `cmd/api/main.go` — how everything is wired together
+- `internal/platform/bootstrap/` — how everything is wired together (one file per concern)
 
 ---
 
@@ -256,7 +257,7 @@ Steps to verify the change works.
 1. Create `internal/monitoring/strategy/yourtype.go`
 2. Implement the `Strategy` interface
 3. Add `ResourceYourType ResourceType = "yourtype"` to `domain/models.go`
-4. Register it in `cmd/api/main.go` in the strategies map
+4. Register it in `internal/platform/bootstrap/strategies.go`
 
 ### Where to add a new notification channel
 
@@ -341,7 +342,7 @@ You don't need to write code. Detailed feedback about real-world usage is worth 
 ### What needs documenting
 
 - `QUICKSTART.md` — the detailed setup guide (currently sparse)
-- `ARCHITECTURE.md` — how the backend is designed
+- `docs/architecture/ARCHITECTURE.md` — how the backend is designed
 - Inline code comments — especially in `handler_monitoring.go` and `incident_service.go`
 - API reference — the endpoints, request/response shapes
 

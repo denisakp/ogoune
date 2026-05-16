@@ -66,7 +66,7 @@ Handlers never run checks or query DB directly. Scheduling goes through the Sche
 
 ### Key layers
 
-- **Entry point**: `cmd/api/main.go` — bootstraps everything, wires dependencies
+- **Entry point**: `cmd/api/main.go` — thin orchestrator (~26 lines), delegates to `internal/platform/bootstrap/`
 - **HTTP**: `internal/api/router.go` (Chi router), handlers in `internal/api/handler/`
 - **Domain models**: `internal/domain/models.go` — source of truth, IDs are ULIDs (set in `BeforeCreate` GORM hook)
 - **Services**: `internal/service/` — business logic, domain-level errors (not HTTP errors)
@@ -99,7 +99,7 @@ Vue 3 Composition API + TypeScript + Pinia + Ant Design Vue.
 
 1. Implement `CheckStrategy` in `internal/monitoring/strategy/yourtype.go`
 2. Add `ResourceYourType` constant to `internal/domain/models.go`
-3. Register in the strategies map in `cmd/api/main.go`
+3. Register in `internal/platform/bootstrap/strategies.go`
 
 ### Adding a new notification channel
 
@@ -177,5 +177,5 @@ Before completing any task or commit, you MUST:
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan
 # currentDate
-@specs/034-frontend-quality-improvements/plan.md
+@specs/035-bootstrap-extraction/plan.md
 <!-- SPECKIT END -->
