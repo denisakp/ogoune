@@ -1,8 +1,11 @@
 package config
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"log/slog"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -113,8 +116,8 @@ func Load() Config {
 		WebHookIsEnabled: webhookIsEnabled,
 		StaticDir:        GetEnv("STATIC_DIR", "web/dist"),
 		AuthEmail:        GetEnv("AUTH_EMAIL", "admin@ogoune.test"),
-		AuthPassword:     GetEnv("AUTH_PASSWORD", "ogu3n3@rd"),
-		JWTSecret:        GetEnv("JWT_SECRET", "ogoune-secret-key-change-in-production"),
+		AuthPassword:     GetEnv("AUTH_PASSWORD", ""),
+		JWTSecret:        GetEnv("JWT_SECRET", ""),
 
 		// Scheduler defaults (mode determined separately)
 		SchedulerMode:                  GetEnv("SCHEDULER_MODE", "timingwheel"),
@@ -267,6 +270,12 @@ func MustInit() Config {
 		os.Exit(1)
 	}
 
+	// Resolve JWT secret: env → persisted file → auto-generate
+	cfg.JWTSecret = resolveJWTSecret(cfg.SQLitePath)
+
+	// Resolve auth password: env → auto-generate and log
+	cfg.AuthPassword = resolveAuthPassword()
+
 	slog.Info("configuration loaded", "port", cfg.Port, "db_driver", cfg.DBDriver)
 
 	// Log scheduler mode determination
@@ -274,4 +283,60 @@ func MustInit() Config {
 	slog.Info("scheduler mode resolved", "mode", mode)
 
 	return cfg
+}
+
+// resolveJWTSecret returns the JWT secret from env var, a persisted file, or generates a new one.
+// The generated secret is written to <data_dir>/.jwt_secret so it survives restarts.
+func resolveJWTSecret(sqlitePath string) string {
+	if secret := os.Getenv("JWT_SECRET"); secret != "" {
+		return secret
+	}
+
+	dataDir := filepath.Dir(sqlitePath)
+	secretFile := filepath.Join(dataDir, ".jwt_secret")
+
+	if data, err := os.ReadFile(secretFile); err == nil {
+		if secret := strings.TrimSpace(string(data)); secret != "" {
+			return secret
+		}
+	}
+
+	secret := generateRandomHex(32)
+	if err := os.MkdirAll(dataDir, 0750); err == nil {
+		if err := os.WriteFile(secretFile, []byte(secret), 0600); err == nil {
+			slog.Warn("JWT_SECRET not set — auto-generated and saved. Copy this value to your .env to make it explicit.",
+				"file", secretFile,
+				"JWT_SECRET", secret,
+			)
+			return secret
+		}
+	}
+
+	slog.Warn("JWT_SECRET not set and could not persist — sessions will be lost on restart. Set JWT_SECRET in your .env.",
+		"JWT_SECRET", secret,
+	)
+	return secret
+}
+
+// resolveAuthPassword returns the admin password from env var or generates a random one.
+// A generated password is logged once so the user can retrieve it.
+func resolveAuthPassword() string {
+	if password := os.Getenv("AUTH_PASSWORD"); password != "" {
+		return password
+	}
+	password := generateRandomHex(8) // 16-char hex = readable enough
+	slog.Warn("AUTH_PASSWORD not set — generated a temporary admin password. Set AUTH_PASSWORD in your .env to make it permanent.",
+		"AUTH_PASSWORD", password,
+	)
+	return password
+}
+
+// generateRandomHex returns a cryptographically random hex string of n bytes (2n chars).
+func generateRandomHex(n int) string {
+	b := make([]byte, n)
+	if _, err := rand.Read(b); err != nil {
+		// Extremely unlikely; fall back to a timestamp-based value rather than crashing
+		return hex.EncodeToString([]byte("fallback-change-me"))
+	}
+	return hex.EncodeToString(b)
 }

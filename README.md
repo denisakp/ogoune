@@ -32,7 +32,7 @@ docker run -d \
   -p 8080:8080 \
   -v ogoune:/data \
   --name ogoune \
-  ogoune/community:latest
+  ghcr.io/denisakp/ogoune:latest
 ```
 
 Open **http://localhost:8080** and log in:
@@ -48,21 +48,25 @@ No PostgreSQL. No Redis. No reverse proxy. One container.
 <summary>Or with Docker Compose</summary>
 
 ```bash
-curl -o compose.yml https://raw.githubusercontent.com/denisakp/ogoune/main/docker-compose.community.yml
-docker compose up -d
-```
-
-</details>
-
-<details>
-<summary>Or with the full stack (PostgreSQL + Redis)</summary>
-
-```bash
 git clone https://github.com/denisakp/ogoune.git
 cd ogoune
-cp .env.example .env
+cp .env.example .env   # set JWT_SECRET and APP_SECRET_KEY at minimum
 docker compose up -d
 ```
+
+Defaults to **SQLite + in-process scheduler** — no external dependencies.
+
+To switch to the full stack (PostgreSQL + Redis), add these to your `.env`:
+
+```env
+COMPOSE_PROFILES=full
+DB_DRIVER=postgres
+DATABASE_URL=postgres://ogoune:ogoune@postgres:5432/ogoune?sslmode=disable
+SCHEDULER_MODE=asynq
+REDIS_URL=redis://redis:6379
+```
+
+Add `ENTERPRISE_LICENSE_KEY=<your-key>` to activate Enterprise Edition features.
 
 </details>
 

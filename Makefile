@@ -2,7 +2,7 @@ SHELL := /bin/sh
 
 BINARY := dist/ogoune
 
-.PHONY: build build-be build-fe test test-be test-fe lint clean docker swag
+.PHONY: build build-be build-fe test test-be test-fe lint clean docker swag run-ci
 
 build: build-fe build-be
 
@@ -34,3 +34,15 @@ docker:
 
 swag:
 	swag init -g cmd/api/main.go --output docs --parseDependency --parseInternal
+
+run-ci:
+	@echo "=== Lint ==="
+	go vet ./...
+	cd web && pnpm lint
+	@echo "=== Backend tests (race + timeout, like CI) ==="
+	go test -v -race -timeout 120s ./...
+	@echo "=== Frontend tests ==="
+	cd web && pnpm test
+	@echo "=== Build ==="
+	$(MAKE) build
+	@echo "=== CI local: ALL PASSED ==="

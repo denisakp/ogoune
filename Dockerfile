@@ -29,9 +29,9 @@ WORKDIR /build
 COPY go.mod go.sum ./
 RUN go mod download && go mod verify
 
-COPY cmd/
-COPY internal internal
-COPY pkg pkg
+COPY cmd/ cmd/
+COPY internal/ internal/
+COPY pkg/ pkg/
 
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build \
     -ldflags='-w -s -extldflags "-static"' \

@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -325,10 +326,18 @@ func main() {
 
 		// Initialize Asynq client, inspector, and scheduler
 		asynqClient = asynq.NewClient(redisOpt)
-		defer asynqClient.Close()
+		defer func(asynqClient *asynq.Client) {
+			err := asynqClient.Close()
+			if err != nil {
+			}
+		}(asynqClient)
 
 		asynqInspector = asynq.NewInspector(redisOpt)
-		defer asynqInspector.Close()
+		defer func(asynqInspector *asynq.Inspector) {
+			err := asynqInspector.Close()
+			if err != nil {
+			}
+		}(asynqInspector)
 
 		// Create scheduler for periodic monitoring tasks
 		asynqScheduler = asynq.NewScheduler(redisOpt, nil)
@@ -638,12 +647,6 @@ func main() {
 	authService := service.NewAuthService(userRepo, jwtManager)
 
 	// Create default admin user on first startup
-	if cfg.AuthEmail == "" {
-		cfg.AuthEmail = "admin@ogoune.test"
-	}
-	if cfg.AuthPassword == "" {
-		cfg.AuthPassword = "ogu3n3@rd"
-	}
 	_, _ = authService.CreateDefaultUser(context.Background(), cfg.AuthEmail, cfg.AuthPassword)
 
 	// Initialize JSON API handlers (no template dependencies)
@@ -672,7 +675,10 @@ func main() {
 	heartbeatV1Handler := v1handler.NewHeartbeatV1Handler(resourceService)
 
 	// Create router with injected handlers
-	os.Setenv("APP_VERSION", appVersion)
+	err = os.Setenv("APP_VERSION", appVersion)
+	if err != nil {
+		return
+	}
 	apiHandler := api.NewRouter(resourceHandler, pingHandler, activityHandler, tagHandler, componentHandler, statusPageHandler, statusPageSettingsHandler, incidentHandler, notificationHandler, maintenanceHandler, statsHandler, systemHandler, authHandler, accountHandler, authService, apiKeyService, monitorV1Handler, incidentV1Handler, channelV1Handler, componentV1Handler, tagV1Handler, statusPageV1Handler, heartbeatV1Handler, cfg.EnableSwagger, &cfg)
 
 	// Root router: mount JSON API under /api
@@ -722,7 +728,7 @@ func main() {
 	go func() {
 		slog.Info("API server listening", "addr", addr)
 		slog.Info("all systems operational")
-		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			slog.Error("failed to start HTTP server", "error", err)
 			os.Exit(1)
 		}

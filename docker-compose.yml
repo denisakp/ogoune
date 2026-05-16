@@ -1,23 +1,76 @@
+# Ogoune — configurable via environment variables
+#
+# Default (zero dependencies — SQLite + in-process scheduler):
+#   cp .env.example .env   # set JWT_SECRET and APP_SECRET_KEY
+#   docker compose up -d
+#
+# Full stack (PostgreSQL + Redis + Asynq):
+#   Add COMPOSE_PROFILES=full to your .env, then:
+#   docker compose up -d
+#
+# Enterprise Edition: add ENTERPRISE_LICENSE_KEY to your .env.
+
 name: ogoune
 
 volumes:
   ogoune-data:
+  postgres-data:
 
 services:
+  postgres:
+    profiles: [full]
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-ogoune}
+      POSTGRES_USER: ${POSTGRES_USER:-ogoune}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-ogoune}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-ogoune}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    profiles: [full]
+    image: redis:7-alpine
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
   ogoune:
     image: ghcr.io/denisakp/ogoune:latest
+    restart: unless-stopped
     ports:
       - "${APP_PORT:-8080}:8080"
     environment:
-      DB_DRIVER: sqlite
+      # Database — defaults to embedded SQLite, override to postgres for full stack
+      DB_DRIVER: ${DB_DRIVER:-sqlite}
       SQLITE_PATH: /data/ogoune.db
+      DATABASE_URL: ${DATABASE_URL:-}
       DB_LOG_LEVEL: error
-      # Scheduler runs in-process without Redis
-      SCHEDULER_MODE: timingwheel
-      SCHEDULER_MAX_WORKERS: 10
-      SCHEDULER_TICK_INTERVAL: 1s
-      SCHEDULER_SHUTDOWN_TIMEOUT: 30s
+
+      # Scheduler — defaults to in-process TimingWheel, override to asynq for full stack
+      SCHEDULER_MODE: ${SCHEDULER_MODE:-timingwheel}
+      SCHEDULER_MAX_WORKERS: ${SCHEDULER_MAX_WORKERS:-10}
+      SCHEDULER_TICK_INTERVAL: ${SCHEDULER_TICK_INTERVAL:-1s}
+      SCHEDULER_SHUTDOWN_TIMEOUT: ${SCHEDULER_SHUTDOWN_TIMEOUT:-30s}
+      REDIS_URL: ${REDIS_URL:-}
+
+      # Security — required, generate with: openssl rand -hex 32
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
+      APP_SECRET_KEY: ${APP_SECRET_KEY:?APP_SECRET_KEY is required}
+
+      # Enterprise Edition — leave empty for Community Edition
+      ENTERPRISE_LICENSE_KEY: ${ENTERPRISE_LICENSE_KEY:-}
+
       STATIC_DIR: /app/static
       PORT: 8080
     volumes:
       - ogoune-data:/data
+
