@@ -68,14 +68,14 @@ func mapIncidentResponse(inc *domain.Incident) dtoV1.IncidentResponse {
 func (h *IncidentHandler) List(w http.ResponseWriter, r *http.Request) {
 	params, errs := parsePagination(r)
 	if len(errs) > 0 {
-		respondError(w, http.StatusUnprocessableEntity, "VALIDATION_FAILED", "invalid pagination parameters", errs...)
+		respondError(w, r, http.StatusUnprocessableEntity, "VALIDATION_FAILED", "invalid pagination parameters", errs...)
 		return
 	}
 
 	// Validate status filter
 	statusFilter := r.URL.Query().Get("status")
 	if statusFilter != "" && statusFilter != "open" && statusFilter != "resolved" {
-		respondError(w, http.StatusUnprocessableEntity, "VALIDATION_FAILED", "invalid status filter",
+		respondError(w, r, http.StatusUnprocessableEntity, "VALIDATION_FAILED", "invalid status filter",
 			dtoV1.FieldError{Field: "status", Message: "must be 'open' or 'resolved'"})
 		return
 	}
@@ -85,13 +85,13 @@ func (h *IncidentHandler) List(w http.ResponseWriter, r *http.Request) {
 	offset := (params.Page - 1) * params.PerPage
 	items, err := h.service.ListAll(r.Context(), params.PerPage, offset)
 	if err != nil {
-		respondError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to list incidents")
+		respondError(w, r, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to list incidents")
 		return
 	}
 
 	all, err := h.service.ListAll(r.Context(), 10000, 0)
 	if err != nil {
-		respondError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to count incidents")
+		respondError(w, r, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to count incidents")
 		return
 	}
 	total := len(all)
@@ -130,7 +130,7 @@ func (h *IncidentHandler) Get(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 	inc, err := h.service.GetIncidentByID(r.Context(), id)
 	if err != nil || inc == nil {
-		respondError(w, http.StatusNotFound, "RESOURCE_NOT_FOUND", "incident not found")
+		respondError(w, r, http.StatusNotFound, "RESOURCE_NOT_FOUND", "incident not found")
 		return
 	}
 	respond(w, http.StatusOK, mapIncidentResponse(inc))

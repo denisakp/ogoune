@@ -196,11 +196,11 @@ func TestCreateResource_ValidationErrors(t *testing.T) {
 
 			assert.Equal(t, http.StatusBadRequest, rec.Code)
 
-			var errorResp map[string]string
+			var errorResp map[string]interface{}
 			err := json.NewDecoder(rec.Body).Decode(&errorResp)
 			require.NoError(t, err)
 
-			assert.Contains(t, errorResp["error"], tt.expected)
+			assert.Contains(t, errorResp["detail"], tt.expected)
 		})
 	}
 }
@@ -229,11 +229,11 @@ func TestCreateResource_ServiceError(t *testing.T) {
 
 	assert.Equal(t, http.StatusInternalServerError, rec.Code)
 
-	var errorResp map[string]string
+	var errorResp map[string]interface{}
 	err := json.NewDecoder(rec.Body).Decode(&errorResp)
 	require.NoError(t, err)
 
-	assert.Contains(t, errorResp["error"], "Failed to create resource")
+	assert.Contains(t, errorResp["detail"], "Failed to create resource")
 }
 
 func TestCreateResource_InvalidJSON(t *testing.T) {
@@ -306,10 +306,10 @@ func TestCreateResource_HeartbeatValidation422(t *testing.T) {
 	handler.CreateResource(rec, req)
 
 	assert.Equal(t, http.StatusUnprocessableEntity, rec.Code)
-	var errorResp map[string]string
+	var errorResp map[string]interface{}
 	err := json.NewDecoder(rec.Body).Decode(&errorResp)
 	require.NoError(t, err)
-	assert.Contains(t, errorResp["error"], "heartbeat_interval")
+	assert.Contains(t, errorResp["detail"], "heartbeat_interval")
 }
 
 func TestListResources_Success(t *testing.T) {
@@ -460,11 +460,11 @@ func TestListResources_ServiceError(t *testing.T) {
 
 	assert.Equal(t, http.StatusInternalServerError, rec.Code)
 
-	var errorResp map[string]string
+	var errorResp map[string]interface{}
 	err := json.NewDecoder(rec.Body).Decode(&errorResp)
 	require.NoError(t, err)
 
-	assert.Contains(t, errorResp["error"], "Failed to retrieve resources")
+	assert.Contains(t, errorResp["detail"], "Failed to retrieve resources")
 }
 
 func TestPauseResourceMonitoring_Success(t *testing.T) {
@@ -510,11 +510,11 @@ func TestPauseResourceMonitoring_MissingID(t *testing.T) {
 
 	assert.Equal(t, http.StatusBadRequest, rec.Code)
 
-	var errorResp map[string]string
+	var errorResp map[string]interface{}
 	err := json.NewDecoder(rec.Body).Decode(&errorResp)
 	require.NoError(t, err)
 
-	assert.Contains(t, errorResp["error"], "Resource ID is required")
+	assert.Contains(t, errorResp["detail"], "Resource ID is required")
 }
 
 func TestPauseResourceMonitoring_ServiceError(t *testing.T) {
@@ -536,11 +536,11 @@ func TestPauseResourceMonitoring_ServiceError(t *testing.T) {
 
 	assert.Equal(t, http.StatusInternalServerError, rec.Code)
 
-	var errorResp map[string]string
+	var errorResp map[string]interface{}
 	err := json.NewDecoder(rec.Body).Decode(&errorResp)
 	require.NoError(t, err)
 
-	assert.Contains(t, errorResp["error"], "Failed to pause monitoring")
+	assert.Contains(t, errorResp["detail"], "Failed to pause monitoring")
 }
 
 func TestResumeResourceMonitoring_Success(t *testing.T) {
@@ -584,11 +584,11 @@ func TestResumeResourceMonitoring_MissingID(t *testing.T) {
 
 	assert.Equal(t, http.StatusBadRequest, rec.Code)
 
-	var errorResp map[string]string
+	var errorResp map[string]interface{}
 	err := json.NewDecoder(rec.Body).Decode(&errorResp)
 	require.NoError(t, err)
 
-	assert.Contains(t, errorResp["error"], "Resource ID is required")
+	assert.Contains(t, errorResp["detail"], "Resource ID is required")
 }
 
 func TestResumeResourceMonitoring_ServiceError(t *testing.T) {
@@ -610,11 +610,11 @@ func TestResumeResourceMonitoring_ServiceError(t *testing.T) {
 
 	assert.Equal(t, http.StatusInternalServerError, rec.Code)
 
-	var errorResp map[string]string
+	var errorResp map[string]interface{}
 	err := json.NewDecoder(rec.Body).Decode(&errorResp)
 	require.NoError(t, err)
 
-	assert.Contains(t, errorResp["error"], "Failed to resume monitoring")
+	assert.Contains(t, errorResp["detail"], "Failed to resume monitoring")
 }
 
 func TestUpdateResource_Success(t *testing.T) {
@@ -736,11 +736,11 @@ func TestUpdateResource_ValidationFailed(t *testing.T) {
 
 	assert.Equal(t, http.StatusBadRequest, rec.Code)
 
-	var errorResp map[string]string
+	var errorResp map[string]interface{}
 	err := json.NewDecoder(rec.Body).Decode(&errorResp)
 	require.NoError(t, err)
 
-	assert.Contains(t, errorResp["error"], "validation failed")
+	assert.Contains(t, errorResp["detail"], "validation failed")
 }
 
 func TestUpdateResource_NotFound(t *testing.T) {
@@ -767,11 +767,11 @@ func TestUpdateResource_NotFound(t *testing.T) {
 
 	assert.Equal(t, http.StatusNotFound, rec.Code)
 
-	var errorResp map[string]string
+	var errorResp map[string]interface{}
 	err := json.NewDecoder(rec.Body).Decode(&errorResp)
 	require.NoError(t, err)
 
-	assert.Contains(t, errorResp["error"], "Resource not found")
+	assert.Contains(t, errorResp["detail"], "Resource not found")
 }
 
 func TestUpdateResource_MissingID(t *testing.T) {
@@ -794,11 +794,11 @@ func TestUpdateResource_MissingID(t *testing.T) {
 
 	assert.Equal(t, http.StatusBadRequest, rec.Code)
 
-	var errorResp map[string]string
+	var errorResp map[string]interface{}
 	err := json.NewDecoder(rec.Body).Decode(&errorResp)
 	require.NoError(t, err)
 
-	assert.Contains(t, errorResp["error"], "Resource ID is required")
+	assert.Contains(t, errorResp["detail"], "Resource ID is required")
 }
 
 func TestUpdateResource_InvalidJSON(t *testing.T) {
@@ -816,11 +816,11 @@ func TestUpdateResource_InvalidJSON(t *testing.T) {
 
 	assert.Equal(t, http.StatusBadRequest, rec.Code)
 
-	var errorResp map[string]string
+	var errorResp map[string]interface{}
 	err := json.NewDecoder(rec.Body).Decode(&errorResp)
 	require.NoError(t, err)
 
-	assert.Contains(t, errorResp["error"], "Invalid request payload")
+	assert.Contains(t, errorResp["detail"], "Invalid request payload")
 }
 
 func TestUpdateResource_ServiceError(t *testing.T) {
@@ -847,11 +847,11 @@ func TestUpdateResource_ServiceError(t *testing.T) {
 
 	assert.Equal(t, http.StatusInternalServerError, rec.Code)
 
-	var errorResp map[string]string
+	var errorResp map[string]interface{}
 	err := json.NewDecoder(rec.Body).Decode(&errorResp)
 	require.NoError(t, err)
 
-	assert.Contains(t, errorResp["error"], "Failed to update resource")
+	assert.Contains(t, errorResp["detail"], "Failed to update resource")
 }
 
 func TestUpdateResource_UpdateTargetWithValidation(t *testing.T) {
@@ -979,11 +979,11 @@ func TestDeleteResource_NotFound(t *testing.T) {
 
 	assert.Equal(t, http.StatusNotFound, rec.Code)
 
-	var errorResp map[string]string
+	var errorResp map[string]interface{}
 	err := json.NewDecoder(rec.Body).Decode(&errorResp)
 	require.NoError(t, err)
 
-	assert.Contains(t, errorResp["error"], "Resource not found")
+	assert.Contains(t, errorResp["detail"], "Resource not found")
 }
 
 func TestDeleteResource_MissingID(t *testing.T) {
@@ -1001,11 +1001,11 @@ func TestDeleteResource_MissingID(t *testing.T) {
 
 	assert.Equal(t, http.StatusBadRequest, rec.Code)
 
-	var errorResp map[string]string
+	var errorResp map[string]interface{}
 	err := json.NewDecoder(rec.Body).Decode(&errorResp)
 	require.NoError(t, err)
 
-	assert.Contains(t, errorResp["error"], "Resource ID is required")
+	assert.Contains(t, errorResp["detail"], "Resource ID is required")
 }
 
 func TestDeleteResource_ServiceError(t *testing.T) {
@@ -1027,11 +1027,11 @@ func TestDeleteResource_ServiceError(t *testing.T) {
 
 	assert.Equal(t, http.StatusInternalServerError, rec.Code)
 
-	var errorResp map[string]string
+	var errorResp map[string]interface{}
 	err := json.NewDecoder(rec.Body).Decode(&errorResp)
 	require.NoError(t, err)
 
-	assert.Contains(t, errorResp["error"], "Failed to delete resource")
+	assert.Contains(t, errorResp["detail"], "Failed to delete resource")
 }
 
 func TestGetLive_200_AllFields(t *testing.T) {
@@ -1113,10 +1113,10 @@ func TestGetLive_404_UnknownID(t *testing.T) {
 
 	assert.Equal(t, http.StatusNotFound, rec.Code)
 
-	var errorResp map[string]string
+	var errorResp map[string]interface{}
 	err := json.NewDecoder(rec.Body).Decode(&errorResp)
 	require.NoError(t, err)
-	assert.Contains(t, errorResp["error"], "Resource not found")
+	assert.Contains(t, errorResp["detail"], "Resource not found")
 }
 
 func TestGetLive_NullActiveIncident(t *testing.T) {

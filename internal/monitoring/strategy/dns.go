@@ -3,7 +3,7 @@ package strategy
 import (
 	"context"
 	"fmt"
-	"log"
+	"log/slog"
 	"net"
 	"strings"
 	"time"
@@ -36,7 +36,12 @@ func (s *DNSStrategy) Execute(ctx context.Context, resource *domain.Resource) (d
 	for _, addr := range addrs {
 		ip := net.ParseIP(addr)
 		if ip != nil && safenet.IsBlockedIP(ip) {
-			log.Printf("[security] event=ssrf_warning strategy=dns target=%s resolved_ip=%s reason=resolved to blocked IP range", resource.Target, addr)
+			slog.WarnContext(ctx, "SSRF warning: resolved to blocked IP range",
+				slog.String("event", "ssrf_warning"),
+				slog.String("strategy", "dns"),
+				slog.String("target", resource.Target),
+				slog.String("resolved_ip", addr),
+			)
 		}
 	}
 

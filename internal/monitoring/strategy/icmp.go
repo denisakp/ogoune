@@ -2,7 +2,7 @@ package strategy
 
 import (
 	"context"
-	"log"
+	"log/slog"
 	"time"
 
 	"github.com/denisakp/ogoune/internal/domain"
@@ -29,7 +29,12 @@ func (s *ICMPStrategy) Execute(ctx context.Context, resource *domain.Resource) (
 	}
 
 	if err := safenet.ValidateResolvedIPs(resource.Target); err != nil {
-		log.Printf("[security] event=ssrf_block strategy=icmp target=%s reason=%v", resource.Target, err)
+		slog.WarnContext(ctx, "SSRF block",
+			slog.String("event", "ssrf_block"),
+			slog.String("strategy", "icmp"),
+			slog.String("target", resource.Target),
+			slog.String("reason", err.Error()),
+		)
 		cause := domain.HostUnreachable
 		return domain.CheckResult{
 			Status:       string(domain.StatusDown),

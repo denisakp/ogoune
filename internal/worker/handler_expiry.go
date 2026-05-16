@@ -2,7 +2,7 @@ package worker
 
 import (
 	"context"
-	"log"
+	"log/slog"
 
 	"github.com/denisakp/ogoune/internal/domain"
 	"github.com/denisakp/ogoune/internal/repository"
@@ -72,14 +72,14 @@ func (h *ExpiryTaskHandler) ProcessTask(ctx context.Context, _ *asynq.Task) erro
 		}
 
 		if err := h.processResource(ctx, resource); err != nil {
-			log.Printf("[ExpiryTaskHandler] resource %s (%s): %v", resource.ID, resource.Name, err)
+			slog.Error("failed to process resource", "resource_id", resource.ID, "resource_name", resource.Name, "error", err)
 			// Intentionally continue — one failing resource must not block others.
 		}
 	}
 
 	// House-keep old log entries regardless of per-resource outcomes.
 	if err := h.expiry.CleanupOldLogs(ctx); err != nil {
-		log.Printf("[ExpiryTaskHandler] CleanupOldLogs failed: %v", err)
+		slog.Error("cleanup old logs failed", "error", err)
 	}
 
 	return nil
@@ -100,12 +100,12 @@ func (h *ExpiryTaskHandler) processResource(ctx context.Context, resource *domai
 	if resource.Metadata != nil {
 		if h.sslRenewed(resource.Metadata, metadata) {
 			if err := h.expiry.ResetLogs(ctx, resource.ID, "ssl"); err != nil {
-				log.Printf("[ExpiryTaskHandler] ResetLogs(ssl) for %s: %v", resource.ID, err)
+				slog.Error("failed to reset expiry logs", "resource_id", resource.ID, "expiry_type", "ssl", "error", err)
 			}
 		}
 		if h.domainRenewed(resource.Metadata, metadata) {
 			if err := h.expiry.ResetLogs(ctx, resource.ID, "domain"); err != nil {
-				log.Printf("[ExpiryTaskHandler] ResetLogs(domain) for %s: %v", resource.ID, err)
+				slog.Error("failed to reset expiry logs", "resource_id", resource.ID, "expiry_type", "domain", "error", err)
 			}
 		}
 	}
@@ -116,7 +116,7 @@ func (h *ExpiryTaskHandler) processResource(ctx context.Context, resource *domai
 	// Resolve notification channels for this resource.
 	channels, err := h.channels.FindByResourceID(ctx, resource.ID)
 	if err != nil {
-		log.Printf("[ExpiryTaskHandler] FindByResourceID for %s: %v", resource.ID, err)
+		slog.Warn("failed to find notification channels for resource", "resource_id", resource.ID, "error", err)
 		channels = nil
 	}
 

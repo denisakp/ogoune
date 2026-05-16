@@ -12,7 +12,6 @@ import (
 	v1 "github.com/denisakp/ogoune/internal/api/handler/v1"
 	"github.com/denisakp/ogoune/internal/api/middleware"
 	"github.com/denisakp/ogoune/internal/domain"
-	dtoV1 "github.com/denisakp/ogoune/internal/dto/v1"
 	"github.com/go-chi/chi/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -332,12 +331,12 @@ func TestTagHandler_List_InvalidPagination_Returns422WithFields(t *testing.T) {
 			router.ServeHTTP(rr, req)
 
 			require.Equal(t, http.StatusUnprocessableEntity, rr.Code)
-			var out dtoV1.ErrorResponse
+			var out problemDetailResponse
 			require.NoError(t, json.Unmarshal(rr.Body.Bytes(), &out))
-			assert.Equal(t, "VALIDATION_FAILED", out.Error.Code)
-			require.NotEmpty(t, out.Error.Fields, "error.fields should be non-empty")
-			assert.Equal(t, tc.expectedField, out.Error.Fields[0].Field)
-			assert.Equal(t, "must be a positive integer", out.Error.Fields[0].Message)
+			assert.Equal(t, "VALIDATION_FAILED", out.Type)
+			require.NotEmpty(t, out.Errors, "errors should be non-empty")
+			assert.Equal(t, tc.expectedField, out.Errors[0].Field)
+			assert.Equal(t, "must be a positive integer", out.Errors[0].Message)
 		})
 	}
 }
@@ -364,12 +363,12 @@ func TestComponentHandler_List_InvalidPagination_Returns422WithFields(t *testing
 			router.ServeHTTP(rr, req)
 
 			require.Equal(t, http.StatusUnprocessableEntity, rr.Code)
-			var out dtoV1.ErrorResponse
+			var out problemDetailResponse
 			require.NoError(t, json.Unmarshal(rr.Body.Bytes(), &out))
-			assert.Equal(t, "VALIDATION_FAILED", out.Error.Code)
-			require.NotEmpty(t, out.Error.Fields, "error.fields should be non-empty")
-			assert.Equal(t, tc.expectedField, out.Error.Fields[0].Field)
-			assert.Equal(t, "must be a positive integer", out.Error.Fields[0].Message)
+			assert.Equal(t, "VALIDATION_FAILED", out.Type)
+			require.NotEmpty(t, out.Errors, "errors should be non-empty")
+			assert.Equal(t, tc.expectedField, out.Errors[0].Field)
+			assert.Equal(t, "must be a positive integer", out.Errors[0].Message)
 		})
 	}
 }

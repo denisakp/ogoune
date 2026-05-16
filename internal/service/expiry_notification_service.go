@@ -3,7 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
-	"log"
+	"log/slog"
 	"strconv"
 	"strings"
 	"time"
@@ -65,14 +65,14 @@ func (s *ExpiryNotificationService) CheckAndNotify(ctx context.Context, resource
 	// Check SSL timeline
 	if resource.Metadata != nil && resource.Metadata.SSLExpirationDate != nil {
 		if err := s.checkExpiry(ctx, resource, "ssl", *resource.Metadata.SSLExpirationDate, resource.Metadata.SSLIssuer, thresholds, resourceChannels); err != nil {
-			log.Printf("[ExpiryNotificationService] SSL check failed for resource %s: %v", resource.ID, err)
+			slog.Error("SSL expiry check failed", "resource_id", resource.ID, "error", err)
 		}
 	}
 
 	// Check domain timeline (silently skip if date is unavailable — NFR-003)
 	if resource.Metadata != nil && resource.Metadata.DomainExpirationDate != nil {
 		if err := s.checkExpiry(ctx, resource, "domain", *resource.Metadata.DomainExpirationDate, resource.Metadata.DomainRegistrar, thresholds, resourceChannels); err != nil {
-			log.Printf("[ExpiryNotificationService] Domain check failed for resource %s: %v", resource.ID, err)
+			slog.Error("domain expiry check failed", "resource_id", resource.ID, "error", err)
 		}
 	}
 
@@ -141,7 +141,7 @@ func (s *ExpiryNotificationService) sendExpiryNotification(
 
 	for _, ch := range resourceChannels {
 		if err := s.dispatchNotification(ctx, payload, ch); err != nil {
-			log.Printf("[ExpiryNotificationService] Failed to dispatch to channel %s (%s): %v", ch.ID, ch.Type, err)
+			slog.Error("failed to dispatch expiry notification", "channel_id", ch.ID, "channel_type", ch.Type, "error", err)
 			return err // at-least-once: do not write log on failure
 		}
 	}
@@ -172,7 +172,7 @@ func (s *ExpiryNotificationService) ResetLogs(ctx context.Context, resourceID, e
 func (s *ExpiryNotificationService) CleanupOldLogs(ctx context.Context) error {
 	cutoff := time.Now().Add(-365 * 24 * time.Hour)
 	if err := s.logs.DeleteOlderThan(ctx, cutoff); err != nil {
-		log.Printf("[ExpiryNotificationService] Failed to cleanup old logs: %v", err)
+		slog.Error("failed to cleanup old expiry notification logs", "error", err)
 		return err
 	}
 	return nil
@@ -202,6 +202,6 @@ func (s *ExpiryNotificationService) dispatchNotification(ctx context.Context, pa
 		return fmt.Errorf("failed to send expiry notification: %w", err)
 	}
 
-	log.Printf("[ExpiryNotificationService] Sent expiry alert via %s channel %s", channel.Type, channel.ID)
+	slog.Info("sent expiry alert", "channel_type", channel.Type, "channel_id", channel.ID)
 	return nil
 }

@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
+	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
@@ -32,6 +32,7 @@ import (
 	"github.com/denisakp/ogoune/internal/service"
 	"github.com/denisakp/ogoune/internal/worker"
 	"github.com/denisakp/ogoune/pkg/crypto"
+	"github.com/denisakp/ogoune/pkg/logger"
 	"github.com/go-chi/chi/v5"
 	"github.com/hibiken/asynq"
 	"github.com/prometheus/client_golang/prometheus"
@@ -42,9 +43,9 @@ const appVersion = "1.0.0"
 
 func logStartupEdition() {
 	if license.IsEnterprise() {
-		log.Println("✓ Ogoune Enterprise Edition")
+		slog.Info("Ogoune Enterprise Edition")
 	} else {
-		log.Println("✓ Ogoune Community Edition")
+		slog.Info("Ogoune Community Edition")
 	}
 }
 
@@ -126,33 +127,33 @@ func runStartupPendingNotificationRetry(ctx context.Context, retryService pendin
 		return
 	}
 
-	log.Println("[STARTUP] Checking for pending notifications...")
+	slog.Info("checking for pending notifications")
 	summary, err := retryService.RetryPendingNotifications(ctx, 1000)
 	if err != nil {
-		log.Printf("[STARTUP] [WARNING] Pending notification retry failed: %v", err)
+		slog.Warn("pending notification retry failed", "error", err)
 		return
 	}
 
-	log.Printf("[STARTUP] Pending notifications: scanned=%d retried=%d expired=%d failed=%d skipped_claimed=%d",
-		summary.ScannedCount,
-		summary.RetriedCount,
-		summary.ExpiredCount,
-		summary.FailedCount,
-		summary.SkippedClaimedCount,
+	slog.Info("pending notifications processed",
+		"scanned", summary.ScannedCount,
+		"retried", summary.RetriedCount,
+		"expired", summary.ExpiredCount,
+		"failed", summary.FailedCount,
+		"skipped_claimed", summary.SkippedClaimedCount,
 	)
 }
 
 func logICMPCapabilityState(enableICMP bool, capability icmppkg.CapabilityResult) {
 	if enableICMP {
 		if capability.Available {
-			log.Println("✓ [ICMP] ICMP probing enabled and capability available")
+			slog.Info("ICMP probing enabled and capability available")
 		} else {
-			log.Printf("[ICMP] ICMP probing enabled but capability unavailable: %s", capability.Reason)
+			slog.Warn("ICMP probing enabled but capability unavailable", "reason", capability.Reason)
 		}
 		return
 	}
 
-	log.Println("[ICMP] ICMP probing disabled (set ENABLE_ICMP=true to enable)")
+	slog.Info("ICMP probing disabled (set ENABLE_ICMP=true to enable)")
 }
 
 // @title Ogoune Public API
@@ -164,20 +165,23 @@ func logICMPCapabilityState(enableICMP bool, capability icmppkg.CapabilityResult
 // @in header
 // @name Authorization
 func main() {
-	log.Println("========================================")
-	log.Println("Starting Ogoune Application...")
-	logStartupEdition()
-	log.Println("========================================")
-
-	// Load database configuration
+	// Load database configuration (uses stdlib log temporarily until logger is initialized)
 	cfg := config.MustInit()
+
+	// Initialize structured logger as early as possible after config load
+	l := logger.New(cfg.LogFormat, cfg.LogLevel)
+	slog.SetDefault(l)
+
+	slog.Info("starting Ogoune application")
+	logStartupEdition()
 
 	// Fail fast if APP_SECRET_KEY is missing or malformed — before any I/O.
 	crypto.SetGlobalProvider(&crypto.EnvKeyProvider{})
 	if err := crypto.ValidateKey(); err != nil {
-		log.Fatalf("[startup] crypto: %v", err)
+		slog.Error("crypto key validation failed", "error", err)
+		os.Exit(1)
 	}
-	log.Println("✓ Encryption key validated")
+	slog.Info("encryption key validated")
 
 	// Initialize database connection
 	if err := dbruntime.Init(context.Background(), dbruntime.Config{
@@ -186,29 +190,31 @@ func main() {
 		SQLitePath:  cfg.SQLitePath,
 		LogLevel:    cfg.DBLogLevel,
 	}); err != nil {
-		log.Fatalf("Failed to initialize database: %v", err)
+		slog.Error("failed to initialize database", "error", err)
+		os.Exit(1)
 	}
 
 	// Health check
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 	if err := dbruntime.Ping(ctx); err != nil {
-		log.Fatalf("Database health check failed: %v", err)
+		slog.Error("database health check failed", "error", err)
+		os.Exit(1)
 	}
 
-	log.Println("✓ Database connection established successfully")
+	slog.Info("database connection established")
 
 	// Detect ICMP capability at startup — never fails startup.
 	icmpCapability := icmppkg.Detect()
 	logICMPCapabilityState(cfg.EnableICMP, icmpCapability)
 
-	log.Printf("[auth] Authentication enabled with email: %s", cfg.AuthEmail)
-	log.Println("[auth] JWT-based authentication configured")
+	slog.Info("authentication configured", "email", cfg.AuthEmail)
 
 	// Get database instance
 	db, err := dbruntime.Instance()
 	if err != nil {
-		log.Fatalf("Failed to get database instance: %v", err)
+		slog.Error("failed to get database instance", "error", err)
+		os.Exit(1)
 	}
 
 	// Initialize repositories
@@ -233,7 +239,7 @@ func main() {
 	var metricsReg *prometheus.Registry
 	if cfg.MetricsEnabled {
 		if cfg.MetricsToken == "" {
-			log.Println("[metrics] WARN metrics endpoint is unauthenticated — set METRICS_TOKEN or restrict access at the network level")
+			slog.Warn("metrics endpoint is unauthenticated — set METRICS_TOKEN or restrict access at the network level")
 		}
 		metricsReg = prometheus.NewRegistry()
 		metricsReg.MustRegister(
@@ -243,7 +249,7 @@ func main() {
 		metricsRecorder = metrics.NewPrometheusRecorder(metricsReg)
 		ogouneCollector := metrics.NewOgouneCollector(resourceRepo, incidentRepo, monitoringActivityRepo)
 		metricsReg.MustRegister(ogouneCollector)
-		log.Println("[metrics] Prometheus metrics endpoint enabled")
+		slog.Info("Prometheus metrics endpoint enabled")
 	}
 
 	// ========================================
@@ -272,7 +278,7 @@ func main() {
 		}
 	}
 
-	log.Printf("Starting with scheduler mode: %s", schedulerCfg.Mode)
+	slog.Info("starting with scheduler", "mode", schedulerCfg.Mode)
 
 	// Create adapter for services (implements repository.Scheduler interface)
 	var runtimeScheduler scheduler.Scheduler
@@ -292,10 +298,11 @@ func main() {
 	case scheduler.ModeTimingWheel:
 		runtimeScheduler, err = scheduler.New(schedulerCfg)
 		if err != nil {
-			log.Fatalf("Failed to create scheduler: %v", err)
+			slog.Error("failed to create scheduler", "error", err)
+			os.Exit(1)
 		}
 
-		log.Println("✓ Using TimingWheel scheduler (Community Edition - no Redis required)")
+		slog.Info("using TimingWheel scheduler (Community Edition - no Redis required)")
 		schedulerAdapter = scheduler.NewRepositorySchedulerAdapter(runtimeScheduler)
 		if rs, ok := schedulerAdapter.(interface {
 			ScheduleWithInterval(ctx context.Context, resource *domain.Resource, interval time.Duration) error
@@ -309,7 +316,7 @@ func main() {
 		maintenanceScheduler = nil
 
 	case scheduler.ModeAsynq:
-		log.Println("✓ Using Asynq scheduler (SaaS Edition with Redis)")
+		slog.Info("using Asynq scheduler (SaaS Edition with Redis)")
 
 		// Initialize Redis connection
 		redisOpt = asynq.RedisClientOpt{
@@ -329,7 +336,8 @@ func main() {
 		// Start the scheduler in a goroutine
 		go func() {
 			if err := asynqScheduler.Run(); err != nil {
-				log.Fatalf("Failed to start Asynq scheduler: %v", err)
+				slog.Error("failed to start Asynq scheduler", "error", err)
+				os.Exit(1)
 			}
 		}()
 		defer asynqScheduler.Shutdown()
@@ -343,7 +351,8 @@ func main() {
 
 		runtimeScheduler, err = scheduler.New(schedulerCfg)
 		if err != nil {
-			log.Fatalf("Failed to create scheduler: %v", err)
+			slog.Error("failed to create scheduler", "error", err)
+			os.Exit(1)
 		}
 
 		schedulerAdapter = scheduler.NewRepositorySchedulerAdapter(runtimeScheduler)
@@ -360,11 +369,12 @@ func main() {
 			maintenanceRepo,
 		)
 		if err := maintenanceScheduler.EnsureScheduled(context.Background()); err != nil {
-			log.Printf("Failed to ensure maintenance schedules: %v", err)
+			slog.Error("failed to ensure maintenance schedules", "error", err)
 		}
 
 	default:
-		log.Fatalf("Invalid scheduler mode: %s", schedulerCfg.Mode)
+		slog.Error("invalid scheduler mode", "mode", schedulerCfg.Mode)
+		os.Exit(1)
 	}
 
 	// Initialize enrichment service for resource metadata collection
@@ -386,17 +396,16 @@ func main() {
 	// ========================================
 
 	if err := runtimeScheduler.Start(context.Background(), &resourceRepositoryAdapter{repo: resourceRepo}); err != nil {
-		log.Fatalf("Failed to start scheduler runtime: %v", err)
+		slog.Error("failed to start scheduler runtime", "error", err)
+		os.Exit(1)
 	}
 
 	if schedulerCfg.Mode == scheduler.ModeTimingWheel {
-		// Start TimingWheel in-process scheduler
-		log.Println("✓ TimingWheel scheduler started")
+		slog.Info("TimingWheel scheduler started")
 
-		// For TimingWheel, resources are loaded during Start()
 		activeResources, err := resourceRepo.FindActive(context.Background(), 10000, 0)
 		if err == nil {
-			log.Printf("✓ TimingWheel loaded %d active resources at startup", len(activeResources))
+			slog.Info("TimingWheel loaded active resources", "count", len(activeResources))
 		}
 
 		// Start in-process dispatcher that consumes timingwheel check jobs.
@@ -437,19 +446,19 @@ func main() {
 
 						payload, err := json.Marshal(map[string]string{"resource_id": job.ResourceID})
 						if err != nil {
-							log.Printf("Failed to marshal timingwheel payload for resource %s: %v", job.ResourceID, err)
+							slog.Error("failed to marshal timingwheel payload", "resource_id", job.ResourceID, "error", err)
 							continue
 						}
 
 						task := asynq.NewTask("monitoring:check", payload)
 						if err := monitoringHandler.ProcessTask(context.Background(), task); err != nil {
-							log.Printf("TimingWheel check failed for resource %s: %v", job.ResourceID, err)
+							slog.Error("TimingWheel check failed", "resource_id", job.ResourceID, "error", err)
 						}
 					}
 				}()
 			}
 
-			log.Printf("✓ TimingWheel check dispatcher started with %d workers", workers)
+			slog.Info("TimingWheel check dispatcher started", "workers", workers)
 
 			// Daily expiry check in TimingWheel mode (no Redis).
 			twExpiryNotificationLogRepo := store.NewExpiryNotificationLogRepository(db)
@@ -464,51 +473,48 @@ func main() {
 				defer ticker.Stop()
 				for range ticker.C {
 					if err := twExpiryHandler.ProcessTask(context.Background(), asynq.NewTask(worker.TypeExpiryCheck, nil)); err != nil {
-						log.Printf("TimingWheel expiry:check failed: %v", err)
+						slog.Error("TimingWheel expiry:check failed", "error", err)
 					}
 				}
 			}()
-			log.Println("✓ TimingWheel daily expiry check scheduled")
+			slog.Info("TimingWheel daily expiry check scheduled")
 		}
 
 	} else {
-		// Asynq path: bootstrap as before
-		log.Println("========================================")
-		log.Println("BOOTSTRAP: Scheduling active resources with Asynq...")
-		log.Println("========================================")
+		slog.Info("bootstrapping: scheduling active resources with Asynq")
 
 		bootstrapCtx := context.Background()
-		activeResources, err := resourceRepo.FindActive(bootstrapCtx, 10000, 0) // Large limit to get all
+		activeResources, err := resourceRepo.FindActive(bootstrapCtx, 10000, 0)
 		if err != nil {
-			log.Fatalf("Failed to fetch active resources during bootstrap: %v", err)
+			slog.Error("failed to fetch active resources during bootstrap", "error", err)
+			os.Exit(1)
 		}
 
-		log.Printf("Found %d active resources to schedule", len(activeResources))
+		slog.Info("found active resources to schedule", "count", len(activeResources))
 
 		successCount := 0
 		failureCount := 0
 
 		for _, resource := range activeResources {
-			log.Printf("Scheduling resource: %s (ID: %s)", resource.Name, resource.ID)
+			slog.Debug("scheduling resource", "name", resource.Name, "resource_id", resource.ID)
 
 			if err := schedulerAdapter.Schedule(bootstrapCtx, resource); err != nil {
-				log.Printf(" Failed to schedule resource %s: %v", resource.ID, err)
+				slog.Error("failed to schedule resource", "resource_id", resource.ID, "error", err)
 				failureCount++
 			} else {
-				log.Printf("  ✓ Successfully scheduled resource %s", resource.ID)
+				slog.Debug("successfully scheduled resource", "resource_id", resource.ID)
 				successCount++
 			}
 		}
 
-		log.Println("========================================")
-		log.Printf("Bootstrap completed!")
-		log.Printf("  Total resources processed: %d", len(activeResources))
-		log.Printf("  Successfully scheduled: %d", successCount)
-		log.Printf("  Failed to schedule: %d", failureCount)
-		log.Println("========================================")
+		slog.Info("bootstrap completed",
+			"total", len(activeResources),
+			"success", successCount,
+			"failed", failureCount,
+		)
 
 		if failureCount > 0 {
-			log.Println(" Some resources failed to schedule. Check logs above for details.")
+			slog.Warn("some resources failed to schedule", "failed", failureCount)
 		}
 	}
 
@@ -518,15 +524,16 @@ func main() {
 	// Fail-fast: if detector initialization fails, abort startup rather than silently skip.
 	heartbeatDetector := service.NewHeartbeatDetectorService(resourceRepo, detectorIncidentSvc)
 	if err := startHeartbeatDetector(context.Background(), heartbeatDetector, 60*time.Second); err != nil {
-		log.Fatalf("[STARTUP] Failed to start heartbeat detector: %v", err)
+		slog.Error("failed to start heartbeat detector", "error", err)
+		os.Exit(1)
 	}
-	log.Println("✓ Heartbeat detector started (interval=60s)")
+	slog.Info("heartbeat detector started", "interval", "60s")
 
 	// ========================================
 	// STEP 2: INITIALIZE WORKER (Asynq only)
 	// ========================================
 	if schedulerCfg.Mode == scheduler.ModeAsynq {
-		log.Println("Initializing background worker for Asynq...")
+		slog.Info("initializing background worker for Asynq")
 
 		// Initialize monitoring services for worker
 		strategies := map[domain.ResourceType]domain.CheckStrategy{
@@ -565,7 +572,7 @@ func main() {
 
 		// Register daily expiry check with the Asynq scheduler
 		if _, err := asynqScheduler.Register("@daily", asynq.NewTask(worker.TypeExpiryCheck, nil)); err != nil {
-			log.Printf(" Failed to register expiry:check scheduler: %v", err)
+			slog.Error("failed to register expiry:check scheduler", "error", err)
 		}
 
 		// Create the Asynq worker processor
@@ -576,29 +583,29 @@ func main() {
 
 		// Start worker in a goroutine (non-blocking)
 		go func() {
-			log.Println("✓ Starting Asynq worker server...")
+			slog.Info("starting Asynq worker server")
 			if err := processor.Start(context.Background()); err != nil {
-				log.Fatalf("Could not run Asynq worker server: %v", err)
+				slog.Error("could not run Asynq worker server", "error", err)
+				os.Exit(1)
 			}
 		}()
 
-		log.Printf("Waiting 10 seconds for the worker to start...")
-		// Wait briefly to ensure worker starts before proceeding | this is a simple approach to ensure the worker is ready before handling tasks
+		slog.Info("waiting for worker to start", "delay", "10s")
 		time.Sleep(10 * time.Second)
-		log.Println("✓ Background worker started successfully")
+		slog.Info("background worker started")
 	} else {
-		log.Println("Skipping Asynq worker initialization (TimingWheel mode)")
+		slog.Info("skipping Asynq worker initialization (TimingWheel mode)")
 	}
 
 	go func() {
 		sigCh := make(chan os.Signal, 1)
 		signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
 		<-sigCh
-		log.Printf("Received shutdown signal, gracefully closing %s scheduler...", schedulerCfg.Mode)
+		slog.Info("received shutdown signal, closing scheduler", "mode", string(schedulerCfg.Mode))
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 		defer cancel()
 		if err := runtimeScheduler.Stop(shutdownCtx); err != nil {
-			log.Printf(" Error during scheduler shutdown: %v", err)
+			slog.Error("error during scheduler shutdown", "error", err)
 		}
 		if processor != nil {
 			processor.Stop()
@@ -608,7 +615,7 @@ func main() {
 	// ========================================
 	// STEP 3: INITIALIZE API SERVER
 	// ========================================
-	log.Println("Initializing API server...")
+	slog.Info("initializing API server")
 
 	// Initialize API services
 	resourceService := service.NewResourceService(resourceRepo, incidentRepo, tagsRepo, schedulerAdapter, monitoringActivityRepo, enrichmentService, componentService)
@@ -679,7 +686,7 @@ func main() {
 	})
 	if cfg.MetricsEnabled && metricsReg != nil {
 		rootRouter.Handle("/metrics", metrics.NewHandler(cfg.MetricsToken, metricsReg))
-		log.Println("[metrics] /metrics route registered")
+		slog.Info("/metrics route registered")
 	}
 
 	// ========================================
@@ -688,10 +695,10 @@ func main() {
 	// Serve Vue.js static files if available
 	staticDir := cfg.StaticDir
 	if info, err := os.Stat(staticDir); err == nil && info.IsDir() {
-		log.Printf("✓ Serving static files from: %s", staticDir)
+		slog.Info("serving static files", "dir", staticDir)
 		serveStaticFiles(rootRouter, staticDir)
 	} else {
-		log.Printf(" Static directory not found at %s - frontend will not be served", staticDir)
+		slog.Warn("static directory not found, frontend will not be served", "dir", staticDir)
 	}
 
 	// Create HTTP server with explicit configuration
@@ -713,39 +720,31 @@ func main() {
 
 	// Start API server in a goroutine
 	go func() {
-		log.Println("========================================")
-		log.Printf("✓ API server listening on %s", addr)
-		log.Println("✓ All systems operational!")
-		log.Println("========================================")
+		slog.Info("API server listening", "addr", addr)
+		slog.Info("all systems operational")
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Fatalf("Failed to start HTTP server: %v", err)
+			slog.Error("failed to start HTTP server", "error", err)
+			os.Exit(1)
 		}
 	}()
 
 	// Block until we receive a signal
 	<-quit
-	log.Println("========================================")
-	log.Println("Received shutdown signal...")
-	log.Println("========================================")
+	slog.Info("received shutdown signal")
 
-	// Create a context with timeout for shutdown
 	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer shutdownCancel()
 
-	// Shutdown the HTTP server gracefully
-	log.Println("Shutting down API server...")
+	slog.Info("shutting down API server")
 	if err := srv.Shutdown(shutdownCtx); err != nil {
-		log.Printf("HTTP server forced to shutdown: %v", err)
+		slog.Error("HTTP server forced to shutdown", "error", err)
 	} else {
-		log.Println("✓ API server stopped gracefully")
+		slog.Info("API server stopped gracefully")
 	}
 
-	// Shutdown the worker processor
-	log.Println("Shutting down background worker...")
+	slog.Info("shutting down background worker")
 	processor.Stop()
-	log.Println("✓ Background worker stopped gracefully")
+	slog.Info("background worker stopped")
 
-	log.Println("========================================")
-	log.Println("Ogoune application stopped successfully")
-	log.Println("========================================")
+	slog.Info("Ogoune application stopped successfully")
 }

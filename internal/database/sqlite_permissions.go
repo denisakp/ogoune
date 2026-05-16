@@ -1,7 +1,7 @@
 package database
 
 import (
-	"log"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
@@ -49,12 +49,12 @@ func chmodSQLiteArtifact(path string) PermissionStatus {
 		if os.IsNotExist(err) {
 			return PermissionStatusNotApplicable
 		}
-		log.Printf("db_driver=sqlite warning=permission_hardening_failed path=%s err=%v", path, err)
+		slog.Warn("sqlite permission hardening failed", "driver", "sqlite", "path", path, "error", err)
 		return PermissionStatusWarned
 	}
 
 	if err := sqliteChmod(path, 0o600); err != nil {
-		log.Printf("db_driver=sqlite warning=permission_hardening_failed path=%s err=%v", path, err)
+		slog.Warn("sqlite permission hardening failed", "driver", "sqlite", "path", path, "error", err)
 		return PermissionStatusWarned
 	}
 

@@ -2,7 +2,7 @@ package safenet
 
 import (
 	"fmt"
-	"log"
+	"log/slog"
 	"net"
 	"net/url"
 	"strings"
@@ -124,9 +124,17 @@ func validateHostPort(target string) error {
 }
 
 func logSecurityEvent(eventType, sourceIP, target, reason string) {
-	if sourceIP != "" {
-		log.Printf("[security] event=%s source_ip=%s target=%s reason=%q", eventType, sourceIP, target, reason)
-	} else {
-		log.Printf("[security] event=%s target=%s reason=%q", eventType, target, reason)
+	attrs := []slog.Attr{
+		slog.String("event", eventType),
+		slog.String("target", target),
+		slog.String("reason", reason),
 	}
+	if sourceIP != "" {
+		attrs = append(attrs, slog.String("source_ip", sourceIP))
+	}
+	args := make([]any, len(attrs))
+	for i, a := range attrs {
+		args[i] = a
+	}
+	slog.Warn("security event", args...)
 }

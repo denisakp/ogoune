@@ -56,21 +56,21 @@ func mapComponentResponse(c *domain.Component) dtoV1.ComponentResponse {
 func (h *ComponentHandler) List(w http.ResponseWriter, r *http.Request) {
 	params, errs := parsePagination(r)
 	if len(errs) > 0 {
-		respondError(w, http.StatusUnprocessableEntity, "VALIDATION_FAILED", "invalid pagination parameters", errs...)
+		respondError(w, r, http.StatusUnprocessableEntity, "VALIDATION_FAILED", "invalid pagination parameters", errs...)
 		return
 	}
 
 	offset := (params.Page - 1) * params.PerPage
 	items, err := h.repo.List(r.Context(), params.PerPage, offset)
 	if err != nil {
-		respondError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to list components")
+		respondError(w, r, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to list components")
 		return
 	}
 
 	// total: large limit fetch
 	all, err := h.repo.List(r.Context(), 10000, 0)
 	if err != nil {
-		respondError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to count components")
+		respondError(w, r, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to count components")
 		return
 	}
 
@@ -100,7 +100,7 @@ func (h *ComponentHandler) Get(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 	c, err := h.repo.FindByID(r.Context(), id)
 	if err != nil || c == nil {
-		respondError(w, http.StatusNotFound, "RESOURCE_NOT_FOUND", "component not found")
+		respondError(w, r, http.StatusNotFound, "RESOURCE_NOT_FOUND", "component not found")
 		return
 	}
 	respond(w, http.StatusOK, mapComponentResponse(c))
@@ -121,11 +121,11 @@ func (h *ComponentHandler) Get(w http.ResponseWriter, r *http.Request) {
 func (h *ComponentHandler) Create(w http.ResponseWriter, r *http.Request) {
 	var req dtoV1.CreateComponentRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		respondError(w, http.StatusUnprocessableEntity, "VALIDATION_FAILED", "invalid request body")
+		respondError(w, r, http.StatusUnprocessableEntity, "VALIDATION_FAILED", "invalid request body")
 		return
 	}
 	if strings.TrimSpace(req.Name) == "" {
-		respondError(w, http.StatusUnprocessableEntity, "VALIDATION_FAILED", "validation failed",
+		respondError(w, r, http.StatusUnprocessableEntity, "VALIDATION_FAILED", "validation failed",
 			dtoV1.FieldError{Field: "name", Message: "required"})
 		return
 	}
@@ -136,7 +136,7 @@ func (h *ComponentHandler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 	created, err := h.repo.Create(r.Context(), c)
 	if err != nil {
-		respondError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to create component")
+		respondError(w, r, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to create component")
 		return
 	}
 	respond(w, http.StatusCreated, mapComponentResponse(created))
@@ -159,13 +159,13 @@ func (h *ComponentHandler) Update(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 	c, err := h.repo.FindByID(r.Context(), id)
 	if err != nil || c == nil {
-		respondError(w, http.StatusNotFound, "RESOURCE_NOT_FOUND", "component not found")
+		respondError(w, r, http.StatusNotFound, "RESOURCE_NOT_FOUND", "component not found")
 		return
 	}
 
 	var req dtoV1.UpdateComponentRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		respondError(w, http.StatusUnprocessableEntity, "VALIDATION_FAILED", "invalid request body")
+		respondError(w, r, http.StatusUnprocessableEntity, "VALIDATION_FAILED", "invalid request body")
 		return
 	}
 
@@ -177,7 +177,7 @@ func (h *ComponentHandler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.repo.Update(r.Context(), c); err != nil {
-		respondError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to update component")
+		respondError(w, r, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to update component")
 		return
 	}
 	respond(w, http.StatusOK, mapComponentResponse(c))
@@ -196,7 +196,7 @@ func (h *ComponentHandler) Update(w http.ResponseWriter, r *http.Request) {
 func (h *ComponentHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 	if err := h.repo.Delete(r.Context(), id); err != nil {
-		respondError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to delete component")
+		respondError(w, r, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to delete component")
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)

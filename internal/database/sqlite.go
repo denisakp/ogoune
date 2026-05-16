@@ -2,7 +2,7 @@ package database
 
 import (
 	"fmt"
-	"log"
+	"log/slog"
 	"strings"
 
 	"github.com/glebarez/sqlite"
@@ -15,7 +15,7 @@ func openSQLite(cfg resolvedConfig) (*gorm.DB, PermissionStatus, error) {
 	}
 
 	permissionStatus := hardenSQLiteArtifacts(cfg.DSN)
-	log.Printf("db_init=starting driver=%s action=opening_connection dsn=%s", cfg.Driver, cfg.DSN)
+	slog.Info("opening database connection", "driver", string(cfg.Driver), "dsn", cfg.DSN)
 
 	database, err := gorm.Open(sqlite.Open(cfg.DSN), &gorm.Config{
 		Logger: newGormLogger(cfg.GormLogLevel),

@@ -13,11 +13,22 @@ import (
 	"github.com/denisakp/ogoune/internal/api/middleware"
 	"github.com/denisakp/ogoune/internal/domain"
 	"github.com/denisakp/ogoune/internal/dto"
-	dtoV1 "github.com/denisakp/ogoune/internal/dto/v1"
 	"github.com/go-chi/chi/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+// problemDetailResponse is a test helper struct matching the RFC 7807 ProblemDetail format.
+type problemDetailResponse struct {
+	Type   string `json:"type"`
+	Title  string `json:"title"`
+	Status int    `json:"status"`
+	Detail string `json:"detail"`
+	Errors []struct {
+		Field   string `json:"field"`
+		Message string `json:"message"`
+	} `json:"errors,omitempty"`
+}
 
 // --- mock service ---
 
@@ -237,9 +248,9 @@ func TestMonitorHandler_Pagination_PerPage0_Returns422(t *testing.T) {
 	router.ServeHTTP(rr, req)
 
 	assert.Equal(t, http.StatusUnprocessableEntity, rr.Code)
-	var out dtoV1.ErrorResponse
+	var out problemDetailResponse
 	require.NoError(t, json.Unmarshal(rr.Body.Bytes(), &out))
-	assert.Equal(t, "VALIDATION_FAILED", out.Error.Code)
+	assert.Equal(t, "VALIDATION_FAILED", out.Type)
 }
 
 func TestMonitorHandler_Pagination_PageNegative_Returns422(t *testing.T) {
@@ -320,9 +331,9 @@ func TestMonitorHandler_Get_NotFound_ErrorCodeResourceNotFound(t *testing.T) {
 	router.ServeHTTP(rr, req)
 
 	require.Equal(t, http.StatusNotFound, rr.Code)
-	var out dtoV1.ErrorResponse
+	var out problemDetailResponse
 	require.NoError(t, json.Unmarshal(rr.Body.Bytes(), &out))
-	assert.Equal(t, "RESOURCE_NOT_FOUND", out.Error.Code)
+	assert.Equal(t, "RESOURCE_NOT_FOUND", out.Type)
 }
 
 func TestMonitorHandler_Create_MissingType_Returns422WithFields(t *testing.T) {
@@ -336,10 +347,10 @@ func TestMonitorHandler_Create_MissingType_Returns422WithFields(t *testing.T) {
 	router.ServeHTTP(rr, req)
 
 	require.Equal(t, http.StatusUnprocessableEntity, rr.Code)
-	var out dtoV1.ErrorResponse
+	var out problemDetailResponse
 	require.NoError(t, json.Unmarshal(rr.Body.Bytes(), &out))
-	assert.Equal(t, "VALIDATION_FAILED", out.Error.Code)
-	assert.NotEmpty(t, out.Error.Fields, "error.fields should be non-empty")
+	assert.Equal(t, "VALIDATION_FAILED", out.Type)
+	assert.NotEmpty(t, out.Errors, "errors should be non-empty")
 }
 
 // mockMonitorServiceNotFound always returns service.ErrResourceNotFound on GetResourceByID.

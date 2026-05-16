@@ -3,7 +3,7 @@ package strategy
 import (
 	"context"
 	"fmt"
-	"log"
+	"log/slog"
 	"net"
 	"strings"
 	"time"
@@ -43,7 +43,12 @@ func (s *TCPStrategy) Execute(ctx context.Context, resource *domain.Resource) (d
 			cause = domain.ConnectionTimeout
 		}
 		if strings.Contains(err.Error(), "blocked") {
-			log.Printf("[security] event=ssrf_block strategy=tcp target=%s reason=%v", resource.Target, err)
+			slog.WarnContext(ctx, "SSRF block",
+				slog.String("event", "ssrf_block"),
+				slog.String("strategy", "tcp"),
+				slog.String("target", resource.Target),
+				slog.String("reason", err.Error()),
+			)
 		}
 		return domain.CheckResult{
 			Status:       string(domain.StatusDown),

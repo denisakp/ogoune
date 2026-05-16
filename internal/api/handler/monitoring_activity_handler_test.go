@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -19,7 +20,7 @@ func TestMonitoringActivityHandler_ListActivities_ResponseDataIsReadableText(t *
 	service := service.NewMonitoringActivityService(repo)
 	h := NewMonitoringActivityHandler(service)
 
-	err := repo.Create(nil, &domain.MonitoringActivity{
+	err := repo.Create(context.TODO(), &domain.MonitoringActivity{
 		Base:         domain.Base{ID: "act-1", CreatedAt: time.Now()},
 		ResourceID:   "res-1",
 		Message:      "failed",
@@ -35,13 +36,13 @@ func TestMonitoringActivityHandler_ListActivities_ResponseDataIsReadableText(t *
 
 	require.Equal(t, http.StatusOK, rr.Code)
 
-	var out map[string]interface{}
+	var out map[string]any
 	require.NoError(t, json.Unmarshal(rr.Body.Bytes(), &out))
-	activities, ok := out["activities"].([]interface{})
+	activities, ok := out["activities"].([]any)
 	require.True(t, ok)
 	require.Len(t, activities, 1)
 
-	item, ok := activities[0].(map[string]interface{})
+	item, ok := activities[0].(map[string]any)
 	require.True(t, ok)
 	assert.Equal(t, "dial tcp timeout", item["response_data"])
 }

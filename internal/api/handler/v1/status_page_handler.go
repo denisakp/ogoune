@@ -44,20 +44,20 @@ func mapStatusPageResponse(c *domain.Component) dtoV1.StatusPageResponse {
 func (h *StatusPageV1Handler) List(w http.ResponseWriter, r *http.Request) {
 	params, errs := parsePagination(r)
 	if len(errs) > 0 {
-		respondError(w, http.StatusUnprocessableEntity, "VALIDATION_FAILED", "invalid pagination parameters", errs...)
+		respondError(w, r, http.StatusUnprocessableEntity, "VALIDATION_FAILED", "invalid pagination parameters", errs...)
 		return
 	}
 
 	offset := (params.Page - 1) * params.PerPage
 	items, err := h.repo.List(r.Context(), params.PerPage, offset)
 	if err != nil {
-		respondError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to list status pages")
+		respondError(w, r, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to list status pages")
 		return
 	}
 
 	all, err := h.repo.List(r.Context(), 10000, 0)
 	if err != nil {
-		respondError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to count status pages")
+		respondError(w, r, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to count status pages")
 		return
 	}
 

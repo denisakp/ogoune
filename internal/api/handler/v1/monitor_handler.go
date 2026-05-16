@@ -80,20 +80,20 @@ func mapMonitorResponse(r *domain.Resource) dtoV1.MonitorResponse {
 func (h *MonitorHandler) List(w http.ResponseWriter, r *http.Request) {
 	params, errs := parsePagination(r)
 	if len(errs) > 0 {
-		respondError(w, http.StatusUnprocessableEntity, "VALIDATION_FAILED", "invalid pagination parameters", errs...)
+		respondError(w, r, http.StatusUnprocessableEntity, "VALIDATION_FAILED", "invalid pagination parameters", errs...)
 		return
 	}
 
 	offset := (params.Page - 1) * params.PerPage
 	items, err := h.service.ListActiveResources(r.Context(), params.PerPage, offset)
 	if err != nil {
-		respondError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to list monitors")
+		respondError(w, r, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to list monitors")
 		return
 	}
 
 	all, err := h.service.ListAll(r.Context())
 	if err != nil {
-		respondError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to count monitors")
+		respondError(w, r, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to count monitors")
 		return
 	}
 
@@ -124,10 +124,10 @@ func (h *MonitorHandler) Get(w http.ResponseWriter, r *http.Request) {
 	res, err := h.service.GetResourceByID(r.Context(), id)
 	if err != nil {
 		if errors.Is(err, service.ErrResourceNotFound) {
-			respondError(w, http.StatusNotFound, "RESOURCE_NOT_FOUND", "monitor not found")
+			respondError(w, r, http.StatusNotFound, "RESOURCE_NOT_FOUND", "monitor not found")
 			return
 		}
-		respondError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to get monitor")
+		respondError(w, r, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to get monitor")
 		return
 	}
 	respond(w, http.StatusOK, mapMonitorResponse(res))
@@ -148,7 +148,7 @@ func (h *MonitorHandler) Get(w http.ResponseWriter, r *http.Request) {
 func (h *MonitorHandler) Create(w http.ResponseWriter, r *http.Request) {
 	var req dtoV1.CreateMonitorRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		respondError(w, http.StatusUnprocessableEntity, "VALIDATION_FAILED", "invalid request body")
+		respondError(w, r, http.StatusUnprocessableEntity, "VALIDATION_FAILED", "invalid request body")
 		return
 	}
 
@@ -169,7 +169,7 @@ func (h *MonitorHandler) Create(w http.ResponseWriter, r *http.Request) {
 		fieldErrs = append(fieldErrs, dtoV1.FieldError{Field: "timeout", Message: "must be greater than 0"})
 	}
 	if len(fieldErrs) > 0 {
-		respondError(w, http.StatusUnprocessableEntity, "VALIDATION_FAILED", "validation failed", fieldErrs...)
+		respondError(w, r, http.StatusUnprocessableEntity, "VALIDATION_FAILED", "validation failed", fieldErrs...)
 		return
 	}
 
@@ -189,10 +189,10 @@ func (h *MonitorHandler) Create(w http.ResponseWriter, r *http.Request) {
 	created, err := h.service.CreateResource(r.Context(), payload)
 	if err != nil {
 		if errors.Is(err, service.ErrValidationFailed) {
-			respondError(w, http.StatusUnprocessableEntity, "VALIDATION_FAILED", err.Error())
+			respondError(w, r, http.StatusUnprocessableEntity, "VALIDATION_FAILED", err.Error())
 			return
 		}
-		respondError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to create monitor")
+		respondError(w, r, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to create monitor")
 		return
 	}
 	respond(w, http.StatusCreated, mapMonitorResponse(created))
@@ -215,7 +215,7 @@ func (h *MonitorHandler) Update(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 	var req dtoV1.UpdateMonitorRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		respondError(w, http.StatusUnprocessableEntity, "VALIDATION_FAILED", "invalid request body")
+		respondError(w, r, http.StatusUnprocessableEntity, "VALIDATION_FAILED", "invalid request body")
 		return
 	}
 
@@ -240,14 +240,14 @@ func (h *MonitorHandler) Update(w http.ResponseWriter, r *http.Request) {
 	updated, err := h.service.UpdateResource(r.Context(), id, payload)
 	if err != nil {
 		if errors.Is(err, service.ErrResourceNotFound) {
-			respondError(w, http.StatusNotFound, "RESOURCE_NOT_FOUND", "monitor not found")
+			respondError(w, r, http.StatusNotFound, "RESOURCE_NOT_FOUND", "monitor not found")
 			return
 		}
 		if errors.Is(err, service.ErrValidationFailed) {
-			respondError(w, http.StatusUnprocessableEntity, "VALIDATION_FAILED", err.Error())
+			respondError(w, r, http.StatusUnprocessableEntity, "VALIDATION_FAILED", err.Error())
 			return
 		}
-		respondError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to update monitor")
+		respondError(w, r, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to update monitor")
 		return
 	}
 	respond(w, http.StatusOK, mapMonitorResponse(updated))
@@ -267,10 +267,10 @@ func (h *MonitorHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 	if err := h.service.DeleteResource(r.Context(), id); err != nil {
 		if errors.Is(err, service.ErrResourceNotFound) {
-			respondError(w, http.StatusNotFound, "RESOURCE_NOT_FOUND", "monitor not found")
+			respondError(w, r, http.StatusNotFound, "RESOURCE_NOT_FOUND", "monitor not found")
 			return
 		}
-		respondError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to delete monitor")
+		respondError(w, r, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to delete monitor")
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
@@ -290,15 +290,15 @@ func (h *MonitorHandler) Pause(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 	if err := h.service.PauseMonitoring(r.Context(), id); err != nil {
 		if errors.Is(err, service.ErrResourceNotFound) {
-			respondError(w, http.StatusNotFound, "RESOURCE_NOT_FOUND", "monitor not found")
+			respondError(w, r, http.StatusNotFound, "RESOURCE_NOT_FOUND", "monitor not found")
 			return
 		}
-		respondError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to pause monitor")
+		respondError(w, r, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to pause monitor")
 		return
 	}
 	res, err := h.service.GetResourceByID(r.Context(), id)
 	if err != nil {
-		respondError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to get updated monitor")
+		respondError(w, r, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to get updated monitor")
 		return
 	}
 	respond(w, http.StatusOK, mapMonitorResponse(res))
@@ -318,15 +318,15 @@ func (h *MonitorHandler) Resume(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 	if err := h.service.ResumeMonitoring(r.Context(), id); err != nil {
 		if errors.Is(err, service.ErrResourceNotFound) {
-			respondError(w, http.StatusNotFound, "RESOURCE_NOT_FOUND", "monitor not found")
+			respondError(w, r, http.StatusNotFound, "RESOURCE_NOT_FOUND", "monitor not found")
 			return
 		}
-		respondError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to resume monitor")
+		respondError(w, r, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to resume monitor")
 		return
 	}
 	res, err := h.service.GetResourceByID(r.Context(), id)
 	if err != nil {
-		respondError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to get updated monitor")
+		respondError(w, r, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to get updated monitor")
 		return
 	}
 	respond(w, http.StatusOK, mapMonitorResponse(res))

@@ -6,7 +6,7 @@ import (
 	"context"
 	"encoding/binary"
 	"fmt"
-	"log"
+	"log/slog"
 	"net"
 	"strconv"
 	"strings"
@@ -176,7 +176,12 @@ func (s *ProtocolStrategy) Execute(ctx context.Context, r *domain.Resource) (dom
 			msg = fmt.Sprintf("timeout connecting to %s", addr)
 		}
 		if strings.Contains(err.Error(), "blocked") {
-			log.Printf("[security] event=ssrf_block strategy=protocol target=%s reason=%v", addr, err)
+			slog.WarnContext(ctx, "SSRF block",
+				slog.String("event", "ssrf_block"),
+				slog.String("strategy", "protocol"),
+				slog.String("target", addr),
+				slog.String("reason", err.Error()),
+			)
 		}
 		return domain.CheckResult{
 			Status:       string(domain.StatusDown),

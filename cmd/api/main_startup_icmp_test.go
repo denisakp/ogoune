@@ -2,7 +2,7 @@ package main
 
 import (
 	"bytes"
-	"log"
+	"log/slog"
 	"testing"
 
 	icmppkg "github.com/denisakp/ogoune/internal/icmp"
@@ -11,12 +11,9 @@ import (
 
 func TestLogICMPCapabilityState_EnabledAndAvailable(t *testing.T) {
 	var buf bytes.Buffer
-	origWriter := log.Writer()
-	origFlags := log.Flags()
-	log.SetOutput(&buf)
-	log.SetFlags(0)
-	defer log.SetOutput(origWriter)
-	defer log.SetFlags(origFlags)
+	old := slog.Default()
+	slog.SetDefault(slog.New(slog.NewTextHandler(&buf, nil)))
+	defer slog.SetDefault(old)
 
 	logICMPCapabilityState(true, icmppkg.CapabilityResult{Available: true})
 
@@ -25,12 +22,9 @@ func TestLogICMPCapabilityState_EnabledAndAvailable(t *testing.T) {
 
 func TestLogICMPCapabilityState_EnabledButUnavailable(t *testing.T) {
 	var buf bytes.Buffer
-	origWriter := log.Writer()
-	origFlags := log.Flags()
-	log.SetOutput(&buf)
-	log.SetFlags(0)
-	defer log.SetOutput(origWriter)
-	defer log.SetFlags(origFlags)
+	old := slog.Default()
+	slog.SetDefault(slog.New(slog.NewTextHandler(&buf, nil)))
+	defer slog.SetDefault(old)
 
 	logICMPCapabilityState(true, icmppkg.CapabilityResult{Available: false, Reason: "operation not permitted"})
 
@@ -40,12 +34,9 @@ func TestLogICMPCapabilityState_EnabledButUnavailable(t *testing.T) {
 
 func TestLogICMPCapabilityState_Disabled(t *testing.T) {
 	var buf bytes.Buffer
-	origWriter := log.Writer()
-	origFlags := log.Flags()
-	log.SetOutput(&buf)
-	log.SetFlags(0)
-	defer log.SetOutput(origWriter)
-	defer log.SetFlags(origFlags)
+	old := slog.Default()
+	slog.SetDefault(slog.New(slog.NewTextHandler(&buf, nil)))
+	defer slog.SetDefault(old)
 
 	logICMPCapabilityState(false, icmppkg.CapabilityResult{Available: false, Reason: "ignored"})
 

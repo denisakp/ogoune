@@ -1,7 +1,7 @@
 package config
 
 import (
-	"log"
+	"log/slog"
 	"os"
 	"strconv"
 	"strings"
@@ -54,6 +54,10 @@ type Config struct {
 	// Swagger configuration
 	EnableSwagger bool
 
+	// Logging configuration
+	LogFormat string
+	LogLevel  string
+
 	// Environment
 	AppEnv string
 
@@ -88,6 +92,8 @@ func Load() Config {
 	metricsEnabled := parseBool(GetEnv("ENABLE_METRICS", "false"), false)
 	metricsToken := GetEnv("METRICS_TOKEN", "")
 	enableSwagger := parseBool(GetEnv("ENABLE_SWAGGER", "false"), false)
+	logFormat := GetEnv("LOG_FORMAT", "json")
+	logLevel := GetEnv("LOG_LEVEL", "info")
 	appEnv := GetEnv("APP_ENV", "development")
 
 	// Security configuration
@@ -125,6 +131,8 @@ func Load() Config {
 		FlapMaxDurationMinutes:         flapMaxDurationMinutes,
 		ReminderIntervalMinutes:        reminderIntervalMinutes,
 		GroupingWindowSeconds:          groupingWindowSeconds,
+		LogFormat:                      logFormat,
+		LogLevel:                       logLevel,
 		EnableICMP:                     enableICMP,
 		MetricsEnabled:                 metricsEnabled,
 		MetricsToken:                   metricsToken,
@@ -216,17 +224,17 @@ func parseCORSOrigins(s string) []string {
 func parseRateLimit(s string, defaultCount int, defaultWindow time.Duration) (int, time.Duration) {
 	parts := strings.SplitN(s, "/", 2)
 	if len(parts) != 2 {
-		log.Printf("[config] invalid rate limit format %q, using defaults", s)
+		slog.Warn("invalid rate limit format, using defaults", "value", s)
 		return defaultCount, defaultWindow
 	}
 	count, err := strconv.Atoi(strings.TrimSpace(parts[0]))
 	if err != nil || count <= 0 {
-		log.Printf("[config] invalid rate limit count %q, using defaults", parts[0])
+		slog.Warn("invalid rate limit count, using defaults", "value", parts[0])
 		return defaultCount, defaultWindow
 	}
 	window, err := time.ParseDuration(strings.TrimSpace(parts[1]))
 	if err != nil || window <= 0 {
-		log.Printf("[config] invalid rate limit window %q, using defaults", parts[1])
+		slog.Warn("invalid rate limit window, using defaults", "value", parts[1])
 		return defaultCount, defaultWindow
 	}
 	return count, window
@@ -246,24 +254,24 @@ func parseBool(s string, defaultValue bool) bool {
 func MustInit() Config {
 	// Attempt to load .env file - ignore error if file doesn't exist
 	if err := godotenv.Load(); err != nil {
-		log.Println("[config] .env file not found, falling back to system environment variables")
+		slog.Info(".env file not found, falling back to system environment variables")
 	} else {
-		log.Println("[config] Loaded configuration from .env file")
+		slog.Info("loaded configuration from .env file")
 	}
 
 	cfg := Load()
 
 	// Validate critical configuration for the selected driver.
 	if cfg.DBDriver != "sqlite" && cfg.DatabaseUrl == "" {
-		log.Fatalf("[config] DATABASE_URL environment variable is required when DB_DRIVER is postgres")
+		slog.Error("DATABASE_URL environment variable is required when DB_DRIVER is postgres")
+		os.Exit(1)
 	}
 
-	log.Printf("[config] Port: %s", cfg.Port)
-	log.Printf("[config] DB driver: %s", cfg.DBDriver)
+	slog.Info("configuration loaded", "port", cfg.Port, "db_driver", cfg.DBDriver)
 
 	// Log scheduler mode determination
 	mode := scheduler.DetectMode(cfg.SchedulerMode, cfg.DBDriver)
-	log.Printf("[config] Scheduler mode: %s", mode)
+	slog.Info("scheduler mode resolved", "mode", mode)
 
 	return cfg
 }

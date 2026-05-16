@@ -3,7 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
-	"log"
+	"log/slog"
 	"sync"
 	"time"
 
@@ -226,7 +226,7 @@ func (s *ComponentService) RecalculateAndNotify(ctx context.Context, componentID
 func (s *ComponentService) dispatchComponentAlert(componentID string) {
 	ctx := context.Background()
 	if err := s.dispatchComponentAlertImmediate(ctx, componentID); err != nil {
-		log.Printf("[COMPONENT] Failed to dispatch component alert for %s: %v", componentID, err)
+		slog.Error("failed to dispatch component alert", "component_id", componentID, "error", err)
 	}
 }
 
@@ -285,7 +285,7 @@ func (s *ComponentService) dispatchComponentAlertImmediate(ctx context.Context, 
 		if !sent {
 			// Fallback: log failure; per-resource alerts would require incident context
 			// that is not available here, so we just log and continue.
-			log.Printf("[COMPONENT] Channel %s exhausted retries for component %s — per-resource fallback skipped (no incident context)", ch.ID, componentID)
+			slog.Warn("channel exhausted retries for component alert", "channel_id", ch.ID, "component_id", componentID)
 		}
 	}
 
@@ -437,7 +437,7 @@ func (s *ComponentService) BulkAssignToComponent(ctx context.Context, componentI
 			// Auto-cleanup old component if now empty
 			if err := s.autoCleanupComponent(ctx, oldComponentID); err != nil {
 				// Log but don't fail the operation
-				fmt.Printf("failed to auto-cleanup component %s: %v\n", oldComponentID, err)
+				slog.Warn("failed to auto-cleanup component", "component_id", oldComponentID, "error", err)
 			}
 		} else {
 			resource.ComponentID = &componentID
@@ -481,7 +481,7 @@ func (s *ComponentService) BulkRemoveFromComponent(ctx context.Context, payload 
 	for componentID := range affectedComponentIDs {
 		if err := s.autoCleanupComponent(ctx, componentID); err != nil {
 			// Log but continue with other components
-			fmt.Printf("failed to auto-cleanup component %s: %v\n", componentID, err)
+			slog.Warn("failed to auto-cleanup component", "component_id", componentID, "error", err)
 		}
 	}
 

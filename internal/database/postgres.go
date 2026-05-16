@@ -2,7 +2,7 @@ package database
 
 import (
 	"fmt"
-	"log"
+	"log/slog"
 	"time"
 
 	"gorm.io/driver/postgres"
@@ -10,7 +10,7 @@ import (
 )
 
 func openPostgres(cfg resolvedConfig) (*gorm.DB, error) {
-	log.Printf("db_init=starting driver=%s action=opening_connection", cfg.Driver)
+	slog.Info("opening database connection", "driver", string(cfg.Driver))
 
 	database, err := gorm.Open(postgres.Open(cfg.DSN), &gorm.Config{
 		Logger: newGormLogger(cfg.GormLogLevel),

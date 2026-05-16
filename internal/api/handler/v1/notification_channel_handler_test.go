@@ -13,7 +13,6 @@ import (
 	"github.com/denisakp/ogoune/internal/api/middleware"
 	"github.com/denisakp/ogoune/internal/domain"
 	"github.com/denisakp/ogoune/internal/dto"
-	dtoV1 "github.com/denisakp/ogoune/internal/dto/v1"
 	"github.com/denisakp/ogoune/internal/service"
 	"github.com/go-chi/chi/v5"
 	"github.com/stretchr/testify/assert"
@@ -193,8 +192,8 @@ func TestChannelHandler_Get_NotFound_Returns404(t *testing.T) {
 	router.ServeHTTP(rr, req)
 
 	require.Equal(t, http.StatusNotFound, rr.Code)
-	var out dtoV1.ErrorResponse
+	var out problemDetailResponse
 	require.NoError(t, json.Unmarshal(rr.Body.Bytes(), &out))
-	assert.Equal(t, "RESOURCE_NOT_FOUND", out.Error.Code)
-	assert.Contains(t, out.Error.Message, "channel not found")
+	assert.Equal(t, "RESOURCE_NOT_FOUND", out.Type)
+	assert.Contains(t, out.Detail, "channel not found")
 }

@@ -1,7 +1,7 @@
 package api
 
 import (
-	"log"
+	"log/slog"
 	"net/http"
 	"os"
 
@@ -10,6 +10,7 @@ import (
 	"github.com/denisakp/ogoune/internal/api/middleware"
 	"github.com/denisakp/ogoune/internal/config"
 	"github.com/denisakp/ogoune/internal/service"
+	"github.com/denisakp/ogoune/pkg/logger"
 	"github.com/go-chi/chi/v5"
 	chimiddleware "github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/cors"
@@ -49,14 +50,14 @@ func NewRouter(
 	r := chi.NewRouter()
 
 	// Standard middleware stack for logging, recovery, and request tracking
-	r.Use(chimiddleware.RequestID)
+	r.Use(logger.RequestIDMiddleware)
 	r.Use(chimiddleware.RealIP)
 	r.Use(middleware.SecurityHeaders(middleware.SecurityHeadersConfig{
 		AppEnv:            cfg.AppEnv,
 		EnableSwagger:     enableSwagger,
 		SwaggerPathPrefix: "/v1/docs/",
 	}))
-	r.Use(chimiddleware.Logger)
+	r.Use(logger.RequestLoggerMiddleware)
 	r.Use(chimiddleware.Recoverer)
 	r.Use(chimiddleware.SetHeader("Content-Type", "application/json"))
 
@@ -286,8 +287,13 @@ func corsRejectionLogger(next http.Handler) http.Handler {
 		next.ServeHTTP(w, r)
 		origin := r.Header.Get("Origin")
 		if origin != "" && w.Header().Get("Access-Control-Allow-Origin") == "" {
-			log.Printf("[security] event=cors_reject source_ip=%s origin=%s endpoint=%s %s",
-				r.RemoteAddr, origin, r.URL.Path, r.Method)
+			slog.Warn("CORS request rejected",
+				"event", "cors_reject",
+				"source_ip", r.RemoteAddr,
+				"origin", origin,
+				"endpoint", r.URL.Path,
+				"method", r.Method,
+			)
 		}
 	})
 }
@@ -300,8 +306,13 @@ func rateLimitLogger(scope string) func(http.Handler) http.Handler {
 			ww := chimiddleware.NewWrapResponseWriter(w, r.ProtoMajor)
 			next.ServeHTTP(ww, r)
 			if ww.Status() == http.StatusTooManyRequests {
-				log.Printf("[security] event=rate_limit scope=%s source_ip=%s endpoint=%s %s",
-					scope, r.RemoteAddr, r.URL.Path, r.Method)
+				slog.Warn("rate limit exceeded",
+					"event", "rate_limit",
+					"scope", scope,
+					"source_ip", r.RemoteAddr,
+					"endpoint", r.URL.Path,
+					"method", r.Method,
+				)
 			}
 		})
 	}

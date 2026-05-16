@@ -10,7 +10,6 @@ import (
 
 	v1 "github.com/denisakp/ogoune/internal/api/handler/v1"
 	"github.com/denisakp/ogoune/internal/domain"
-	dtoV1 "github.com/denisakp/ogoune/internal/dto/v1"
 	"github.com/go-chi/chi/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -125,10 +124,10 @@ func TestIncidentHandler_StatusFilter_Invalid_Returns422(t *testing.T) {
 	router.ServeHTTP(rr, req)
 
 	require.Equal(t, http.StatusUnprocessableEntity, rr.Code)
-	var out dtoV1.ErrorResponse
+	var out problemDetailResponse
 	require.NoError(t, json.Unmarshal(rr.Body.Bytes(), &out))
-	assert.Equal(t, "VALIDATION_FAILED", out.Error.Code)
-	assert.NotEmpty(t, out.Error.Fields)
+	assert.Equal(t, "VALIDATION_FAILED", out.Type)
+	assert.NotEmpty(t, out.Errors)
 }
 
 func TestIncidentHandler_MonitorIDFilter_FiltersResult(t *testing.T) {
@@ -168,10 +167,10 @@ func TestIncidentHandler_Get_NotFound_Returns404(t *testing.T) {
 	router.ServeHTTP(rr, req)
 
 	require.Equal(t, http.StatusNotFound, rr.Code)
-	var out dtoV1.ErrorResponse
+	var out problemDetailResponse
 	require.NoError(t, json.Unmarshal(rr.Body.Bytes(), &out))
-	assert.Equal(t, "RESOURCE_NOT_FOUND", out.Error.Code)
-	assert.Contains(t, out.Error.Message, "incident not found")
+	assert.Equal(t, "RESOURCE_NOT_FOUND", out.Type)
+	assert.Contains(t, out.Detail, "incident not found")
 }
 
 func TestIncidentHandler_CombinedFilter_AppliesBoth(t *testing.T) {

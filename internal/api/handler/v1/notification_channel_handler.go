@@ -49,7 +49,7 @@ var sensitiveConfigKeys = map[string]bool{
 func mapChannelResponse(ch *domain.NotificationChannel) dtoV1.ChannelResponse {
 	var config json.RawMessage
 	if len(ch.Config) > 0 {
-		var configMap map[string]interface{}
+		var configMap map[string]any
 		if err := json.Unmarshal(ch.Config, &configMap); err == nil {
 			for key := range sensitiveConfigKeys {
 				delete(configMap, key)
@@ -88,20 +88,20 @@ func mapChannelResponse(ch *domain.NotificationChannel) dtoV1.ChannelResponse {
 func (h *NotificationChannelHandler) List(w http.ResponseWriter, r *http.Request) {
 	params, errs := parsePagination(r)
 	if len(errs) > 0 {
-		respondError(w, http.StatusUnprocessableEntity, "VALIDATION_FAILED", "invalid pagination parameters", errs...)
+		respondError(w, r, http.StatusUnprocessableEntity, "VALIDATION_FAILED", "invalid pagination parameters", errs...)
 		return
 	}
 
 	offset := (params.Page - 1) * params.PerPage
 	items, err := h.service.ListNotificationChannels(r.Context(), params.PerPage, offset)
 	if err != nil {
-		respondError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to list channels")
+		respondError(w, r, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to list channels")
 		return
 	}
 
 	allItems, err := h.service.ListNotificationChannels(r.Context(), 10000, 0)
 	if err != nil {
-		respondError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to count channels")
+		respondError(w, r, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to count channels")
 		return
 	}
 	total := len(allItems)
@@ -133,14 +133,14 @@ func (h *NotificationChannelHandler) Get(w http.ResponseWriter, r *http.Request)
 	ch, err := h.service.GetNotificationChannel(r.Context(), id)
 	if err != nil {
 		if errors.Is(err, service.ErrResourceNotFound) {
-			respondError(w, http.StatusNotFound, "RESOURCE_NOT_FOUND", "channel not found")
+			respondError(w, r, http.StatusNotFound, "RESOURCE_NOT_FOUND", "channel not found")
 			return
 		}
-		respondError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to get channel")
+		respondError(w, r, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to get channel")
 		return
 	}
 	if ch == nil {
-		respondError(w, http.StatusNotFound, "RESOURCE_NOT_FOUND", "channel not found")
+		respondError(w, r, http.StatusNotFound, "RESOURCE_NOT_FOUND", "channel not found")
 		return
 	}
 	respond(w, http.StatusOK, mapChannelResponse(ch))
@@ -161,7 +161,7 @@ func (h *NotificationChannelHandler) Get(w http.ResponseWriter, r *http.Request)
 func (h *NotificationChannelHandler) Create(w http.ResponseWriter, r *http.Request) {
 	var req dtoV1.CreateChannelRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		respondError(w, http.StatusUnprocessableEntity, "VALIDATION_FAILED", "invalid request body")
+		respondError(w, r, http.StatusUnprocessableEntity, "VALIDATION_FAILED", "invalid request body")
 		return
 	}
 
@@ -173,13 +173,13 @@ func (h *NotificationChannelHandler) Create(w http.ResponseWriter, r *http.Reque
 		fieldErrs = append(fieldErrs, dtoV1.FieldError{Field: "type", Message: "required"})
 	}
 	if len(fieldErrs) > 0 {
-		respondError(w, http.StatusUnprocessableEntity, "VALIDATION_FAILED", "validation failed", fieldErrs...)
+		respondError(w, r, http.StatusUnprocessableEntity, "VALIDATION_FAILED", "validation failed", fieldErrs...)
 		return
 	}
 
 	channelType := domain.NotificationChannelType(req.Type)
 	if !channelType.IsValid() {
-		respondError(w, http.StatusUnprocessableEntity, "VALIDATION_FAILED", "invalid channel type",
+		respondError(w, r, http.StatusUnprocessableEntity, "VALIDATION_FAILED", "invalid channel type",
 			dtoV1.FieldError{Field: "type", Message: "must be smtp, slack, or sms"})
 		return
 	}
@@ -193,10 +193,10 @@ func (h *NotificationChannelHandler) Create(w http.ResponseWriter, r *http.Reque
 	created, err := h.service.CreateNotificationChannel(r.Context(), payload)
 	if err != nil {
 		if errors.Is(err, service.ErrValidationFailed) {
-			respondError(w, http.StatusUnprocessableEntity, "VALIDATION_FAILED", err.Error())
+			respondError(w, r, http.StatusUnprocessableEntity, "VALIDATION_FAILED", err.Error())
 			return
 		}
-		respondError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to create channel")
+		respondError(w, r, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to create channel")
 		return
 	}
 	respond(w, http.StatusCreated, mapChannelResponse(created))
@@ -219,7 +219,7 @@ func (h *NotificationChannelHandler) Update(w http.ResponseWriter, r *http.Reque
 	id := chi.URLParam(r, "id")
 	var req dtoV1.UpdateChannelRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		respondError(w, http.StatusUnprocessableEntity, "VALIDATION_FAILED", "invalid request body")
+		respondError(w, r, http.StatusUnprocessableEntity, "VALIDATION_FAILED", "invalid request body")
 		return
 	}
 
@@ -235,10 +235,10 @@ func (h *NotificationChannelHandler) Update(w http.ResponseWriter, r *http.Reque
 	updated, err := h.service.UpdateNotificationChannel(r.Context(), id, payload)
 	if err != nil {
 		if errors.Is(err, service.ErrResourceNotFound) {
-			respondError(w, http.StatusNotFound, "RESOURCE_NOT_FOUND", "channel not found")
+			respondError(w, r, http.StatusNotFound, "RESOURCE_NOT_FOUND", "channel not found")
 			return
 		}
-		respondError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to update channel")
+		respondError(w, r, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to update channel")
 		return
 	}
 	respond(w, http.StatusOK, mapChannelResponse(updated))
@@ -258,10 +258,10 @@ func (h *NotificationChannelHandler) Delete(w http.ResponseWriter, r *http.Reque
 	id := chi.URLParam(r, "id")
 	if err := h.service.DeleteNotificationChannel(r.Context(), id); err != nil {
 		if errors.Is(err, service.ErrResourceNotFound) {
-			respondError(w, http.StatusNotFound, "RESOURCE_NOT_FOUND", "channel not found")
+			respondError(w, r, http.StatusNotFound, "RESOURCE_NOT_FOUND", "channel not found")
 			return
 		}
-		respondError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to delete channel")
+		respondError(w, r, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to delete channel")
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)

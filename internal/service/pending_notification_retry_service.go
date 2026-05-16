@@ -3,7 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
-	"log"
+	"log/slog"
 	"os"
 	"time"
 
@@ -79,11 +79,11 @@ func (s *PendingNotificationRetryService) RetryPendingNotifications(ctx context.
 
 	summary.ScannedCount = len(pendingEvents)
 	if len(pendingEvents) == 0 {
-		log.Println("[STARTUP] No pending notifications found")
+		slog.Info("no pending notifications found")
 		return summary, nil
 	}
 
-	log.Printf("[STARTUP] Found %d pending notification(s) to evaluate", len(pendingEvents))
+	slog.Info("found pending notifications to evaluate", "count", len(pendingEvents))
 	cutoff := s.now().Add(-s.staleAfter)
 
 	for _, event := range pendingEvents {
@@ -93,7 +93,7 @@ func (s *PendingNotificationRetryService) RetryPendingNotifications(ctx context.
 
 		claimed, err := s.notifications.ClaimPending(ctx, event.ID, s.claimOwner, s.now())
 		if err != nil {
-			log.Printf("[STARTUP] [WARNING] Failed to claim pending notification %s: %v", event.ID, err)
+			slog.Warn("failed to claim pending notification", "notification_id", event.ID, "error", err)
 			continue
 		}
 		if !claimed {
@@ -104,7 +104,7 @@ func (s *PendingNotificationRetryService) RetryPendingNotifications(ctx context.
 		if event.CreatedAt.Before(cutoff) {
 			reason := fmt.Sprintf("expired stale pending notification event older than %s", s.staleAfter)
 			if err := s.notifications.MarkAsExpired(ctx, event.ID, reason, s.now()); err != nil {
-				log.Printf("[STARTUP] [WARNING] Failed to mark stale notification %s expired: %v", event.ID, err)
+				slog.Warn("failed to mark stale notification as expired", "notification_id", event.ID, "error", err)
 				continue
 			}
 			summary.ExpiredCount++
@@ -114,7 +114,7 @@ func (s *PendingNotificationRetryService) RetryPendingNotifications(ctx context.
 		if event.Type != domain.NotificationEventTypeDown && event.Type != domain.NotificationEventTypeUp {
 			reason := fmt.Sprintf("unsupported pending notification type: %s", event.Type)
 			if err := s.notifications.MarkAsFailed(ctx, event.ID, reason, s.now()); err != nil {
-				log.Printf("[STARTUP] [WARNING] Failed to mark unsupported notification %s as failed: %v", event.ID, err)
+				slog.Warn("failed to mark unsupported notification as failed", "notification_id", event.ID, "error", err)
 				continue
 			}
 			summary.FailedCount++
@@ -125,10 +125,10 @@ func (s *PendingNotificationRetryService) RetryPendingNotifications(ctx context.
 		if err != nil {
 			reason := fmt.Sprintf("incident lookup failed for %s: %v", event.IncidentID, err)
 			if markErr := s.notifications.MarkAsFailed(ctx, event.ID, reason, s.now()); markErr != nil {
-				log.Printf("[STARTUP] [WARNING] Failed to mark notification %s as failed after incident lookup error: %v", event.ID, markErr)
+				slog.Warn("failed to mark notification as failed after incident lookup error", "notification_id", event.ID, "error", markErr)
 				continue
 			}
-			log.Printf("[STARTUP] [WARNING] %s", reason)
+			slog.Warn("incident lookup failed", "notification_id", event.ID, "incident_id", event.IncidentID, "error", err)
 			summary.FailedCount++
 			continue
 		}
@@ -138,10 +138,10 @@ func (s *PendingNotificationRetryService) RetryPendingNotifications(ctx context.
 		if len(channels) == 0 {
 			reason := fmt.Sprintf("no notification channels available for resource %s", resource.ID)
 			if err := s.notifications.MarkAsFailed(ctx, event.ID, reason, s.now()); err != nil {
-				log.Printf("[STARTUP] [WARNING] Failed to mark notification %s as failed after missing channels: %v", event.ID, err)
+				slog.Warn("failed to mark notification as failed after missing channels", "notification_id", event.ID, "error", err)
 				continue
 			}
-			log.Printf("[STARTUP] [WARNING] %s", reason)
+			slog.Warn("no notification channels available", "notification_id", event.ID, "resource_id", resource.ID)
 			summary.FailedCount++
 			continue
 		}
@@ -149,27 +149,27 @@ func (s *PendingNotificationRetryService) RetryPendingNotifications(ctx context.
 		if err := s.dispatchNotification(ctx, notifier.NotificationPayload{Incident: incident}, channels); err != nil {
 			reason := fmt.Sprintf("retry dispatch failed: %v", err)
 			if markErr := s.notifications.MarkAsFailed(ctx, event.ID, reason, s.now()); markErr != nil {
-				log.Printf("[STARTUP] [WARNING] Failed to mark notification %s as failed after retry error: %v", event.ID, markErr)
+				slog.Warn("failed to mark notification as failed after retry error", "notification_id", event.ID, "error", markErr)
 				continue
 			}
-			log.Printf("[STARTUP] [WARNING] Failed to retry notification %s: %v", event.ID, err)
+			slog.Warn("failed to retry notification dispatch", "notification_id", event.ID, "error", err)
 			summary.FailedCount++
 			continue
 		}
 
 		if err := s.notifications.MarkAsSent(ctx, event.ID, s.now()); err != nil {
-			log.Printf("[STARTUP] [WARNING] Notification %s dispatched but failed to mark as sent: %v", event.ID, err)
+			slog.Warn("notification dispatched but failed to mark as sent", "notification_id", event.ID, "error", err)
 			continue
 		}
 
 		summary.RetriedCount++
 	}
 
-	log.Printf("[STARTUP] Pending notifications summary: retried=%d expired=%d failed=%d skipped_claimed=%d",
-		summary.RetriedCount,
-		summary.ExpiredCount,
-		summary.FailedCount,
-		summary.SkippedClaimedCount,
+	slog.Info("pending notifications retry complete",
+		"retried", summary.RetriedCount,
+		"expired", summary.ExpiredCount,
+		"failed", summary.FailedCount,
+		"skipped_claimed", summary.SkippedClaimedCount,
 	)
 
 	return summary, nil

@@ -10,7 +10,6 @@ import (
 
 	v1 "github.com/denisakp/ogoune/internal/api/handler/v1"
 	"github.com/denisakp/ogoune/internal/domain"
-	dtoV1 "github.com/denisakp/ogoune/internal/dto/v1"
 	"github.com/go-chi/chi/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -111,10 +110,10 @@ func TestStatusPageHandler_List_InvalidPagination_Returns422(t *testing.T) {
 			router.ServeHTTP(rr, req)
 
 			assert.Equal(t, http.StatusUnprocessableEntity, rr.Code)
-			var out dtoV1.ErrorResponse
+			var out problemDetailResponse
 			require.NoError(t, json.Unmarshal(rr.Body.Bytes(), &out))
-			assert.Equal(t, "VALIDATION_FAILED", out.Error.Code)
-			assert.NotEmpty(t, out.Error.Fields, "error.fields should be non-empty")
+			assert.Equal(t, "VALIDATION_FAILED", out.Type)
+			assert.NotEmpty(t, out.Errors, "errors should be non-empty")
 		})
 	}
 }
@@ -128,9 +127,9 @@ func TestStatusPageHandler_List_RepositoryError_Returns500(t *testing.T) {
 	router.ServeHTTP(rr, req)
 
 	assert.Equal(t, http.StatusInternalServerError, rr.Code)
-	var out dtoV1.ErrorResponse
+	var out problemDetailResponse
 	require.NoError(t, json.Unmarshal(rr.Body.Bytes(), &out))
-	assert.Equal(t, "INTERNAL_ERROR", out.Error.Code)
+	assert.Equal(t, "INTERNAL_ERROR", out.Type)
 }
 
 func TestStatusPageHandler_List_OverallStatusMapsFromLastNotificationStatus(t *testing.T) {

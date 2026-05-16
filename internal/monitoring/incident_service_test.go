@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"log"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -230,9 +230,9 @@ func TestIncidentService_CreateIncident_LogsActionableWarningWhenNoChannels(t *t
 	defer asynqClient.Close()
 
 	var logBuffer bytes.Buffer
-	originalWriter := log.Writer()
-	log.SetOutput(&logBuffer)
-	defer log.SetOutput(originalWriter)
+	originalLogger := slog.Default()
+	slog.SetDefault(slog.New(slog.NewTextHandler(&logBuffer, &slog.HandlerOptions{Level: slog.LevelDebug})))
+	defer slog.SetDefault(originalLogger)
 
 	resource := &domain.Resource{
 		Base:   domain.Base{ID: "res-no-channels"},
@@ -243,8 +243,8 @@ func TestIncidentService_CreateIncident_LogsActionableWarningWhenNoChannels(t *t
 	require.NoError(t, err)
 
 	out := logBuffer.String()
-	assert.True(t, strings.Contains(out, "no alert was sent"))
-	assert.True(t, strings.Contains(out, "Configure a resource, component, or default notification channel"))
+	assert.True(t, strings.Contains(out, "no notification channels configured"))
+	assert.True(t, strings.Contains(out, "resource_id=res-no-channels"))
 }
 
 func TestIncidentService_BuildIncidentDiagnostics_PropagatesAndSanitizesHeaders(t *testing.T) {

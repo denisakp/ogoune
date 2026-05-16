@@ -53,10 +53,10 @@ func TestCreateResource_InvalidExpiryThresholds(t *testing.T) {
 
 			assert.Equal(t, http.StatusUnprocessableEntity, rec.Code)
 
-			var resp map[string]string
+			var resp map[string]interface{}
 			err := json.NewDecoder(rec.Body).Decode(&resp)
 			require.NoError(t, err)
-			assert.Contains(t, resp["error"], "expiry_alert_thresholds")
+			assert.Contains(t, resp["detail"], "expiry_alert_thresholds")
 		})
 	}
 }
@@ -118,8 +118,8 @@ func TestUpdateResource_InvalidExpiryThresholds(t *testing.T) {
 
 	assert.Equal(t, http.StatusUnprocessableEntity, rec.Code)
 
-	var resp map[string]string
+	var resp map[string]interface{}
 	err := json.NewDecoder(rec.Body).Decode(&resp)
 	require.NoError(t, err)
-	assert.Contains(t, resp["error"], "expiry_alert_thresholds")
+	assert.Contains(t, resp["detail"], "expiry_alert_thresholds")
 }

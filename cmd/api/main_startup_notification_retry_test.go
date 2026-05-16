@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
-	"log"
+	"log/slog"
 	"testing"
 
 	"github.com/denisakp/ogoune/internal/service"
@@ -40,17 +40,14 @@ func TestRunStartupPendingNotificationRetry_LogsWarningOnErrorAndDoesNotPanic(t 
 	stub := &startupRetryStub{err: errors.New("redis unavailable")}
 
 	var buf bytes.Buffer
-	origWriter := log.Writer()
-	origFlags := log.Flags()
-	log.SetOutput(&buf)
-	log.SetFlags(0)
-	defer log.SetOutput(origWriter)
-	defer log.SetFlags(origFlags)
+	oldDefault := slog.Default()
+	slog.SetDefault(slog.New(slog.NewTextHandler(&buf, nil)))
+	defer slog.SetDefault(oldDefault)
 
 	runStartupPendingNotificationRetry(context.Background(), stub)
 
 	assert.True(t, stub.called)
-	assert.Contains(t, buf.String(), "[WARNING] Pending notification retry failed")
+	assert.Contains(t, buf.String(), "pending notification retry failed")
 	assert.Contains(t, buf.String(), "redis unavailable")
 }
 
@@ -58,12 +55,9 @@ func TestRunStartupPendingNotificationRetry_LogsSummaryForNoPendingRows(t *testi
 	stub := &startupRetryStub{sum: service.PendingNotificationRetrySummary{ScannedCount: 0, RetriedCount: 0, ExpiredCount: 0, FailedCount: 0, SkippedClaimedCount: 0}}
 
 	var buf bytes.Buffer
-	origWriter := log.Writer()
-	origFlags := log.Flags()
-	log.SetOutput(&buf)
-	log.SetFlags(0)
-	defer log.SetOutput(origWriter)
-	defer log.SetFlags(origFlags)
+	oldDefault := slog.Default()
+	slog.SetDefault(slog.New(slog.NewTextHandler(&buf, nil)))
+	defer slog.SetDefault(oldDefault)
 
 	runStartupPendingNotificationRetry(context.Background(), stub)
 

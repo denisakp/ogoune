@@ -2,14 +2,14 @@ package middleware
 
 import (
 	"context"
-	"encoding/json"
-	"log"
+	"log/slog"
 	"net/http"
 	"strings"
 	"time"
 
 	"github.com/denisakp/ogoune/internal/domain"
 	"github.com/denisakp/ogoune/internal/service"
+	"github.com/denisakp/ogoune/pkg/problemdetail"
 )
 
 // AuthMiddleware creates a middleware that validates JWT tokens
@@ -19,24 +19,18 @@ func AuthMiddleware(authService *service.AuthService, apiKeyService *service.API
 			rawAPIKey, isAPIKey := extractAPIKey(r)
 			if isAPIKey {
 				if apiKeyService == nil {
-					w.Header().Set("Content-Type", "application/json")
-					w.WriteHeader(http.StatusUnauthorized)
-					_ = json.NewEncoder(w).Encode(map[string]string{"error": "unauthorized"})
+					problemdetail.Write(w, problemdetail.New("/problems/unauthorized", "Unauthorized", http.StatusUnauthorized, "unauthorized"))
 					return
 				}
 				authenticated, err := apiKeyService.AuthenticateAPIKey(r.Context(), rawAPIKey)
 				if err != nil {
-					status := http.StatusUnauthorized
 					message := "invalid or revoked API key"
+					typeURI := "/problems/key-revoked"
 					if err == service.ErrAPIKeyExpired {
 						message = "API key has expired"
+						typeURI = "/problems/key-expired"
 					}
-
-					w.Header().Set("Content-Type", "application/json")
-					w.WriteHeader(status)
-					_ = json.NewEncoder(w).Encode(map[string]string{
-						"error": message,
-					})
+					problemdetail.Write(w, problemdetail.New(typeURI, "Unauthorized", http.StatusUnauthorized, message))
 					return
 				}
 
@@ -50,9 +44,9 @@ func AuthMiddleware(authService *service.AuthService, apiKeyService *service.API
 					bgCtx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 					defer cancel()
 					if err := apiKeyService.UpdateLastUsed(bgCtx, keyID, ip); err != nil {
-						log.Printf("[WARN] failed to update api key usage for key_id=%s: %v", keyID, err)
+						slog.Warn("failed to update api key usage", "key_id", keyID, "error", err)
 					}
-					log.Printf("api_key_auth_success key_prefix=%s method=%s path=%s", keyPrefix, method, path)
+					slog.Info("api key authentication succeeded", "key_prefix", keyPrefix, "method", method, "path", path)
 				}(authenticated.Key.ID, authenticated.Key.KeyPrefix, clientIP(r), r.Method, r.URL.Path)
 
 				next.ServeHTTP(w, r.WithContext(ctx))
@@ -60,32 +54,20 @@ func AuthMiddleware(authService *service.AuthService, apiKeyService *service.API
 			}
 
 			if authService == nil {
-				w.Header().Set("Content-Type", "application/json")
-				w.WriteHeader(http.StatusUnauthorized)
-				_ = json.NewEncoder(w).Encode(map[string]string{"error": "unauthorized"})
+				problemdetail.Write(w, problemdetail.New("/problems/unauthorized", "Unauthorized", http.StatusUnauthorized, "unauthorized"))
 				return
 			}
 
 			token := extractToken(r)
 			if token == "" {
-				w.Header().Set("Content-Type", "application/json")
-				w.WriteHeader(http.StatusUnauthorized)
-				_ = json.NewEncoder(w).Encode(map[string]string{
-					"error":   "unauthorized",
-					"message": "Missing authorization token",
-				})
+				problemdetail.Write(w, problemdetail.New("/problems/unauthorized", "Unauthorized", http.StatusUnauthorized, "Missing authorization token"))
 				return
 			}
 
 			// Validate token
 			email, userID, err := authService.ValidateToken(token)
 			if err != nil {
-				w.Header().Set("Content-Type", "application/json")
-				w.WriteHeader(http.StatusUnauthorized)
-				_ = json.NewEncoder(w).Encode(map[string]string{
-					"error":   "unauthorized",
-					"message": "Invalid or expired token",
-				})
+				problemdetail.Write(w, problemdetail.New("/problems/invalid-token", "Unauthorized", http.StatusUnauthorized, "Invalid or expired token"))
 				return
 			}
 

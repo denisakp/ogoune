@@ -2,7 +2,7 @@ package service
 
 import (
 	"context"
-	"log"
+	"log/slog"
 	"math"
 	"sync"
 	"time"
@@ -66,12 +66,12 @@ func (d *HeartbeatDetectorService) Detect(ctx context.Context) error {
 
 	missed, err := d.resources.FindMissedHeartbeats(ctx, now, detectorQueryLimit)
 	if err != nil {
-		log.Printf("[heartbeat-detector] query failed: %v", err)
+		slog.Error("heartbeat detection query failed", "error", err)
 		return err
 	}
 
 	if len(missed) == 0 {
-		log.Printf("[heartbeat-detector] run complete: 0 missed monitors")
+		slog.Info("heartbeat detection run complete", "missed", 0)
 		return nil
 	}
 
@@ -86,17 +86,18 @@ func (d *HeartbeatDetectorService) Detect(ctx context.Context) error {
 		}
 
 		if err := d.incidents.CreateIncident(ctx, resource, result); err != nil {
-			log.Printf("[heartbeat-detector] incident call failed for monitor %s (%s): %v — retry scheduled after %s",
-				resource.ID, resource.Name, err, d.CalculateBackoffDelay(0))
+			slog.Error("heartbeat incident creation failed",
+				"resource_id", resource.ID, "resource_name", resource.Name,
+				"error", err, "retry_after", d.CalculateBackoffDelay(0))
 			failed++
 		} else {
-			log.Printf("[heartbeat-detector] incident created for monitor %s (%s)", resource.ID, resource.Name)
+			slog.Info("heartbeat incident created", "resource_id", resource.ID, "resource_name", resource.Name)
 			succeeded++
 		}
 	}
 
-	log.Printf("[heartbeat-detector] run complete: missed=%d incidents_created=%d failures=%d",
-		len(missed), succeeded, failed)
+	slog.Info("heartbeat detection run complete",
+		"missed", len(missed), "incidents_created", succeeded, "failures", failed)
 	return nil
 }
 
@@ -116,17 +117,17 @@ func (d *HeartbeatDetectorService) Start(ctx context.Context, interval time.Dura
 		for {
 			select {
 			case <-ctx.Done():
-				log.Println("[heartbeat-detector] stopped")
+				slog.Info("heartbeat detector stopped")
 				return
 			case <-ticker.C:
 				if err := d.Detect(ctx); err != nil {
-					log.Printf("[heartbeat-detector] detection cycle error: %v", err)
+					slog.Error("heartbeat detection cycle error", "error", err)
 				}
 			}
 		}
 	}()
 
-	log.Printf("[heartbeat-detector] started (interval=%s)", interval)
+	slog.Info("heartbeat detector started", "interval", interval)
 	return nil
 }
 

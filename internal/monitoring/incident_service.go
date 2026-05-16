@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
+	"log/slog"
 	"strings"
 	"time"
 
@@ -68,13 +68,13 @@ func (s *IncidentService) CreateIncident(ctx context.Context, r *domain.Resource
 	// Look for unresolved incidents (where ResolvedAt is nil)
 	for _, incident := range incidents {
 		if incident.ResolvedAt == nil {
-			log.Printf("[INCIDENT] Active incident %s already exists for resource %s (started: %s), skipping creation to avoid duplicates",
-				incident.ID, r.ID, incident.StartedAt.Format(time.RFC3339))
+			slog.Info("active incident already exists, skipping creation",
+				"incident_id", incident.ID, "resource_id", r.ID, "started_at", incident.StartedAt.Format(time.RFC3339))
 			return nil // Active incident already exists, avoid duplicates
 		}
 	}
 
-	log.Printf("[INCIDENT] Creating NEW incident for resource %s after %d consecutive failures", r.ID, r.FailureCount)
+	slog.Info("creating new incident", "resource_id", r.ID, "failure_count", r.FailureCount)
 
 	// Extract cause from result - this is the structured failure reason
 	cause := extractCause(result)
@@ -93,16 +93,16 @@ func (s *IncidentService) CreateIncident(ctx context.Context, r *domain.Resource
 		return fmt.Errorf("failed to create incident: %w", err)
 	}
 
-	log.Printf("Created incident %s for resource %s (cause: %s)", incident.ID, r.ID, cause)
+	slog.Info("incident created", "incident_id", incident.ID, "resource_id", r.ID, "cause", cause)
 
 	// Persist incident diagnostics immediately after creation
 	// This captures error details, network timing, and other technical context
 	diag := s.buildIncidentDiagnostics(incident.ID, result, r)
 	if _, err := s.diagnostics.Create(ctx, diag); err != nil {
-		log.Printf("Warning: Failed to persist incident diagnostics for %s: %v (continuing)", incident.ID, err)
+		slog.Warn("failed to persist incident diagnostics", "incident_id", incident.ID, "error", err)
 		// Don't fail incident creation if diagnostics fail - they're supplementary
 	} else {
-		log.Printf("Persisted diagnostic details for incident %s", incident.ID)
+		slog.Debug("persisted incident diagnostics", "incident_id", incident.ID)
 	}
 
 	// Step 1: Create "detected" event step
@@ -113,11 +113,11 @@ func (s *IncidentService) CreateIncident(ctx context.Context, r *domain.Resource
 	}
 
 	if _, err := s.eventSteps.Create(ctx, detectedStep); err != nil {
-		log.Printf("Warning: Failed to create detected event step: %v", err)
+		slog.Warn("failed to create detected event step", "incident_id", incident.ID, "error", err)
 	}
 
 	if _, err := s.eventSteps.FindLastByIncidentAndStep(ctx, incident.ID, domain.IncidentEventStepDownAlert); err == nil {
-		log.Printf("[INCIDENT] Down alert already exists for incident %s, skipping duplicate dispatch", incident.ID)
+		slog.Info("down alert already exists, skipping duplicate dispatch", "incident_id", incident.ID)
 		return nil
 	} else if !errors.Is(err, repository.ErrNotFound) {
 		return fmt.Errorf("failed to verify prior down alert event step: %w", err)
@@ -126,7 +126,7 @@ func (s *IncidentService) CreateIncident(ctx context.Context, r *domain.Resource
 	// Fetch notification channels associated with this resource using the resolution hierarchy
 	channels := s.resolveNotificationChannels(ctx, r)
 	if len(channels) == 0 {
-		log.Printf("[WARNING] Incident %s created for resource %s but no alert was sent. Configure a resource, component, or default notification channel to enable delivery.", incident.ID, r.ID)
+		slog.Warn("incident created but no notification channels configured", "incident_id", incident.ID, "resource_id", r.ID)
 		return nil
 	}
 
@@ -139,7 +139,7 @@ func (s *IncidentService) CreateIncident(ctx context.Context, r *domain.Resource
 		}
 		eventCreated := false
 		if err := s.notifications.Create(ctx, notificationEvent); err != nil {
-			log.Printf("Warning: Failed to create pending notification event: %v", err)
+			slog.Warn("failed to create pending notification event", "incident_id", incident.ID, "error", err)
 		} else {
 			eventCreated = true
 		}
@@ -150,7 +150,7 @@ func (s *IncidentService) CreateIncident(ctx context.Context, r *domain.Resource
 		statusMsg := "sent"
 		if err != nil {
 			statusMsg = fmt.Sprintf("failed: %v", err)
-			log.Printf("Warning: Failed to dispatch notification via channel %s (%s): %v", channel.ID, channel.Type, err)
+			slog.Warn("failed to dispatch down notification", "channel_id", channel.ID, "channel_type", channel.Type, "incident_id", incident.ID, "error", err)
 		}
 
 		alertStep := &domain.IncidentEventStep{
@@ -159,18 +159,18 @@ func (s *IncidentService) CreateIncident(ctx context.Context, r *domain.Resource
 			Message:    stringPtr(fmt.Sprintf("Down notification %s via %s (%s): %s", statusMsg, channel.Type, channel.Name, humanizeCause(incident.Cause))),
 		}
 		if _, err := s.eventSteps.Create(ctx, alertStep); err != nil {
-			log.Printf("Warning: Failed to create alert event step: %v", err)
+			slog.Warn("failed to create alert event step", "incident_id", incident.ID, "error", err)
 		}
 
 		if eventCreated {
 			processedAt := time.Now()
 			if err != nil {
 				if markErr := s.notifications.MarkAsFailed(ctx, notificationEvent.ID, err.Error(), processedAt); markErr != nil {
-					log.Printf("Warning: Failed to mark notification event as failed: %v", markErr)
+					slog.Warn("failed to mark notification event as failed", "notification_id", notificationEvent.ID, "error", markErr)
 				}
 			} else {
 				if markErr := s.notifications.MarkAsSent(ctx, notificationEvent.ID, processedAt); markErr != nil {
-					log.Printf("Warning: Failed to mark notification event as sent: %v", markErr)
+					slog.Warn("failed to mark notification event as sent", "notification_id", notificationEvent.ID, "error", markErr)
 				}
 			}
 		}
@@ -193,7 +193,7 @@ func (s *IncidentService) NotifyFlapping(ctx context.Context, r *domain.Resource
 			FlapStartedAt:      r.FlapStartedAt,
 			TriggeredAt:        time.Now(),
 		}}, channel); err != nil {
-			log.Printf("Warning: Failed to dispatch flapping notification via channel %s (%s): %v", channel.ID, channel.Type, err)
+			slog.Warn("failed to dispatch flapping notification", "channel_id", channel.ID, "channel_type", channel.Type, "resource_id", r.ID, "error", err)
 		}
 	}
 	return nil
@@ -211,7 +211,7 @@ func (s *IncidentService) NotifyStabilized(ctx context.Context, r *domain.Resour
 			FinalStatus: finalStatus,
 			TriggeredAt: time.Now(),
 		}}, channel); err != nil {
-			log.Printf("Warning: Failed to dispatch stabilization notification via channel %s (%s): %v", channel.ID, channel.Type, err)
+			slog.Warn("failed to dispatch stabilization notification", "channel_id", channel.ID, "channel_type", channel.Type, "resource_id", r.ID, "error", err)
 		}
 	}
 	return nil
@@ -245,7 +245,7 @@ func (s *IncidentService) SendReminderIfDue(ctx context.Context, r *domain.Resou
 		}
 		eventCreated := false
 		if err := s.notifications.Create(ctx, notificationEvent); err != nil {
-			log.Printf("Warning: Failed to create reminder notification event: %v", err)
+			slog.Warn("failed to create reminder notification event", "incident_id", activeIncident.ID, "error", err)
 		} else {
 			eventCreated = true
 		}
@@ -256,25 +256,25 @@ func (s *IncidentService) SendReminderIfDue(ctx context.Context, r *domain.Resou
 			ElapsedMinutes: elapsed,
 			TriggeredAt:    time.Now(),
 		}}, channel); err != nil {
-			log.Printf("Warning: Failed to dispatch reminder notification via channel %s (%s): %v", channel.ID, channel.Type, err)
+			slog.Warn("failed to dispatch reminder notification", "channel_id", channel.ID, "channel_type", channel.Type, "incident_id", activeIncident.ID, "error", err)
 			if eventCreated {
 				if markErr := s.notifications.MarkAsFailed(ctx, notificationEvent.ID, err.Error(), time.Now()); markErr != nil {
-					log.Printf("Warning: Failed to mark reminder notification event as failed: %v", markErr)
+					slog.Warn("failed to mark reminder notification event as failed", "notification_id", notificationEvent.ID, "error", markErr)
 				}
 			}
 		} else if eventCreated {
 			if markErr := s.notifications.MarkAsSent(ctx, notificationEvent.ID, time.Now()); markErr != nil {
-				log.Printf("Warning: Failed to mark reminder notification event as sent: %v", markErr)
+				slog.Warn("failed to mark reminder notification event as sent", "notification_id", notificationEvent.ID, "error", markErr)
 			}
 		}
 	}
 	reminderMessage := "Reminder notification sent"
 	if _, err := s.eventSteps.Create(ctx, &domain.IncidentEventStep{IncidentID: activeIncident.ID, Step: domain.IncidentEventStepReminder, Message: &reminderMessage}); err != nil {
-		log.Printf("Warning: Failed to create reminder event step: %v", err)
+		slog.Warn("failed to create reminder event step", "incident_id", activeIncident.ID, "error", err)
 	}
 	anchorMessage := "Reminder anchor written"
 	if _, err := s.eventSteps.Create(ctx, &domain.IncidentEventStep{IncidentID: activeIncident.ID, Step: domain.IncidentEventStepDownAlert, Message: &anchorMessage}); err != nil {
-		log.Printf("Warning: Failed to create reminder down-alert anchor: %v", err)
+		slog.Warn("failed to create reminder down-alert anchor", "incident_id", activeIncident.ID, "error", err)
 	}
 	return nil
 }
@@ -331,12 +331,12 @@ func (s *IncidentService) ResolveIncident(ctx context.Context, r *domain.Resourc
 
 	// No active incident to resolve
 	if activeIncident == nil {
-		log.Printf("[DEBUG] No active incident found for resource %s - recovery without prior incident (expected when failures < 3)", r.ID)
+		slog.Debug("no active incident found for resource, recovery without prior incident", "resource_id", r.ID)
 		return nil
 	}
 
 	duration := time.Since(activeIncident.StartedAt)
-	log.Printf("[INCIDENT] Resolving incident %s for resource %s (duration: %v)", activeIncident.ID, r.ID, duration)
+	slog.Info("resolving incident", "incident_id", activeIncident.ID, "resource_id", r.ID, "duration", duration)
 
 	// Resolve the incident by setting ResolvedAt timestamp
 	now := time.Now()
@@ -346,7 +346,7 @@ func (s *IncidentService) ResolveIncident(ctx context.Context, r *domain.Resourc
 		return fmt.Errorf("failed to resolve incident: %w", err)
 	}
 
-	log.Printf("[INCIDENT] Successfully resolved incident %s for resource %s", activeIncident.ID, r.ID)
+	slog.Info("incident resolved", "incident_id", activeIncident.ID, "resource_id", r.ID)
 
 	// Step 1: Create "resolved" event step
 	resolvedStep := &domain.IncidentEventStep{
@@ -356,13 +356,13 @@ func (s *IncidentService) ResolveIncident(ctx context.Context, r *domain.Resourc
 	}
 
 	if _, err := s.eventSteps.Create(ctx, resolvedStep); err != nil {
-		log.Printf("Warning: Failed to create resolved event step: %v", err)
+		slog.Warn("failed to create resolved event step", "incident_id", activeIncident.ID, "error", err)
 	}
 
 	// Fetch notification channels associated with this resource using the resolution hierarchy
 	channels := s.resolveNotificationChannels(ctx, r)
 	if len(channels) == 0 {
-		log.Printf("[INCIDENT] No notification channels resolved for resource %s (tried: resource -> component -> default)", r.ID)
+		slog.Info("no notification channels resolved for resource", "resource_id", r.ID)
 		return nil
 	}
 
@@ -375,7 +375,7 @@ func (s *IncidentService) ResolveIncident(ctx context.Context, r *domain.Resourc
 		}
 		eventCreated := false
 		if err := s.notifications.Create(ctx, notificationEvent); err != nil {
-			log.Printf("Warning: Failed to create pending notification event: %v", err)
+			slog.Warn("failed to create pending notification event", "incident_id", activeIncident.ID, "error", err)
 		} else {
 			eventCreated = true
 		}
@@ -386,7 +386,7 @@ func (s *IncidentService) ResolveIncident(ctx context.Context, r *domain.Resourc
 		statusMsg := "sent"
 		if err != nil {
 			statusMsg = fmt.Sprintf("failed: %v", err)
-			log.Printf("Warning: Failed to dispatch resolution notification via channel %s (%s): %v", channel.ID, channel.Type, err)
+			slog.Warn("failed to dispatch resolution notification", "channel_id", channel.ID, "channel_type", channel.Type, "incident_id", activeIncident.ID, "error", err)
 		}
 
 		upAlertStep := &domain.IncidentEventStep{
@@ -395,18 +395,18 @@ func (s *IncidentService) ResolveIncident(ctx context.Context, r *domain.Resourc
 			Message:    stringPtr(fmt.Sprintf("Up notification %s via %s (%s): %s", statusMsg, channel.Type, channel.Name, humanizeCause(activeIncident.Cause))),
 		}
 		if _, err := s.eventSteps.Create(ctx, upAlertStep); err != nil {
-			log.Printf("Warning: Failed to create up alert event step: %v", err)
+			slog.Warn("failed to create up alert event step", "incident_id", activeIncident.ID, "error", err)
 		}
 
 		if eventCreated {
 			processedAt := time.Now()
 			if err != nil {
 				if markErr := s.notifications.MarkAsFailed(ctx, notificationEvent.ID, err.Error(), processedAt); markErr != nil {
-					log.Printf("Warning: Failed to mark notification event as failed: %v", markErr)
+					slog.Warn("failed to mark notification event as failed", "notification_id", notificationEvent.ID, "error", markErr)
 				}
 			} else {
 				if markErr := s.notifications.MarkAsSent(ctx, notificationEvent.ID, processedAt); markErr != nil {
-					log.Printf("Warning: Failed to mark notification event as sent: %v", markErr)
+					slog.Warn("failed to mark notification event as sent", "notification_id", notificationEvent.ID, "error", markErr)
 				}
 			}
 		}
@@ -498,7 +498,7 @@ func (s *IncidentService) dispatchNotification(ctx context.Context, payload noti
 		return fmt.Errorf("failed to send notification: %w", err)
 	}
 
-	log.Printf("Successfully sent notification via %s channel %s", channel.Type, channel.ID)
+	slog.Info("notification sent", "channel_type", channel.Type, "channel_id", channel.ID)
 	return nil
 }
 
@@ -512,7 +512,7 @@ func (s *IncidentService) resolveNotificationChannels(ctx context.Context, r *do
 	// Step 1: Try resource-specific channels
 	resourceChannels, err := s.notificationChannels.FindByResourceID(ctx, r.ID)
 	if err == nil && len(resourceChannels) > 0 {
-		log.Printf("[NOTIFICATION] Resolved %d notification channel(s) from resource %s", len(resourceChannels), r.ID)
+		slog.Debug("resolved notification channels from resource", "count", len(resourceChannels), "resource_id", r.ID)
 		return resourceChannels
 	}
 
@@ -522,7 +522,7 @@ func (s *IncidentService) resolveNotificationChannels(ctx context.Context, r *do
 		if err == nil && component != nil {
 			componentChannels, err := s.notificationChannels.FindByComponentID(ctx, component.ID)
 			if err == nil && len(componentChannels) > 0 {
-				log.Printf("[NOTIFICATION] Resolved %d notification channel(s) from component %s", len(componentChannels), component.ID)
+				slog.Debug("resolved notification channels from component", "count", len(componentChannels), "component_id", component.ID)
 				return componentChannels
 			}
 		}
@@ -531,11 +531,11 @@ func (s *IncidentService) resolveNotificationChannels(ctx context.Context, r *do
 	// Step 3: Fall back to default/global channels
 	defaultChannels, err := s.notificationChannels.FindDefaultChannels(ctx)
 	if err == nil && len(defaultChannels) > 0 {
-		log.Printf("[NOTIFICATION] Resolved %d global default notification channel(s)", len(defaultChannels))
+		slog.Debug("resolved global default notification channels", "count", len(defaultChannels))
 		return defaultChannels
 	}
 
-	log.Printf("[NOTIFICATION] No notification channels found for resource %s (tried: resource -> component -> default)", r.ID)
+	slog.Debug("no notification channels found for resource", "resource_id", r.ID)
 	return channels
 }
 

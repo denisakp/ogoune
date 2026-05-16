@@ -56,20 +56,20 @@ func mapTagResponse(t *domain.Tags) dtoV1.TagResponse {
 func (h *TagHandler) List(w http.ResponseWriter, r *http.Request) {
 	params, errs := parsePagination(r)
 	if len(errs) > 0 {
-		respondError(w, http.StatusUnprocessableEntity, "VALIDATION_FAILED", "invalid pagination parameters", errs...)
+		respondError(w, r, http.StatusUnprocessableEntity, "VALIDATION_FAILED", "invalid pagination parameters", errs...)
 		return
 	}
 
 	offset := (params.Page - 1) * params.PerPage
 	items, err := h.service.ListTags(r.Context(), params.PerPage, offset)
 	if err != nil {
-		respondError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to list tags")
+		respondError(w, r, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to list tags")
 		return
 	}
 
 	all, err := h.service.ListTags(r.Context(), 10000, 0)
 	if err != nil {
-		respondError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to count tags")
+		respondError(w, r, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to count tags")
 		return
 	}
 
@@ -99,7 +99,7 @@ func (h *TagHandler) Get(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 	t, err := h.service.GetTagByID(r.Context(), id)
 	if err != nil || t == nil {
-		respondError(w, http.StatusNotFound, "RESOURCE_NOT_FOUND", "tag not found")
+		respondError(w, r, http.StatusNotFound, "RESOURCE_NOT_FOUND", "tag not found")
 		return
 	}
 	respond(w, http.StatusOK, mapTagResponse(t))
@@ -120,11 +120,11 @@ func (h *TagHandler) Get(w http.ResponseWriter, r *http.Request) {
 func (h *TagHandler) Create(w http.ResponseWriter, r *http.Request) {
 	var req dtoV1.CreateTagRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		respondError(w, http.StatusUnprocessableEntity, "VALIDATION_FAILED", "invalid request body")
+		respondError(w, r, http.StatusUnprocessableEntity, "VALIDATION_FAILED", "invalid request body")
 		return
 	}
 	if strings.TrimSpace(req.Name) == "" {
-		respondError(w, http.StatusUnprocessableEntity, "VALIDATION_FAILED", "validation failed",
+		respondError(w, r, http.StatusUnprocessableEntity, "VALIDATION_FAILED", "validation failed",
 			dtoV1.FieldError{Field: "name", Message: "required"})
 		return
 	}
@@ -135,7 +135,7 @@ func (h *TagHandler) Create(w http.ResponseWriter, r *http.Request) {
 		Description: req.Description,
 	}
 	if err := h.service.CreateTag(r.Context(), t); err != nil {
-		respondError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to create tag")
+		respondError(w, r, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to create tag")
 		return
 	}
 	respond(w, http.StatusCreated, mapTagResponse(t))
@@ -158,13 +158,13 @@ func (h *TagHandler) Update(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 	existing, err := h.service.GetTagByID(r.Context(), id)
 	if err != nil || existing == nil {
-		respondError(w, http.StatusNotFound, "RESOURCE_NOT_FOUND", "tag not found")
+		respondError(w, r, http.StatusNotFound, "RESOURCE_NOT_FOUND", "tag not found")
 		return
 	}
 
 	var req dtoV1.UpdateTagRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		respondError(w, http.StatusUnprocessableEntity, "VALIDATION_FAILED", "invalid request body")
+		respondError(w, r, http.StatusUnprocessableEntity, "VALIDATION_FAILED", "invalid request body")
 		return
 	}
 
@@ -174,7 +174,7 @@ func (h *TagHandler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 	updated, err := h.service.UpdateTag(r.Context(), id, name, req.Color, req.Description)
 	if err != nil {
-		respondError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to update tag")
+		respondError(w, r, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to update tag")
 		return
 	}
 	respond(w, http.StatusOK, mapTagResponse(updated))
@@ -193,7 +193,7 @@ func (h *TagHandler) Update(w http.ResponseWriter, r *http.Request) {
 func (h *TagHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 	if err := h.service.DeleteTag(r.Context(), id); err != nil {
-		respondError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to delete tag")
+		respondError(w, r, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to delete tag")
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)

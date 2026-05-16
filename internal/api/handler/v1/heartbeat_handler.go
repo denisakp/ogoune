@@ -48,24 +48,24 @@ func (h *HeartbeatV1Handler) Ping(w http.ResponseWriter, r *http.Request) {
 	resource, err := h.service.GetResourceByHeartbeatSlug(r.Context(), slug)
 	if err != nil {
 		if errors.Is(err, service.ErrResourceNotFound) {
-			respondError(w, http.StatusNotFound, "RESOURCE_NOT_FOUND", "monitor not found")
+			respondError(w, r, http.StatusNotFound, "RESOURCE_NOT_FOUND", "monitor not found")
 			return
 		}
-		respondError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to process ping")
+		respondError(w, r, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to process ping")
 		return
 	}
 
 	if !resource.IsActive {
-		respondError(w, http.StatusForbidden, "MONITOR_PAUSED", "monitor is paused")
+		respondError(w, r, http.StatusForbidden, "MONITOR_PAUSED", "monitor is paused")
 		return
 	}
 
 	if err := h.service.MarkHeartbeatPing(r.Context(), resource.ID, now); err != nil {
 		if errors.Is(err, service.ErrResourceNotFound) {
-			respondError(w, http.StatusNotFound, "RESOURCE_NOT_FOUND", "monitor not found")
+			respondError(w, r, http.StatusNotFound, "RESOURCE_NOT_FOUND", "monitor not found")
 			return
 		}
-		respondError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to process ping")
+		respondError(w, r, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to process ping")
 		return
 	}
 

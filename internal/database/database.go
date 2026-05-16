@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"log/slog"
 	"os"
 	"strings"
 	"sync"
@@ -127,7 +128,7 @@ func Init(ctx context.Context, cfg Config) error {
 
 	activeRuntime = runtime
 	initErr = nil
-	log.Printf("db_init=completed driver=%s permission_status=%s", runtime.Driver, runtime.PermissionStatus)
+	slog.Info("database initialization completed", "driver", string(runtime.Driver), "permission_status", string(runtime.PermissionStatus))
 	return nil
 }
 

@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
+	"log/slog"
 	"strings"
 	"time"
 
@@ -592,7 +592,7 @@ func (s *ResourceService) DeleteResource(ctx context.Context, resourceID string)
 		now := time.Now()
 		incident.ResolvedAt = &now
 		if err := s.incidents.Update(ctx, incident); err != nil {
-			log.Printf("[resource-service] failed to resolve incident for deleted resource %s: %v", resourceID, err)
+			slog.Error("failed to resolve incident for deleted resource", "resource_id", resourceID, "error", err)
 		}
 	}
 	// ErrNotFound from FindActiveByResourceID is expected (no active incident) — proceed silently.
@@ -603,7 +603,7 @@ func (s *ResourceService) DeleteResource(ctx context.Context, resourceID string)
 
 	// Unschedule monitoring for the deleted resource
 	if err := s.scheduler.Unschedule(ctx, resourceID); err != nil {
-		log.Printf("[resource-service] failed to unschedule resource %s: %v", resourceID, err)
+		slog.Error("failed to unschedule resource", "resource_id", resourceID, "error", err)
 	}
 
 	// Auto-cleanup component if it becomes empty after resource deletion

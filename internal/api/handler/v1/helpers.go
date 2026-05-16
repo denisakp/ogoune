@@ -6,6 +6,8 @@ import (
 	"strconv"
 
 	dtoV1 "github.com/denisakp/ogoune/internal/dto/v1"
+	"github.com/denisakp/ogoune/pkg/logger"
+	"github.com/denisakp/ogoune/pkg/problemdetail"
 )
 
 const (
@@ -15,16 +17,16 @@ const (
 )
 
 // respond writes a single-item envelope response.
-func respond(w http.ResponseWriter, status int, data interface{}) {
+func respond(w http.ResponseWriter, status int, data any) {
 	w.WriteHeader(status)
-	json.NewEncoder(w).Encode(dtoV1.SingleResponse[interface{}]{
+	json.NewEncoder(w).Encode(dtoV1.SingleResponse[any]{
 		Data: data,
 		Meta: nil,
 	})
 }
 
 // respondPaginated writes a paginated list response.
-func respondPaginated(w http.ResponseWriter, data interface{}, meta dtoV1.MetaResponse) {
+func respondPaginated(w http.ResponseWriter, data any, meta dtoV1.MetaResponse) {
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"data": data,
@@ -32,17 +34,26 @@ func respondPaginated(w http.ResponseWriter, data interface{}, meta dtoV1.MetaRe
 	})
 }
 
-// respondError writes a structured error response.
-func respondError(w http.ResponseWriter, status int, code, message string, fields ...dtoV1.FieldError) {
-	detail := dtoV1.ErrorDetail{
-		Code:    code,
-		Message: message,
+// respondError writes an RFC 7807 ProblemDetail error response.
+func respondError(w http.ResponseWriter, r *http.Request, status int, code, message string, fields ...dtoV1.FieldError) {
+	pd := problemdetail.New(code, http.StatusText(status), status, message)
+
+	if reqID := logger.RequestID(r.Context()); reqID != "" {
+		pd = pd.WithInstance(reqID)
 	}
+
 	if len(fields) > 0 {
-		detail.Fields = fields
+		pdErrors := make([]problemdetail.FieldError, len(fields))
+		for i, f := range fields {
+			pdErrors[i] = problemdetail.FieldError{
+				Field:   f.Field,
+				Message: f.Message,
+			}
+		}
+		pd = pd.WithErrors(pdErrors)
 	}
-	w.WriteHeader(status)
-	json.NewEncoder(w).Encode(dtoV1.ErrorResponse{Error: detail})
+
+	problemdetail.Write(w, pd)
 }
 
 // parsePagination parses and validates ?page and ?per_page query params.

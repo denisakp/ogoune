@@ -3,7 +3,7 @@ package metrics
 import (
 	"context"
 	"errors"
-	"log"
+	"log/slog"
 
 	"github.com/denisakp/ogoune/internal/domain"
 	"github.com/denisakp/ogoune/internal/repository"
@@ -74,7 +74,7 @@ func (c *OgouneCollector) Collect(ch chan<- prometheus.Metric) {
 	for {
 		page, err := c.resourceRepo.FindActive(ctx, pageSize, offset)
 		if err != nil {
-			log.Printf("[metrics] collector: failed to list active resources (offset=%d): %v", offset, err)
+			slog.Error("failed to list active resources", "offset", offset, "error", err)
 			return
 		}
 		for _, r := range page {
@@ -105,7 +105,7 @@ func (c *OgouneCollector) collectResource(ctx context.Context, ch chan<- prometh
 	// ogoune_incidents_total
 	total, err := c.incidentRepo.CountByResourceID(ctx, id)
 	if err != nil {
-		log.Printf("[metrics] collector: CountByResourceID failed for resource %s: %v", id, err)
+		slog.Error("failed to count incidents by resource", "resource_id", id, "error", err)
 		return
 	}
 	ch <- prometheus.MustNewConstMetric(c.descIncidentsTotal, prometheus.GaugeValue, float64(total), id, name, typ)
@@ -114,7 +114,7 @@ func (c *OgouneCollector) collectResource(ctx context.Context, ch chan<- prometh
 	var activeVal float64
 	_, err = c.incidentRepo.FindActiveByResourceID(ctx, id)
 	if err != nil && !errors.Is(err, repository.ErrNotFound) {
-		log.Printf("[metrics] collector: FindActiveByResourceID failed for resource %s: %v", id, err)
+		slog.Error("failed to find active incident by resource", "resource_id", id, "error", err)
 		return
 	}
 	if err == nil {
@@ -133,7 +133,7 @@ func (c *OgouneCollector) collectResource(ctx context.Context, ch chan<- prometh
 	} {
 		ratio, err := c.activityRepo.GetUptimeByWindow(ctx, id, w.hours)
 		if err != nil {
-			log.Printf("[metrics] collector: GetUptimeByWindow(%s,%d) failed for resource %s: %v", w.label, w.hours, id, err)
+			slog.Error("failed to get uptime by window", "window", w.label, "hours", w.hours, "resource_id", id, "error", err)
 			ratio = nil
 		}
 		var ratioVal float64

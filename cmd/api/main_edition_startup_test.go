@@ -2,7 +2,7 @@ package main
 
 import (
 	"bytes"
-	"log"
+	"log/slog"
 	"os"
 	"strings"
 	"testing"
@@ -12,9 +12,9 @@ func TestLogStartupEditionCommunity(t *testing.T) {
 	os.Unsetenv("ENTERPRISE_LICENSE_KEY")
 
 	var buf bytes.Buffer
-	orig := log.Writer()
-	log.SetOutput(&buf)
-	defer log.SetOutput(orig)
+	old := slog.Default()
+	slog.SetDefault(slog.New(slog.NewTextHandler(&buf, nil)))
+	defer slog.SetDefault(old)
 
 	logStartupEdition()
 
@@ -28,9 +28,9 @@ func TestLogStartupEditionEnterprise(t *testing.T) {
 	defer os.Unsetenv("ENTERPRISE_LICENSE_KEY")
 
 	var buf bytes.Buffer
-	orig := log.Writer()
-	log.SetOutput(&buf)
-	defer log.SetOutput(orig)
+	old := slog.Default()
+	slog.SetDefault(slog.New(slog.NewTextHandler(&buf, nil)))
+	defer slog.SetDefault(old)
 
 	logStartupEdition()
 

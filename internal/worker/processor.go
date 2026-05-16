@@ -2,7 +2,7 @@ package worker
 
 import (
 	"context"
-	"log"
+	"log/slog"
 
 	mhandler "github.com/denisakp/ogoune/internal/maintenance"
 	"github.com/hibiken/asynq"
@@ -69,7 +69,7 @@ func (p *Processor) Start(ctx context.Context) error {
 	// Note: notification:send handler removed - notifications are now sent directly by IncidentService
 
 	// Start the server
-	log.Println("Starting Asynq worker...")
+	slog.Info("starting Asynq worker")
 	return p.server.Start(mux)
 }
 
@@ -79,6 +79,6 @@ func (p *Processor) Stop() {
 		return
 	}
 
-	log.Println("Shutting down Asynq worker...")
+	slog.Info("shutting down Asynq worker")
 	p.server.Stop()
 }
