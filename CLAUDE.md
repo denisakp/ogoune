@@ -137,3 +137,10 @@ Vue 3 Composition API + TypeScript + Pinia + Ant Design Vue.
 - Incident event steps (`detected`, `resource_down_alert`, `resolved`, `resource_up_alert`) may not all be present
 - Never block on scheduler failures — log and return `ErrSchedulerSync`
 - Commits use Conventional Commits format (`feat:`, `fix:`, `docs:`, `refactor:`, `test:`, `chore:`)
+
+<!-- SPECKIT START -->
+For additional context about technologies to be used, project structure,
+shell commands, and other important information, read the current plan
+# currentDate
+@specs/029-security-perimeter-hardening/plan.md
+<!-- SPECKIT END -->
