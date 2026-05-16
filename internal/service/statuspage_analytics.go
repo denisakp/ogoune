@@ -14,147 +14,142 @@ func (s *StatusPageService) calculate90DayData(ctx context.Context, resource *do
 	now := time.Now()
 	startDate := now.AddDate(0, 0, -90)
 
-	// Fetch all monitoring activities for the last 90 days
 	activities, err := s.monitoringActivityRepo.FindByResourceID(ctx, resource.ID, 100000, 0)
 	if err != nil {
 		return 0, nil, fmt.Errorf("failed to fetch monitoring activities: %w", err)
 	}
 
-	// Filter activities within the last 90 days
-	filteredActivities := make([]*domain.MonitoringActivity, 0)
-	for _, activity := range activities {
-		if activity.CreatedAt.After(startDate) || activity.CreatedAt.Equal(startDate) {
-			filteredActivities = append(filteredActivities, activity)
-		}
-	}
+	filteredActivities := filterActivitiesSince(activities, startDate)
 
-	// Fetch all incidents for the resource
 	incidents, err := s.incidentRepo.FindByResource(ctx, resource.ID, 10000, 0)
 	if err != nil {
 		return 0, nil, fmt.Errorf("failed to fetch incidents: %w", err)
 	}
 
-	// Filter incidents within the last 90 days
-	filteredIncidents := make([]*domain.Incident, 0)
-	for _, incident := range incidents {
-		// Include incident if it started within the last 90 days or overlaps with the period
-		if incident.StartedAt.After(startDate) ||
-			(incident.ResolvedAt != nil && incident.ResolvedAt.After(startDate)) ||
-			(incident.ResolvedAt == nil) {
-			filteredIncidents = append(filteredIncidents, incident)
-		}
-	}
+	filteredIncidents := filterIncidentsOverlapping(incidents, startDate)
 
-	// Calculate overall uptime percentage
-	totalChecks := len(filteredActivities)
-	successfulChecks := 0
-	for _, activity := range filteredActivities {
-		if activity.Success {
-			successfulChecks++
-		}
-	}
+	uptimePercentage := calcUptimePercentage(filteredActivities)
 
-	uptimePercentage := 100.0
-	if totalChecks > 0 {
-		uptimePercentage = (float64(successfulChecks) / float64(totalChecks)) * 100
-	}
-
-	// Calculate daily status for each of the last 90 days
 	dailyStatus := make([]string, 90)
 	for i := range 90 {
 		dayStart := startDate.AddDate(0, 0, i)
 		dayEnd := dayStart.AddDate(0, 0, 1)
 
-		// Check if this day is before the resource was created
 		if dayStart.Before(resource.CreatedAt) {
 			dailyStatus[i] = "no_data"
 		} else {
-			status := s.calculateDayStatus(dayStart, dayEnd, filteredActivities, filteredIncidents)
-			dailyStatus[i] = status
+			dailyStatus[i] = s.calculateDayStatus(dayStart, dayEnd, filteredActivities, filteredIncidents)
 		}
 	}
 
 	return uptimePercentage, dailyStatus, nil
 }
 
+func filterActivitiesSince(activities []*domain.MonitoringActivity, since time.Time) []*domain.MonitoringActivity {
+	filtered := make([]*domain.MonitoringActivity, 0, len(activities))
+	for _, a := range activities {
+		if !a.CreatedAt.Before(since) {
+			filtered = append(filtered, a)
+		}
+	}
+	return filtered
+}
+
+func filterIncidentsOverlapping(incidents []*domain.Incident, since time.Time) []*domain.Incident {
+	filtered := make([]*domain.Incident, 0, len(incidents))
+	for _, inc := range incidents {
+		if inc.StartedAt.After(since) ||
+			(inc.ResolvedAt != nil && inc.ResolvedAt.After(since)) ||
+			inc.ResolvedAt == nil {
+			filtered = append(filtered, inc)
+		}
+	}
+	return filtered
+}
+
+func calcUptimePercentage(activities []*domain.MonitoringActivity) float64 {
+	total := len(activities)
+	if total == 0 {
+		return 100.0
+	}
+	success := 0
+	for _, a := range activities {
+		if a.Success {
+			success++
+		}
+	}
+	return (float64(success) / float64(total)) * 100
+}
+
 // calculateDayStatus determines the status for a specific day based on activities and incidents
 func (s *StatusPageService) calculateDayStatus(dayStart, dayEnd time.Time, activities []*domain.MonitoringActivity, incidents []*domain.Incident) string {
-	// Check if there are any incidents on this day
-	hasMajorIncident := false
-	hasMinorIncident := false
+	hasMajor, hasMinor := classifyDayIncidents(dayStart, dayEnd, incidents)
+
+	if hasMajor {
+		return "down"
+	}
+
+	dayActivities := activitiesInWindow(activities, dayStart, dayEnd)
+
+	if len(dayActivities) == 0 {
+		if hasMinor {
+			return "degraded"
+		}
+		return "up"
+	}
+
+	successRate := calcUptimePercentage(dayActivities)
+
+	if successRate < 50.0 {
+		return "down"
+	}
+	if successRate < 95.0 || hasMinor {
+		return "degraded"
+	}
+
+	return "up"
+}
+
+func classifyDayIncidents(dayStart, dayEnd time.Time, incidents []*domain.Incident) (hasMajor, hasMinor bool) {
+	dayDuration := dayEnd.Sub(dayStart)
 
 	for _, incident := range incidents {
-		// Check if incident overlaps with this day
-		incidentStart := incident.StartedAt
 		incidentEnd := time.Now()
 		if incident.ResolvedAt != nil {
 			incidentEnd = *incident.ResolvedAt
 		}
 
-		// If incident overlaps with the day
-		if incidentStart.Before(dayEnd) && incidentEnd.After(dayStart) {
-			// Calculate incident duration for this day
-			overlapStart := incidentStart
-			if overlapStart.Before(dayStart) {
-				overlapStart = dayStart
-			}
-			overlapEnd := incidentEnd
-			if overlapEnd.After(dayEnd) {
-				overlapEnd = dayEnd
-			}
+		if !incident.StartedAt.Before(dayEnd) || !incidentEnd.After(dayStart) {
+			continue
+		}
 
-			duration := overlapEnd.Sub(overlapStart)
-			dayDuration := dayEnd.Sub(dayStart)
+		overlapStart := incident.StartedAt
+		if overlapStart.Before(dayStart) {
+			overlapStart = dayStart
+		}
+		overlapEnd := incidentEnd
+		if overlapEnd.After(dayEnd) {
+			overlapEnd = dayEnd
+		}
 
-			// If incident covers more than 50% of the day, consider it major
-			if duration > dayDuration/2 {
-				hasMajorIncident = true
-			} else {
-				hasMinorIncident = true
-			}
+		if overlapEnd.Sub(overlapStart) > dayDuration/2 {
+			hasMajor = true
+		} else {
+			hasMinor = true
 		}
 	}
 
-	if hasMajorIncident {
-		return "down"
-	}
+	return
+}
 
-	// Check monitoring activities for this day
-	dayActivities := make([]*domain.MonitoringActivity, 0)
-	for _, activity := range activities {
-		if (activity.CreatedAt.After(dayStart) || activity.CreatedAt.Equal(dayStart)) &&
-			activity.CreatedAt.Before(dayEnd) {
-			dayActivities = append(dayActivities, activity)
+func activitiesInWindow(activities []*domain.MonitoringActivity, start, end time.Time) []*domain.MonitoringActivity {
+	result := make([]*domain.MonitoringActivity, 0)
+	for _, a := range activities {
+		if !a.CreatedAt.Before(start) && a.CreatedAt.Before(end) {
+			result = append(result, a)
 		}
 	}
-
-	if len(dayActivities) == 0 {
-		// No data for this day
-		if hasMinorIncident {
-			return "degraded"
-		}
-		return "up" // Assume up if no data
-	}
-
-	// Calculate success rate for the day
-	totalChecks := len(dayActivities)
-	successfulChecks := 0
-	for _, activity := range dayActivities {
-		if activity.Success {
-			successfulChecks++
-		}
-	}
-
-	successRate := (float64(successfulChecks) / float64(totalChecks)) * 100
-
-	// Determine status based on success rate
-	if successRate < 50.0 {
-		return "down"
-	} else if successRate < 95.0 || hasMinorIncident {
-		return "degraded"
-	}
-
-	return "up"
+	return result
 }
 
 // formatDuration formats a duration into a human-readable string.
@@ -176,61 +171,25 @@ func formatDuration(d time.Duration) string {
 // calculateUptimeSummary calculates uptime percentages for different time windows
 func (s *StatusPageService) calculateUptimeSummary(ctx context.Context, resource *domain.Resource) (dto.UptimeSummary, error) {
 	now := time.Now()
-	resourceCreatedAt := resource.CreatedAt
 
-	// Helper function to calculate uptime for a specific time window
-	calculateWindowUptime := func(hours int) (float64, error) {
+	activities, err := s.monitoringActivityRepo.FindByResourceID(ctx, resource.ID, 100000, 0)
+	if err != nil {
+		return dto.UptimeSummary{}, err
+	}
+
+	windowUptime := func(hours int) float64 {
 		windowStart := now.Add(-time.Duration(hours) * time.Hour)
-
-		// If window starts before resource was created, adjust to creation time
-		if windowStart.Before(resourceCreatedAt) {
-			windowStart = resourceCreatedAt
+		if windowStart.Before(resource.CreatedAt) {
+			windowStart = resource.CreatedAt
 		}
-
-		// Fetch activities for this window
-		activities, err := s.monitoringActivityRepo.FindByResourceID(ctx, resource.ID, 100000, 0)
-		if err != nil {
-			return 0, err
-		}
-
-		// Filter activities within the window
-		var totalChecks, successfulChecks int
-		for _, activity := range activities {
-			if activity.CreatedAt.After(windowStart) && activity.CreatedAt.Before(now) {
-				totalChecks++
-				if activity.Success {
-					successfulChecks++
-				}
-			}
-		}
-
-		if totalChecks == 0 {
-			return 100.0, nil // Assume up if no data
-		}
-
-		return (float64(successfulChecks) / float64(totalChecks)) * 100, nil
-	}
-
-	uptime24h, err := calculateWindowUptime(24)
-	if err != nil {
-		return dto.UptimeSummary{}, err
-	}
-
-	uptime7d, err := calculateWindowUptime(24 * 7)
-	if err != nil {
-		return dto.UptimeSummary{}, err
-	}
-
-	uptime30d, err := calculateWindowUptime(24 * 30)
-	if err != nil {
-		return dto.UptimeSummary{}, err
+		windowActivities := activitiesInWindow(activities, windowStart, now)
+		return calcUptimePercentage(windowActivities)
 	}
 
 	return dto.UptimeSummary{
-		Last24Hours: uptime24h,
-		Last7Days:   uptime7d,
-		Last30Days:  uptime30d,
-		// Last90Days will be set by the caller
+		Last24Hours: windowUptime(24),
+		Last7Days:   windowUptime(24 * 7),
+		Last30Days:  windowUptime(24 * 30),
 	}, nil
 }
 
@@ -239,45 +198,42 @@ func (s *StatusPageService) calculateResponseTimeSummary7Days(ctx context.Contex
 	now := time.Now()
 	sevenDaysAgo := now.AddDate(0, 0, -7)
 
-	// Fetch activities for the last 7 days
 	activities, err := s.monitoringActivityRepo.FindByResourceID(ctx, resourceID, 100000, 0)
 	if err != nil {
 		return dto.ResponseTimeSummary{}, err
 	}
 
-	// Filter successful activities from last 7 days and calculate stats
-	var responseTimes []int
-	for _, activity := range activities {
-		if activity.Success && activity.CreatedAt.After(sevenDaysAgo) && activity.CreatedAt.Before(now) {
-			responseTimes = append(responseTimes, activity.ResponseTime)
-		}
-	}
+	responseTimes := collectResponseTimes(activities, sevenDaysAgo, now)
 
-	// If no data, try to get the latest successful response time
 	if len(responseTimes) == 0 {
-		for _, activity := range activities {
-			if activity.Success && activity.ResponseTime > 0 {
-				return dto.ResponseTimeSummary{
-					AvgMs: activity.ResponseTime,
-					MinMs: activity.ResponseTime,
-					MaxMs: activity.ResponseTime,
-				}, nil
-			}
-		}
-		// No successful checks at all
-		return dto.ResponseTimeSummary{
-			AvgMs: 0,
-			MinMs: 0,
-			MaxMs: 0,
-		}, nil
+		return fallbackResponseTime(activities), nil
 	}
 
-	// Calculate min, max, and average
-	minMs := responseTimes[0]
-	maxMs := responseTimes[0]
-	sum := 0
+	return computeResponseTimeStats(responseTimes), nil
+}
 
-	for _, rt := range responseTimes {
+func collectResponseTimes(activities []*domain.MonitoringActivity, start, end time.Time) []int {
+	var times []int
+	for _, a := range activities {
+		if a.Success && a.CreatedAt.After(start) && a.CreatedAt.Before(end) {
+			times = append(times, a.ResponseTime)
+		}
+	}
+	return times
+}
+
+func fallbackResponseTime(activities []*domain.MonitoringActivity) dto.ResponseTimeSummary {
+	for _, a := range activities {
+		if a.Success && a.ResponseTime > 0 {
+			return dto.ResponseTimeSummary{AvgMs: a.ResponseTime, MinMs: a.ResponseTime, MaxMs: a.ResponseTime}
+		}
+	}
+	return dto.ResponseTimeSummary{}
+}
+
+func computeResponseTimeStats(times []int) dto.ResponseTimeSummary {
+	minMs, maxMs, sum := times[0], times[0], 0
+	for _, rt := range times {
 		if rt < minMs {
 			minMs = rt
 		}
@@ -286,66 +242,64 @@ func (s *StatusPageService) calculateResponseTimeSummary7Days(ctx context.Contex
 		}
 		sum += rt
 	}
-
-	avgMs := sum / len(responseTimes)
-
-	return dto.ResponseTimeSummary{
-		AvgMs: avgMs,
-		MinMs: minMs,
-		MaxMs: maxMs,
-	}, nil
+	return dto.ResponseTimeSummary{AvgMs: sum / len(times), MinMs: minMs, MaxMs: maxMs}
 }
 
 // buildRecentEvents builds a list of recent up/down events from incidents
 func (s *StatusPageService) buildRecentEvents(ctx context.Context, resourceID string) ([]dto.ResourceEvent, error) {
-	// Fetch recent incidents for the resource (last 20)
 	incidents, err := s.incidentRepo.FindByResource(ctx, resourceID, 20, 0)
 	if err != nil {
 		return nil, err
 	}
 
-	events := make([]dto.ResourceEvent, 0)
-
+	events := make([]dto.ResourceEvent, 0, len(incidents)*2)
 	for _, incident := range incidents {
-		// Add "down" event
-		downEvent := dto.ResourceEvent{
-			Type:      "down",
-			Timestamp: incident.StartedAt,
-			Reason:    incident.Cause,
-		}
-
-		// Calculate duration if resolved
-		if incident.ResolvedAt != nil {
-			duration := formatDuration(incident.ResolvedAt.Sub(incident.StartedAt))
-			downEvent.Duration = &duration
-		} else {
-			// Ongoing incident
-			duration := formatDuration(time.Since(incident.StartedAt))
-			downEvent.Duration = &duration
-		}
-
-		// Add details if available
-		if len(incident.Details) > 0 {
-			detailsStr := string(incident.Details)
-			downEvent.Details = &detailsStr
-		}
-
-		events = append(events, downEvent)
-
-		// Add "up" event if resolved
-		if incident.ResolvedAt != nil {
-			upEvent := dto.ResourceEvent{
-				Type:      "up",
-				Timestamp: *incident.ResolvedAt,
-				Reason:    "Running again",
-				Duration:  nil,
-				Details:   nil,
-			}
-			events = append(events, upEvent)
-		}
+		events = append(events, incidentToEvents(incident)...)
 	}
 
-	// Sort events by timestamp descending (most recent first)
+	sortEventsDescending(events)
+
+	if len(events) > 20 {
+		events = events[:20]
+	}
+
+	return events, nil
+}
+
+func incidentToEvents(incident *domain.Incident) []dto.ResourceEvent {
+	downEvent := dto.ResourceEvent{
+		Type:      "down",
+		Timestamp: incident.StartedAt,
+		Reason:    incident.Cause,
+	}
+
+	if incident.ResolvedAt != nil {
+		d := formatDuration(incident.ResolvedAt.Sub(incident.StartedAt))
+		downEvent.Duration = &d
+	} else {
+		d := formatDuration(time.Since(incident.StartedAt))
+		downEvent.Duration = &d
+	}
+
+	if len(incident.Details) > 0 {
+		s := string(incident.Details)
+		downEvent.Details = &s
+	}
+
+	events := []dto.ResourceEvent{downEvent}
+
+	if incident.ResolvedAt != nil {
+		events = append(events, dto.ResourceEvent{
+			Type:      "up",
+			Timestamp: *incident.ResolvedAt,
+			Reason:    "Running again",
+		})
+	}
+
+	return events
+}
+
+func sortEventsDescending(events []dto.ResourceEvent) {
 	for i := 0; i < len(events)-1; i++ {
 		for j := i + 1; j < len(events); j++ {
 			if events[i].Timestamp.Before(events[j].Timestamp) {
@@ -353,11 +307,4 @@ func (s *StatusPageService) buildRecentEvents(ctx context.Context, resourceID st
 			}
 		}
 	}
-
-	// Limit to 20 most recent events
-	if len(events) > 20 {
-		events = events[:20]
-	}
-
-	return events, nil
 }

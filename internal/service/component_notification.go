@@ -104,40 +104,43 @@ func (s *ComponentService) dispatchComponentAlertImmediate(ctx context.Context, 
 		},
 	}
 
+	lastErr := s.sendToChannelsWithRetry(ctx, channels, payload, componentID)
+
+	if err := s.components.UpdateLastNotificationStatus(ctx, componentID, status); err != nil {
+		return err
+	}
+
+	return lastErr
+}
+
+func (s *ComponentService) sendToChannelsWithRetry(ctx context.Context, channels []*domain.NotificationChannel, payload notifier.NotificationPayload, componentID string) error {
 	const maxAttempts = 3
 	backoff := []time.Duration{0, 2 * time.Second, 4 * time.Second}
 	var lastErr error
 
 	for _, ch := range channels {
-		sent := false
-		for attempt := range maxAttempts {
-			if backoff[attempt] > 0 {
-				time.Sleep(backoff[attempt])
-			}
-
-			if err := s.sendNotification(ctx, payload, ch); err != nil {
-				lastErr = err
-				continue
-			}
-			sent = true
-			break
-		}
-		if !sent {
-			// Fallback: log failure; per-resource alerts would require incident context
-			// that is not available here, so we just log and continue.
+		if err := s.sendWithRetry(ctx, payload, ch, maxAttempts, backoff); err != nil {
+			lastErr = err
 			slog.Warn("channel exhausted retries for component alert", "channel_id", ch.ID, "component_id", componentID)
 		}
 	}
 
-	// Update last notified status
-	if err := s.components.UpdateLastNotificationStatus(ctx, componentID, status); err != nil {
-		return err
-	}
+	return lastErr
+}
 
-	if lastErr != nil {
-		return lastErr
+func (s *ComponentService) sendWithRetry(ctx context.Context, payload notifier.NotificationPayload, ch *domain.NotificationChannel, maxAttempts int, backoff []time.Duration) error {
+	var lastErr error
+	for attempt := range maxAttempts {
+		if backoff[attempt] > 0 {
+			time.Sleep(backoff[attempt])
+		}
+		if err := s.sendNotification(ctx, payload, ch); err != nil {
+			lastErr = err
+			continue
+		}
+		return nil
 	}
-	return nil
+	return lastErr
 }
 
 func (s *ComponentService) sendNotification(ctx context.Context, payload notifier.NotificationPayload, channel *domain.NotificationChannel) error {
@@ -214,43 +217,45 @@ func (s *ComponentService) BulkAssignToComponent(ctx context.Context, componentI
 		return fmt.Errorf("%w: at least one resource ID is required", ErrValidationFailed)
 	}
 
-	// Validate component exists
 	if _, err := s.components.FindByID(ctx, componentID); err != nil {
 		return err
 	}
 
-	// Assign each resource to the component
 	for _, resourceID := range payload.ResourceIDs {
-		resource, err := s.resources.FindByID(ctx, resourceID)
-		if err != nil {
-			if err == repository.ErrNotFound {
-				return fmt.Errorf("%w: resource %s not found", ErrValidationFailed, resourceID)
-			}
+		if err := s.assignResourceToComponent(ctx, resourceID, componentID); err != nil {
 			return err
-		}
-
-		// Unschedule from old component if exists
-		if resource.ComponentID != nil && *resource.ComponentID != componentID {
-			oldComponentID := *resource.ComponentID
-			resource.ComponentID = &componentID
-			if err := s.resources.Update(ctx, resource); err != nil {
-				return fmt.Errorf("failed to assign resource %s: %w", resourceID, err)
-			}
-			// Auto-cleanup old component if now empty
-			if err := s.autoCleanupComponent(ctx, oldComponentID); err != nil {
-				// Log but don't fail the operation
-				slog.Warn("failed to auto-cleanup component", "component_id", oldComponentID, "error", err)
-			}
-		} else {
-			resource.ComponentID = &componentID
-			if err := s.resources.Update(ctx, resource); err != nil {
-				return fmt.Errorf("failed to assign resource %s: %w", resourceID, err)
-			}
 		}
 	}
 
-	// Recalculate component status
 	return s.RecalculateAndNotify(ctx, componentID)
+}
+
+func (s *ComponentService) assignResourceToComponent(ctx context.Context, resourceID, componentID string) error {
+	resource, err := s.resources.FindByID(ctx, resourceID)
+	if err != nil {
+		if err == repository.ErrNotFound {
+			return fmt.Errorf("%w: resource %s not found", ErrValidationFailed, resourceID)
+		}
+		return err
+	}
+
+	oldComponentID := ""
+	if resource.ComponentID != nil && *resource.ComponentID != componentID {
+		oldComponentID = *resource.ComponentID
+	}
+
+	resource.ComponentID = &componentID
+	if err := s.resources.Update(ctx, resource); err != nil {
+		return fmt.Errorf("failed to assign resource %s: %w", resourceID, err)
+	}
+
+	if oldComponentID != "" {
+		if err := s.autoCleanupComponent(ctx, oldComponentID); err != nil {
+			slog.Warn("failed to auto-cleanup component", "component_id", oldComponentID, "error", err)
+		}
+	}
+
+	return nil
 }
 
 // BulkRemoveFromComponent removes resources from their components.
@@ -262,32 +267,44 @@ func (s *ComponentService) BulkRemoveFromComponent(ctx context.Context, payload 
 	affectedComponentIDs := make(map[string]struct{})
 
 	for _, resourceID := range payload.ResourceIDs {
-		resource, err := s.resources.FindByID(ctx, resourceID)
+		componentID, err := s.removeResourceFromComponent(ctx, resourceID)
 		if err != nil {
-			if err == repository.ErrNotFound {
-				return fmt.Errorf("%w: resource %s not found", ErrValidationFailed, resourceID)
-			}
 			return err
 		}
-
-		if resource.ComponentID != nil {
-			affectedComponentIDs[*resource.ComponentID] = struct{}{}
-			resource.ComponentID = nil
-			if err := s.resources.Update(ctx, resource); err != nil {
-				return fmt.Errorf("failed to remove resource %s from component: %w", resourceID, err)
-			}
+		if componentID != "" {
+			affectedComponentIDs[componentID] = struct{}{}
 		}
 	}
 
-	// Auto-cleanup empty components and recalculate status for non-empty ones
 	for componentID := range affectedComponentIDs {
 		if err := s.autoCleanupComponent(ctx, componentID); err != nil {
-			// Log but continue with other components
 			slog.Warn("failed to auto-cleanup component", "component_id", componentID, "error", err)
 		}
 	}
 
 	return nil
+}
+
+func (s *ComponentService) removeResourceFromComponent(ctx context.Context, resourceID string) (string, error) {
+	resource, err := s.resources.FindByID(ctx, resourceID)
+	if err != nil {
+		if err == repository.ErrNotFound {
+			return "", fmt.Errorf("%w: resource %s not found", ErrValidationFailed, resourceID)
+		}
+		return "", err
+	}
+
+	if resource.ComponentID == nil {
+		return "", nil
+	}
+
+	componentID := *resource.ComponentID
+	resource.ComponentID = nil
+	if err := s.resources.Update(ctx, resource); err != nil {
+		return "", fmt.Errorf("failed to remove resource %s from component: %w", resourceID, err)
+	}
+
+	return componentID, nil
 }
 
 // autoCleanupComponent deletes a component if it has no resources.

@@ -46,75 +46,77 @@ func InitScheduler(app *App) {
 	app.SchedulerCfg = schedulerCfg
 	slog.Info("starting with scheduler", "mode", schedulerCfg.Mode)
 
-	var err error
-
 	switch schedulerCfg.Mode {
 	case scheduler.ModeTimingWheel:
-		app.RuntimeScheduler, err = scheduler.New(schedulerCfg)
-		if err != nil {
-			slog.Error("failed to create scheduler", "error", err)
-			os.Exit(1)
-		}
-
-		slog.Info("using TimingWheel scheduler (Community Edition - no Redis required)")
-		app.SchedulerAdapter = scheduler.NewRepositorySchedulerAdapter(app.RuntimeScheduler)
-		if rs, ok := app.SchedulerAdapter.(port.ConfirmationRescheduler); ok {
-			app.ConfirmationScheduler = rs
-		}
-
-		app.MaintenanceScheduler = nil
-
+		initTimingWheelScheduler(app, schedulerCfg)
 	case scheduler.ModeAsynq:
-		slog.Info("using Asynq scheduler (SaaS Edition with Redis)")
-
-		redisOpt := asynq.RedisClientOpt{
-			Addr: config.GetEnv("REDIS_URL", "localhost:6379"),
-		}
-		app.RedisOpt = redisOpt
-
-		app.AsynqClient = asynq.NewClient(redisOpt)
-		app.AsynqInspector = asynq.NewInspector(redisOpt)
-		app.AsynqScheduler = asynq.NewScheduler(redisOpt, nil)
-
-		// Start the scheduler in a goroutine
-		go func() {
-			if err := app.AsynqScheduler.Run(); err != nil {
-				slog.Error("failed to start Asynq scheduler", "error", err)
-				os.Exit(1)
-			}
-		}()
-
-		// Initialize monitoring scheduler service (Asynq-based)
-		schedulerService := monitoring.NewSchedulerService(app.AsynqClient, app.AsynqInspector, app.AsynqScheduler)
-		schedulerCfg.Asynq.ResourceLoader = func(ctx context.Context, resourceID string) (*domain.Resource, error) {
-			return app.ResourceRepo.FindByID(ctx, resourceID)
-		}
-		schedulerCfg.Asynq.SchedulerAdapter = schedulerService
-
-		app.RuntimeScheduler, err = scheduler.New(schedulerCfg)
-		if err != nil {
-			slog.Error("failed to create scheduler", "error", err)
-			os.Exit(1)
-		}
-
-		app.SchedulerAdapter = scheduler.NewRepositorySchedulerAdapter(app.RuntimeScheduler)
-		if rs, ok := app.SchedulerAdapter.(port.ConfirmationRescheduler); ok {
-			app.ConfirmationScheduler = rs
-		}
-
-		// Initialize maintenance scheduler
-		app.MaintenanceScheduler = maintenance.NewSchedulerService(
-			&maintenance.AsynqClientAdapter{Client: app.AsynqClient},
-			&maintenance.AsynqSchedulerAdapter{Scheduler: app.AsynqScheduler},
-			app.MaintenanceRepo,
-		)
-		if err := app.MaintenanceScheduler.EnsureScheduled(context.Background()); err != nil {
-			slog.Error("failed to ensure maintenance schedules", "error", err)
-		}
-
+		initAsynqScheduler(app, schedulerCfg)
 	default:
 		slog.Error("invalid scheduler mode", "mode", schedulerCfg.Mode)
 		os.Exit(1)
 	}
 }
 
+func initTimingWheelScheduler(app *App, schedulerCfg *scheduler.Config) {
+	var err error
+	app.RuntimeScheduler, err = scheduler.New(schedulerCfg)
+	if err != nil {
+		slog.Error("failed to create scheduler", "error", err)
+		os.Exit(1)
+	}
+
+	slog.Info("using TimingWheel scheduler (Community Edition - no Redis required)")
+	app.SchedulerAdapter = scheduler.NewRepositorySchedulerAdapter(app.RuntimeScheduler)
+	if rs, ok := app.SchedulerAdapter.(port.ConfirmationRescheduler); ok {
+		app.ConfirmationScheduler = rs
+	}
+
+	app.MaintenanceScheduler = nil
+}
+
+func initAsynqScheduler(app *App, schedulerCfg *scheduler.Config) {
+	slog.Info("using Asynq scheduler (SaaS Edition with Redis)")
+
+	redisOpt := asynq.RedisClientOpt{
+		Addr: config.GetEnv("REDIS_URL", "localhost:6379"),
+	}
+	app.RedisOpt = redisOpt
+
+	app.AsynqClient = asynq.NewClient(redisOpt)
+	app.AsynqInspector = asynq.NewInspector(redisOpt)
+	app.AsynqScheduler = asynq.NewScheduler(redisOpt, nil)
+
+	go func() {
+		if err := app.AsynqScheduler.Run(); err != nil {
+			slog.Error("failed to start Asynq scheduler", "error", err)
+			os.Exit(1)
+		}
+	}()
+
+	schedulerService := monitoring.NewSchedulerService(app.AsynqClient, app.AsynqInspector, app.AsynqScheduler)
+	schedulerCfg.Asynq.ResourceLoader = func(ctx context.Context, resourceID string) (*domain.Resource, error) {
+		return app.ResourceRepo.FindByID(ctx, resourceID)
+	}
+	schedulerCfg.Asynq.SchedulerAdapter = schedulerService
+
+	var err error
+	app.RuntimeScheduler, err = scheduler.New(schedulerCfg)
+	if err != nil {
+		slog.Error("failed to create scheduler", "error", err)
+		os.Exit(1)
+	}
+
+	app.SchedulerAdapter = scheduler.NewRepositorySchedulerAdapter(app.RuntimeScheduler)
+	if rs, ok := app.SchedulerAdapter.(port.ConfirmationRescheduler); ok {
+		app.ConfirmationScheduler = rs
+	}
+
+	app.MaintenanceScheduler = maintenance.NewSchedulerService(
+		&maintenance.AsynqClientAdapter{Client: app.AsynqClient},
+		&maintenance.AsynqSchedulerAdapter{Scheduler: app.AsynqScheduler},
+		app.MaintenanceRepo,
+	)
+	if err := app.MaintenanceScheduler.EnsureScheduled(context.Background()); err != nil {
+		slog.Error("failed to ensure maintenance schedules", "error", err)
+	}
+}

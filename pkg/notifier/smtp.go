@@ -17,6 +17,11 @@ import (
 //go:embed templates/*.html
 var emailTemplates embed.FS
 
+const (
+	errParseEmailTemplate   = "failed to parse email template"
+	errExecuteEmailTemplate = "failed to execute email template"
+)
+
 // SMTPNotifier implements email notifications using SMTP.
 type SMTPNotifier struct {
 	recipient    string
@@ -179,13 +184,13 @@ func (n *SMTPNotifier) generateDownEmailHTML(incident domain.Incident) string {
 
 	tmpl, err := template.ParseFS(emailTemplates, "templates/resource_down.html")
 	if err != nil {
-		slog.Error("failed to parse email template", "template", "resource_down.html", "error", err)
+		slog.Error(errParseEmailTemplate, "template", "resource_down.html", "error", err)
 		return fmt.Sprintf("<!DOCTYPE html><html><body><p>Resource %s is down.</p></body></html>", incident.Resource.Name)
 	}
 
 	var buf bytes.Buffer
 	if err := tmpl.Execute(&buf, data); err != nil {
-		slog.Error("failed to execute email template", "template", "resource_down.html", "resource", incident.Resource.Name, "incident_id", incident.ID, "error", err)
+		slog.Error(errExecuteEmailTemplate, "template", "resource_down.html", "resource", incident.Resource.Name, "incident_id", incident.ID, "error", err)
 		return fmt.Sprintf("<!DOCTYPE html><html><body><p>Resource %s is down. Incident ID: %s</p></body></html>", incident.Resource.Name, incident.ID)
 	}
 
@@ -204,13 +209,13 @@ func (n *SMTPNotifier) generateUpEmailHTML(incident domain.Incident) string {
 
 	tmpl, err := template.ParseFS(emailTemplates, "templates/resource_up.html")
 	if err != nil {
-		slog.Error("failed to parse email template", "template", "resource_up.html", "error", err)
+		slog.Error(errParseEmailTemplate, "template", "resource_up.html", "error", err)
 		return fmt.Sprintf("<!DOCTYPE html><html><body><p>Resource %s is back online.</p></body></html>", incident.Resource.Name)
 	}
 
 	var buf bytes.Buffer
 	if err := tmpl.Execute(&buf, data); err != nil {
-		slog.Error("failed to execute email template", "template", "resource_up.html", "resource", incident.Resource.Name, "incident_id", incident.ID, "error", err)
+		slog.Error(errExecuteEmailTemplate, "template", "resource_up.html", "resource", incident.Resource.Name, "incident_id", incident.ID, "error", err)
 		return fmt.Sprintf("<!DOCTYPE html><html><body><p>Resource %s is back online. Downtime: %s</p></body></html>", incident.Resource.Name, duration)
 	}
 
@@ -227,13 +232,13 @@ func (n *SMTPNotifier) generateComponentEmailHTML(component *ComponentNotificati
 
 	tmpl, err := template.ParseFS(emailTemplates, "templates/component_status.html")
 	if err != nil {
-		slog.Error("failed to parse email template", "template", "component_status.html", "error", err)
+		slog.Error(errParseEmailTemplate, "template", "component_status.html", "error", err)
 		return fmt.Sprintf("<!DOCTYPE html><html><body><p>Component %s is %s.</p></body></html>", component.Component.Name, component.Status)
 	}
 
 	var buf bytes.Buffer
 	if err := tmpl.Execute(&buf, data); err != nil {
-		slog.Error("failed to execute email template", "template", "component_status.html", "component", component.Component.Name, "error", err)
+		slog.Error(errExecuteEmailTemplate, "template", "component_status.html", "component", component.Component.Name, "error", err)
 		return fmt.Sprintf("<!DOCTYPE html><html><body><p>Component %s is %s.</p></body></html>", component.Component.Name, component.Status)
 	}
 
@@ -249,13 +254,13 @@ func (n *SMTPNotifier) generateTestEmailHTML(resource domain.Resource) string {
 
 	tmpl, err := template.ParseFS(emailTemplates, "templates/test.html")
 	if err != nil {
-		slog.Error("failed to parse email template", "template", "test.html", "error", err)
+		slog.Error(errParseEmailTemplate, "template", "test.html", "error", err)
 		return fmt.Sprintf("<!DOCTYPE html><html><body><p>Test notification for resource %s.</p></body></html>", resource.Name)
 	}
 
 	var buf bytes.Buffer
 	if err := tmpl.Execute(&buf, data); err != nil {
-		slog.Error("failed to execute email template", "template", "test.html", "error", err)
+		slog.Error(errExecuteEmailTemplate, "template", "test.html", "error", err)
 		return fmt.Sprintf("error generating test email content for resource %s", resource.Name)
 	}
 
@@ -371,14 +376,14 @@ func (n *SMTPNotifier) generateExpiryEmailHTML(expiry *ExpiryNotification) strin
 
 	tmpl, err := template.ParseFS(emailTemplates, "templates/expiry_alert.html")
 	if err != nil {
-		slog.Error("failed to parse email template", "template", "expiry_alert.html", "error", err)
+		slog.Error(errParseEmailTemplate, "template", "expiry_alert.html", "error", err)
 		return fmt.Sprintf("<!DOCTYPE html><html><body><p>%s expiry alert: %s expires in %d days.</p></body></html>",
 			expiry.ExpiryType, expiry.Resource.Name, expiry.DaysRemaining)
 	}
 
 	var buf bytes.Buffer
 	if err := tmpl.Execute(&buf, data); err != nil {
-		slog.Error("failed to execute email template", "template", "expiry_alert.html", "resource", expiry.Resource.Name, "error", err)
+		slog.Error(errExecuteEmailTemplate, "template", "expiry_alert.html", "resource", expiry.Resource.Name, "error", err)
 		return fmt.Sprintf("<!DOCTYPE html><html><body><p>%s expiry alert: %s expires in %d days.</p></body></html>",
 			expiry.ExpiryType, expiry.Resource.Name, expiry.DaysRemaining)
 	}

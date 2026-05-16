@@ -18,6 +18,11 @@ import (
 	httpSwagger "github.com/swaggo/http-swagger"
 )
 
+const (
+	contentTypeJSON   = "application/json"
+	headerContentType = "Content-Type"
+)
+
 // NewRouter creates and configures the main HTTP router with all JSON API routes.
 // All endpoints return JSON responses - no HTML rendering.
 func NewRouter(
@@ -59,12 +64,12 @@ func NewRouter(
 	}))
 	r.Use(logger.RequestLoggerMiddleware)
 	r.Use(chimiddleware.Recoverer)
-	r.Use(chimiddleware.SetHeader("Content-Type", "application/json"))
+	r.Use(chimiddleware.SetHeader(headerContentType, contentTypeJSON))
 
 	// CORS middleware — configurable origin allow-list
 	corsOpts := cors.Options{
 		AllowedMethods:   []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
-		AllowedHeaders:   []string{"Content-Type", "Authorization", "X-API-Key"},
+		AllowedHeaders:   []string{headerContentType, "Authorization", "X-API-Key"},
 		AllowCredentials: true,
 		MaxAge:           3600,
 	}
@@ -83,7 +88,7 @@ func NewRouter(
 
 	// Health check endpoint
 	r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "text/plain")
+		w.Header().Set(headerContentType, "text/plain")
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte("OK"))
 	})
@@ -324,12 +329,12 @@ func serveOpenAPISpec(w http.ResponseWriter, r *http.Request) {
 	const specPath = "docs/swagger.json"
 	data, err := os.ReadFile(specPath)
 	if err != nil {
-		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set(headerContentType, contentTypeJSON)
 		w.WriteHeader(http.StatusServiceUnavailable)
 		w.Write([]byte(`{"error":{"code":"SPEC_NOT_AVAILABLE","message":"OpenAPI spec not generated; run make swag"}}`))
 		return
 	}
-	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set(headerContentType, contentTypeJSON)
 	w.WriteHeader(http.StatusOK)
 	w.Write(data)
 }

@@ -20,6 +20,7 @@ import (
 const (
 	defaultConfirmationChecks   = 2
 	defaultConfirmationInterval = 30
+	errWrapFmt                  = "%w: %v"
 )
 
 // ResourceService orchestrates resource-related operations using repository interfaces.
@@ -119,7 +120,7 @@ func (s *ResourceService) CreateResource(ctx context.Context, payload *dto.Creat
 	// Validate target format
 	if payload.Type != domain.ResourceHeartbeat {
 		if err := domain.ValidateResourceTarget(payload.Target, payload.Type); err != nil {
-			return nil, fmt.Errorf("%w: %v", ErrValidationFailed, err)
+			return nil, fmt.Errorf(errWrapFmt, ErrValidationFailed, err)
 		}
 	}
 
@@ -134,7 +135,7 @@ func (s *ResourceService) CreateResource(ctx context.Context, payload *dto.Creat
 		resolvedInterval = payload.Interval - 1
 	}
 	if err := domain.ValidateConfirmationSettings(payload.Interval, resolvedChecks, resolvedInterval); err != nil {
-		return nil, fmt.Errorf("%w: %v", ErrValidationFailed, err)
+		return nil, fmt.Errorf(errWrapFmt, ErrValidationFailed, err)
 	}
 
 	resource := &domain.Resource{
@@ -245,7 +246,7 @@ func (s *ResourceService) CreateResource(ctx context.Context, payload *dto.Creat
 	if err := s.scheduler.Schedule(ctx, created); err != nil {
 		// Log the error but don't fail the entire operation
 		// The resource was created successfully, monitoring scheduling failed
-		return created, fmt.Errorf("%w: %v", ErrSchedulerSync, err)
+		return created, fmt.Errorf(errWrapFmt, ErrSchedulerSync, err)
 	}
 
 	// Mark metadata as pending for API consumers until enrichment completes
@@ -348,9 +349,7 @@ func (s *ResourceService) GetResourceByIDWithResponseTimes(ctx context.Context, 
 }
 
 // UpdateResource updates an existing resource by ID with the provided payload.
-// It fetches the resource, applies changes, validates, updates, and reschedules monitoring.
 func (s *ResourceService) UpdateResource(ctx context.Context, id string, payload *dto.UpdateResourcePayload) (*domain.Resource, error) {
-	// Fetch existing resource
 	resource, err := s.resources.FindByID(ctx, id)
 	if err != nil {
 		if errors.Is(err, repository.ErrNotFound) {
@@ -360,23 +359,69 @@ func (s *ResourceService) UpdateResource(ctx context.Context, id string, payload
 	}
 	previousComponentID := resource.ComponentID
 
-	// Apply updates from payload
+	if err := s.applyResourcePayload(ctx, resource, payload); err != nil {
+		return nil, err
+	}
+
+	if err := s.validateTypeSpecificUpdate(resource, payload); err != nil {
+		return nil, err
+	}
+
+	resource.MetadataPending = true
+	go s.asyncEnrichAndPersist(resource)
+
+	if err := s.resources.Update(ctx, resource); err != nil {
+		return nil, err
+	}
+
+	if err := s.scheduler.Schedule(ctx, resource); err != nil {
+		return nil, fmt.Errorf(errWrapFmt, ErrSchedulerSync, err)
+	}
+
+	s.reconcileComponentChange(ctx, resource, previousComponentID)
+
+	return resource, nil
+}
+
+func (s *ResourceService) applyResourcePayload(ctx context.Context, resource *domain.Resource, payload *dto.UpdateResourcePayload) error {
+	applyBasicFields(resource, payload)
+
+	if err := applyTargetField(resource, payload); err != nil {
+		return err
+	}
+
+	if err := s.applyConfirmationSettings(resource, payload); err != nil {
+		return err
+	}
+
+	if payload.IsActive != nil {
+		resource.IsActive = *payload.IsActive
+	}
+
+	if err := s.applyComponentID(ctx, resource, payload); err != nil {
+		return err
+	}
+
+	if err := s.applyTags(ctx, resource, payload); err != nil {
+		return err
+	}
+
+	if err := domain.ValidateResourceTarget(resource.Target, resource.Type); err != nil {
+		return fmt.Errorf(errWrapFmt, ErrValidationFailed, err)
+	}
+
+	applyExpiryThresholds(resource, payload)
+	s.applySmartAlertingFields(resource, payload)
+
+	return validateSmartAlertingFields(resource.FlapThreshold, resource.FlapWindowSeconds, resource.FlapMaxDurationMinutes, resource.ReminderIntervalMinutes)
+}
+
+func applyBasicFields(resource *domain.Resource, payload *dto.UpdateResourcePayload) {
 	if payload.Name != nil {
 		resource.Name = *payload.Name
 	}
 	if payload.Type != nil {
 		resource.Type = *payload.Type
-	}
-	if payload.Target != nil {
-		// Determine the resource type for validation (use new type if provided, else existing)
-		resType := resource.Type
-		if payload.Type != nil {
-			resType = *payload.Type
-		}
-		if err := domain.ValidateResourceTarget(*payload.Target, resType); err != nil {
-			return nil, fmt.Errorf("%w: %v", ErrValidationFailed, err)
-		}
-		resource.Target = *payload.Target
 	}
 	if payload.Interval != nil {
 		resource.Interval = *payload.Interval
@@ -384,7 +429,35 @@ func (s *ResourceService) UpdateResource(ctx context.Context, id string, payload
 	if payload.Timeout != nil {
 		resource.Timeout = *payload.Timeout
 	}
+}
 
+func applyTargetField(resource *domain.Resource, payload *dto.UpdateResourcePayload) error {
+	if payload.Target == nil {
+		return nil
+	}
+	resType := resource.Type
+	if payload.Type != nil {
+		resType = *payload.Type
+	}
+	if err := domain.ValidateResourceTarget(*payload.Target, resType); err != nil {
+		return fmt.Errorf(errWrapFmt, ErrValidationFailed, err)
+	}
+	resource.Target = *payload.Target
+	return nil
+}
+
+func applyExpiryThresholds(resource *domain.Resource, payload *dto.UpdateResourcePayload) {
+	if payload.ExpiryAlertThresholds == nil {
+		return
+	}
+	if *payload.ExpiryAlertThresholds == "" {
+		resource.ExpiryAlertThresholds = nil
+	} else {
+		resource.ExpiryAlertThresholds = payload.ExpiryAlertThresholds
+	}
+}
+
+func (s *ResourceService) applyConfirmationSettings(resource *domain.Resource, payload *dto.UpdateResourcePayload) error {
 	defaultChecks, defaultInterval := confirmationDefaults()
 	if resource.ConfirmationChecks < 1 {
 		resource.ConfirmationChecks = defaultChecks
@@ -399,57 +472,46 @@ func (s *ResourceService) UpdateResource(ctx context.Context, id string, payload
 		resource.ConfirmationInterval = *payload.ConfirmationInterval
 	}
 	if err := domain.ValidateConfirmationSettings(resource.Interval, resource.ConfirmationChecks, resource.ConfirmationInterval); err != nil {
-		return nil, fmt.Errorf("%w: %v", ErrValidationFailed, err)
+		return fmt.Errorf(errWrapFmt, ErrValidationFailed, err)
 	}
+	return nil
+}
 
-	if payload.IsActive != nil {
-		resource.IsActive = *payload.IsActive
+func (s *ResourceService) applyComponentID(ctx context.Context, resource *domain.Resource, payload *dto.UpdateResourcePayload) error {
+	if payload.ComponentID == nil {
+		return nil
 	}
-
-	if payload.ComponentID != nil {
-		if s.components == nil {
-			return nil, fmt.Errorf("%w: component support is not configured", ErrValidationFailed)
-		}
-		if *payload.ComponentID == "" {
-			resource.ComponentID = nil
-		} else {
-			if _, err := s.components.GetComponent(ctx, *payload.ComponentID); err != nil {
-				return nil, fmt.Errorf("%w: invalid component reference", ErrValidationFailed)
-			}
-			resource.ComponentID = payload.ComponentID
-		}
+	if s.components == nil {
+		return fmt.Errorf("%w: component support is not configured", ErrValidationFailed)
 	}
-
-	// Handle tags update: payload.Tags accepts names (auto-create) and existing IDs.
-	// Replace tag associations with the provided set.
-	if payload.Tags != nil {
-		if len(*payload.Tags) > 0 {
-			tags, err := s.findOrCreateTags(ctx, *payload.Tags)
-			if err != nil {
-				return nil, fmt.Errorf("failed to process tags: %w", err)
-			}
-			resource.Tags = tags
-		} else {
-			// Clear all tags if empty slice provided
-			resource.Tags = []*domain.Tags{}
-		}
+	if *payload.ComponentID == "" {
+		resource.ComponentID = nil
+		return nil
 	}
-
-	// Validate target format after updates
-	if err := domain.ValidateResourceTarget(resource.Target, resource.Type); err != nil {
-		return nil, fmt.Errorf("%w: %v", ErrValidationFailed, err)
+	if _, err := s.components.GetComponent(ctx, *payload.ComponentID); err != nil {
+		return fmt.Errorf("%w: invalid component reference", ErrValidationFailed)
 	}
+	resource.ComponentID = payload.ComponentID
+	return nil
+}
 
-	// Apply per-resource expiry alert threshold override (empty string → clear the field)
-	if payload.ExpiryAlertThresholds != nil {
-		if *payload.ExpiryAlertThresholds == "" {
-			resource.ExpiryAlertThresholds = nil
-		} else {
-			resource.ExpiryAlertThresholds = payload.ExpiryAlertThresholds
-		}
+func (s *ResourceService) applyTags(ctx context.Context, resource *domain.Resource, payload *dto.UpdateResourcePayload) error {
+	if payload.Tags == nil {
+		return nil
 	}
+	if len(*payload.Tags) == 0 {
+		resource.Tags = []*domain.Tags{}
+		return nil
+	}
+	tags, err := s.findOrCreateTags(ctx, *payload.Tags)
+	if err != nil {
+		return fmt.Errorf("failed to process tags: %w", err)
+	}
+	resource.Tags = tags
+	return nil
+}
 
-	// Apply smart alerting overrides
+func (s *ResourceService) applySmartAlertingFields(resource *domain.Resource, payload *dto.UpdateResourcePayload) {
 	if payload.FlapDetectionEnabled != nil {
 		resource.FlapDetectionEnabled = *payload.FlapDetectionEnabled
 	}
@@ -465,92 +527,76 @@ func (s *ResourceService) UpdateResource(ctx context.Context, id string, payload
 	if payload.ReminderIntervalMinutes != nil {
 		resource.ReminderIntervalMinutes = *payload.ReminderIntervalMinutes
 	}
-	if err := validateSmartAlertingFields(resource.FlapThreshold, resource.FlapWindowSeconds, resource.FlapMaxDurationMinutes, resource.ReminderIntervalMinutes); err != nil {
-		return nil, err
-	}
+}
 
-	if resource.Type == domain.ResourceHeartbeat {
-		if payload.HeartbeatInterval != nil {
-			resource.HeartbeatInterval = payload.HeartbeatInterval
-		}
-		if payload.HeartbeatGrace != nil {
-			resource.HeartbeatGrace = payload.HeartbeatGrace
-		}
-		if resource.HeartbeatInterval != nil && resource.HeartbeatGrace != nil {
-			if err := domain.ValidateHeartbeatSettings(*resource.HeartbeatInterval, *resource.HeartbeatGrace); err != nil {
-				return nil, fmt.Errorf("%w: %v", ErrValidationFailed, err)
-			}
-		}
+func (s *ResourceService) validateTypeSpecificUpdate(resource *domain.Resource, payload *dto.UpdateResourcePayload) error {
+	switch resource.Type {
+	case domain.ResourceHeartbeat:
+		return applyAndValidateHeartbeat(resource, payload)
+	case domain.ResourceKeyword:
+		return applyAndValidateKeyword(resource, payload)
+	case domain.ResourceProtocol:
+		return applyAndValidateProtocol(resource, payload)
+	default:
+		return nil
 	}
+}
 
-	if resource.Type == domain.ResourceKeyword {
-		if payload.Keyword != nil {
-			resource.Keyword = payload.Keyword
-		}
-		if payload.KeywordMode != nil {
-			resource.KeywordMode = payload.KeywordMode
-		}
-		if err := validateKeywordFields(resource.Keyword, resource.KeywordMode); err != nil {
-			return nil, err
+func applyAndValidateHeartbeat(resource *domain.Resource, payload *dto.UpdateResourcePayload) error {
+	if payload.HeartbeatInterval != nil {
+		resource.HeartbeatInterval = payload.HeartbeatInterval
+	}
+	if payload.HeartbeatGrace != nil {
+		resource.HeartbeatGrace = payload.HeartbeatGrace
+	}
+	if resource.HeartbeatInterval != nil && resource.HeartbeatGrace != nil {
+		if err := domain.ValidateHeartbeatSettings(*resource.HeartbeatInterval, *resource.HeartbeatGrace); err != nil {
+			return fmt.Errorf(errWrapFmt, ErrValidationFailed, err)
 		}
 	}
+	return nil
+}
 
-	if resource.Type == domain.ResourceProtocol {
-		if payload.ProtocolType != nil {
-			resource.ProtocolType = payload.ProtocolType
-		}
-		if payload.ProtocolPort != nil {
-			resource.ProtocolPort = payload.ProtocolPort
-		}
-		if err := validateProtocolFields(resource.ProtocolType, resource.ProtocolPort); err != nil {
-			return nil, err
-		}
+func applyAndValidateKeyword(resource *domain.Resource, payload *dto.UpdateResourcePayload) error {
+	if payload.Keyword != nil {
+		resource.Keyword = payload.Keyword
 	}
-
-	// Defer SSL/WHOIS enrichment to avoid blocking the update request
-	resource.MetadataPending = true
-	go s.asyncEnrichAndPersist(resource)
-
-	// Update resource in database
-	if err := s.resources.Update(ctx, resource); err != nil {
-		return nil, err
+	if payload.KeywordMode != nil {
+		resource.KeywordMode = payload.KeywordMode
 	}
+	return validateKeywordFields(resource.Keyword, resource.KeywordMode)
+}
 
-	// Reschedule monitoring for the updated resource
-	// This will unschedule the old task and create a new one with updated parameters
-	if err := s.scheduler.Schedule(ctx, resource); err != nil {
-		return nil, fmt.Errorf("%w: %v", ErrSchedulerSync, err)
+func applyAndValidateProtocol(resource *domain.Resource, payload *dto.UpdateResourcePayload) error {
+	if payload.ProtocolType != nil {
+		resource.ProtocolType = payload.ProtocolType
 	}
+	if payload.ProtocolPort != nil {
+		resource.ProtocolPort = payload.ProtocolPort
+	}
+	return validateProtocolFields(resource.ProtocolType, resource.ProtocolPort)
+}
 
-	// Re-evaluate impacted components (best-effort)
+func (s *ResourceService) reconcileComponentChange(ctx context.Context, resource *domain.Resource, previousComponentID *string) {
 	if resource.ComponentID != nil && s.components != nil {
 		_ = s.components.RecalculateAndNotify(ctx, *resource.ComponentID)
 	}
-	if previousComponentID != nil && s.components != nil {
-		if resource.ComponentID == nil {
-			// Resource removed from component - check if component is now empty
-			count, err := s.resources.CountByComponentID(ctx, *previousComponentID)
-			if err == nil && count == 0 {
-				// Auto-cleanup empty component
-				_ = s.components.DeleteComponent(ctx, *previousComponentID)
-			} else if err == nil {
-				// Recalculate status for previous component
-				_ = s.components.RecalculateAndNotify(ctx, *previousComponentID)
-			}
-		} else if *previousComponentID != *resource.ComponentID {
-			// Resource moved to different component - check if old component is now empty
-			count, err := s.resources.CountByComponentID(ctx, *previousComponentID)
-			if err == nil && count == 0 {
-				_ = s.components.DeleteComponent(ctx, *previousComponentID)
-			} else if err == nil {
-				_ = s.components.RecalculateAndNotify(ctx, *previousComponentID)
-			}
-		}
+	if previousComponentID == nil || s.components == nil {
+		return
 	}
-
-	return resource, nil
+	if resource.ComponentID != nil && *previousComponentID == *resource.ComponentID {
+		return
+	}
+	count, err := s.resources.CountByComponentID(ctx, *previousComponentID)
+	if err != nil {
+		return
+	}
+	if count == 0 {
+		_ = s.components.DeleteComponent(ctx, *previousComponentID)
+	} else {
+		_ = s.components.RecalculateAndNotify(ctx, *previousComponentID)
+	}
 }
-
 
 // DeleteResource soft deletes a resource and unschedules its monitoring.
 func (s *ResourceService) DeleteResource(ctx context.Context, resourceID string) error {
@@ -603,7 +649,6 @@ func (s *ResourceService) ListResourcesByTag(ctx context.Context, tagName string
 	return s.resources.FindByTag(ctx, tagName, limit, offset)
 }
 
-
 // ListUnresolvedIncidents returns unresolved incidents for a specific resource.
 func (s *ResourceService) ListUnresolvedIncidents(ctx context.Context, resourceID string) ([]*domain.Incident, error) {
 	// First verify resource exists
@@ -622,7 +667,6 @@ func (s *ResourceService) ListAll(ctx context.Context) ([]*domain.Resource, erro
 	// Use a large limit to get all resources (can be optimized with proper pagination later)
 	return s.resources.List(ctx, 1000, 0)
 }
-
 
 // AddTagsToResource adds multiple tags to a resource using GORM's Association mode.
 func (s *ResourceService) AddTagsToResource(ctx context.Context, resourceID string, tagIDs []string) error {
@@ -703,4 +747,3 @@ func (s *ResourceService) RemoveTagFromResource(ctx context.Context, resourceID 
 
 	return nil
 }
-

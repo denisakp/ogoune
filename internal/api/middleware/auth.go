@@ -12,6 +12,8 @@ import (
 	"github.com/denisakp/ogoune/pkg/problemdetail"
 )
 
+const problemUnauthorized = "/problems/unauthorized"
+
 // AuthMiddleware creates a middleware that validates JWT tokens
 func AuthMiddleware(authService *service.AuthService, apiKeyService *service.APIKeyService) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
@@ -19,7 +21,7 @@ func AuthMiddleware(authService *service.AuthService, apiKeyService *service.API
 			rawAPIKey, isAPIKey := extractAPIKey(r)
 			if isAPIKey {
 				if apiKeyService == nil {
-					problemdetail.Write(w, problemdetail.New("/problems/unauthorized", "Unauthorized", http.StatusUnauthorized, "unauthorized"))
+					problemdetail.Write(w, problemdetail.New(problemUnauthorized, "Unauthorized", http.StatusUnauthorized, "unauthorized"))
 					return
 				}
 				authenticated, err := apiKeyService.AuthenticateAPIKey(r.Context(), rawAPIKey)
@@ -54,13 +56,13 @@ func AuthMiddleware(authService *service.AuthService, apiKeyService *service.API
 			}
 
 			if authService == nil {
-				problemdetail.Write(w, problemdetail.New("/problems/unauthorized", "Unauthorized", http.StatusUnauthorized, "unauthorized"))
+				problemdetail.Write(w, problemdetail.New(problemUnauthorized, "Unauthorized", http.StatusUnauthorized, "unauthorized"))
 				return
 			}
 
 			token := extractToken(r)
 			if token == "" {
-				problemdetail.Write(w, problemdetail.New("/problems/unauthorized", "Unauthorized", http.StatusUnauthorized, "Missing authorization token"))
+				problemdetail.Write(w, problemdetail.New(problemUnauthorized, "Unauthorized", http.StatusUnauthorized, "Missing authorization token"))
 				return
 			}
 
