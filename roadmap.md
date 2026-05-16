@@ -117,7 +117,7 @@ Community Edition — expanding monitoring coverage, observability, and security
 
 ### API & Security
 
-- [ ] **Public API v1** — versioned REST API with OpenAPI spec
+- [x] **Public API v1** — versioned REST API with OpenAPI spec
 - [x] **Credential encryption (AES-256-GCM)** — SMTP passwords and webhook tokens encrypted at rest
 
 ---
