@@ -67,7 +67,7 @@ jobs:
         uses: docker/build-push-action@v7
         with:
           context: .
-          file: backend/Dockerfile
+          file: Dockerfile
           push: true
           cache-from: type=gha,scope=${{ env.IMAGE_NAME }}
           cache-to: type=gha,mode=max,scope=${{ env.IMAGE_NAME }}
