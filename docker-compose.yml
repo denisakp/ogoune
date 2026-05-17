@@ -11,11 +11,9 @@
 # Enterprise Edition: add ENTERPRISE_LICENSE_KEY to your .env.
 
 name: ogoune
-
 volumes:
   ogoune-data:
   postgres-data:
-
 services:
   postgres:
     profiles: [full]
@@ -32,7 +30,6 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
-
   redis:
     profiles: [full]
     image: redis:7-alpine
@@ -42,9 +39,8 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
-
   ogoune:
-    image: ghcr.io/denisakp/ogoune:latest
+    image: ghcr.io/denisakp/ogoune@sha256:0cbefa0188ad86772fcdcb31804df1df15a602d4f3189f85b531609c422f21fa
     restart: unless-stopped
     ports:
       - "${APP_PORT:-8080}:8080"
@@ -54,23 +50,18 @@ services:
       SQLITE_PATH: /data/ogoune.db
       DATABASE_URL: ${DATABASE_URL:-}
       DB_LOG_LEVEL: error
-
       # Scheduler — defaults to in-process TimingWheel, override to asynq for full stack
       SCHEDULER_MODE: ${SCHEDULER_MODE:-timingwheel}
       SCHEDULER_MAX_WORKERS: ${SCHEDULER_MAX_WORKERS:-10}
       SCHEDULER_TICK_INTERVAL: ${SCHEDULER_TICK_INTERVAL:-1s}
       SCHEDULER_SHUTDOWN_TIMEOUT: ${SCHEDULER_SHUTDOWN_TIMEOUT:-30s}
       REDIS_URL: ${REDIS_URL:-}
-
       # Security — required, generate with: openssl rand -hex 32
       JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
       APP_SECRET_KEY: ${APP_SECRET_KEY:?APP_SECRET_KEY is required}
-
       # Enterprise Edition — leave empty for Community Edition
       ENTERPRISE_LICENSE_KEY: ${ENTERPRISE_LICENSE_KEY:-}
-
       STATIC_DIR: /app/static
       PORT: 8080
     volumes:
       - ogoune-data:/data
-
