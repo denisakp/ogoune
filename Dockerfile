@@ -1,21 +1,24 @@
-FROM node:lts-alpine AS frontend-builder
+FROM node:24-alpine AS frontend-builder
 
 WORKDIR /build/web
 
 ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
-ENV NODE_ENV=production
 ENV VITE_API_BASE_URL=/api
+ENV CI=true
+ENV PNPM_CONFIG_VERIFY_DEPS_BEFORE_RUN=false
+ENV PNPM_CONFIG_CONFIRM_MODULES_PURGE=false
 
 RUN corepack enable
 
 COPY web/package.json web/pnpm-lock.yaml web/pnpm-workspace.yaml ./
+RUN printf 'verify-deps-before-run=false\nconfirm-modules-purge=false\n' > .npmrc
 
-RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --frozen-lockfile
-
+RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --frozen-lockfile --config.dangerouslyAllowAllBuilds=true
 COPY web .
+RUN printf 'verify-deps-before-run=false\nconfirm-modules-purge=false\n' > .npmrc
 
-RUN pnpm run build
+RUN pnpm build
 
 # Stage 2: Build Go Backend
 FROM golang:1.25-alpine3.22 AS go-builder
@@ -32,8 +35,9 @@ RUN go mod download && go mod verify
 COPY cmd/ cmd/
 COPY internal/ internal/
 COPY pkg/ pkg/
+COPY docs/ docs/
 
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build \
+RUN CGO_ENABLED=0 GOOS=linux go build \
     -ldflags='-w -s -extldflags "-static"' \
     -a -installsuffix cgo \
     -o ogoune ./cmd/api/main.go
@@ -58,6 +62,7 @@ COPY --from=frontend-builder /build/web/dist ./static
 RUN chown -R ogoune:ogoune /app /data
 USER ogoune
 
-EXPOSE ${PORT}
+ENV PORT=9500
+EXPOSE 9500
 
 CMD ["./ogoune"]

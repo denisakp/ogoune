@@ -1,0 +1,35 @@
+name: ogoune
+
+volumes:
+  ogoune-data:
+
+services:
+  ogoune:
+    build:
+      context: .
+    restart: unless-stopped
+    ports:
+      - "${APP_PORT:-9500}:${APP_PORT:-9500}"
+    environment:
+      AUTH_EMAIL: ${AUTH_EMAIL:-admin@ogoune.test}
+      AUTH_PASSWORD: ${AUTH_PASSWORD:?AUTH_PASSWORD is required}
+      # Database — defaults to embedded SQLite, override to postgres for full stack
+      DB_DRIVER: ${DB_DRIVER:-sqlite}
+      SQLITE_PATH: /data/ogoune.db
+      DATABASE_URL: ${DATABASE_URL:-}
+      DB_LOG_LEVEL: error
+      # Scheduler — defaults to in-process TimingWheel, override to asynq for full stack
+      SCHEDULER_MODE: ${SCHEDULER_MODE:-timingwheel}
+      SCHEDULER_MAX_WORKERS: ${SCHEDULER_MAX_WORKERS:-10}
+      SCHEDULER_TICK_INTERVAL: ${SCHEDULER_TICK_INTERVAL:-1s}
+      SCHEDULER_SHUTDOWN_TIMEOUT: ${SCHEDULER_SHUTDOWN_TIMEOUT:-30s}
+      REDIS_URL: ${REDIS_URL:-}
+      # Security — required, generate with: openssl rand -hex 32
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
+      APP_SECRET_KEY: ${APP_SECRET_KEY:?APP_SECRET_KEY is required}
+      # Enterprise Edition — leave empty for Community Edition
+      ENTERPRISE_LICENSE_KEY: ${ENTERPRISE_LICENSE_KEY:-}
+      STATIC_DIR: /app/static
+      PORT: "${APP_PORT:-9500}"
+    volumes:
+      - ogoune-data:/data

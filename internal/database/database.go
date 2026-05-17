@@ -282,9 +282,11 @@ func newGormLogger(level logger.LogLevel) logger.Interface {
 	return logger.New(
 		log.New(os.Stdout, "\r\n", log.LstdFlags),
 		logger.Config{
-			SlowThreshold: 200 * time.Millisecond,
-			LogLevel:      level,
-			Colorful:      false,
+			SlowThreshold:             200 * time.Millisecond,
+			LogLevel:                  level,
+			Colorful:                  false,
+			IgnoreRecordNotFoundError: true,
+			ParameterizedQueries:      true,
 		},
 	)
 }

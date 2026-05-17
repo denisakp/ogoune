@@ -19,6 +19,7 @@ make test               # both
 make test-be            # go test -race ./...
 make test-fe            # cd web && pnpm test
 go test -race ./internal/scheduler/...  # single package
+make run-ci             # full local CI gate: lint + race tests + build
 
 # Lint
 make lint               # go vet + pnpm lint
@@ -28,7 +29,8 @@ cp .env.example .env    # set APP_SECRET_KEY (openssl rand -hex 32)
 DB_DRIVER=sqlite SQLITE_PATH=./ogoune.db SCHEDULER_MODE=timingwheel go run ./cmd/api
 
 # Run locally (full stack)
-docker compose up -d    # Postgres + Redis
+docker compose up -d                              # Postgres + Redis (prod-like)
+docker compose -f docker-compose.dev.yml --profile full up -d  # dev stack; profiles gate services, plain `up` starts nothing
 go run ./cmd/api
 
 # Frontend dev
@@ -78,6 +80,8 @@ Handlers never run checks or query DB directly. Scheduling goes through the Sche
 - **Incident logic**: `internal/monitoring/incident_service.go` — confirmation window, flap detection, alert grouping
 - **Notifications**: `pkg/notifier/` — SMTP, Slack, Discord, Google Chat, Teams, webhooks
 - **Encryption**: `pkg/crypto/` — AES-256-GCM for notification channel credentials
+- **Feature plans**: `specs/NNN-name/` — speckit-driven plan/spec/tasks for each feature. Read the relevant `plan.md` before touching a feature area
+- **Edition detection**: `internal/ee/license/` — `License.Get()` returns `community` or `enterprise` based on `ENTERPRISE_LICENSE_KEY` prefix (`pg_ent_` → enterprise). Runtime metadata only, does not gate behavior yet
 - **Migrations**: `internal/database/migrations/sqlite/` and `postgres/` — dual trees, keep in sync
 
 ### Frontend (web/)
@@ -137,7 +141,7 @@ Vue 3 Composition API + TypeScript + Pinia + Ant Design Vue.
 - DB tests use `setupTestDB(t)` helper (SQLite in-memory)
 - Table-driven tests for multi-case scenarios
 - `go test -race ./...` must pass
-- Frontend: Vitest + jsdom, `*.spec.ts` files
+- Frontend: Vitest + jsdom, `*.spec.ts` colocated next to source or under `web/src/test/`
 
 ## Code Quality — SonarQube (MANDATORY)
 
@@ -181,6 +185,7 @@ Before completing any task or commit, you MUST:
 - Incident event steps (`detected`, `resource_down_alert`, `resolved`, `resource_up_alert`) may not all be present
 - Never block on scheduler failures — log and return `ErrSchedulerSync`
 - Commits use Conventional Commits format (`feat:`, `fix:`, `docs:`, `refactor:`, `test:`, `chore:`)
+- `web/.npmrc` sets `onlyBuiltDependencies=[]` — pnpm skips all install scripts. If a new dep needs native build, allowlist it explicitly
 
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,

@@ -50,11 +50,17 @@ No PostgreSQL. No Redis. No reverse proxy. One container.
 ```bash
 git clone https://github.com/denisakp/ogoune.git
 cd ogoune
-cp .env.example .env   # set JWT_SECRET and APP_SECRET_KEY at minimum
+cp .env.example .env   # set JWT_SECRET and APP_SECRET_KEY at minimum (see command below)
 docker compose up -d
 ```
 
 Defaults to **SQLite + in-process scheduler** — no external dependencies.
+
+Generate `APP_SECRET_KEY` (required, 64-char hex):
+
+```bash
+openssl rand -hex 32
+```
 
 To switch to the full stack (PostgreSQL + Redis), add these to your `.env`:
 
@@ -173,6 +179,24 @@ APP_SECRET_KEY=change-me    # openssl rand -hex 32
 
 # Open Core
 ENTERPRISE_LICENSE_KEY=     # leave empty for Community Edition
+```
+
+### Generate `APP_SECRET_KEY`
+
+`APP_SECRET_KEY` is mandatory and must be a 64-character hex string.
+
+```bash
+# Generate a key value
+openssl rand -hex 32
+
+# Optional: write it directly to .env
+echo "APP_SECRET_KEY=$(openssl rand -hex 32)" >> .env
+```
+
+If you export it in your shell instead of `.env`, verify length:
+
+```bash
+echo -n "$APP_SECRET_KEY" | wc -c
 ```
 
 ### Optional ICMP monitoring
