@@ -2,11 +2,19 @@
 import { ref, watch, onMounted, computed } from 'vue'
 import { FolderOutlined } from '@ant-design/icons-vue'
 
-import type { Resource, CreateResource } from '@/types'
+import type { Resource, CreateResource, CredentialCreatePayload } from '@/types'
 import { storeToRefs } from 'pinia'
 import { useResourceStore } from '@/stores/resourceStore'
 import { useTagStore } from '@/stores/tagStore'
 import { useComponentStore } from '@/stores/componentStore'
+import {
+  deleteCredential,
+  fetchCredential,
+  isCredentialNotFound,
+  setCredential,
+} from '@/services/credentialService'
+import CredentialsSection from './CredentialsSection.vue'
+import TestConnectionButton from './TestConnectionButton.vue'
 
 interface Props {
   resource?: Resource
@@ -51,7 +59,19 @@ const protocolDefaultPorts: Record<string, number> = {
   mongodb: 27017,
   ftp: 21,
   ssh: 22,
+  mysql: 3306,
+  postgres: 5432,
 }
+
+// Feature 028: credential state lives in the form. It is only persisted in
+// Edit mode (we need the resource id). In Create mode the section is hidden.
+const credentialPayload = ref<CredentialCreatePayload | null>(null)
+const credentialMarkedForDeletion = ref(false)
+const hasExistingCredential = ref(false)
+const credentialSupported = computed(() => {
+  return ['redis', 'mysql', 'postgres'].includes(form.value.protocol_type ?? '')
+})
+const showCredentialsSection = computed(() => !!props.resource && credentialSupported.value)
 
 const loading = ref(false)
 
@@ -79,7 +99,7 @@ watch(
         heartbeat_grace: resource.heartbeat_grace ?? 60,
         keyword: resource.keyword ?? undefined,
         keyword_mode: (resource.keyword_mode as 'contains' | 'not_contains') ?? 'contains',
-        protocol_type: (resource.protocol_type as 'redis' | 'mongodb' | 'ftp' | 'ssh') ?? undefined,
+        protocol_type: resource.protocol_type ?? undefined,
         protocol_port: resource.protocol_port ?? undefined,
       }
     } else {
@@ -202,6 +222,7 @@ const handleSubmit = async () => {
         protocol_port: isProtocol.value ? form.value.protocol_port : undefined,
       }
       await resourceStore.updateResourceData(props.resource.id, updateData)
+      await persistCredentialIfNeeded(props.resource.id)
     } else {
       await resourceStore.addResource(form.value)
     }
@@ -217,11 +238,43 @@ const { tags } = storeToRefs(tagStore)
 const componentStore = useComponentStore()
 const { components } = storeToRefs(componentStore)
 
-onMounted(() => {
+onMounted(async () => {
   tagStore.fetchTags()
   componentStore.loadComponents()
   resourceStore.loadCapabilities()
+
+  // Feature 028: detect whether an existing credential is configured so the
+  // section can render the right hint ("replace" vs "create").
+  if (props.resource && credentialSupported.value) {
+    try {
+      await fetchCredential(props.resource.id)
+      hasExistingCredential.value = true
+    } catch (err) {
+      if (!isCredentialNotFound(err)) {
+        // Network / other errors: silently treat as "no credential" — the
+        // operator can still set one and the server will surface real failures
+        // at save time.
+      }
+      hasExistingCredential.value = false
+    }
+  }
 })
+
+function onClearCredential() {
+  credentialMarkedForDeletion.value = true
+  credentialPayload.value = null
+}
+
+async function persistCredentialIfNeeded(resourceId: string) {
+  if (!credentialSupported.value) return
+  if (credentialMarkedForDeletion.value && hasExistingCredential.value) {
+    await deleteCredential(resourceId)
+    return
+  }
+  if (credentialPayload.value && credentialPayload.value.password) {
+    await setCredential(resourceId, credentialPayload.value)
+  }
+}
 
 const tagsOptions = computed(() => tags.value.map((tag) => ({ value: tag.name, label: tag.name })))
 
@@ -342,6 +395,8 @@ const icmpWarning = computed(() => {
               <a-select-option value="mongodb">MongoDB</a-select-option>
               <a-select-option value="ftp">FTP</a-select-option>
               <a-select-option value="ssh">SSH</a-select-option>
+              <a-select-option value="mysql">MySQL</a-select-option>
+              <a-select-option value="postgres">PostgreSQL</a-select-option>
             </a-select>
           </a-form-item>
         </a-col>
@@ -358,6 +413,25 @@ const icmpWarning = computed(() => {
           </a-form-item>
         </a-col>
       </a-row>
+
+      <!-- Feature 028: credentials section. Edit mode only — Create mode does
+           not have a resource id yet, so we hide the section to avoid the
+           extra UX of "save then re-edit". The operator can add credentials
+           after the first save. -->
+      <CredentialsSection
+        v-if="showCredentialsSection"
+        :protocol-type="form.protocol_type"
+        :model-value="credentialPayload"
+        :has-existing-credential="hasExistingCredential"
+        @update:model-value="(v) => { credentialPayload = v; credentialMarkedForDeletion = false }"
+        @clear="onClearCredential"
+      />
+
+      <TestConnectionButton
+        v-if="showCredentialsSection"
+        :resource-id="props.resource?.id"
+        :payload="credentialPayload"
+      />
     </template>
 
     <!-- Keyword fields -->

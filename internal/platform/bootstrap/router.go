@@ -55,13 +55,17 @@ func InitRouter(app *App) {
 	statusPageV1Handler := v1handler.NewStatusPageV1Handler(app.ComponentRepo)
 	heartbeatV1Handler := v1handler.NewHeartbeatV1Handler(app.ResourceService)
 
+	credentialService := service.NewResourceCredentialService(app.ResourceCredentialRepo, app.ResourceRepo)
+	credentialTester := service.NewResourceCredentialTester(app.ResourceRepo, BuildStrategies())
+	credentialV1Handler := v1handler.NewResourceCredentialHandler(credentialService, credentialTester)
+
 	// Set APP_VERSION env
 	err := os.Setenv("APP_VERSION", AppVersion)
 	if err != nil {
 		return
 	}
 
-	apiHandler := api.NewRouter(resourceHandler, pingHandler, activityHandler, tagHandler, componentHandler, statusPageHandler, statusPageSettingsHandler, incidentHandler, notificationHandler, maintenanceHandler, statsHandler, systemHandler, authHandler, accountHandler, app.AuthService, app.APIKeyService, monitorV1Handler, incidentV1Handler, channelV1Handler, componentV1Handler, tagV1Handler, statusPageV1Handler, heartbeatV1Handler, cfg.EnableSwagger, cfg)
+	apiHandler := api.NewRouter(resourceHandler, pingHandler, activityHandler, tagHandler, componentHandler, statusPageHandler, statusPageSettingsHandler, incidentHandler, notificationHandler, maintenanceHandler, statsHandler, systemHandler, authHandler, accountHandler, app.AuthService, app.APIKeyService, monitorV1Handler, incidentV1Handler, channelV1Handler, componentV1Handler, tagV1Handler, statusPageV1Handler, heartbeatV1Handler, credentialV1Handler, cfg.EnableSwagger, cfg)
 
 	// Root router
 	rootRouter := chi.NewRouter()

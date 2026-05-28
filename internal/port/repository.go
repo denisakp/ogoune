@@ -110,6 +110,14 @@ type ResourceScheduler interface {
 }
 
 // NotificationChannelRepository manages notification channels.
+// ResourceCredentialRepository manages optional auth credentials for protocol-aware resources.
+type ResourceCredentialRepository interface {
+	Get(ctx context.Context, resourceID string) (*domain.ResourceCredential, error)
+	Upsert(ctx context.Context, cred *domain.ResourceCredential) error
+	Delete(ctx context.Context, resourceID string) error
+	Exists(ctx context.Context, resourceID string) (bool, error)
+}
+
 type NotificationChannelRepository interface {
 	Create(ctx context.Context, channel *domain.NotificationChannel) error
 	FindByID(ctx context.Context, id string) (*domain.NotificationChannel, error)

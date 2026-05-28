@@ -49,6 +49,7 @@ func NewRouter(
 	tagV1Handler *v1handler.TagHandler,
 	statusPageV1Handler *v1handler.StatusPageV1Handler,
 	heartbeatV1Handler *v1handler.HeartbeatV1Handler,
+	credentialV1Handler *v1handler.ResourceCredentialHandler,
 	enableSwagger bool,
 	cfg *config.Config,
 ) http.Handler {
@@ -155,6 +156,13 @@ func NewRouter(
 			r.With(middleware.RequireReadWrite).Post("/{resourceID}/tags", resourceHandler.AddTagsToResource)               // POST /resources/{resourceID}/tags - add tags
 			r.With(middleware.RequireReadWrite).Delete("/{resourceID}/tags/{tagID}", resourceHandler.RemoveTagFromResource) // DELETE /resources/{resourceID}/tags/{tagID} - remove tag
 			r.Get("/{resourceId}/uptime-stats", activityHandler.GetUptimeStats)                                             // GET /resources/{resourceId}/uptime-stats - get hourly uptime stats
+
+			// Resource credentials (feature 028)
+			r.Get("/{id}/credentials", credentialV1Handler.Get)                                                     // GET /resources/{id}/credentials - get masked credential
+			r.With(middleware.RequireReadWrite).Post("/{id}/credentials", credentialV1Handler.Set)                  // POST /resources/{id}/credentials - create/replace credential
+			r.With(middleware.RequireReadWrite).Delete("/{id}/credentials", credentialV1Handler.Delete)             // DELETE /resources/{id}/credentials - remove credential
+			r.With(middleware.RequireReadWrite, middleware.PerUserRateLimit(10)).
+				Post("/{id}/credentials/test", credentialV1Handler.Test)                                            // POST /resources/{id}/credentials/test - live-test (10 req/min/user)
 		})
 
 		// Components API

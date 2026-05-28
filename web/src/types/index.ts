@@ -55,7 +55,7 @@ export interface Resource {
   keyword?: string               // literal string to search for (max 500 chars)
   keyword_mode?: 'contains' | 'not_contains'
   // Protocol-specific fields (only present when type === 'protocol')
-  protocol_type?: 'redis' | 'mongodb' | 'ftp' | 'ssh'
+  protocol_type?: 'redis' | 'mongodb' | 'ftp' | 'ssh' | 'mysql' | 'postgres'
   protocol_port?: number         // 1–65535; absent = use protocol default
 }
 
@@ -110,7 +110,7 @@ export interface CreateResource {
   keyword?: string
   keyword_mode?: 'contains' | 'not_contains'
   // Protocol-specific
-  protocol_type?: 'redis' | 'mongodb' | 'ftp' | 'ssh'
+  protocol_type?: 'redis' | 'mongodb' | 'ftp' | 'ssh' | 'mysql' | 'postgres'
   protocol_port?: number         // 1–65535; absent = use protocol default
 }
 
@@ -621,4 +621,45 @@ export interface LiveSnapshot {
   active_incident: LiveActiveIncident | null
   recent_activities: MonitoringActivity[]
   fetched_at: string
+}
+
+// ─── Feature 028: Resource credentials (auth variants) ──────────────────────
+
+/**
+ * Protocol types that accept optional authentication credentials.
+ */
+export type CredentialProtocolType = 'redis' | 'mysql' | 'postgres'
+
+/**
+ * Request payload for POST /resources/{id}/credentials and .../credentials/test.
+ * Password is plaintext on the wire; it is encrypted server-side at rest and
+ * never returned by any subsequent read.
+ */
+export interface CredentialCreatePayload {
+  username?: string
+  password: string
+  options?: Record<string, unknown>
+}
+
+/**
+ * Response of GET / POST /resources/{id}/credentials.
+ * `password` is always the mask string `••••••••` — the plaintext value is never
+ * returned by any endpoint.
+ */
+export interface CredentialResponse {
+  resource_id: string
+  has_credentials: boolean
+  username?: string
+  password: string
+  created_at: string
+  updated_at: string
+}
+
+/**
+ * Response of POST /resources/{id}/credentials/test.
+ */
+export interface TestConnectionResponse {
+  status: 'ok' | 'failed'
+  cause?: string
+  latency_ms: number
 }

@@ -36,6 +36,7 @@ func (r *ResourceRepositoryImpl) FindByID(ctx context.Context, id string) (*doma
 	err := r.db.WithContext(ctx).
 		Preload("Tags").
 		Preload("Component").
+		Preload("Credential").
 		First(&resource, "id = ? AND is_active = ?", id, true).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -322,7 +323,7 @@ func (r *ResourceRepositoryImpl) UpdateMetadata(ctx context.Context, id string, 
 		return fmt.Errorf("metadata cannot be nil")
 	}
 
-	updates := map[string]interface{}{
+	updates := map[string]any{
 		"ssl_expiration_date":    metadata.SSLExpirationDate,
 		"ssl_issuer":             metadata.SSLIssuer,
 		"domain_expiration_date": metadata.DomainExpirationDate,

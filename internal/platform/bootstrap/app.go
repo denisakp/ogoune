@@ -42,6 +42,7 @@ type App struct {
 	ComponentRepo           port.ComponentRepository
 	UserRepo                port.UserRepository
 	APIKeyRepo              port.APIKeyRepository
+	ResourceCredentialRepo  port.ResourceCredentialRepository
 
 	// Metrics phase
 	MetricsRecorder domain.MetricsRecorder

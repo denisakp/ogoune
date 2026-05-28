@@ -89,6 +89,43 @@ definitions:
       name:
         type: string
     type: object
+  github_com_denisakp_ogoune_internal_dto_v1.CredentialCreateRequest:
+    properties:
+      options:
+        additionalProperties: {}
+        type: object
+      password:
+        type: string
+      username:
+        type: string
+    type: object
+  github_com_denisakp_ogoune_internal_dto_v1.CredentialResponse:
+    properties:
+      created_at:
+        type: string
+      has_credentials:
+        type: boolean
+      password:
+        description: always PasswordMask
+        type: string
+      resource_id:
+        type: string
+      updated_at:
+        type: string
+      username:
+        type: string
+    type: object
+  github_com_denisakp_ogoune_internal_dto_v1.CredentialTestResponse:
+    properties:
+      cause:
+        description: present on failure
+        type: string
+      latency_ms:
+        type: integer
+      status:
+        description: '"ok" or "failed"'
+        type: string
+    type: object
   github_com_denisakp_ogoune_internal_dto_v1.ErrorDetail:
     properties:
       code:
@@ -183,6 +220,13 @@ definitions:
     properties:
       data:
         $ref: '#/definitions/github_com_denisakp_ogoune_internal_dto_v1.ComponentResponse'
+      meta:
+        $ref: '#/definitions/github_com_denisakp_ogoune_internal_dto_v1.MetaResponse'
+    type: object
+  github_com_denisakp_ogoune_internal_dto_v1.SingleResponse-github_com_denisakp_ogoune_internal_dto_v1_CredentialResponse:
+    properties:
+      data:
+        $ref: '#/definitions/github_com_denisakp_ogoune_internal_dto_v1.CredentialResponse'
       meta:
         $ref: '#/definitions/github_com_denisakp_ogoune_internal_dto_v1.MetaResponse'
     type: object
@@ -860,6 +904,132 @@ paths:
       summary: Update a notification channel
       tags:
       - notification-channels
+  /resources/{id}/credentials:
+    delete:
+      parameters:
+      - description: Resource ID
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "204":
+          description: No Content
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Remove credentials for a resource (revert to no-auth behavior)
+      tags:
+      - resource-credentials
+    get:
+      parameters:
+      - description: Resource ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_denisakp_ogoune_internal_dto_v1.SingleResponse-github_com_denisakp_ogoune_internal_dto_v1_CredentialResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get the credential metadata for a resource (password masked)
+      tags:
+      - resource-credentials
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Resource ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Credential payload
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_denisakp_ogoune_internal_dto_v1.CredentialCreateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_denisakp_ogoune_internal_dto_v1.SingleResponse-github_com_denisakp_ogoune_internal_dto_v1_CredentialResponse'
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/github_com_denisakp_ogoune_internal_dto_v1.SingleResponse-github_com_denisakp_ogoune_internal_dto_v1_CredentialResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Create or replace credentials for a resource
+      tags:
+      - resource-credentials
+  /resources/{id}/credentials/test:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Resource ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Credential payload (not persisted)
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_denisakp_ogoune_internal_dto_v1.CredentialCreateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_denisakp_ogoune_internal_dto_v1.CredentialTestResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse'
+        "429":
+          description: Too Many Requests
+          schema:
+            $ref: '#/definitions/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Live-test credentials without persisting (rate-limited 10/min)
+      tags:
+      - resource-credentials
   /status-pages:
     get:
       parameters:

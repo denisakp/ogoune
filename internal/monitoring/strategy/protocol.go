@@ -4,10 +4,12 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"crypto/tls"
 	"encoding/binary"
 	"fmt"
 	"log/slog"
 	"net"
+	"net/url"
 	"strconv"
 	"strings"
 	"time"
@@ -17,13 +19,20 @@ import (
 )
 
 // protocolHandler describes how to probe a single protocol variant.
-// probe == nil means the protocol is passive: connect and read the welcome banner.
-// probe != nil means the protocol is active: send the probe bytes then read the response.
+//
+// Three execution modes:
+//   - customExec != nil: driver-based check (MySQL, PostgreSQL). The handler owns its
+//     own connection lifecycle; the generic dial/TLS/AUTH path in ProtocolStrategy.Execute
+//     is bypassed entirely.
+//   - probe == nil: passive banner protocol (FTP, SSH). Connect and read the welcome line.
+//   - probe != nil: active probe protocol (Redis, MongoDB). Send the probe bytes then
+//     read and validate the response with expect().
 type protocolHandler struct {
 	defaultPort int
 	probe       []byte
 	expect      func([]byte) bool
 	successMsg  string
+	customExec  func(ctx context.Context, r *domain.Resource, host string, port int, useTLS bool, timeout time.Duration, dial DialFunc) domain.CheckResult
 }
 
 var (
@@ -56,6 +65,14 @@ var protocolHandlers = map[string]protocolHandler{
 		probe:       nil,
 		expect:      func(b []byte) bool { return strings.HasPrefix(strings.TrimSpace(string(b)), "SSH-2.0-") },
 		successMsg:  "SSH-2.0- banner received",
+	},
+	"mysql": {
+		defaultPort: 3306,
+		customExec:  mysqlCheck,
+	},
+	"postgres": {
+		defaultPort: 5432,
+		customExec:  postgresCheck,
 	},
 }
 
@@ -155,7 +172,8 @@ func (s *ProtocolStrategy) Execute(ctx context.Context, r *domain.Resource) (dom
 		port = *r.ProtocolPort
 	}
 
-	addr := net.JoinHostPort(r.Target, strconv.Itoa(port))
+	host, useTLS := parseProtocolTarget(r.Target)
+	addr := net.JoinHostPort(host, strconv.Itoa(port))
 
 	// resource.Timeout (seconds) takes precedence over the strategy-level default.
 	timeout := s.timeout
@@ -163,10 +181,15 @@ func (s *ProtocolStrategy) Execute(ctx context.Context, r *domain.Resource) (dom
 		timeout = time.Duration(r.Timeout) * time.Second
 	}
 
+	// Driver-based protocols (MySQL, PostgreSQL) own their own connection lifecycle.
+	if h.customExec != nil {
+		return h.customExec(ctx, r, host, port, useTLS, timeout, s.dialFunc), nil
+	}
+
 	start := time.Now()
 	dialCtx, dialCancel := context.WithTimeout(ctx, timeout)
 	defer dialCancel()
-	conn, err := s.dialFunc(dialCtx, "tcp", addr)
+	rawConn, err := s.dialFunc(dialCtx, "tcp", addr)
 	if err != nil {
 		elapsed := time.Since(start)
 		cause := domain.ConnectionRefused
@@ -190,8 +213,38 @@ func (s *ProtocolStrategy) Execute(ctx context.Context, r *domain.Resource) (dom
 			Cause:        &cause,
 		}, nil
 	}
-	defer conn.Close()
-	_ = conn.SetDeadline(time.Now().Add(timeout))
+	defer rawConn.Close()
+	_ = rawConn.SetDeadline(time.Now().Add(timeout))
+
+	conn := net.Conn(rawConn)
+	if useTLS {
+		tlsConn := tls.Client(rawConn, &tls.Config{
+			ServerName: host,
+			MinVersion: tls.VersionTLS12,
+		})
+		hsCtx, hsCancel := context.WithTimeout(ctx, timeout)
+		if err := tlsConn.HandshakeContext(hsCtx); err != nil {
+			hsCancel()
+			elapsed := time.Since(start)
+			cause := domain.ProtocolTLSHandshakeFailed
+			return domain.CheckResult{
+				Status:       string(domain.StatusDown),
+				ResponseTime: elapsed,
+				ResponseData: fmt.Sprintf("TLS handshake to %s failed: %v", addr, err),
+				Cause:        &cause,
+			}, nil
+		}
+		hsCancel()
+		conn = tlsConn
+		_ = conn.SetDeadline(time.Now().Add(timeout))
+	}
+
+	// Redis: if a credential record is attached, authenticate before the existing probe.
+	if *r.ProtocolType == "redis" && r.Credential != nil {
+		if res, ok := s.redisAuth(conn, r.Credential, addr, start); !ok {
+			return res, nil
+		}
+	}
 
 	// Passive banner protocols (FTP, SSH): read the welcome line, send nothing.
 	if h.probe == nil {
@@ -200,6 +253,92 @@ func (s *ProtocolStrategy) Execute(ctx context.Context, r *domain.Resource) (dom
 
 	// Active probe protocols (Redis, MongoDB): send probe then read response.
 	return s.sendProbeAndRead(conn, h, r, addr, start, timeout)
+}
+
+// parseProtocolTarget extracts the host and TLS hint from a resource target.
+// Recognised TLS signals:
+//   - scheme rediss:// (Redis)
+//   - query parameter tls=true / tls=preferred (MySQL)
+//   - query parameter sslmode=require / verify-ca / verify-full (PostgreSQL)
+//
+// When target is bare (no scheme), it is returned as-is with useTLS=false.
+func parseProtocolTarget(target string) (host string, useTLS bool) {
+	if !strings.Contains(target, "://") {
+		return target, false
+	}
+	u, err := url.Parse(target)
+	if err != nil || u.Host == "" {
+		return target, false
+	}
+	if u.Scheme == "rediss" {
+		useTLS = true
+	}
+	q := u.Query()
+	if v := strings.ToLower(q.Get("tls")); v == "true" || v == "preferred" {
+		useTLS = true
+	}
+	if v := strings.ToLower(q.Get("sslmode")); v == "require" || v == "verify-ca" || v == "verify-full" {
+		useTLS = true
+	}
+	if h := u.Hostname(); h != "" {
+		host = h
+	} else {
+		host = u.Host
+	}
+	return host, useTLS
+}
+
+// redisAuth sends an AUTH command using the provided credential and waits for "+OK".
+// On success it returns (CheckResult{}, true). On failure it returns the populated
+// CheckResult and false, signalling the caller to surface that result immediately.
+//
+// When credential.Username is set, the Redis 6+ ACL form is used:
+//
+//	AUTH <username> <password>
+//
+// Otherwise the legacy form is used:
+//
+//	AUTH <password>
+func (s *ProtocolStrategy) redisAuth(conn net.Conn, cred *domain.ResourceCredential, addr string, start time.Time) (domain.CheckResult, bool) {
+	var cmd string
+	if cred.Username != "" {
+		cmd = fmt.Sprintf("AUTH %s %s\r\n", cred.Username, cred.Password)
+	} else {
+		cmd = fmt.Sprintf("AUTH %s\r\n", cred.Password)
+	}
+	if _, err := conn.Write([]byte(cmd)); err != nil {
+		cause := domain.ProtocolHandshakeFailed
+		return domain.CheckResult{
+			Status:       string(domain.StatusDown),
+			ResponseTime: time.Since(start),
+			ResponseData: fmt.Sprintf("failed to send AUTH to %s: %v", addr, err),
+			Cause:        &cause,
+		}, false
+	}
+	line, err := bufio.NewReader(conn).ReadString('\n')
+	if err != nil {
+		cause := domain.ProtocolHandshakeFailed
+		return domain.CheckResult{
+			Status:       string(domain.StatusDown),
+			ResponseTime: time.Since(start),
+			ResponseData: fmt.Sprintf("failed to read AUTH response from %s", addr),
+			Cause:        &cause,
+		}, false
+	}
+	if strings.HasPrefix(line, "+OK") {
+		return domain.CheckResult{}, true
+	}
+	cause := domain.ProtocolAuthFailed
+	preview := strings.TrimSpace(line)
+	if len(preview) > 60 {
+		preview = preview[:60]
+	}
+	return domain.CheckResult{
+		Status:       string(domain.StatusDown),
+		ResponseTime: time.Since(start),
+		ResponseData: fmt.Sprintf("Authentication failed: %s", preview),
+		Cause:        &cause,
+	}, false
 }
 
 // readBanner reads a single newline-terminated banner and validates it.
