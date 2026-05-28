@@ -190,5 +190,5 @@ Before completing any task or commit, you MUST:
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan:
-`specs/038-resource-service-split/plan.md`
+`specs/028-protocol-auth-variants/plan.md`
 <!-- SPECKIT END -->
