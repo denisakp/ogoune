@@ -191,6 +191,21 @@ const handleMenuClick = (key: string) => {
           rel="noopener"
           >Share Feedback</a
         >
+        ·
+        <a
+          target="_blank"
+          href="https://github.com/denisakp/ogoune/blob/main/LICENSE"
+          rel="noopener"
+          >Apache 2.0 (core)</a
+        >
+        ·
+        <a
+          target="_blank"
+          href="https://github.com/denisakp/ogoune/blob/main/LICENSE.ee"
+          rel="noopener"
+          >LicenseRef-Ogoune-EE (enterprise)</a
+        >
+        · CLA v1.1
       </a-layout-footer>
     </a-layout>
   </a-layout>

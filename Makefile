@@ -2,7 +2,7 @@ SHELL := /bin/sh
 
 BINARY := dist/ogoune
 
-.PHONY: build build-be build-fe test test-be test-fe lint clean docker swag run-ci
+.PHONY: build build-be build-fe test test-be test-fe lint clean docker swag run-ci license-audit
 
 build: build-fe build-be
 
@@ -46,3 +46,12 @@ run-ci:
 	@echo "=== Build ==="
 	$(MAKE) build
 	@echo "=== CI local: ALL PASSED ==="
+
+license-audit:
+	@echo "=== SPDX coverage guard ==="
+	scripts/license/check-spdx.sh
+	@echo "=== Runtime-deps license guard ==="
+	scripts/license/check-deps.sh
+	@echo "=== Docs AGPL-drift guard ==="
+	scripts/license/check-docs.sh
+	@echo "=== License audit: ALL PASSED ==="

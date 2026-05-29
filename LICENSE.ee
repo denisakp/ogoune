@@ -1,0 +1,103 @@
+Ogoune Enterprise Edition License
+=================================
+
+Version 1.0 — effective from Ogoune v2.0.0
+
+Copyright (c) 2026 Denis Akpagnonite
+
+1. Scope
+--------
+
+This license ("EE License") governs all files in the Ogoune repository
+that are either:
+
+  (a) located under the directory `internal/ee/`, OR
+  (b) marked with the SPDX identifier `LicenseRef-Ogoune-EE`
+      (e.g., via the SPDX-License-Identifier comment header).
+
+Collectively, these files are referred to as the "EE Software".
+
+Every other file in the Ogoune repository is governed by the Apache
+License, Version 2.0 (see the `LICENSE` file at the repository root)
+and is NOT subject to the restrictions in this EE License.
+
+2. Permitted use of the EE Software
+-----------------------------------
+
+You may view, fork, modify, build, and contribute to the EE Software
+for the following purposes only:
+
+  - evaluation of Ogoune;
+  - personal or internal development;
+  - automated or manual testing;
+  - preparation and submission of contributions back to the Ogoune
+    project under the then-current Contributor License Agreement (`cla.md`).
+
+3. Prohibited use of the EE Software
+------------------------------------
+
+You may NOT use the EE Software in production without a valid commercial
+license obtained from the maintainer. "Production use" includes, but is
+not limited to:
+
+  - running the EE Software, in whole or in part, to monitor live
+    systems, services, infrastructure, or applications;
+  - offering services to third parties (whether free or paid) where the
+    service depends on the EE Software;
+  - bundling, embedding, or otherwise distributing the EE Software as
+    part of a commercial product or service.
+
+This prohibition applies to any file under `internal/ee/` and any file
+carrying the SPDX identifier `LicenseRef-Ogoune-EE`, irrespective of
+whether the file is invoked directly at runtime.
+
+4. Obtaining a commercial license
+---------------------------------
+
+To obtain a commercial license that permits production use of the EE
+Software, please contact: hello@ogoune.com.
+
+5. Contributions
+----------------
+
+Contributions to the EE Software (pull requests modifying files in the
+scope defined in Section 1) require acceptance of the Ogoune Contributor
+License Agreement, currently version 1.1 (see `cla.md`). Acceptance is
+recorded by the CLA bot at https://cla-assistant.io/denisakp/ogoune.
+
+6. No warranty
+--------------
+
+The EE Software is provided "AS IS", WITHOUT WARRANTY OF ANY KIND,
+either express or implied, including, without limitation, any warranties
+or conditions of TITLE, NON-INFRINGEMENT, MERCHANTABILITY, or FITNESS
+FOR A PARTICULAR PURPOSE.
+
+7. Termination
+--------------
+
+If You breach this EE License (in particular, if You use the EE Software
+in production without a valid commercial license), Your rights under
+Sections 2 and 5 of this license terminate automatically, without notice.
+
+8. Governing law and jurisdiction
+---------------------------------
+
+This EE License is governed by and construed in accordance with the
+laws of France, without regard to its conflict of law provisions.
+
+Any dispute arising out of or in connection with this EE License,
+including any question regarding its existence, validity, or
+termination, is subject to the exclusive jurisdiction of the competent
+courts of France.
+
+9. Relationship to other licenses
+---------------------------------
+
+This EE License applies exclusively to the EE Software as defined in
+Section 1. Files outside the EE Software scope remain governed by the
+Apache License, Version 2.0, as declared in the `LICENSE` file at the
+repository root. The two licenses are independent and concurrent within
+the same repository.
+
+— End of EE License v1.0 —

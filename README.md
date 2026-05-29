@@ -6,7 +6,7 @@
 
 **Uptime monitoring that confirms before it cries wolf.**
 
-![License](https://img.shields.io/badge/license-AGPL%20v3-blue)
+![License: Apache 2.0 (core)](https://img.shields.io/badge/license-Apache_2.0-blue) ![License: EE](https://img.shields.io/badge/internal%2Fee-LicenseRef--Ogoune--EE-orange)
 ![Version](https://img.shields.io/badge/version-v1.0.0-green)
 ![Go](https://img.shields.io/badge/go-1.24%2B-00ADD8)
 ![Vue](https://img.shields.io/badge/vue-3.x-4FC08D)
@@ -156,7 +156,7 @@ SCHEDULER_DRIVER=asynq         # Production (requires Redis)
 | Flap detection | ✅ | ❌ | ❌ | Manual |
 | SSL + domain expiry | ✅ | ✅ / ❌ | Paid | Manual |
 | DNS monitoring | ✅ | ✅ | Paid | Manual |
-| Open source | AGPL v3 | MIT | ❌ | Apache |
+| Open source | Apache 2.0 | MIT | ❌ | Apache 2.0 |
 | Go backend | ✅ | ❌ | — | ✅ |
 | Setup complexity | Low | Low | None | Very high |
 
@@ -324,14 +324,14 @@ All contributors must sign the **CLA** — the bot handles this automatically on
 
 ## Licence
 
-Ogoune is licensed under **AGPL v3** — see [LICENSE](./LICENSE).
+Ogoune uses an Open Core dual-licensing model from v2.0.0 onward:
 
-The `internal/ee/` directory contains Enterprise Edition features and is covered by a separate proprietary licence.
-see [LICENSE_EE](./LICENSE_EE).
+- **Core** (everything outside `internal/ee/`): **Apache License 2.0** — see [LICENSE](./LICENSE). Free, self-hostable, modifiable, and redistributable under standard permissive terms.
+- **Enterprise Edition**: any file under `internal/ee/` or carrying the SPDX identifier `LicenseRef-Ogoune-EE` is governed by a separate commercial source-available licence — see [LICENSE.ee](./LICENSE.ee). The source is visible for evaluation, development, testing, and contribution, but production use requires a commercial licence (`hello@ogoune.com`).
 
-A valid licence key is required to use those features, whether self-hosted or via our Cloud. The rest of the codebase 
-is free, open source, and self-hostable with no licence key required. See [ROADMAP.md](./ROADMAP.md) for the Open Core
-model.
+Contributions to either scope require accepting the Contributor License Agreement — see [cla.md](./cla.md). The CLA bot prompts you on your first pull request.
+
+**Past releases**: any Ogoune distribution made publicly available prior to v2.0.0 remains licensed under **AGPL v3 forever**. The dual-licensing change above applies only to commits and releases made from v2.0.0 onward. See the [migration announcement](https://github.com/denisakp/ogoune/discussions) for details.
 
 
 ---

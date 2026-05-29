@@ -1,0 +1,64 @@
+name: License guards
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  guards:
+    name: SPDX + deps + docs
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Install go-licenses
+        run: go install github.com/google/go-licenses@v1.6.0
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          run_install: false
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: web/.nvmrc
+          cache: pnpm
+          cache-dependency-path: web/pnpm-lock.yaml
+
+      - name: Install web dependencies
+        working-directory: web
+        run: pnpm install --frozen-lockfile
+
+      - name: SPDX coverage guard
+        run: scripts/license/check-spdx.sh
+
+      - name: Runtime-deps license guard
+        run: scripts/license/check-deps.sh
+
+      - name: Docs AGPL-drift guard
+        if: github.base_ref == 'main' || github.ref == 'refs/heads/main'
+        run: scripts/license/check-docs.sh
+
+      - name: Upload audit reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: license-reports
+          path: |
+            dist/license-report-go.csv
+            dist/license-report-web.json
+          if-no-files-found: ignore
+          retention-days: 90
