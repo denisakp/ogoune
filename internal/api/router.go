@@ -19,8 +19,10 @@ import (
 )
 
 const (
-	contentTypeJSON   = "application/json"
-	headerContentType = "Content-Type"
+	contentTypeJSON      = "application/json"
+	headerContentType    = "Content-Type"
+	routeCredentials     = "/{id}/credentials"
+	routeCredentialsTest = "/{id}/credentials/test"
 )
 
 // NewRouter creates and configures the main HTTP router with all JSON API routes.
@@ -158,11 +160,11 @@ func NewRouter(
 			r.Get("/{resourceId}/uptime-stats", activityHandler.GetUptimeStats)                                             // GET /resources/{resourceId}/uptime-stats - get hourly uptime stats
 
 			// Resource credentials (feature 028)
-			r.Get("/{id}/credentials", credentialV1Handler.Get)                                                     // GET /resources/{id}/credentials - get masked credential
-			r.With(middleware.RequireReadWrite).Post("/{id}/credentials", credentialV1Handler.Set)                  // POST /resources/{id}/credentials - create/replace credential
-			r.With(middleware.RequireReadWrite).Delete("/{id}/credentials", credentialV1Handler.Delete)             // DELETE /resources/{id}/credentials - remove credential
+			r.Get(routeCredentials, credentialV1Handler.Get)                                        // GET /resources/{id}/credentials - get masked credential
+			r.With(middleware.RequireReadWrite).Post(routeCredentials, credentialV1Handler.Set)      // POST /resources/{id}/credentials - create/replace credential
+			r.With(middleware.RequireReadWrite).Delete(routeCredentials, credentialV1Handler.Delete) // DELETE /resources/{id}/credentials - remove credential
 			r.With(middleware.RequireReadWrite, middleware.PerUserRateLimit(10)).
-				Post("/{id}/credentials/test", credentialV1Handler.Test)                                            // POST /resources/{id}/credentials/test - live-test (10 req/min/user)
+				Post(routeCredentialsTest, credentialV1Handler.Test) // POST /resources/{id}/credentials/test - live-test (10 req/min/user)
 		})
 
 		// Components API

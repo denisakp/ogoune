@@ -137,24 +137,10 @@ func TestSecurityHeaders_HSTS(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mw := SecurityHeaders(SecurityHeadersConfig{
-				AppEnv: tt.appEnv,
-			})
-			handler := mw(secHeadersOKHandler)
-
-			req := httptest.NewRequest(http.MethodGet, "/test", nil)
-			if tt.tls {
-				req.TLS = &tls.ConnectionState{}
-			}
-			if tt.xfp != "" {
-				req.Header.Set("X-Forwarded-Proto", tt.xfp)
-			}
-			if tt.fwd != "" {
-				req.Header.Set("Forwarded", tt.fwd)
-			}
-
+			mw := SecurityHeaders(SecurityHeadersConfig{AppEnv: tt.appEnv})
+			req := newHSTSRequest(tt.tls, tt.xfp, tt.fwd)
 			rec := httptest.NewRecorder()
-			handler.ServeHTTP(rec, req)
+			mw(secHeadersOKHandler).ServeHTTP(rec, req)
 
 			got := rec.Header().Get("Strict-Transport-Security")
 			if tt.wantHSTS && got != hstsValue {
@@ -165,6 +151,22 @@ func TestSecurityHeaders_HSTS(t *testing.T) {
 			}
 		})
 	}
+}
+
+// newHSTSRequest builds the GET /test request and applies the optional TLS,
+// X-Forwarded-Proto and Forwarded conditions used by HSTS table tests.
+func newHSTSRequest(tlsOn bool, xfp, fwd string) *http.Request {
+	req := httptest.NewRequest(http.MethodGet, "/test", nil)
+	if tlsOn {
+		req.TLS = &tls.ConnectionState{}
+	}
+	if xfp != "" {
+		req.Header.Set("X-Forwarded-Proto", xfp)
+	}
+	if fwd != "" {
+		req.Header.Set("Forwarded", fwd)
+	}
+	return req
 }
 
 func TestSecurityHeaders_SwaggerCSP(t *testing.T) {

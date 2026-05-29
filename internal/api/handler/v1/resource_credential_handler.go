@@ -15,6 +15,11 @@ import (
 	"github.com/go-chi/chi/v5"
 )
 
+const (
+	codeResourceNotFound = "RESOURCE_NOT_FOUND"
+	msgResourceNotFound  = "resource not found"
+)
+
 // CredentialV1ServiceInterface is the slice of *ResourceCredentialService used by the handler.
 type CredentialV1ServiceInterface interface {
 	Get(ctx context.Context, resourceID string) (*domain.ResourceCredential, error)
@@ -70,7 +75,7 @@ func (h *ResourceCredentialHandler) Get(w http.ResponseWriter, r *http.Request) 
 	if err != nil {
 		switch {
 		case errors.Is(err, service.ErrResourceNotFound):
-			respondError(w, r, http.StatusNotFound, "RESOURCE_NOT_FOUND", "resource not found")
+			respondError(w, r, http.StatusNotFound, codeResourceNotFound, msgResourceNotFound)
 		case errors.Is(err, service.ErrCredentialNotFound):
 			respondError(w, r, http.StatusNotFound, "CREDENTIAL_NOT_FOUND", "no credentials configured for this resource")
 		default:
@@ -112,7 +117,7 @@ func (h *ResourceCredentialHandler) Set(w http.ResponseWriter, r *http.Request) 
 	if err != nil {
 		switch {
 		case errors.Is(err, service.ErrResourceNotFound):
-			respondError(w, r, http.StatusNotFound, "RESOURCE_NOT_FOUND", "resource not found")
+			respondError(w, r, http.StatusNotFound, codeResourceNotFound, msgResourceNotFound)
 		case errors.Is(err, service.ErrCredentialInvalid):
 			respondError(w, r, http.StatusUnprocessableEntity, "VALIDATION_FAILED", "invalid credential payload")
 		default:
@@ -152,7 +157,7 @@ func (h *ResourceCredentialHandler) Delete(w http.ResponseWriter, r *http.Reques
 	if err != nil {
 		switch {
 		case errors.Is(err, service.ErrResourceNotFound):
-			respondError(w, r, http.StatusNotFound, "RESOURCE_NOT_FOUND", "resource not found")
+			respondError(w, r, http.StatusNotFound, codeResourceNotFound, msgResourceNotFound)
 		case errors.Is(err, service.ErrCredentialNotFound):
 			respondError(w, r, http.StatusNotFound, "CREDENTIAL_NOT_FOUND", "no credentials configured for this resource")
 		default:
@@ -195,7 +200,7 @@ func (h *ResourceCredentialHandler) Test(w http.ResponseWriter, r *http.Request)
 	latency := time.Since(start).Milliseconds()
 	if err != nil {
 		if errors.Is(err, service.ErrResourceNotFound) {
-			respondError(w, r, http.StatusNotFound, "RESOURCE_NOT_FOUND", "resource not found")
+			respondError(w, r, http.StatusNotFound, codeResourceNotFound, msgResourceNotFound)
 			return
 		}
 		respondError(w, r, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to run live test")

@@ -148,31 +148,16 @@ func NewProtocolStrategy(timeout time.Duration) *ProtocolStrategy {
 }
 
 func (s *ProtocolStrategy) Execute(ctx context.Context, r *domain.Resource) (domain.CheckResult, error) {
-	if r.ProtocolType == nil {
-		cause := domain.InvalidConfiguration
-		return domain.CheckResult{
-			Status:       string(domain.StatusDown),
-			ResponseData: "protocol_type is not set",
-			Cause:        &cause,
-		}, nil
-	}
-
-	h, ok := protocolHandlers[*r.ProtocolType]
+	h, res, ok := s.resolveHandler(r)
 	if !ok {
-		cause := domain.InvalidConfiguration
-		return domain.CheckResult{
-			Status:       string(domain.StatusDown),
-			ResponseData: fmt.Sprintf("unsupported protocol type: %s", *r.ProtocolType),
-			Cause:        &cause,
-		}, nil
+		return res, nil
 	}
 
+	host, useTLS := parseProtocolTarget(r.Target)
 	port := h.defaultPort
 	if r.ProtocolPort != nil && *r.ProtocolPort > 0 {
 		port = *r.ProtocolPort
 	}
-
-	host, useTLS := parseProtocolTarget(r.Target)
 	addr := net.JoinHostPort(host, strconv.Itoa(port))
 
 	// resource.Timeout (seconds) takes precedence over the strategy-level default.
@@ -187,57 +172,11 @@ func (s *ProtocolStrategy) Execute(ctx context.Context, r *domain.Resource) (dom
 	}
 
 	start := time.Now()
-	dialCtx, dialCancel := context.WithTimeout(ctx, timeout)
-	defer dialCancel()
-	rawConn, err := s.dialFunc(dialCtx, "tcp", addr)
-	if err != nil {
-		elapsed := time.Since(start)
-		cause := domain.ConnectionRefused
-		msg := fmt.Sprintf("connection refused to %s", addr)
-		if netErr, ok := err.(net.Error); ok && netErr.Timeout() {
-			cause = domain.ConnectionTimeout
-			msg = fmt.Sprintf("timeout connecting to %s", addr)
-		}
-		if strings.Contains(err.Error(), "blocked") {
-			slog.WarnContext(ctx, "SSRF block",
-				slog.String("event", "ssrf_block"),
-				slog.String("strategy", "protocol"),
-				slog.String("target", addr),
-				slog.String("reason", err.Error()),
-			)
-		}
-		return domain.CheckResult{
-			Status:       string(domain.StatusDown),
-			ResponseTime: elapsed,
-			ResponseData: msg,
-			Cause:        &cause,
-		}, nil
+	conn, closeFn, res, ok := s.openConnection(ctx, addr, host, useTLS, timeout, start)
+	if !ok {
+		return res, nil
 	}
-	defer rawConn.Close()
-	_ = rawConn.SetDeadline(time.Now().Add(timeout))
-
-	conn := net.Conn(rawConn)
-	if useTLS {
-		tlsConn := tls.Client(rawConn, &tls.Config{
-			ServerName: host,
-			MinVersion: tls.VersionTLS12,
-		})
-		hsCtx, hsCancel := context.WithTimeout(ctx, timeout)
-		if err := tlsConn.HandshakeContext(hsCtx); err != nil {
-			hsCancel()
-			elapsed := time.Since(start)
-			cause := domain.ProtocolTLSHandshakeFailed
-			return domain.CheckResult{
-				Status:       string(domain.StatusDown),
-				ResponseTime: elapsed,
-				ResponseData: fmt.Sprintf("TLS handshake to %s failed: %v", addr, err),
-				Cause:        &cause,
-			}, nil
-		}
-		hsCancel()
-		conn = tlsConn
-		_ = conn.SetDeadline(time.Now().Add(timeout))
-	}
+	defer closeFn()
 
 	// Redis: if a credential record is attached, authenticate before the existing probe.
 	if *r.ProtocolType == "redis" && r.Credential != nil {
@@ -253,6 +192,91 @@ func (s *ProtocolStrategy) Execute(ctx context.Context, r *domain.Resource) (dom
 
 	// Active probe protocols (Redis, MongoDB): send probe then read response.
 	return s.sendProbeAndRead(conn, h, r, addr, start, timeout)
+}
+
+// resolveHandler validates the resource configuration and returns the matching
+// protocol handler. When the configuration is invalid it returns a populated
+// CheckResult and ok=false so the caller can surface it directly.
+func (s *ProtocolStrategy) resolveHandler(r *domain.Resource) (protocolHandler, domain.CheckResult, bool) {
+	if r.ProtocolType == nil {
+		cause := domain.InvalidConfiguration
+		return protocolHandler{}, domain.CheckResult{
+			Status:       string(domain.StatusDown),
+			ResponseData: "protocol_type is not set",
+			Cause:        &cause,
+		}, false
+	}
+	h, ok := protocolHandlers[*r.ProtocolType]
+	if !ok {
+		cause := domain.InvalidConfiguration
+		return protocolHandler{}, domain.CheckResult{
+			Status:       string(domain.StatusDown),
+			ResponseData: fmt.Sprintf("unsupported protocol type: %s", *r.ProtocolType),
+			Cause:        &cause,
+		}, false
+	}
+	return h, domain.CheckResult{}, true
+}
+
+// openConnection dials addr, optionally upgrades to TLS, and applies the deadline.
+// On failure it returns a populated CheckResult and ok=false. The returned closeFn
+// releases all underlying resources and must be called by the caller.
+func (s *ProtocolStrategy) openConnection(ctx context.Context, addr, host string, useTLS bool, timeout time.Duration, start time.Time) (net.Conn, func(), domain.CheckResult, bool) {
+	dialCtx, dialCancel := context.WithTimeout(ctx, timeout)
+	defer dialCancel()
+	rawConn, err := s.dialFunc(dialCtx, "tcp", addr)
+	if err != nil {
+		return nil, nil, dialError(ctx, addr, err, start), false
+	}
+	_ = rawConn.SetDeadline(time.Now().Add(timeout))
+
+	if !useTLS {
+		return rawConn, func() { rawConn.Close() }, domain.CheckResult{}, true
+	}
+
+	tlsConn := tls.Client(rawConn, &tls.Config{
+		ServerName: host,
+		MinVersion: tls.VersionTLS12,
+	})
+	hsCtx, hsCancel := context.WithTimeout(ctx, timeout)
+	defer hsCancel()
+	if err := tlsConn.HandshakeContext(hsCtx); err != nil {
+		rawConn.Close()
+		cause := domain.ProtocolTLSHandshakeFailed
+		return nil, nil, domain.CheckResult{
+			Status:       string(domain.StatusDown),
+			ResponseTime: time.Since(start),
+			ResponseData: fmt.Sprintf("TLS handshake to %s failed: %v", addr, err),
+			Cause:        &cause,
+		}, false
+	}
+	_ = tlsConn.SetDeadline(time.Now().Add(timeout))
+	return tlsConn, func() { tlsConn.Close() }, domain.CheckResult{}, true
+}
+
+// dialError classifies a dial failure (timeout vs refused) and emits an SSRF log
+// when the error originates from the safenet block-list.
+func dialError(ctx context.Context, addr string, err error, start time.Time) domain.CheckResult {
+	cause := domain.ConnectionRefused
+	msg := fmt.Sprintf("connection refused to %s", addr)
+	if netErr, ok := err.(net.Error); ok && netErr.Timeout() {
+		cause = domain.ConnectionTimeout
+		msg = fmt.Sprintf("timeout connecting to %s", addr)
+	}
+	if strings.Contains(err.Error(), "blocked") {
+		slog.WarnContext(ctx, "SSRF block",
+			slog.String("event", "ssrf_block"),
+			slog.String("strategy", "protocol"),
+			slog.String("target", addr),
+			slog.String("reason", err.Error()),
+		)
+	}
+	return domain.CheckResult{
+		Status:       string(domain.StatusDown),
+		ResponseTime: time.Since(start),
+		ResponseData: msg,
+		Cause:        &cause,
+	}
 }
 
 // parseProtocolTarget extracts the host and TLS hint from a resource target.

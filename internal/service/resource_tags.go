@@ -14,45 +14,44 @@ import (
 // It accepts tag names as strings and returns tag entities.
 func (s *ResourceService) findOrCreateTags(ctx context.Context, tagNames []string) ([]*domain.Tags, error) {
 	var tags []*domain.Tags
-
 	for _, rawTag := range tagNames {
 		tagName := strings.TrimSpace(rawTag)
 		if tagName == "" {
 			continue
 		}
-
-		// Backward compatibility: if client sends an existing tag ID, resolve it first.
-		tagByID, err := s.tags.FindByID(ctx, tagName)
-		if err == nil {
-			tags = append(tags, tagByID)
-			continue
-		}
-		if !errors.Is(err, repository.ErrNotFound) {
-			return nil, fmt.Errorf("failed to find tag by id '%s': %w", tagName, err)
-		}
-
-		// Try to find the tag by name
-		tag, err := s.tags.FindByName(ctx, tagName)
+		tag, err := s.resolveOrCreateTag(ctx, tagName)
 		if err != nil {
-			if errors.Is(err, repository.ErrNotFound) {
-				// Tag doesn't exist, create it
-				newTag := &domain.Tags{
-					Name: tagName,
-				}
-				if err := s.tags.Create(ctx, newTag); err != nil {
-					return nil, fmt.Errorf("failed to create tag '%s': %w", tagName, err)
-				}
-				tags = append(tags, newTag)
-			} else {
-				return nil, fmt.Errorf("failed to find tag '%s': %w", tagName, err)
-			}
-		} else {
-			// Tag exists, use it
-			tags = append(tags, tag)
+			return nil, err
 		}
+		tags = append(tags, tag)
+	}
+	return tags, nil
+}
+
+// resolveOrCreateTag returns the tag matching nameOrID, falling back to lookup-by-name
+// and finally creating a new tag. Used by findOrCreateTags so the per-name decision
+// tree stays under the cognitive-complexity budget of its caller.
+func (s *ResourceService) resolveOrCreateTag(ctx context.Context, nameOrID string) (*domain.Tags, error) {
+	// Backward compatibility: if client sends an existing tag ID, resolve it first.
+	if tag, err := s.tags.FindByID(ctx, nameOrID); err == nil {
+		return tag, nil
+	} else if !errors.Is(err, repository.ErrNotFound) {
+		return nil, fmt.Errorf("failed to find tag by id '%s': %w", nameOrID, err)
 	}
 
-	return tags, nil
+	tag, err := s.tags.FindByName(ctx, nameOrID)
+	if err == nil {
+		return tag, nil
+	}
+	if !errors.Is(err, repository.ErrNotFound) {
+		return nil, fmt.Errorf("failed to find tag '%s': %w", nameOrID, err)
+	}
+
+	newTag := &domain.Tags{Name: nameOrID}
+	if err := s.tags.Create(ctx, newTag); err != nil {
+		return nil, fmt.Errorf("failed to create tag '%s': %w", nameOrID, err)
+	}
+	return newTag, nil
 }
 
 // AddTagsToResource adds multiple tags to a resource using GORM's Association mode.

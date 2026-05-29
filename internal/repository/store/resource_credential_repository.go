@@ -10,6 +10,8 @@ import (
 	"gorm.io/gorm/clause"
 )
 
+const whereResourceID = "resource_id = ?"
+
 // ResourceCredentialRepository persists optional auth credentials for protocol-aware resources.
 type ResourceCredentialRepository struct {
 	db *gorm.DB
@@ -22,7 +24,7 @@ func NewResourceCredentialRepository(db *gorm.DB) *ResourceCredentialRepository 
 // Get returns the credential for the given resource. ErrCredentialNotFound when no row exists.
 func (r *ResourceCredentialRepository) Get(ctx context.Context, resourceID string) (*domain.ResourceCredential, error) {
 	var cred domain.ResourceCredential
-	if err := r.db.WithContext(ctx).First(&cred, "resource_id = ?", resourceID).Error; err != nil {
+	if err := r.db.WithContext(ctx).First(&cred, whereResourceID, resourceID).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, repository.ErrCredentialNotFound
 		}
@@ -46,7 +48,7 @@ func (r *ResourceCredentialRepository) Upsert(ctx context.Context, cred *domain.
 
 // Delete removes the credential for the given resource. ErrCredentialNotFound when no row exists.
 func (r *ResourceCredentialRepository) Delete(ctx context.Context, resourceID string) error {
-	res := r.db.WithContext(ctx).Where("resource_id = ?", resourceID).Delete(&domain.ResourceCredential{})
+	res := r.db.WithContext(ctx).Where(whereResourceID, resourceID).Delete(&domain.ResourceCredential{})
 	if res.Error != nil {
 		return res.Error
 	}
@@ -60,6 +62,6 @@ func (r *ResourceCredentialRepository) Delete(ctx context.Context, resourceID st
 func (r *ResourceCredentialRepository) Exists(ctx context.Context, resourceID string) (bool, error) {
 	var count int64
 	err := r.db.WithContext(ctx).Model(&domain.ResourceCredential{}).
-		Where("resource_id = ?", resourceID).Count(&count).Error
+		Where(whereResourceID, resourceID).Count(&count).Error
 	return count > 0, err
 }
