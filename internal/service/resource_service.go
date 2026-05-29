@@ -136,7 +136,7 @@ func (s *ResourceService) CreateResource(ctx context.Context, payload *dto.Creat
 	}
 
 	if payload.Type == domain.ResourceProtocol {
-		if err := validateProtocolFields(payload.ProtocolType, payload.ProtocolPort); err != nil {
+		if err := validateProtocolFields(payload.ProtocolType, payload.ProtocolPort, payload.Target); err != nil {
 			return nil, err
 		}
 		resource.ProtocolType = payload.ProtocolType

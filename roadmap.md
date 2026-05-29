@@ -94,7 +94,7 @@ The CLA bot handles this automatically on your first PR.
 
 ---
 
-## H2 — SHipped
+## H2 — Shipped
 
 Community Edition — expanding monitoring coverage, observability, and security.
 
@@ -128,9 +128,9 @@ Community Edition — reporting, tooling, and observability depth.
 
 ### Monitoring
 
-- [ ] **Protocol-aware checks — auth variants** — Redis AUTH, MySQL, PostgreSQL with encrypted credentials.
+- [x] **Protocol-aware checks — auth variants** — Redis AUTH, MySQL, PostgreSQL with encrypted credentials.
   Depends on credential encryption (AES-256-GCM) shipped in H2. Community Edition.
-- [ ] **Protocol-aware checks — broker support** — RabbitMQ (AMQP handshake), Kafka (Metadata Request).
+- [x] **Protocol-aware checks — broker support** — RabbitMQ (AMQP handshake), Kafka (Metadata Request).
   Community contribution candidates — architecture is extensible from H2.
 
 ### Reporting
@@ -170,7 +170,6 @@ Community Edition — reporting, tooling, and observability depth.
 - [ ] **PagerDuty / OpsGenie**
 - [ ] **Cloud integrations** — Azure, Vercel, Cloudflare, Coolify
 - [ ] **Agent device monitoring** — CPU, memory, disk via lightweight Go agent
-- [ ] **Vault-backed credential encryption** — plug external secret managers (HashiCorp Vault, AWS KMS, Azure Key Vault, GCP Secret Manager) as the key provider. Replaces APP_SECRET_KEY with enterprise-grade key management. Depends on credential encryption (AES-256-GCM) shipped in H2.
 
 ---
 

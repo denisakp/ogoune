@@ -2,6 +2,8 @@ package service
 
 import (
 	"fmt"
+	"net"
+	"strings"
 
 	"github.com/denisakp/ogoune/internal/config"
 )
@@ -35,18 +37,66 @@ func validateKeywordFields(keyword *string, keywordMode *string) error {
 }
 
 // validateProtocolFields validates protocol-specific fields when resource type is protocol.
-func validateProtocolFields(protocolType *string, protocolPort *int) error {
+func validateProtocolFields(protocolType *string, protocolPort *int, target string) error {
 	if protocolType == nil || *protocolType == "" {
 		return fmt.Errorf("%w: protocol_type is required when resource type is 'protocol'", ErrValidationFailed)
 	}
-	validTypes := map[string]bool{"redis": true, "mongodb": true, "ftp": true, "ssh": true}
+	validTypes := map[string]bool{
+		"redis": true, "mongodb": true, "ftp": true, "ssh": true,
+		"mysql": true, "postgres": true,
+		"rabbitmq": true, "kafka": true,
+	}
 	if !validTypes[*protocolType] {
-		return fmt.Errorf("%w: protocol_type must be one of: redis, mongodb, ftp, ssh", ErrValidationFailed)
+		return fmt.Errorf("%w: protocol_type must be one of: redis, mongodb, ftp, ssh, mysql, postgres, rabbitmq, kafka", ErrValidationFailed)
+	}
+	if *protocolType == "kafka" {
+		if protocolPort != nil {
+			return fmt.Errorf("%w: protocol_port must be empty for kafka (encode ports in target as host:port,host:port)", ErrValidationFailed)
+		}
+		entries, err := parseKafkaBootstrapTargets(target)
+		if err != nil {
+			return fmt.Errorf("%w: %v", ErrValidationFailed, err)
+		}
+		if len(entries) == 0 {
+			return fmt.Errorf("%w: kafka requires at least one bootstrap host:port in target", ErrValidationFailed)
+		}
+	} else if *protocolType == "rabbitmq" {
+		if target == "" {
+			return fmt.Errorf("%w: target is required for rabbitmq", ErrValidationFailed)
+		}
+		if strings.Contains(target, ",") {
+			return fmt.Errorf("%w: rabbitmq target must be a single host (no commas)", ErrValidationFailed)
+		}
 	}
 	if protocolPort != nil && (*protocolPort < 1 || *protocolPort > 65535) {
 		return fmt.Errorf("%w: protocol_port must be between 1 and 65535", ErrValidationFailed)
 	}
 	return nil
+}
+
+// parseKafkaBootstrapTargets splits Target on comma, trims whitespace, validates each
+// entry as host:port via net.SplitHostPort. Returns the normalized list.
+func parseKafkaBootstrapTargets(target string) ([]string, error) {
+	if target == "" {
+		return nil, fmt.Errorf("target is empty")
+	}
+	parts := strings.Split(target, ",")
+	out := make([]string, 0, len(parts))
+	for _, p := range parts {
+		s := strings.TrimSpace(p)
+		if s == "" {
+			continue
+		}
+		host, port, err := net.SplitHostPort(s)
+		if err != nil {
+			return nil, fmt.Errorf("invalid bootstrap entry %q: %v", s, err)
+		}
+		if host == "" || port == "" {
+			return nil, fmt.Errorf("invalid bootstrap entry %q: host and port required", s)
+		}
+		out = append(out, net.JoinHostPort(host, port))
+	}
+	return out, nil
 }
 
 // validateSmartAlertingFields validates the smart alerting configuration fields.

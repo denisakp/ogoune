@@ -61,6 +61,8 @@ const protocolDefaultPorts: Record<string, number> = {
   ssh: 22,
   mysql: 3306,
   postgres: 5432,
+  rabbitmq: 5672,
+  kafka: 9092,
 }
 
 // Feature 028: credential state lives in the form. It is only persisted in
@@ -184,6 +186,18 @@ const handleSubmit = async () => {
     if (!form.value.protocol_type) return
     const port = form.value.protocol_port
     if (port !== undefined && (port < 1 || port > 65535)) return
+    if (form.value.protocol_type === 'kafka') {
+      const entries = (form.value.target ?? '')
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean)
+      if (entries.length === 0) return
+      const hostPortRe = /^[A-Za-z0-9._-]+:\d{1,5}$/
+      if (entries.some((e) => !hostPortRe.test(e))) return
+    }
+    if (form.value.protocol_type === 'rabbitmq') {
+      if ((form.value.target ?? '').includes(',')) return
+    }
   }
   const thresholds = form.value.expiry_alert_thresholds?.trim()
   if (thresholds) {
@@ -397,6 +411,8 @@ const icmpWarning = computed(() => {
               <a-select-option value="ssh">SSH</a-select-option>
               <a-select-option value="mysql">MySQL</a-select-option>
               <a-select-option value="postgres">PostgreSQL</a-select-option>
+              <a-select-option value="rabbitmq">RabbitMQ</a-select-option>
+              <a-select-option value="kafka">Kafka (bootstrap brokers)</a-select-option>
             </a-select>
           </a-form-item>
         </a-col>
