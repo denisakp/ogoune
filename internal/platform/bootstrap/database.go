@@ -56,4 +56,5 @@ func InitDatabase(app *App) {
 	app.ComponentRepo = store.NewComponentRepository(db)
 	app.UserRepo = store.NewUserRepository(db)
 	app.APIKeyRepo = store.NewAPIKeyRepository(db)
+	app.ResourceCredentialRepo = store.NewResourceCredentialRepository(db)
 }

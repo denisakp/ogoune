@@ -61,6 +61,9 @@ const (
 	// protocol
 	ProtocolHandshakeFailed    CheckFailureCause = "Protocol Handshake Failed"
 	ProtocolUnexpectedResponse CheckFailureCause = "Unexpected Protocol Response"
+	ProtocolAuthFailed         CheckFailureCause = "Authentication Failed"
+	ProtocolTLSHandshakeFailed CheckFailureCause = "TLS Handshake Failed"
+	ProtocolDecryptFailed      CheckFailureCause = "Credential Decryption Failed"
 )
 
 // KeywordCheckContext carries keyword-specific results from KeywordStrategy.Execute

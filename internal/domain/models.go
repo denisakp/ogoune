@@ -1,6 +1,7 @@
 package domain
 
 import (
+	"errors"
 	"math/rand"
 	"strconv"
 	"strings"
@@ -119,6 +120,7 @@ type Resource struct {
 	ProtocolType            *string                `json:"protocol_type,omitempty" gorm:"column:protocol_type"`
 	ProtocolPort            *int                   `json:"protocol_port,omitempty" gorm:"column:protocol_port"`
 	MetadataPending         bool                   `json:"metadata_pending" gorm:"-"`
+	Credential              *ResourceCredential    `json:"credential,omitempty" gorm:"foreignKey:ResourceID;references:ID;constraint:OnDelete:CASCADE"`
 }
 
 // IsHeartbeatWaiting reports whether a heartbeat resource has never been pinged.
@@ -497,6 +499,75 @@ func (n *NotificationChannel) AfterFind(tx *gorm.DB) error {
 	n.Config = []byte(plaintext)
 	return nil
 }
+
+// ResourceCredential holds optional auth credentials for protocol-aware resources
+// (Redis, MySQL, PostgreSQL). One row per resource at most. Password and Options are
+// encrypted at rest via AES-256-GCM; Username is plaintext.
+type ResourceCredential struct {
+	Base
+	ResourceID string `json:"resource_id" gorm:"uniqueIndex;not null"`
+	Username   string `json:"username"`
+	Password   []byte `json:"-" gorm:"not null"`
+	Options    []byte `json:"-"`
+}
+
+func (ResourceCredential) TableName() string { return "resource_credentials" }
+
+// BeforeCreate sets the ID via Base.BeforeCreate then encrypts Password and Options.
+func (c *ResourceCredential) BeforeCreate(tx *gorm.DB) error {
+	if err := c.Base.BeforeCreate(tx); err != nil {
+		return err
+	}
+	return c.encryptSecrets()
+}
+
+// BeforeUpdate re-encrypts Password and Options on every UPDATE.
+// Callers MUST assign the plaintext value before saving.
+func (c *ResourceCredential) BeforeUpdate(tx *gorm.DB) error {
+	return c.encryptSecrets()
+}
+
+// AfterFind decrypts Password and Options back to plaintext for the caller.
+// Returns an error if either field is present but cannot be decrypted.
+func (c *ResourceCredential) AfterFind(tx *gorm.DB) error {
+	if len(c.Password) > 0 {
+		plaintext, err := crypto.Decrypt(string(c.Password))
+		if err != nil {
+			return ErrCredentialDecryption
+		}
+		c.Password = []byte(plaintext)
+	}
+	if len(c.Options) > 0 {
+		plaintext, err := crypto.Decrypt(string(c.Options))
+		if err != nil {
+			return ErrCredentialDecryption
+		}
+		c.Options = []byte(plaintext)
+	}
+	return nil
+}
+
+func (c *ResourceCredential) encryptSecrets() error {
+	if len(c.Password) > 0 {
+		ciphertext, err := crypto.Encrypt(string(c.Password))
+		if err != nil {
+			return err
+		}
+		c.Password = []byte(ciphertext)
+	}
+	if len(c.Options) > 0 {
+		ciphertext, err := crypto.Encrypt(string(c.Options))
+		if err != nil {
+			return err
+		}
+		c.Options = []byte(ciphertext)
+	}
+	return nil
+}
+
+// ErrCredentialDecryption is returned by ResourceCredential.AfterFind when
+// the encrypted payload cannot be decrypted (e.g. APP_SECRET_KEY changed).
+var ErrCredentialDecryption = errors.New("resource credential decryption failed")
 
 type MaintenanceStrategy string
 

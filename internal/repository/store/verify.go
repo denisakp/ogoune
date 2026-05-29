@@ -18,4 +18,5 @@ var (
 	_ port.APIKeyRepository              = (*APIKeyRepositoryImpl)(nil)
 	_ port.IncidentDiagnosticsRepository = (*IncidentDiagnosticsRepositoryImpl)(nil)
 	_ port.ExpiryNotificationLogRepository = (*ExpiryNotificationLogRepository)(nil)
+	_ port.ResourceCredentialRepository    = (*ResourceCredentialRepository)(nil)
 )
