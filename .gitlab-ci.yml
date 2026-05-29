@@ -34,7 +34,9 @@ backend-tests:
     - mkdir -p .cache/go-build
     - export GOPATH=/root/go
     - export GOCACHE=$CI_PROJECT_DIR/.cache/go-build
+    - apt-get update -qq && apt-get install -y -qq make >/dev/null
   script:
+    - make sqlc-check
     - go test -v -race -timeout 120s ./...
   rules:
     # Run on push/MR to dev, scoped to Go + web file changes

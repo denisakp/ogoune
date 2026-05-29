@@ -258,6 +258,20 @@ This produces:
 - `web/dist/index.html`
 - `web/dist/status.html`
 
+### Type-safe DB queries (sqlc)
+
+Repository queries written under `internal/repository/sqlc/queries/{postgres,sqlite}/`
+are compiled to Go via [sqlc](https://sqlc.dev/). After editing or adding a `.sql`
+file:
+
+```bash
+make sqlc-generate      # regenerate Go code under internal/repository/sqlc/{pg,sqlite}/
+make sqlc-check         # fail if committed code drifts vs queries (also runs in CI)
+```
+
+`make build-be` runs `sqlc-check` automatically. The sqlc CLI is auto-installed
+at the pinned version on first run.
+
 ---
 
 ## First login

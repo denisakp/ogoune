@@ -1,32 +1,44 @@
 package database
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/jackc/pgx/v5/stdlib"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
 
-func openPostgres(cfg resolvedConfig) (*gorm.DB, error) {
+// openPostgres opens a single physical pgxpool, wraps it as *sql.DB via
+// stdlib.OpenDBFromPool, and hands that *sql.DB to GORM so the GORM handle
+// and the returned *pgxpool.Pool share one underlying pool.
+func openPostgres(ctx context.Context, cfg resolvedConfig) (*gorm.DB, *pgxpool.Pool, error) {
 	slog.Info("opening database connection", "driver", string(cfg.Driver))
 
-	database, err := gorm.Open(postgres.Open(cfg.DSN), &gorm.Config{
+	poolCfg, err := pgxpool.ParseConfig(cfg.DSN)
+	if err != nil {
+		return nil, nil, fmt.Errorf("db init: failed to parse postgres dsn: %w", err)
+	}
+	poolCfg.MaxConns = 25
+	poolCfg.MaxConnLifetime = 30 * time.Minute
+
+	pool, err := pgxpool.NewWithConfig(ctx, poolCfg)
+	if err != nil {
+		return nil, nil, fmt.Errorf("db init: failed to open postgres pool: %w", err)
+	}
+
+	sqlDB := stdlib.OpenDBFromPool(pool)
+
+	database, err := gorm.Open(postgres.New(postgres.Config{Conn: sqlDB}), &gorm.Config{
 		Logger: newGormLogger(cfg.GormLogLevel),
 	})
 	if err != nil {
-		return nil, fmt.Errorf("db init: failed to connect to postgres: %w", err)
+		pool.Close()
+		return nil, nil, fmt.Errorf("db init: failed to connect to postgres: %w", err)
 	}
 
-	sqlDB, err := database.DB()
-	if err != nil {
-		return nil, fmt.Errorf("db init: failed to get postgres db handle: %w", err)
-	}
-
-	sqlDB.SetMaxOpenConns(25)
-	sqlDB.SetMaxIdleConns(5)
-	sqlDB.SetConnMaxLifetime(30 * time.Minute)
-
-	return database, nil
+	return database, pool, nil
 }

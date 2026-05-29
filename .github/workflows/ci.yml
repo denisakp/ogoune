@@ -25,6 +25,20 @@ jobs:
         with:
           go-version: '1.25.1'
 
+      - name: cache Go modules
+        uses: actions/cache@v5
+        with:
+          path: |
+            ~/go/pkg/mod
+            ~/.cache/go-build
+            ~/go/bin
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+
+      - name: sqlc check (fail on drift)
+        run: make sqlc-check
+
       - name: run backend tests
         run: go test -C ./ ./...
 

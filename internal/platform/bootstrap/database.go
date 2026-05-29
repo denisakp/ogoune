@@ -11,6 +11,12 @@ import (
 )
 
 // InitDatabase initializes the database connection, runs health check, and creates all repositories.
+//
+// The full *database.Runtime is reachable through database.Instance()-adjacent
+// accessors during the sqlc migration window. Future tickets (002+ in the
+// sqlc track) will consume Runtime.PgxPool() / Runtime.SQLiteDB() to build
+// sqlc-backed repositories alongside the existing GORM ones.
+// TODO(sqlc-track): switch app.DB to *database.Runtime once repositories are migrated.
 func InitDatabase(app *App) {
 	cfg := app.Cfg
 

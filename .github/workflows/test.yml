@@ -41,9 +41,13 @@ jobs:
           path: |
             ~/go/pkg/mod
             ~/.cache/go-build
+            ~/go/bin
           key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
           restore-keys: |
             ${{ runner.os }}-go-
-      
+
+      - name: sqlc check (fail on drift)
+        run: make sqlc-check
+
       - name: run tests
         run: go test -C . -v -race -timeout 120s ./...

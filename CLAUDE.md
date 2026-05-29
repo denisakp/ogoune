@@ -40,6 +40,10 @@ cd web && pnpm install && pnpm dev  # http://localhost:5173, needs VITE_API_BASE
 make swag               # regenerate docs/ from annotations, commit the result
                         # UI at /api/v1/docs/* (ENABLE_SWAGGER=true)
 
+# sqlc (type-safe DB queries)
+make sqlc-generate      # regenerate Go code under internal/repository/sqlc/{pg,sqlite}/
+make sqlc-check         # fail if generated code is drift vs queries (run by build-be + CI)
+
 # Docker
 make docker             # builds ogoune:test image
 ```
@@ -186,9 +190,10 @@ Before completing any task or commit, you MUST:
 - Never block on scheduler failures — log and return `ErrSchedulerSync`
 - Commits use Conventional Commits format (`feat:`, `fix:`, `docs:`, `refactor:`, `test:`, `chore:`)
 - `web/.npmrc` sets `onlyBuiltDependencies=[]` — pnpm skips all install scripts. If a new dep needs native build, allowlist it explicitly
+- After editing any `.sql` file under `internal/repository/sqlc/queries/`, run `make sqlc-generate` and commit the result. CI runs `make sqlc-check` and fails on drift. Generated code lives in `internal/repository/sqlc/{pg,sqlite}/` and is versioned
 
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan:
-`specs/040-relicense-apache-ee/plan.md`
+`specs/041-sqlc-foundation/plan.md`
 <!-- SPECKIT END -->
