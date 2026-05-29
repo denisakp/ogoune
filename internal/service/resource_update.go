@@ -199,7 +199,7 @@ func applyAndValidateProtocol(resource *domain.Resource, payload *dto.UpdateReso
 	if payload.ProtocolPort != nil {
 		resource.ProtocolPort = payload.ProtocolPort
 	}
-	return validateProtocolFields(resource.ProtocolType, resource.ProtocolPort)
+	return validateProtocolFields(resource.ProtocolType, resource.ProtocolPort, resource.Target)
 }
 
 func (s *ResourceService) reconcileComponentChange(ctx context.Context, resource *domain.Resource, previousComponentID *string) {

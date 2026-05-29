@@ -55,7 +55,7 @@ export interface Resource {
   keyword?: string               // literal string to search for (max 500 chars)
   keyword_mode?: 'contains' | 'not_contains'
   // Protocol-specific fields (only present when type === 'protocol')
-  protocol_type?: 'redis' | 'mongodb' | 'ftp' | 'ssh' | 'mysql' | 'postgres'
+  protocol_type?: 'redis' | 'mongodb' | 'ftp' | 'ssh' | 'mysql' | 'postgres' | 'rabbitmq' | 'kafka'
   protocol_port?: number         // 1–65535; absent = use protocol default
 }
 
@@ -110,7 +110,7 @@ export interface CreateResource {
   keyword?: string
   keyword_mode?: 'contains' | 'not_contains'
   // Protocol-specific
-  protocol_type?: 'redis' | 'mongodb' | 'ftp' | 'ssh' | 'mysql' | 'postgres'
+  protocol_type?: 'redis' | 'mongodb' | 'ftp' | 'ssh' | 'mysql' | 'postgres' | 'rabbitmq' | 'kafka'
   protocol_port?: number         // 1–65535; absent = use protocol default
 }
 

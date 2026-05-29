@@ -130,7 +130,7 @@ Community Edition — reporting, tooling, and observability depth.
 
 - [x] **Protocol-aware checks — auth variants** — Redis AUTH, MySQL, PostgreSQL with encrypted credentials.
   Depends on credential encryption (AES-256-GCM) shipped in H2. Community Edition.
-- [ ] **Protocol-aware checks — broker support** — RabbitMQ (AMQP handshake), Kafka (Metadata Request).
+- [x] **Protocol-aware checks — broker support** — RabbitMQ (AMQP handshake), Kafka (Metadata Request).
   Community contribution candidates — architecture is extensible from H2.
 
 ### Reporting

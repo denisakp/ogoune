@@ -74,6 +74,14 @@ var protocolHandlers = map[string]protocolHandler{
 		defaultPort: 5432,
 		customExec:  postgresCheck,
 	},
+	"rabbitmq": {
+		defaultPort: 5672,
+		customExec:  rabbitmqCheck,
+	},
+	"kafka": {
+		defaultPort: 9092,
+		customExec:  kafkaCheck,
+	},
 }
 
 // validBSONResponse returns true when the response looks like a successful MongoDB reply:
