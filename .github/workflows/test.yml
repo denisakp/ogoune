@@ -49,5 +49,8 @@ jobs:
       - name: sqlc check (fail on drift)
         run: make sqlc-check
 
+      - name: migrations drift check
+        run: make migrations-drift-check
+
       - name: run tests
         run: go test -C . -v -race -timeout 120s ./...

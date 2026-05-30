@@ -44,6 +44,9 @@ make swag               # regenerate docs/ from annotations, commit the result
 make sqlc-generate      # regenerate Go code under internal/repository/sqlc/{pg,sqlite}/
 make sqlc-check         # fail if generated code is drift vs queries (run by build-be + CI)
 
+# Migrations drift (file-pair + column name + nullability across dialects)
+make migrations-drift-check  # run by CI before tests
+
 # Docker
 make docker             # builds ogoune:test image
 ```
@@ -139,6 +142,10 @@ Vue 3 Composition API + TypeScript + Pinia + Ant Design Vue.
 - SQLite: no `ADD COLUMN IF NOT EXISTS`, no multi-column `ALTER TABLE`
 - Use `GORM serializer:json` instead of `type:jsonb` for cross-driver JSON fields
 - Naming: `XXXX_description.up.sql` / `.down.sql`
+- One migration = two files with the same `NNNN_` prefix and the same intent. Drift between trees is enforced by `make migrations-drift-check`
+- Column **name + nullability MUST match** across dialects. Type tokens are intentionally NOT enforced cross-dialect (`JSONB`↔`TEXT`, `TIMESTAMPTZ`↔`TEXT`, `BIGINT`↔`INTEGER`)
+- JSON columns: `JSONB` (Postgres) / `TEXT` (SQLite). See `internal/database/migrations/README.md` for the full type-mapping table
+- `PRAGMA`, triggers, and stored functions in `.sql` migration files require tech-lead validation (sqlc compatibility risk)
 
 ### Testing
 
@@ -191,9 +198,10 @@ Before completing any task or commit, you MUST:
 - Commits use Conventional Commits format (`feat:`, `fix:`, `docs:`, `refactor:`, `test:`, `chore:`)
 - `web/.npmrc` sets `onlyBuiltDependencies=[]` — pnpm skips all install scripts. If a new dep needs native build, allowlist it explicitly
 - After editing any `.sql` file under `internal/repository/sqlc/queries/`, run `make sqlc-generate` and commit the result. CI runs `make sqlc-check` and fails on drift. Generated code lives in `internal/repository/sqlc/{pg,sqlite}/` and is versioned
+- After editing any migration `.sql` under `internal/database/migrations/`, run `make migrations-drift-check` locally. CI runs it before tests and fails on file-pair / column name / nullability divergence between dialects
 
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan:
-`specs/041-sqlc-foundation/plan.md`
+`specs/042-sqlc-schema-source/plan.md`
 <!-- SPECKIT END -->

@@ -37,6 +37,7 @@ backend-tests:
     - apt-get update -qq && apt-get install -y -qq make >/dev/null
   script:
     - make sqlc-check
+    - make migrations-drift-check
     - go test -v -race -timeout 120s ./...
   rules:
     # Run on push/MR to dev, scoped to Go + web file changes

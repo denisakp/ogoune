@@ -3,7 +3,7 @@ SHELL := /bin/sh
 BINARY := dist/ogoune
 SQLC_VERSION := v1.27.0
 
-.PHONY: build build-be build-fe test test-be test-fe lint clean docker swag run-ci license-audit sqlc-bin sqlc-generate sqlc-check
+.PHONY: build build-be build-fe test test-be test-fe lint clean docker swag run-ci license-audit sqlc-bin sqlc-generate sqlc-check migrations-drift-check
 
 build: build-fe build-be
 
@@ -26,6 +26,9 @@ sqlc-check: sqlc-bin
 		printf '%s\n' "$$drift"; \
 		exit 1; \
 	fi
+
+migrations-drift-check:
+	go run ./cmd/migrations-drift-check
 
 build-fe:
 	cd web && pnpm build
