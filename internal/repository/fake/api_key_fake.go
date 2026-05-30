@@ -27,9 +27,7 @@ func (r *APIKeyRepository) Create(ctx context.Context, key *domain.APIKey) error
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	if err := key.BeforeCreate(nil); err != nil {
-		return ErrInvalidInput
-	}
+	key.EnsureID()
 	if _, exists := r.byID[key.ID]; exists {
 		return ErrDuplicate
 	}

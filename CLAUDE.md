@@ -203,5 +203,5 @@ Before completing any task or commit, you MUST:
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan:
-`specs/042-sqlc-schema-source/plan.md`
+`specs/043-domain-decoupling/plan.md`
 <!-- SPECKIT END -->

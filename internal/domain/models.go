@@ -1,3 +1,8 @@
+// GORM struct tags and GORM hooks on these models are intentionally retained.
+// They are being progressively removed repository-by-repository as each
+// migrates to sqlc. See .prds/sqlc/ (track 003-domain-decoupling and 006+)
+// for the schedule. Do not submit PRs that rip out struct tags ahead
+// of the migration.
 package domain
 
 import (
@@ -19,14 +24,26 @@ type Base struct {
 	UpdatedAt time.Time `json:"updated_at"`
 }
 
-// BeforeCreate hook to set timestamps before creating a record
-func (base *Base) BeforeCreate(tx *gorm.DB) (err error) {
-	if base.ID == "" {
-		// generate a new ULID for the ID field
+// EnsureID assigns a fresh ULID to b.ID when it is empty. No-op when ID is
+// already set. Does NOT touch CreatedAt or UpdatedAt — GORM autoCreateTime /
+// autoUpdateTime tags handle those. Pure: no *gorm.DB, no I/O, idempotent.
+//
+// Callers in non-GORM contexts (in-memory fakes, future sqlc-backed
+// repositories) should call EnsureID() directly. The GORM persistence path
+// continues to go through BeforeCreate, which delegates to EnsureID.
+func (b *Base) EnsureID() {
+	if b.ID == "" {
 		t := time.Now()
 		entropy := ulid.Monotonic(rand.New(rand.NewSource(t.UnixNano())), 0)
-		base.ID = ulid.MustNew(ulid.Timestamp(t), entropy).String()
+		b.ID = ulid.MustNew(ulid.Timestamp(t), entropy).String()
 	}
+}
+
+// BeforeCreate is the GORM hook that delegates ID assignment to EnsureID.
+// Preserved for the GORM persistence path; removed in a later sqlc-track
+// ticket once no GORM-backed repository remains.
+func (base *Base) BeforeCreate(tx *gorm.DB) (err error) {
+	base.EnsureID()
 	return
 }
 
@@ -447,7 +464,7 @@ func (n *NotificationChannel) BeforeCreate(tx *gorm.DB) error {
 	if len(n.Config) == 0 {
 		return nil
 	}
-	ciphertext, err := crypto.Encrypt(string(n.Config))
+	ciphertext, err := crypto.EncryptChannelConfig(string(n.Config))
 	if err != nil {
 		return err
 	}
@@ -460,7 +477,7 @@ func (n *NotificationChannel) BeforeUpdate(tx *gorm.DB) error {
 	if len(n.Config) == 0 {
 		return nil
 	}
-	ciphertext, err := crypto.Encrypt(string(n.Config))
+	ciphertext, err := crypto.EncryptChannelConfig(string(n.Config))
 	if err != nil {
 		return err
 	}
@@ -478,9 +495,10 @@ func (n *NotificationChannel) AfterFind(tx *gorm.DB) error {
 	}
 	if n.Config[0] == '{' {
 		// Legacy plaintext — lazy migration: encrypt and persist synchronously.
+		// Pure wrapper produces the ciphertext; persistence stays here where tx is available.
 		plaintext := make([]byte, len(n.Config))
 		copy(plaintext, n.Config)
-		ciphertext, err := crypto.Encrypt(string(plaintext))
+		ciphertext, err := crypto.EncryptChannelConfig(string(plaintext))
 		if err != nil {
 			return err
 		}
@@ -492,7 +510,7 @@ func (n *NotificationChannel) AfterFind(tx *gorm.DB) error {
 		return nil
 	}
 	// Already encrypted — decrypt for the caller.
-	plaintext, err := crypto.Decrypt(string(n.Config))
+	plaintext, err := crypto.DecryptChannelConfig(string(n.Config))
 	if err != nil {
 		return err
 	}
@@ -531,14 +549,14 @@ func (c *ResourceCredential) BeforeUpdate(tx *gorm.DB) error {
 // Returns an error if either field is present but cannot be decrypted.
 func (c *ResourceCredential) AfterFind(tx *gorm.DB) error {
 	if len(c.Password) > 0 {
-		plaintext, err := crypto.Decrypt(string(c.Password))
+		plaintext, err := crypto.DecryptCredentialPassword(string(c.Password))
 		if err != nil {
 			return ErrCredentialDecryption
 		}
 		c.Password = []byte(plaintext)
 	}
 	if len(c.Options) > 0 {
-		plaintext, err := crypto.Decrypt(string(c.Options))
+		plaintext, err := crypto.DecryptCredentialOptions(string(c.Options))
 		if err != nil {
 			return ErrCredentialDecryption
 		}
@@ -549,14 +567,14 @@ func (c *ResourceCredential) AfterFind(tx *gorm.DB) error {
 
 func (c *ResourceCredential) encryptSecrets() error {
 	if len(c.Password) > 0 {
-		ciphertext, err := crypto.Encrypt(string(c.Password))
+		ciphertext, err := crypto.EncryptCredentialPassword(string(c.Password))
 		if err != nil {
 			return err
 		}
 		c.Password = []byte(ciphertext)
 	}
 	if len(c.Options) > 0 {
-		ciphertext, err := crypto.Encrypt(string(c.Options))
+		ciphertext, err := crypto.EncryptCredentialOptions(string(c.Options))
 		if err != nil {
 			return err
 		}

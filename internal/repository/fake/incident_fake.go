@@ -25,10 +25,8 @@ func (r *IncidentFake) Create(ctx context.Context, incident *domain.Incident) (*
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	// Call BeforeCreate hook like GORM does - generates ID if not set
-	if err := incident.BeforeCreate(nil); err != nil {
-		return nil, ErrInvalidInput
-	}
+	// Assign a ULID if not set (pure, no *gorm.DB dependency).
+	incident.EnsureID()
 
 	if _, exists := r.incidents[incident.ID]; exists {
 		return nil, ErrDuplicate

@@ -29,10 +29,7 @@ func (r *ResourceFake) Create(ctx context.Context, resource *domain.Resource) (*
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	// Call BeforeCreate hook like GORM does - generates ID if not set
-	if err := resource.BeforeCreate(nil); err != nil {
-		return nil, ErrInvalidInput
-	}
+	resource.EnsureID()
 
 	if _, exists := r.resources[resource.ID]; exists {
 		return nil, ErrDuplicate
