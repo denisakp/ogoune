@@ -9,7 +9,14 @@ import (
 )
 
 type Querier interface {
+	CreateTag(ctx context.Context, arg CreateTagParams) (Tag, error)
+	DeleteTag(ctx context.Context, id string) (int64, error)
+	FindTagByID(ctx context.Context, id string) (Tag, error)
+	FindTagByName(ctx context.Context, name string) (Tag, error)
+	FindTagsByIDs(ctx context.Context, dollar_1 []string) ([]Tag, error)
+	ListTags(ctx context.Context, arg ListTagsParams) ([]Tag, error)
 	Ping(ctx context.Context) (int32, error)
+	UpdateTag(ctx context.Context, arg UpdateTagParams) (int64, error)
 }
 
 var _ Querier = (*Queries)(nil)

@@ -2,13 +2,46 @@ package bootstrap
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"os"
+	"strconv"
 	"time"
 
 	dbruntime "github.com/denisakp/ogoune/internal/database"
+	"github.com/denisakp/ogoune/internal/port"
 	"github.com/denisakp/ogoune/internal/repository/store"
+	"gorm.io/gorm"
 )
+
+// envSqlcTags is the toggle that wires TagsRepositorySQLC instead of the
+// default GORM impl. Parsing follows strconv.ParseBool semantics:
+// "1", "t", "T", "TRUE", "true", "True" → ON; any other value → OFF.
+const envSqlcTags = "SQLC_TAGS"
+
+// selectTagsRepo picks the active tags repository based on SQLC_TAGS.
+// Returns the wired repository and the implementation name for logging.
+// Fails fast (returns error) when SQLC_TAGS=true but the dialect-native
+// handle required by the sqlc impl is nil. FR-011, FR-012, FR-013.
+func selectTagsRepo(rt *dbruntime.Runtime, db *gorm.DB) (port.TagsRepository, string, error) {
+	on, _ := strconv.ParseBool(os.Getenv(envSqlcTags))
+	if !on {
+		return store.NewTagsRepository(db), "gorm", nil
+	}
+	switch rt.Driver {
+	case dbruntime.DriverPostgres:
+		if rt.PgxPool() == nil {
+			return nil, "", fmt.Errorf("SQLC_TAGS=true but postgres runtime handle (pgx pool) is nil")
+		}
+	case dbruntime.DriverSQLite:
+		if rt.SQLiteDB() == nil {
+			return nil, "", fmt.Errorf("SQLC_TAGS=true but sqlite runtime handle (*sql.DB) is nil")
+		}
+	default:
+		return nil, "", fmt.Errorf("SQLC_TAGS=true but driver %q is unsupported by sqlc impl", rt.Driver)
+	}
+	return store.NewTagsRepositorySQLC(rt), "sqlc", nil
+}
 
 // InitDatabase initializes the database connection, runs health check, and creates all repositories.
 //
@@ -57,7 +90,18 @@ func InitDatabase(app *App) {
 	app.MaintenanceRepo = store.NewMaintenanceRepository(db)
 	app.NotificationChannelRepo = store.NewNotificationChannelRepository(db)
 	app.MonitoringActivityRepo = store.NewMonitoringActivityRepository(db)
-	app.TagsRepo = store.NewTagsRepository(db)
+	rt, err := dbruntime.ActiveRuntime()
+	if err != nil {
+		slog.Error("failed to get database runtime for tags selection", "error", err)
+		os.Exit(1)
+	}
+	tagsRepo, tagsImpl, err := selectTagsRepo(rt, db)
+	if err != nil {
+		slog.Error("failed to wire tags repository", "error", err)
+		os.Exit(1)
+	}
+	slog.Info("tags repository wired", "implementation", tagsImpl)
+	app.TagsRepo = tagsRepo
 	app.StatusPageSettingsRepo = store.NewStatusPageSettingsRepository(db)
 	app.ComponentRepo = store.NewComponentRepository(db)
 	app.UserRepo = store.NewUserRepository(db)

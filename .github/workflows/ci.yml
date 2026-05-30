@@ -73,6 +73,36 @@ jobs:
       - name: dual-dialect tests (Postgres + SQLite via testcontainers)
         run: make test-be-pg
 
+  test-be-sqlc-tags:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      SQLC_TAGS: "true"
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: setup Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: '1.25.1'
+
+      - name: cache Go modules
+        uses: actions/cache@v5
+        with:
+          path: |
+            ~/go/pkg/mod
+            ~/.cache/go-build
+            ~/go/bin
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+
+      - name: pre-pull postgres image
+        run: docker pull postgres:16-alpine
+
+      - name: dual-dialect tests with SQLC_TAGS=true
+        run: make test-be-pg
+
   build-and-push:
     needs: backend-tests
     if: "!contains(github.event.head_commit.message, '[skip ci]')"

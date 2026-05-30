@@ -5,6 +5,7 @@ import "github.com/denisakp/ogoune/internal/port"
 // Compile-time interface satisfaction checks.
 var (
 	_ port.TagsRepository               = (*TagsRepositoryImpl)(nil)
+	_ port.TagsRepository               = (*TagsRepositorySQLC)(nil)
 	_ port.ResourceRepository            = (*ResourceRepositoryImpl)(nil)
 	_ port.ComponentRepository           = (*ComponentRepositoryImpl)(nil)
 	_ port.IncidentRepository            = (*IncidentRepositoryImpl)(nil)

@@ -244,6 +244,20 @@ func Instance() (*gorm.DB, error) {
 	return activeRuntime.DB, nil
 }
 
+// ActiveRuntime returns the active *Runtime once the singleton has been
+// initialized. Returns an error if Init has not been called or failed.
+// Prefer this over Instance() when callers need driver-specific handles
+// (PgxPool, SQLiteDB) in addition to the GORM DB.
+func ActiveRuntime() (*Runtime, error) {
+	runtimeMu.RLock()
+	defer runtimeMu.RUnlock()
+
+	if activeRuntime == nil {
+		return nil, fmt.Errorf("db runtime: not initialized")
+	}
+	return activeRuntime, nil
+}
+
 // DriverName returns the active driver name once the singleton has been initialized.
 func DriverName() (Driver, error) {
 	runtimeMu.RLock()
