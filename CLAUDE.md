@@ -16,7 +16,8 @@ make build-fe           # Vue SPA → web/dist
 
 # Test
 make test               # both
-make test-be            # go test -race ./...
+make test-be            # go test -race ./... (SQLite-only; Postgres tests skip)
+make test-be-pg         # dual-dialect (SQLite + Postgres via testcontainers); needs Docker
 make test-fe            # cd web && pnpm test
 go test -race ./internal/scheduler/...  # single package
 make run-ci             # full local CI gate: lint + race tests + build
@@ -150,8 +151,10 @@ Vue 3 Composition API + TypeScript + Pinia + Ant Design Vue.
 ### Testing
 
 - DB tests use `setupTestDB(t)` helper (SQLite in-memory)
+- Repository contract tests are dual-dialect (SQLite + Postgres) via `internal/repository/internaltest.ForEachDialect`. See `internal/repository/internaltest/README.md` for usage
 - Table-driven tests for multi-case scenarios
-- `go test -race ./...` must pass
+- `go test -race ./...` must pass (SQLite-only path; Postgres tests skip gracefully)
+- `make test-be-pg` runs the dual-dialect matrix locally; requires Docker. CI job `test-be-postgres` runs it on every PR
 - Frontend: Vitest + jsdom, `*.spec.ts` colocated next to source or under `web/src/test/`
 
 ## Code Quality — SonarQube (MANDATORY)

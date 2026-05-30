@@ -244,8 +244,16 @@ pnpm dev
 ### Run tests
 
 ```bash
-make test
+make test            # frontend + backend (SQLite-only)
 ```
+
+### Run tests against Postgres (dual-dialect)
+
+```bash
+make test-be-pg      # boots testcontainers postgres:16-alpine; needs Docker
+```
+
+Skips gracefully when Docker is unavailable. Repository contract tests run against both SQLite and Postgres via the helper at `internal/repository/internaltest/`. See that package's README for the full usage.
 
 ### Build from the repo root
 

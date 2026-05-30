@@ -3,7 +3,7 @@ SHELL := /bin/sh
 BINARY := dist/ogoune
 SQLC_VERSION := v1.27.0
 
-.PHONY: build build-be build-fe test test-be test-fe lint clean docker swag run-ci license-audit sqlc-bin sqlc-generate sqlc-check migrations-drift-check
+.PHONY: build build-be build-fe test test-be test-be-pg test-fe lint clean docker swag run-ci license-audit sqlc-bin sqlc-generate sqlc-check migrations-drift-check
 
 build: build-fe build-be
 
@@ -37,6 +37,17 @@ test: test-be test-fe
 
 test-be:
 	go test -race ./...
+
+# Run the backend tests with Postgres enabled. Provisioning is owned by
+# testcontainers-go inside internal/repository/internaltest; the helper
+# boots postgres:16-alpine on first use and tears it down at process exit.
+# Skips gracefully when Docker is not reachable.
+test-be-pg:
+	@if ! docker info >/dev/null 2>&1; then \
+		echo "Docker not available — skipping Postgres tests"; \
+		exit 0; \
+	fi
+	go test -race -timeout 300s ./internal/repository/store/... ./internal/repository/internaltest/...
 
 test-fe:
 	cd web && pnpm test

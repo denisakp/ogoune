@@ -29,12 +29,12 @@ jobs:
       DB_LOG_LEVEL: error
     steps:
       - uses: actions/checkout@v6
-      
+
       - name: setup Go
         uses: actions/setup-go@v6
         with:
           go-version: '1.25.1'
-      
+
       - name: cache Go modules
         uses: actions/cache@v5
         with:
@@ -54,3 +54,31 @@ jobs:
 
       - name: run tests
         run: go test -C . -v -race -timeout 120s ./...
+
+  test-be-postgres:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: setup Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: '1.25.1'
+
+      - name: cache Go modules
+        uses: actions/cache@v5
+        with:
+          path: |
+            ~/go/pkg/mod
+            ~/.cache/go-build
+            ~/go/bin
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+
+      - name: pre-pull postgres image
+        run: docker pull postgres:16-alpine
+
+      - name: dual-dialect tests (Postgres + SQLite via testcontainers)
+        run: make test-be-pg

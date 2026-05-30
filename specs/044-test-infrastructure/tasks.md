@@ -103,10 +103,10 @@ Single Go service + Vue SPA (frontend untouched). New test-only code under `inte
 
 ### Implementation for User Story 3
 
-- [ ] T023 [US3] In root `Makefile`, add target `test-be-pg`: runs `go test -race -timeout 180s ./internal/repository/store/... ./internal/repository/internaltest/...` with explicit empty `POSTGRES_TEST_DSN` to force the testcontainer path. If `docker info >/dev/null 2>&1` fails, print "Docker not available — skipping Postgres tests" and exit 0. Add to `.PHONY`
-- [ ] T024 [P] [US3] In `.github/workflows/test.yml`, add a `test-be-postgres` job that: checks out, sets up Go, ensures Docker is available (GitHub-hosted ubuntu runners have it), runs `docker pull postgres:16-alpine` (cached layer), runs `make test-be-pg`. Job timeout 5 minutes hard ceiling; the 180s assertion is enforced by the inner `-timeout 180s` flag on the Go test invocation
-- [ ] T025 [P] [US3] In `.github/workflows/ci.yml`, add the same `test-be-postgres` job (mirrors test.yml for main branch)
-- [ ] T026 [P] [US3] In `.gitlab-ci.yml`, add a parallel `backend-tests-postgres` job under stage `test`: image `golang:1.25.1`, service `docker:27-dind` (or runner with Docker socket), pulls `postgres:16-alpine`, runs `make test-be-pg`. Rules mirror existing `backend-tests` job
+- [X] T023 [US3] In root `Makefile`, add target `test-be-pg`: runs `go test -race -timeout 180s ./internal/repository/store/... ./internal/repository/internaltest/...` with explicit empty `POSTGRES_TEST_DSN` to force the testcontainer path. If `docker info >/dev/null 2>&1` fails, print "Docker not available — skipping Postgres tests" and exit 0. Add to `.PHONY`
+- [X] T024 [P] [US3] In `.github/workflows/test.yml`, add a `test-be-postgres` job that: checks out, sets up Go, ensures Docker is available (GitHub-hosted ubuntu runners have it), runs `docker pull postgres:16-alpine` (cached layer), runs `make test-be-pg`. Job timeout 5 minutes hard ceiling; the 180s assertion is enforced by the inner `-timeout 180s` flag on the Go test invocation
+- [X] T025 [P] [US3] In `.github/workflows/ci.yml`, add the same `test-be-postgres` job (mirrors test.yml for main branch)
+- [X] T026 [P] [US3] In `.gitlab-ci.yml`, add a parallel `backend-tests-postgres` job under stage `test`: image `golang:1.25.1`, service `docker:27-dind` (or runner with Docker socket), pulls `postgres:16-alpine`, runs `make test-be-pg`. Rules mirror existing `backend-tests` job
 - [ ] T027 [US3] Trigger one CI run on the branch; observe the new job pass and capture wall-clock. Record URL + timing in the PR description (US3 acceptance evidence)
 
 **Checkpoint**: US3 delivered. CI enforces dual-dialect; local devs have the same path.
@@ -115,17 +115,17 @@ Single Go service + Vue SPA (frontend untouched). New test-only code under `inte
 
 ## Phase N: Polish & Cross-Cutting Concerns
 
-- [ ] T028 [P] Run `go vet ./...` — clean
-- [ ] T029 [P] Production-import guard (FR-014): run `go list -deps ./cmd/... | grep -E 'testcontainers|internal/repository/internaltest'`; assert empty. The `./cmd/...` pattern covers `cmd/api` and any future binary (e.g. `cmd/migrations-drift-check` from 042). Capture the empty result in PR description as evidence that the production binary has zero test-infra dependencies
-- [ ] T030 [P] Create `internal/repository/internaltest/README.md` per FR-013: how to use `ForEachDialect`, how to opt into Postgres locally (Docker or `POSTGRES_TEST_DSN`), how the helper guarantees per-test isolation, how to disable Ryuk on restricted runners
-- [ ] T031 [P] Update `CLAUDE.md`: under `## Commands` add `make test-be-pg`; under `### Testing` patterns subsection add a one-line pointer to `internal/repository/internaltest/README.md` and a sentence "Repository contract tests are dual-dialect (SQLite + Postgres) via `internaltest.ForEachDialect`"
-- [ ] T032 [P] Update `QUICKSTART.md`: add a "Run tests against Postgres" subsection pointing to `make test-be-pg`
-- [ ] T033 Run `make test-be` locally — assert exit 0, no regression vs main. Record tail in PR description (SC-006)
-- [ ] T034 With Docker: run `make test-be-pg` 3 times consecutively; record median wall-clock. Assert median ≤ 180s (SC-004). If first run is much slower due to image pull, note the cached-vs-uncached split
-- [ ] T035 Scope guard: run `git diff --stat 043-domain-decoupling -- internal/api/ internal/service/ web/ cmd/` and assert empty (production code untouched). Run `git diff --stat 043-domain-decoupling -- internal/repository/store/` and assert only `*_test.go` and `*_fake_test.go` files appear (no non-test changes to repos)
+- [X] T028 [P] Run `go vet ./...` — clean
+- [X] T029 [P] Production-import guard (FR-014): run `go list -deps ./cmd/... | grep -E 'testcontainers|internal/repository/internaltest'`; assert empty. The `./cmd/...` pattern covers `cmd/api` and any future binary (e.g. `cmd/migrations-drift-check` from 042). Capture the empty result in PR description as evidence that the production binary has zero test-infra dependencies
+- [X] T030 [P] Create `internal/repository/internaltest/README.md` per FR-013: how to use `ForEachDialect`, how to opt into Postgres locally (Docker or `POSTGRES_TEST_DSN`), how the helper guarantees per-test isolation, how to disable Ryuk on restricted runners
+- [X] T031 [P] Update `CLAUDE.md`: under `## Commands` add `make test-be-pg`; under `### Testing` patterns subsection add a one-line pointer to `internal/repository/internaltest/README.md` and a sentence "Repository contract tests are dual-dialect (SQLite + Postgres) via `internaltest.ForEachDialect`"
+- [X] T032 [P] Update `QUICKSTART.md`: add a "Run tests against Postgres" subsection pointing to `make test-be-pg`
+- [X] T033 Run `make test-be` locally — assert exit 0, no regression vs main. Record tail in PR description (SC-006)
+- [X] T034 With Docker: run `make test-be-pg` 3 times consecutively; record median wall-clock. Assert median ≤ 180s (SC-004). If first run is much slower due to image pull, note the cached-vs-uncached split
+- [X] T035 Scope guard: run `git diff --stat 043-domain-decoupling -- internal/api/ internal/service/ web/ cmd/` and assert empty (production code untouched). Run `git diff --stat 043-domain-decoupling -- internal/repository/store/` and assert only `*_test.go` and `*_fake_test.go` files appear (no non-test changes to repos)
 - [ ] T036 SonarQube scan per CLAUDE.md "Code Quality" section; resolve any CRITICAL/BLOCKER introduced under `internal/repository/internaltest/`
 - [ ] T037 Cross-check FRs/SCs ↔ tasks coverage map in PR description (FR-001…FR-015, SC-001…SC-008). Flag any unmapped requirement
-- [ ] T038 FR-015 verification: run `git grep -n 'BeforeCreate(nil)' -- internal/repository/fake/` and assert zero hits (fakes inherit 043's `EnsureID()` migration). If any hit appears, halt — a fake regressed
+- [X] T038 FR-015 verification: run `git grep -n 'BeforeCreate(nil)' -- internal/repository/fake/` and assert zero hits (fakes inherit 043's `EnsureID()` migration). If any hit appears, halt — a fake regressed
 
 ---
 
