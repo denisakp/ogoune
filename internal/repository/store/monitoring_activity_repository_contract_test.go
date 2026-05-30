@@ -1,208 +1,114 @@
-package store
+package store_test
 
 import (
 	"context"
 	"testing"
 	"time"
 
-	"github.com/denisakp/ogoune/internal/domain"
-	"github.com/denisakp/ogoune/internal/repository/internaltest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/denisakp/ogoune/internal/domain"
+	"github.com/denisakp/ogoune/internal/repository/internaltest"
+	"github.com/denisakp/ogoune/internal/repository/store"
 )
 
 func TestMonitoringActivityRepository_Create(t *testing.T) {
-	db := internaltest.GetTestDB(t)
-	repo := NewMonitoringActivityRepository(db)
-	resourceRepo := NewResourceRepository(db)
+	internaltest.ForEachDialect(t, func(t *testing.T, fx *internaltest.DialectFixture) {
+		repo := store.NewMonitoringActivityRepository(fx.Runtime.GormDB())
+		resource := seedResource(t, fx, "res-ma-create", "ma-create")
 
-	// Create a test resource first
-	resource := &domain.Resource{
-		Name:     "Test Resource",
-		Type:     domain.ResourceHTTP,
-		Target:   "https://example.com",
-		Interval: 60,
-		Timeout:  30,
-		IsActive: true,
-	}
-	_, err := resourceRepo.Create(context.Background(), resource)
-	require.NoError(t, err)
-
-	// Create a monitoring activity
-	activity := &domain.MonitoringActivity{
-		ResourceID:   resource.ID,
-		Message:      "Check completed successfully",
-		Success:      true,
-		ResponseTime: 150,
-		ResponseData: []byte("OK"),
-	}
-
-	err = repo.Create(context.Background(), activity)
-	require.NoError(t, err)
-	assert.NotEmpty(t, activity.ID)
-	assert.NotZero(t, activity.CreatedAt)
+		activity := &domain.MonitoringActivity{
+			ResourceID:   resource.ID,
+			Message:      "Check completed successfully",
+			Success:      true,
+			ResponseTime: 150,
+			ResponseData: []byte("OK"),
+		}
+		require.NoError(t, repo.Create(context.Background(), activity))
+		assert.NotEmpty(t, activity.ID)
+		assert.NotZero(t, activity.CreatedAt)
+	})
 }
 
 func TestMonitoringActivityRepository_List(t *testing.T) {
-	db := internaltest.GetTestDB(t)
-	repo := NewMonitoringActivityRepository(db)
-	resourceRepo := NewResourceRepository(db)
+	internaltest.ForEachDialect(t, func(t *testing.T, fx *internaltest.DialectFixture) {
+		repo := store.NewMonitoringActivityRepository(fx.Runtime.GormDB())
+		resource := seedResource(t, fx, "res-ma-list", "ma-list")
 
-	// Create a test resource
-	resource := &domain.Resource{
-		Name:     "Test Resource",
-		Type:     domain.ResourceHTTP,
-		Target:   "https://example.com",
-		Interval: 60,
-		Timeout:  30,
-		IsActive: true,
-	}
-	_, err := resourceRepo.Create(context.Background(), resource)
-	require.NoError(t, err)
+		ctx := context.Background()
+		require.NoError(t, repo.Create(ctx, &domain.MonitoringActivity{
+			ResourceID: resource.ID, Message: "First check", Success: true, ResponseTime: 100,
+		}))
+		time.Sleep(10 * time.Millisecond)
+		require.NoError(t, repo.Create(ctx, &domain.MonitoringActivity{
+			ResourceID: resource.ID, Message: "Second check", Success: false, ResponseTime: 500,
+		}))
 
-	// Create multiple activities
-	activity1 := &domain.MonitoringActivity{
-		ResourceID:   resource.ID,
-		Message:      "First check",
-		Success:      true,
-		ResponseTime: 100,
-	}
-	activity2 := &domain.MonitoringActivity{
-		ResourceID:   resource.ID,
-		Message:      "Second check",
-		Success:      false,
-		ResponseTime: 500,
-	}
-
-	err = repo.Create(context.Background(), activity1)
-	require.NoError(t, err)
-
-	// Small delay to ensure different timestamps
-	time.Sleep(10 * time.Millisecond)
-
-	err = repo.Create(context.Background(), activity2)
-	require.NoError(t, err)
-
-	// List activities
-	activities, err := repo.List(context.Background(), 10, 0)
-	require.NoError(t, err)
-	assert.GreaterOrEqual(t, len(activities), 2)
-
-	// Verify most recent is first (DESC order)
-	if len(activities) >= 2 {
-		assert.True(t, activities[0].CreatedAt.After(activities[1].CreatedAt) ||
-			activities[0].CreatedAt.Equal(activities[1].CreatedAt))
-	}
+		activities, err := repo.List(ctx, 10, 0)
+		require.NoError(t, err)
+		assert.GreaterOrEqual(t, len(activities), 2)
+		if len(activities) >= 2 {
+			assert.True(t,
+				activities[0].CreatedAt.After(activities[1].CreatedAt) ||
+					activities[0].CreatedAt.Equal(activities[1].CreatedAt),
+				"expected most recent first (DESC)")
+		}
+	})
 }
 
 func TestMonitoringActivityRepository_FindByResourceID(t *testing.T) {
-	db := internaltest.GetTestDB(t)
-	repo := NewMonitoringActivityRepository(db)
-	resourceRepo := NewResourceRepository(db)
+	internaltest.ForEachDialect(t, func(t *testing.T, fx *internaltest.DialectFixture) {
+		repo := store.NewMonitoringActivityRepository(fx.Runtime.GormDB())
+		r1 := seedResource(t, fx, "res-ma-find1", "ma-find1")
+		r2 := seedResource(t, fx, "res-ma-find2", "ma-find2")
 
-	// Create two test resources
-	resource1 := &domain.Resource{
-		Name:     "Test Resource 1",
-		Type:     domain.ResourceHTTP,
-		Target:   "https://example1.com",
-		Interval: 60,
-		Timeout:  30,
-		IsActive: true,
-	}
-	resource2 := &domain.Resource{
-		Name:     "Test Resource 2",
-		Type:     domain.ResourceHTTP,
-		Target:   "https://example2.com",
-		Interval: 60,
-		Timeout:  30,
-		IsActive: true,
-	}
-
-	_, err := resourceRepo.Create(context.Background(), resource1)
-	require.NoError(t, err)
-	_, err = resourceRepo.Create(context.Background(), resource2)
-	require.NoError(t, err)
-
-	// Create activities for resource1
-	for i := 0; i < 3; i++ {
-		activity := &domain.MonitoringActivity{
-			ResourceID:   resource1.ID,
-			Message:      "Check for resource 1",
-			Success:      true,
-			ResponseTime: 100 + i,
+		ctx := context.Background()
+		for i := 0; i < 3; i++ {
+			require.NoError(t, repo.Create(ctx, &domain.MonitoringActivity{
+				ResourceID: r1.ID, Message: "r1", Success: true, ResponseTime: 100 + i,
+			}))
+			time.Sleep(5 * time.Millisecond)
 		}
-		err = repo.Create(context.Background(), activity)
+		require.NoError(t, repo.Create(ctx, &domain.MonitoringActivity{
+			ResourceID: r2.ID, Message: "r2", Success: true, ResponseTime: 200,
+		}))
+
+		r1Activities, err := repo.FindByResourceID(ctx, r1.ID, 10, 0)
 		require.NoError(t, err)
-		time.Sleep(5 * time.Millisecond)
-	}
+		assert.Len(t, r1Activities, 3)
+		for _, a := range r1Activities {
+			assert.Equal(t, r1.ID, a.ResourceID)
+		}
 
-	// Create activity for resource2
-	activity := &domain.MonitoringActivity{
-		ResourceID:   resource2.ID,
-		Message:      "Check for resource 2",
-		Success:      true,
-		ResponseTime: 200,
-	}
-	err = repo.Create(context.Background(), activity)
-	require.NoError(t, err)
-
-	// Find activities for resource1
-	activities, err := repo.FindByResourceID(context.Background(), resource1.ID, 10, 0)
-	require.NoError(t, err)
-	assert.Len(t, activities, 3)
-
-	// Verify all activities belong to resource1
-	for _, act := range activities {
-		assert.Equal(t, resource1.ID, act.ResourceID)
-	}
-
-	// Find activities for resource2
-	activities, err = repo.FindByResourceID(context.Background(), resource2.ID, 10, 0)
-	require.NoError(t, err)
-	assert.Len(t, activities, 1)
-	assert.Equal(t, resource2.ID, activities[0].ResourceID)
+		r2Activities, err := repo.FindByResourceID(ctx, r2.ID, 10, 0)
+		require.NoError(t, err)
+		assert.Len(t, r2Activities, 1)
+		assert.Equal(t, r2.ID, r2Activities[0].ResourceID)
+	})
 }
 
 func TestMonitoringActivityRepository_Pagination(t *testing.T) {
-	db := internaltest.GetTestDB(t)
-	repo := NewMonitoringActivityRepository(db)
-	resourceRepo := NewResourceRepository(db)
+	internaltest.ForEachDialect(t, func(t *testing.T, fx *internaltest.DialectFixture) {
+		repo := store.NewMonitoringActivityRepository(fx.Runtime.GormDB())
+		resource := seedResource(t, fx, "res-ma-page", "ma-page")
 
-	// Create a test resource
-	resource := &domain.Resource{
-		Name:     "Test Resource",
-		Type:     domain.ResourceHTTP,
-		Target:   "https://example.com",
-		Interval: 60,
-		Timeout:  30,
-		IsActive: true,
-	}
-	_, err := resourceRepo.Create(context.Background(), resource)
-	require.NoError(t, err)
-
-	// Create 15 activities
-	for i := 0; i < 15; i++ {
-		activity := &domain.MonitoringActivity{
-			ResourceID:   resource.ID,
-			Message:      "Check",
-			Success:      true,
-			ResponseTime: i,
+		ctx := context.Background()
+		for i := 0; i < 15; i++ {
+			require.NoError(t, repo.Create(ctx, &domain.MonitoringActivity{
+				ResourceID: resource.ID, Message: "Check", Success: true, ResponseTime: i,
+			}))
+			time.Sleep(2 * time.Millisecond)
 		}
-		err = repo.Create(context.Background(), activity)
+
+		page1, err := repo.List(ctx, 10, 0)
 		require.NoError(t, err)
-		time.Sleep(2 * time.Millisecond)
-	}
+		assert.Len(t, page1, 10)
 
-	// Get first page (limit 10)
-	page1, err := repo.List(context.Background(), 10, 0)
-	require.NoError(t, err)
-	assert.Len(t, page1, 10)
+		page2, err := repo.List(ctx, 10, 10)
+		require.NoError(t, err)
+		assert.Len(t, page2, 5)
 
-	// Get second page (limit 10, offset 10)
-	page2, err := repo.List(context.Background(), 10, 10)
-	require.NoError(t, err)
-	assert.Len(t, page2, 5)
-
-	// Verify no overlap
-	assert.NotEqual(t, page1[0].ID, page2[0].ID)
+		assert.NotEqual(t, page1[0].ID, page2[0].ID)
+	})
 }

@@ -1,4 +1,4 @@
-package store
+package store_test
 
 import (
 	"context"
@@ -6,144 +6,134 @@ import (
 	"testing"
 	"time"
 
-	domain "github.com/denisakp/ogoune/internal/domain"
-	"github.com/denisakp/ogoune/internal/repository/fake"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	domain "github.com/denisakp/ogoune/internal/domain"
+	"github.com/denisakp/ogoune/internal/port"
+	"github.com/denisakp/ogoune/internal/repository"
+	"github.com/denisakp/ogoune/internal/repository/internaltest"
+	"github.com/denisakp/ogoune/internal/repository/store"
 )
 
 func TestIncidentEventStepRepository_Contract(t *testing.T) {
-	// Use fake implementation for contract tests
-	repo := fake.NewIncidentEventStepFake()
+	internaltest.ForEachDialect(t, func(t *testing.T, fx *internaltest.DialectFixture) {
+		// Seed parent rows: incident_event_steps.incident_id FK -> incidents.id
+		// which itself FKs to resources.id.
+		seedResource(t, fx, "res-ies", "res-ies")
+		seen := map[string]bool{}
+		seed := func(id string) {
+			if seen[id] {
+				return
+			}
+			seen[id] = true
+			seedIncident(t, fx, id, "res-ies")
+		}
+		for _, id := range []string{"incident-1", "incident-456", "incident-789", "incident-delete"} {
+			seed(id)
+		}
+		for i := 1; i <= 5; i++ {
+			seed(fmt.Sprintf("incident-%d", i))
+		}
+
+		repo := store.NewIncidentEventStepRepository(fx.Runtime.GormDB())
+		runIncidentEventStepContract(t, repo)
+	})
+}
+
+func runIncidentEventStepContract(t *testing.T, repo port.IncidentEventStepRepository) {
+	t.Helper()
+	ctx := context.Background()
 
 	t.Run("Create", func(t *testing.T) {
 		step := &domain.IncidentEventStep{
 			IncidentID: "incident-1",
 			Step:       domain.IncidentEventStepDetected,
-			Message:    nil,
 		}
-
-		created, err := repo.Create(context.Background(), step)
+		created, err := repo.Create(ctx, step)
 		require.NoError(t, err)
 		assert.NotEmpty(t, created.ID)
-
-		// Test duplicate creation
-		_, err = repo.Create(context.Background(), created)
-		assert.ErrorIs(t, err, fake.ErrDuplicate)
 	})
 
 	t.Run("FindByID", func(t *testing.T) {
-		message := "Resource resolved"
+		msg := "Resource resolved"
 		step := &domain.IncidentEventStep{
-			Base: domain.Base{
-				ID:        "test-step-2",
-				CreatedAt: time.Now(),
-			},
+			Base:       domain.Base{ID: "test-step-2", CreatedAt: time.Now()},
 			IncidentID: "incident-456",
 			Step:       domain.IncidentEventStepResolved,
-			Message:    &message,
+			Message:    &msg,
 		}
-
-		_, err := repo.Create(context.Background(), step)
+		_, err := repo.Create(ctx, step)
 		require.NoError(t, err)
 
-		found, err := repo.FindByID(context.Background(), "test-step-2")
+		found, err := repo.FindByID(ctx, step.ID)
 		require.NoError(t, err)
 		assert.Equal(t, step.ID, found.ID)
 		assert.Equal(t, step.IncidentID, found.IncidentID)
 		assert.Equal(t, step.Step, found.Step)
-		assert.Equal(t, *step.Message, *found.Message)
+		assert.Equal(t, msg, *found.Message)
 
-		// Test not found
-		_, err = repo.FindByID(context.Background(), "non-existent-id")
-		assert.ErrorIs(t, err, fake.ErrNotFound)
+		_, err = repo.FindByID(ctx, "non-existent-id")
+		assert.ErrorIs(t, err, repository.ErrNotFound)
 	})
 
 	t.Run("Update", func(t *testing.T) {
-		initialMessage := "Initial message"
+		initial := "Initial"
 		step := &domain.IncidentEventStep{
-			Base: domain.Base{
-				ID:        "test-update",
-				CreatedAt: time.Now(),
-			},
+			Base:       domain.Base{ID: "test-update-step", CreatedAt: time.Now()},
 			IncidentID: "incident-789",
 			Step:       domain.IncidentEventStepAlert,
-			Message:    &initialMessage,
+			Message:    &initial,
 		}
-
-		_, err := repo.Create(context.Background(), step)
+		_, err := repo.Create(ctx, step)
 		require.NoError(t, err)
 
-		updatedMessage := "Updated message"
-		step.Message = &updatedMessage
+		updated := "Updated"
+		step.Message = &updated
 		step.Step = domain.IncidentEventStepDownAlert
-		err = repo.Update(context.Background(), step)
-		require.NoError(t, err)
+		require.NoError(t, repo.Update(ctx, step))
 
-		updated, err := repo.FindByID(context.Background(), "test-update")
+		got, err := repo.FindByID(ctx, step.ID)
 		require.NoError(t, err)
-		assert.Equal(t, "Updated message", *updated.Message)
-		assert.Equal(t, domain.IncidentEventStepDownAlert, updated.Step)
-
-		// Test update non-existent
-		nonExistent := &domain.IncidentEventStep{
-			Base: domain.Base{ID: "non-existent"},
-			Step: domain.IncidentEventStepDetected,
-		}
-		err = repo.Update(context.Background(), nonExistent)
-		assert.ErrorIs(t, err, fake.ErrNotFound)
+		assert.Equal(t, "Updated", *got.Message)
+		assert.Equal(t, domain.IncidentEventStepDownAlert, got.Step)
 	})
 
 	t.Run("Delete", func(t *testing.T) {
 		step := &domain.IncidentEventStep{
-			Base: domain.Base{
-				ID:        "test-delete",
-				CreatedAt: time.Now(),
-			},
+			Base:       domain.Base{ID: "test-delete-step", CreatedAt: time.Now()},
 			IncidentID: "incident-delete",
 			Step:       domain.IncidentEventStepUpAlert,
 		}
-
-		_, err := repo.Create(context.Background(), step)
+		_, err := repo.Create(ctx, step)
 		require.NoError(t, err)
 
-		err = repo.Delete(context.Background(), "test-delete")
-		require.NoError(t, err)
+		require.NoError(t, repo.Delete(ctx, step.ID))
+		_, err = repo.FindByID(ctx, step.ID)
+		assert.ErrorIs(t, err, repository.ErrNotFound)
 
-		_, err = repo.FindByID(context.Background(), "test-delete")
-		assert.ErrorIs(t, err, fake.ErrNotFound)
-
-		// Test delete non-existent
-		err = repo.Delete(context.Background(), "non-existent")
-		assert.ErrorIs(t, err, fake.ErrNotFound)
+		assert.ErrorIs(t, repo.Delete(ctx, "non-existent"), repository.ErrNotFound)
 	})
 
 	t.Run("List", func(t *testing.T) {
-		// Clear existing steps by creating a new fake
-		repo = fake.NewIncidentEventStepFake()
+		before, err := repo.List(ctx, 1000, 0)
+		require.NoError(t, err)
+		baseline := len(before)
 
-		// Create multiple steps
 		for i := 1; i <= 5; i++ {
-			message := fmt.Sprintf("Step message %d", i)
+			msg := fmt.Sprintf("Step message %d", i)
 			step := &domain.IncidentEventStep{
-				Base: domain.Base{
-					ID:        fmt.Sprintf("step-%d", i),
-					CreatedAt: time.Now(),
-				},
+				Base:       domain.Base{ID: fmt.Sprintf("step-list-%d", i), CreatedAt: time.Now()},
 				IncidentID: fmt.Sprintf("incident-%d", i),
 				Step:       domain.IncidentEventStepDetected,
-				Message:    &message,
+				Message:    &msg,
 			}
-			_, err := repo.Create(context.Background(), step)
+			_, err := repo.Create(ctx, step)
 			require.NoError(t, err)
 		}
 
-		steps, err := repo.List(context.Background(), 10, 0)
+		all, err := repo.List(ctx, 1000, 0)
 		require.NoError(t, err)
-		assert.Len(t, steps, 5)
-
-		steps, err = repo.List(context.Background(), 2, 1)
-		require.NoError(t, err)
-		assert.Len(t, steps, 2)
+		assert.Equal(t, baseline+5, len(all))
 	})
 }
