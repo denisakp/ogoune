@@ -5,6 +5,8 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -615,12 +617,140 @@ func (r *ResourceRepositorySQLC) UpdateStatus(ctx context.Context, id string, st
 	}
 }
 
+// UpdateMonitoringState writes only the columns whose pointer field is
+// non-nil. Hand-built dynamic SQL — sqlc-generated static queries cannot
+// express "skip column N" without exploding to 2^N variants. Column names
+// are hardcoded; only values cross the driver via parameterized SQL.
 func (r *ResourceRepositorySQLC) UpdateMonitoringState(ctx context.Context, id string, req port.UpdateMonitoringStateRequest) error {
-	return fmt.Errorf("resource_repository_sqlc: UpdateMonitoringState deferred to PR4 (dynamic SQL)")
+	b := newSetBuilder()
+	if req.Status != nil {
+		b.add("status", string(*req.Status))
+	}
+	if req.FailureCount != nil {
+		b.add("failure_count", *req.FailureCount)
+	}
+	if req.LastChecked != nil {
+		b.add("last_checked", derefTimePtr(req.LastChecked))
+	}
+	if req.LastStatusTransition != nil {
+		b.add("last_status_transition", derefTimePtr(req.LastStatusTransition))
+	}
+	if req.FlapStartedAt != nil {
+		b.add("flap_started_at", derefTimePtr(req.FlapStartedAt))
+	}
+	return r.execDynamicUpdate(ctx, id, b)
 }
 
 func (r *ResourceRepositorySQLC) UpdateMetadata(ctx context.Context, id string, req port.UpdateMetadataRequest) error {
-	return fmt.Errorf("resource_repository_sqlc: UpdateMetadata deferred to PR4 (dynamic SQL)")
+	b := newSetBuilder()
+	if req.SSLExpirationDate != nil {
+		b.add("ssl_expiration_date", derefTimePtr(req.SSLExpirationDate))
+	}
+	if req.SSLIssuer != nil {
+		b.add("ssl_issuer", *req.SSLIssuer)
+	}
+	if req.DomainExpirationDate != nil {
+		b.add("domain_expiration_date", derefTimePtr(req.DomainExpirationDate))
+	}
+	if req.DomainRegistrar != nil {
+		b.add("domain_registrar", *req.DomainRegistrar)
+	}
+	return r.execDynamicUpdate(ctx, id, b)
+}
+
+// execDynamicUpdate finalises a SET-builder against the `resources` table.
+// No-op when no columns were added (caller passed an all-nil request).
+func (r *ResourceRepositorySQLC) execDynamicUpdate(ctx context.Context, id string, b *setBuilder) error {
+	if b.empty() {
+		return nil
+	}
+	switch {
+	case r.pgPool != nil:
+		sqlStr, args := b.buildPG(id)
+		ct, err := r.pgPool.Exec(ctx, sqlStr, args...)
+		if err != nil {
+			return fmt.Errorf("sqlc: dynamic update resources: %w", err)
+		}
+		if ct.RowsAffected() == 0 {
+			return repository.ErrNotFound
+		}
+		return nil
+	case r.sqliteDB != nil:
+		sqlStr, args := b.buildSQLite(id)
+		res, err := r.sqliteDB.ExecContext(ctx, sqlStr, args...)
+		if err != nil {
+			return fmt.Errorf("sqlc: dynamic update resources: %w", err)
+		}
+		n, _ := res.RowsAffected()
+		if n == 0 {
+			return repository.ErrNotFound
+		}
+		return nil
+	default:
+		return r.unconfigured()
+	}
+}
+
+// setBuilder accumulates (column, value) pairs for a dynamic UPDATE.
+type setBuilder struct {
+	cols []string
+	vals []any
+}
+
+func newSetBuilder() *setBuilder { return &setBuilder{} }
+
+func (b *setBuilder) add(col string, v any) {
+	b.cols = append(b.cols, col)
+	b.vals = append(b.vals, v)
+}
+
+func (b *setBuilder) empty() bool { return len(b.cols) == 0 }
+
+// buildPG returns `UPDATE resources SET c1=$1, c2=$2, ... WHERE id=$N` and
+// the args slice (values + id at the tail).
+func (b *setBuilder) buildPG(id string) (string, []any) {
+	var sb strings.Builder
+	sb.WriteString("UPDATE resources SET ")
+	for i, col := range b.cols {
+		if i > 0 {
+			sb.WriteString(", ")
+		}
+		sb.WriteString(col)
+		sb.WriteString(" = $")
+		sb.WriteString(strconv.Itoa(i + 1))
+	}
+	sb.WriteString(" WHERE id = $")
+	sb.WriteString(strconv.Itoa(len(b.cols) + 1))
+	args := append([]any{}, b.vals...)
+	args = append(args, id)
+	return sb.String(), args
+}
+
+// buildSQLite returns `UPDATE resources SET c1=?, c2=?, ... WHERE id=?` and
+// the args slice (values + id at the tail).
+func (b *setBuilder) buildSQLite(id string) (string, []any) {
+	var sb strings.Builder
+	sb.WriteString("UPDATE resources SET ")
+	for i, col := range b.cols {
+		if i > 0 {
+			sb.WriteString(", ")
+		}
+		sb.WriteString(col)
+		sb.WriteString(" = ?")
+	}
+	sb.WriteString(" WHERE id = ?")
+	args := append([]any{}, b.vals...)
+	args = append(args, id)
+	return sb.String(), args
+}
+
+// derefTimePtr returns the inner *time.Time, preserving nil for "set NULL".
+// Drivers (pgx and database/sql) translate nil → NULL.
+func derefTimePtr(pp **time.Time) any {
+	if pp == nil || *pp == nil {
+		return nil
+	}
+	return **pp
 }
 
 func (r *ResourceRepositorySQLC) FindScheduledResources(ctx context.Context) ([]*domain.Resource, error) {
