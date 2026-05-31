@@ -1,0 +1,769 @@
+package store
+
+import (
+	"context"
+	"database/sql"
+	"errors"
+	"fmt"
+	"time"
+
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgtype"
+
+	"github.com/denisakp/ogoune/internal/domain"
+	"github.com/denisakp/ogoune/internal/port"
+	"github.com/denisakp/ogoune/internal/repository"
+	pgsqlc "github.com/denisakp/ogoune/internal/repository/sqlc/pg"
+	sqlitesqlc "github.com/denisakp/ogoune/internal/repository/sqlc/sqlite"
+)
+
+// ResourceRepositorySQLC implements port.ResourceRepository via sqlc.
+//
+// PR1 of US1 (spec 048) — CRUD only, no M2M, no preloads. The following
+// methods are stubs that return an "unimplemented" error and will land in
+// follow-up PRs:
+//
+//   - Update     : implements main columns only; Tags / NotificationChannels
+//                  diff is deferred to PR2 / PR3.
+//   - FindByTag  : requires resource_tags JOIN (PR2).
+//   - UpdateMonitoringState / UpdateMetadata : require dynamic SQL (PR4).
+//
+// Returned `domain.Resource` values have `Tags = nil`, `Component = nil`,
+// `NotificationChannels = nil`, `Credential = nil`. Callers that need
+// preloads must continue using the GORM impl until later PRs land.
+type ResourceRepositorySQLC struct {
+	pgQ     *pgsqlc.Queries
+	sqliteQ *sqlitesqlc.Queries
+}
+
+func NewResourceRepositorySQLC(rt SqlcRuntime) port.ResourceRepository {
+	r := &ResourceRepositorySQLC{}
+	if pool := rt.PgxPool(); pool != nil {
+		r.pgQ = pgsqlc.New(pool)
+	} else if db := rt.SQLiteDB(); db != nil {
+		r.sqliteQ = sqlitesqlc.New(db)
+	}
+	return r
+}
+
+func (r *ResourceRepositorySQLC) unconfigured() error {
+	return fmt.Errorf("resource_repository_sqlc: unconfigured runtime")
+}
+
+// ---------- Public surface (port.ResourceRepository) ----------
+
+func (r *ResourceRepositorySQLC) Create(ctx context.Context, res *domain.Resource) (*domain.Resource, error) {
+	if res.ID == "" {
+		res.EnsureID()
+	}
+	now := time.Now()
+	if res.CreatedAt.IsZero() {
+		res.CreatedAt = now
+	}
+	if res.UpdatedAt.IsZero() {
+		res.UpdatedAt = now
+	}
+	if res.Status == "" {
+		res.Status = domain.StatusPending
+	}
+	if res.Interval == 0 {
+		res.Interval = 300
+	}
+	if res.Timeout == 0 {
+		res.Timeout = 10
+	}
+	switch {
+	case r.pgQ != nil:
+		if err := r.pgQ.CreateResource(ctx, resourceToPGCreate(res)); err != nil {
+			return nil, fmt.Errorf("sqlc: create resource: %w", err)
+		}
+		return res, nil
+	case r.sqliteQ != nil:
+		if err := r.sqliteQ.CreateResource(ctx, resourceToSQLiteCreate(res)); err != nil {
+			return nil, fmt.Errorf("sqlc: create resource: %w", err)
+		}
+		return res, nil
+	default:
+		return nil, r.unconfigured()
+	}
+}
+
+func (r *ResourceRepositorySQLC) FindByID(ctx context.Context, id string) (*domain.Resource, error) {
+	switch {
+	case r.pgQ != nil:
+		row, err := r.pgQ.FindResourceByID(ctx, id)
+		if err != nil {
+			if errors.Is(err, pgx.ErrNoRows) {
+				return nil, repository.ErrNotFound
+			}
+			return nil, fmt.Errorf("sqlc: find resource by id: %w", err)
+		}
+		return resourceFromPG(row), nil
+	case r.sqliteQ != nil:
+		row, err := r.sqliteQ.FindResourceByID(ctx, id)
+		if err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				return nil, repository.ErrNotFound
+			}
+			return nil, fmt.Errorf("sqlc: find resource by id: %w", err)
+		}
+		return resourceFromSQLite(row), nil
+	default:
+		return nil, r.unconfigured()
+	}
+}
+
+func (r *ResourceRepositorySQLC) FindByHeartbeatSlug(ctx context.Context, slug string) (*domain.Resource, error) {
+	switch {
+	case r.pgQ != nil:
+		row, err := r.pgQ.FindResourceByHeartbeatSlug(ctx, pgtype.Text{String: slug, Valid: true})
+		if err != nil {
+			if errors.Is(err, pgx.ErrNoRows) {
+				return nil, repository.ErrNotFound
+			}
+			return nil, fmt.Errorf("sqlc: find resource by heartbeat slug: %w", err)
+		}
+		return resourceFromPG(row), nil
+	case r.sqliteQ != nil:
+		row, err := r.sqliteQ.FindResourceByHeartbeatSlug(ctx, sql.NullString{String: slug, Valid: true})
+		if err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				return nil, repository.ErrNotFound
+			}
+			return nil, fmt.Errorf("sqlc: find resource by heartbeat slug: %w", err)
+		}
+		return resourceFromSQLite(row), nil
+	default:
+		return nil, r.unconfigured()
+	}
+}
+
+func (r *ResourceRepositorySQLC) List(ctx context.Context, limit, offset int) ([]*domain.Resource, error) {
+	switch {
+	case r.pgQ != nil:
+		rows, err := r.pgQ.ListResources(ctx, pgsqlc.ListResourcesParams{
+			Limit:  int32(limit),
+			Offset: int32(offset),
+		})
+		if err != nil {
+			return nil, fmt.Errorf("sqlc: list resources: %w", err)
+		}
+		return resourcesFromPG(rows), nil
+	case r.sqliteQ != nil:
+		rows, err := r.sqliteQ.ListResources(ctx, sqlitesqlc.ListResourcesParams{
+			Limit:  int64(limit),
+			Offset: int64(offset),
+		})
+		if err != nil {
+			return nil, fmt.Errorf("sqlc: list resources: %w", err)
+		}
+		return resourcesFromSQLite(rows), nil
+	default:
+		return nil, r.unconfigured()
+	}
+}
+
+func (r *ResourceRepositorySQLC) Update(ctx context.Context, res *domain.Resource) error {
+	res.UpdatedAt = time.Now()
+	switch {
+	case r.pgQ != nil:
+		_, err := r.pgQ.UpdateResourceMain(ctx, pgsqlc.UpdateResourceMainParams{
+			ID:                      res.ID,
+			Name:                    res.Name,
+			Type:                    string(res.Type),
+			Target:                  res.Target,
+			Interval:                int32(res.Interval),
+			Timeout:                 int32(res.Timeout),
+			IsActive:                res.IsActive,
+			ConfirmationChecks:      int32(res.ConfirmationChecks),
+			ConfirmationInterval:    int32(res.ConfirmationInterval),
+			ComponentID:             pgTextFromPtr(res.ComponentID),
+			ExpiryAlertThresholds:   pgTextFromPtr(res.ExpiryAlertThresholds),
+			FlapDetectionEnabled:    res.FlapDetectionEnabled,
+			FlapThreshold:           int32(res.FlapThreshold),
+			FlapWindowSeconds:       int32(res.FlapWindowSeconds),
+			FlapMaxDurationMinutes:  int32(res.FlapMaxDurationMinutes),
+			ReminderIntervalMinutes: int32(res.ReminderIntervalMinutes),
+			HeartbeatInterval:       pgInt4FromPtr(res.HeartbeatInterval),
+			HeartbeatGrace:          pgInt4FromPtr(res.HeartbeatGrace),
+			UpdatedAt:               pgtype.Timestamptz{Time: res.UpdatedAt, Valid: true},
+		})
+		if err != nil {
+			return fmt.Errorf("sqlc: update resource: %w", err)
+		}
+		return nil
+	case r.sqliteQ != nil:
+		_, err := r.sqliteQ.UpdateResourceMain(ctx, sqlitesqlc.UpdateResourceMainParams{
+			ID:                      res.ID,
+			Name:                    res.Name,
+			Type:                    string(res.Type),
+			Target:                  res.Target,
+			Interval:                int64(res.Interval),
+			Timeout:                 int64(res.Timeout),
+			IsActive:                boolToInt64(res.IsActive),
+			ConfirmationChecks:      int64(res.ConfirmationChecks),
+			ConfirmationInterval:    int64(res.ConfirmationInterval),
+			ComponentID:             nullStringFromPtr(res.ComponentID),
+			ExpiryAlertThresholds:   nullStringFromPtr(res.ExpiryAlertThresholds),
+			FlapDetectionEnabled:    boolToInt64(res.FlapDetectionEnabled),
+			FlapThreshold:           int64(res.FlapThreshold),
+			FlapWindowSeconds:       int64(res.FlapWindowSeconds),
+			FlapMaxDurationMinutes:  int64(res.FlapMaxDurationMinutes),
+			ReminderIntervalMinutes: int64(res.ReminderIntervalMinutes),
+			HeartbeatInterval:       nullInt64FromPtrInt(res.HeartbeatInterval),
+			HeartbeatGrace:          nullInt64FromPtrInt(res.HeartbeatGrace),
+			UpdatedAt:               res.UpdatedAt,
+		})
+		if err != nil {
+			return fmt.Errorf("sqlc: update resource: %w", err)
+		}
+		return nil
+	default:
+		return r.unconfigured()
+	}
+}
+
+func (r *ResourceRepositorySQLC) Delete(ctx context.Context, id string) error {
+	switch {
+	case r.pgQ != nil:
+		n, err := r.pgQ.SoftDeleteResource(ctx, id)
+		if err != nil {
+			return fmt.Errorf("sqlc: delete resource: %w", err)
+		}
+		if n == 0 {
+			return repository.ErrNotFound
+		}
+		return nil
+	case r.sqliteQ != nil:
+		n, err := r.sqliteQ.SoftDeleteResource(ctx, id)
+		if err != nil {
+			return fmt.Errorf("sqlc: delete resource: %w", err)
+		}
+		if n == 0 {
+			return repository.ErrNotFound
+		}
+		return nil
+	default:
+		return r.unconfigured()
+	}
+}
+
+func (r *ResourceRepositorySQLC) FindActive(ctx context.Context, limit, offset int) ([]*domain.Resource, error) {
+	switch {
+	case r.pgQ != nil:
+		rows, err := r.pgQ.ListActiveResources(ctx, pgsqlc.ListActiveResourcesParams{
+			Limit: int32(limit), Offset: int32(offset),
+		})
+		if err != nil {
+			return nil, fmt.Errorf("sqlc: find active resources: %w", err)
+		}
+		return resourcesFromPG(rows), nil
+	case r.sqliteQ != nil:
+		rows, err := r.sqliteQ.ListActiveResources(ctx, sqlitesqlc.ListActiveResourcesParams{
+			Limit: int64(limit), Offset: int64(offset),
+		})
+		if err != nil {
+			return nil, fmt.Errorf("sqlc: find active resources: %w", err)
+		}
+		return resourcesFromSQLite(rows), nil
+	default:
+		return nil, r.unconfigured()
+	}
+}
+
+func (r *ResourceRepositorySQLC) FindByTag(ctx context.Context, tagName string, limit, offset int) ([]*domain.Resource, error) {
+	return nil, fmt.Errorf("resource_repository_sqlc: FindByTag deferred to PR2 (M2M join)")
+}
+
+func (r *ResourceRepositorySQLC) FindByComponentID(ctx context.Context, componentID string) ([]*domain.Resource, error) {
+	switch {
+	case r.pgQ != nil:
+		rows, err := r.pgQ.FindResourcesByComponentID(ctx, pgtype.Text{String: componentID, Valid: true})
+		if err != nil {
+			return nil, fmt.Errorf("sqlc: find resources by component: %w", err)
+		}
+		return resourcesFromPG(rows), nil
+	case r.sqliteQ != nil:
+		rows, err := r.sqliteQ.FindResourcesByComponentID(ctx, sql.NullString{String: componentID, Valid: true})
+		if err != nil {
+			return nil, fmt.Errorf("sqlc: find resources by component: %w", err)
+		}
+		return resourcesFromSQLite(rows), nil
+	default:
+		return nil, r.unconfigured()
+	}
+}
+
+func (r *ResourceRepositorySQLC) CountByComponentID(ctx context.Context, componentID string) (int64, error) {
+	switch {
+	case r.pgQ != nil:
+		n, err := r.pgQ.CountResourcesByComponentID(ctx, pgtype.Text{String: componentID, Valid: true})
+		if err != nil {
+			return 0, fmt.Errorf("sqlc: count resources by component: %w", err)
+		}
+		return n, nil
+	case r.sqliteQ != nil:
+		n, err := r.sqliteQ.CountResourcesByComponentID(ctx, sql.NullString{String: componentID, Valid: true})
+		if err != nil {
+			return 0, fmt.Errorf("sqlc: count resources by component: %w", err)
+		}
+		return n, nil
+	default:
+		return 0, r.unconfigured()
+	}
+}
+
+func (r *ResourceRepositorySQLC) FindMissedHeartbeats(ctx context.Context, now time.Time, limit int) ([]*domain.Resource, error) {
+	if limit <= 0 {
+		limit = 1000
+	}
+	switch {
+	case r.pgQ != nil:
+		rows, err := r.pgQ.FindMissedHeartbeatsPG(ctx, pgsqlc.FindMissedHeartbeatsPGParams{
+			NowUnix:  float64(now.Unix()),
+			RowLimit: int32(limit),
+		})
+		if err != nil {
+			return nil, fmt.Errorf("sqlc: find missed heartbeats: %w", err)
+		}
+		return resourcesFromPG(rows), nil
+	case r.sqliteQ != nil:
+		rows, err := r.sqliteQ.FindMissedHeartbeatsSQLite(ctx, sqlitesqlc.FindMissedHeartbeatsSQLiteParams{
+			NowUnix:  now.Unix(),
+			RowLimit: int64(limit),
+		})
+		if err != nil {
+			return nil, fmt.Errorf("sqlc: find missed heartbeats: %w", err)
+		}
+		return resourcesFromSQLite(rows), nil
+	default:
+		return nil, r.unconfigured()
+	}
+}
+
+func (r *ResourceRepositorySQLC) UpdateLastPingAt(ctx context.Context, id string, at time.Time) error {
+	switch {
+	case r.pgQ != nil:
+		n, err := r.pgQ.UpdateResourceLastPingAt(ctx, pgsqlc.UpdateResourceLastPingAtParams{
+			ID:         id,
+			LastPingAt: pgtype.Timestamp{Time: at, Valid: true},
+		})
+		if err != nil {
+			return fmt.Errorf("sqlc: update last_ping_at: %w", err)
+		}
+		if n == 0 {
+			return repository.ErrNotFound
+		}
+		return nil
+	case r.sqliteQ != nil:
+		n, err := r.sqliteQ.UpdateResourceLastPingAt(ctx, sqlitesqlc.UpdateResourceLastPingAtParams{
+			ID:         id,
+			LastPingAt: sql.NullTime{Time: at, Valid: true},
+		})
+		if err != nil {
+			return fmt.Errorf("sqlc: update last_ping_at: %w", err)
+		}
+		if n == 0 {
+			return repository.ErrNotFound
+		}
+		return nil
+	default:
+		return r.unconfigured()
+	}
+}
+
+func (r *ResourceRepositorySQLC) UpdateStatus(ctx context.Context, id string, status domain.ResourceStatus) error {
+	switch {
+	case r.pgQ != nil:
+		n, err := r.pgQ.UpdateResourceStatus(ctx, pgsqlc.UpdateResourceStatusParams{
+			ID: id, Status: string(status),
+		})
+		if err != nil {
+			return fmt.Errorf("sqlc: update status: %w", err)
+		}
+		if n == 0 {
+			return repository.ErrNotFound
+		}
+		return nil
+	case r.sqliteQ != nil:
+		n, err := r.sqliteQ.UpdateResourceStatus(ctx, sqlitesqlc.UpdateResourceStatusParams{
+			ID: id, Status: string(status),
+		})
+		if err != nil {
+			return fmt.Errorf("sqlc: update status: %w", err)
+		}
+		if n == 0 {
+			return repository.ErrNotFound
+		}
+		return nil
+	default:
+		return r.unconfigured()
+	}
+}
+
+func (r *ResourceRepositorySQLC) UpdateMonitoringState(ctx context.Context, id string, req port.UpdateMonitoringStateRequest) error {
+	return fmt.Errorf("resource_repository_sqlc: UpdateMonitoringState deferred to PR4 (dynamic SQL)")
+}
+
+func (r *ResourceRepositorySQLC) UpdateMetadata(ctx context.Context, id string, req port.UpdateMetadataRequest) error {
+	return fmt.Errorf("resource_repository_sqlc: UpdateMetadata deferred to PR4 (dynamic SQL)")
+}
+
+func (r *ResourceRepositorySQLC) FindScheduledResources(ctx context.Context) ([]*domain.Resource, error) {
+	switch {
+	case r.pgQ != nil:
+		rows, err := r.pgQ.ListScheduledResources(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("sqlc: list scheduled resources: %w", err)
+		}
+		return resourcesFromPG(rows), nil
+	case r.sqliteQ != nil:
+		rows, err := r.sqliteQ.ListScheduledResources(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("sqlc: list scheduled resources: %w", err)
+		}
+		return resourcesFromSQLite(rows), nil
+	default:
+		return nil, r.unconfigured()
+	}
+}
+
+// ---------- Mapping helpers ----------
+
+func resourceToPGCreate(r *domain.Resource) pgsqlc.CreateResourceParams {
+	return pgsqlc.CreateResourceParams{
+		ID:                      r.ID,
+		CreatedAt:               pgtype.Timestamptz{Time: r.CreatedAt, Valid: true},
+		UpdatedAt:               pgtype.Timestamptz{Time: r.UpdatedAt, Valid: true},
+		Name:                    r.Name,
+		Type:                    string(r.Type),
+		Interval:                int32(r.Interval),
+		Timeout:                 int32(r.Timeout),
+		Target:                  r.Target,
+		LastChecked:             pgTimestampFromPtr(r.LastChecked),
+		Status:                  string(r.Status),
+		IsActive:                r.IsActive,
+		FailureCount:            int32(r.FailureCount),
+		SslExpirationDate:       pgTimestampFromPtr(metaSSLExpiration(r)),
+		SslIssuer:               pgTextFromPtr(metaSSLIssuerPtr(r)),
+		DomainExpirationDate:    pgTimestampFromPtr(metaDomainExpiration(r)),
+		DomainRegistrar:         pgTextFromPtr(metaDomainRegistrarPtr(r)),
+		ComponentID:             pgTextFromPtr(r.ComponentID),
+		ConfirmationChecks:      int32(r.ConfirmationChecks),
+		ConfirmationInterval:    int32(r.ConfirmationInterval),
+		ExpiryAlertThresholds:   pgTextFromPtr(r.ExpiryAlertThresholds),
+		FlapDetectionEnabled:    r.FlapDetectionEnabled,
+		FlapThreshold:           int32(r.FlapThreshold),
+		FlapWindowSeconds:       int32(r.FlapWindowSeconds),
+		FlapMaxDurationMinutes:  int32(r.FlapMaxDurationMinutes),
+		LastStatusTransition:    pgTimestampFromPtr(r.LastStatusTransition),
+		FlapStartedAt:           pgTimestampFromPtr(r.FlapStartedAt),
+		ReminderIntervalMinutes: int32(r.ReminderIntervalMinutes),
+		HeartbeatSlug:           pgTextFromPtr(r.HeartbeatSlug),
+		HeartbeatInterval:       pgInt4FromPtr(r.HeartbeatInterval),
+		HeartbeatGrace:          pgInt4FromPtr(r.HeartbeatGrace),
+		LastPingAt:              pgPlainTimestampFromPtr(r.LastPingAt),
+		Keyword:                 pgTextFromPtr(r.Keyword),
+		KeywordMode:             pgTextFromPtr(r.KeywordMode),
+		ProtocolType:            pgTextFromPtr(r.ProtocolType),
+		ProtocolPort:            pgInt4FromPtr(r.ProtocolPort),
+	}
+}
+
+func resourceToSQLiteCreate(r *domain.Resource) sqlitesqlc.CreateResourceParams {
+	return sqlitesqlc.CreateResourceParams{
+		ID:                      r.ID,
+		CreatedAt:               r.CreatedAt,
+		UpdatedAt:               r.UpdatedAt,
+		Name:                    r.Name,
+		Type:                    string(r.Type),
+		Interval:                int64(r.Interval),
+		Timeout:                 int64(r.Timeout),
+		Target:                  r.Target,
+		LastChecked:             nullTimeFromPtr(r.LastChecked),
+		Status:                  string(r.Status),
+		IsActive:                boolToInt64(r.IsActive),
+		FailureCount:            int64(r.FailureCount),
+		SslExpirationDate:       nullTimeFromPtr(metaSSLExpiration(r)),
+		SslIssuer:               nullStringFromPtr(metaSSLIssuerPtr(r)),
+		DomainExpirationDate:    nullTimeFromPtr(metaDomainExpiration(r)),
+		DomainRegistrar:         nullStringFromPtr(metaDomainRegistrarPtr(r)),
+		ComponentID:             nullStringFromPtr(r.ComponentID),
+		ConfirmationChecks:      int64(r.ConfirmationChecks),
+		ConfirmationInterval:    int64(r.ConfirmationInterval),
+		ExpiryAlertThresholds:   nullStringFromPtr(r.ExpiryAlertThresholds),
+		FlapDetectionEnabled:    boolToInt64(r.FlapDetectionEnabled),
+		FlapThreshold:           int64(r.FlapThreshold),
+		FlapWindowSeconds:       int64(r.FlapWindowSeconds),
+		FlapMaxDurationMinutes:  int64(r.FlapMaxDurationMinutes),
+		LastStatusTransition:    nullTimeFromPtr(r.LastStatusTransition),
+		FlapStartedAt:           nullTimeFromPtr(r.FlapStartedAt),
+		ReminderIntervalMinutes: int64(r.ReminderIntervalMinutes),
+		HeartbeatSlug:           nullStringFromPtr(r.HeartbeatSlug),
+		HeartbeatInterval:       nullInt64FromPtrInt(r.HeartbeatInterval),
+		HeartbeatGrace:          nullInt64FromPtrInt(r.HeartbeatGrace),
+		LastPingAt:              nullTimeFromPtr(r.LastPingAt),
+		Keyword:                 nullStringFromPtr(r.Keyword),
+		KeywordMode:             nullStringFromPtr(r.KeywordMode),
+		ProtocolType:            nullStringFromPtr(r.ProtocolType),
+		ProtocolPort:            nullInt64FromPtrInt(r.ProtocolPort),
+	}
+}
+
+func resourceFromPG(row pgsqlc.Resource) *domain.Resource {
+	out := &domain.Resource{
+		Base: domain.Base{
+			ID:        row.ID,
+			CreatedAt: row.CreatedAt.Time,
+			UpdatedAt: row.UpdatedAt.Time,
+		},
+		Name:                    row.Name,
+		Type:                    domain.ResourceType(row.Type),
+		Interval:                int(row.Interval),
+		Timeout:                 int(row.Timeout),
+		Target:                  row.Target,
+		LastChecked:             ptrTimeFromPGTimestamptz(row.LastChecked),
+		Status:                  domain.ResourceStatus(row.Status),
+		IsActive:                row.IsActive,
+		FailureCount:            int(row.FailureCount),
+		ComponentID:             ptrStringFromPGText(row.ComponentID),
+		ConfirmationChecks:      int(row.ConfirmationChecks),
+		ConfirmationInterval:    int(row.ConfirmationInterval),
+		ExpiryAlertThresholds:   ptrStringFromPGText(row.ExpiryAlertThresholds),
+		FlapDetectionEnabled:    row.FlapDetectionEnabled,
+		FlapThreshold:           int(row.FlapThreshold),
+		FlapWindowSeconds:       int(row.FlapWindowSeconds),
+		FlapMaxDurationMinutes:  int(row.FlapMaxDurationMinutes),
+		LastStatusTransition:    ptrTimeFromPGTimestamptz(row.LastStatusTransition),
+		FlapStartedAt:           ptrTimeFromPGTimestamptz(row.FlapStartedAt),
+		ReminderIntervalMinutes: int(row.ReminderIntervalMinutes),
+		HeartbeatSlug:           ptrStringFromPGText(row.HeartbeatSlug),
+		HeartbeatInterval:       ptrIntFromPGInt4(row.HeartbeatInterval),
+		HeartbeatGrace:          ptrIntFromPGInt4(row.HeartbeatGrace),
+		LastPingAt:              ptrTimeFromPGTimestamp(row.LastPingAt),
+		Keyword:                 ptrStringFromPGText(row.Keyword),
+		KeywordMode:             ptrStringFromPGText(row.KeywordMode),
+		ProtocolType:            ptrStringFromPGText(row.ProtocolType),
+		ProtocolPort:            ptrIntFromPGInt4(row.ProtocolPort),
+	}
+	if md := metaFromPG(row); md != nil {
+		out.Metadata = md
+	}
+	return out
+}
+
+func resourceFromSQLite(row sqlitesqlc.Resource) *domain.Resource {
+	out := &domain.Resource{
+		Base: domain.Base{
+			ID:        row.ID,
+			CreatedAt: row.CreatedAt,
+			UpdatedAt: row.UpdatedAt,
+		},
+		Name:                    row.Name,
+		Type:                    domain.ResourceType(row.Type),
+		Interval:                int(row.Interval),
+		Timeout:                 int(row.Timeout),
+		Target:                  row.Target,
+		LastChecked:             ptrTimeFromNullTime(row.LastChecked),
+		Status:                  domain.ResourceStatus(row.Status),
+		IsActive:                row.IsActive == 1,
+		FailureCount:            int(row.FailureCount),
+		ComponentID:             ptrStringFromNullString(row.ComponentID),
+		ConfirmationChecks:      int(row.ConfirmationChecks),
+		ConfirmationInterval:    int(row.ConfirmationInterval),
+		ExpiryAlertThresholds:   ptrStringFromNullString(row.ExpiryAlertThresholds),
+		FlapDetectionEnabled:    row.FlapDetectionEnabled == 1,
+		FlapThreshold:           int(row.FlapThreshold),
+		FlapWindowSeconds:       int(row.FlapWindowSeconds),
+		FlapMaxDurationMinutes:  int(row.FlapMaxDurationMinutes),
+		LastStatusTransition:    ptrTimeFromNullTime(row.LastStatusTransition),
+		FlapStartedAt:           ptrTimeFromNullTime(row.FlapStartedAt),
+		ReminderIntervalMinutes: int(row.ReminderIntervalMinutes),
+		HeartbeatSlug:           ptrStringFromNullString(row.HeartbeatSlug),
+		HeartbeatInterval:       ptrIntFromNullInt64(row.HeartbeatInterval),
+		HeartbeatGrace:          ptrIntFromNullInt64(row.HeartbeatGrace),
+		LastPingAt:              ptrTimeFromNullTime(row.LastPingAt),
+		Keyword:                 ptrStringFromNullString(row.Keyword),
+		KeywordMode:             ptrStringFromNullString(row.KeywordMode),
+		ProtocolType:            ptrStringFromNullString(row.ProtocolType),
+		ProtocolPort:            ptrIntFromNullInt64(row.ProtocolPort),
+	}
+	if md := metaFromSQLite(row); md != nil {
+		out.Metadata = md
+	}
+	return out
+}
+
+func resourcesFromPG(rows []pgsqlc.Resource) []*domain.Resource {
+	out := make([]*domain.Resource, len(rows))
+	for i, row := range rows {
+		out[i] = resourceFromPG(row)
+	}
+	return out
+}
+
+func resourcesFromSQLite(rows []sqlitesqlc.Resource) []*domain.Resource {
+	out := make([]*domain.Resource, len(rows))
+	for i, row := range rows {
+		out[i] = resourceFromSQLite(row)
+	}
+	return out
+}
+
+// ---------- domain.ResourceMetaData glue ----------
+
+func metaSSLExpiration(r *domain.Resource) *time.Time {
+	if r.Metadata == nil {
+		return nil
+	}
+	return r.Metadata.SSLExpirationDate
+}
+
+func metaSSLIssuerPtr(r *domain.Resource) *string {
+	if r.Metadata == nil || r.Metadata.SSLIssuer == "" {
+		return nil
+	}
+	s := r.Metadata.SSLIssuer
+	return &s
+}
+
+func metaDomainExpiration(r *domain.Resource) *time.Time {
+	if r.Metadata == nil {
+		return nil
+	}
+	return r.Metadata.DomainExpirationDate
+}
+
+func metaDomainRegistrarPtr(r *domain.Resource) *string {
+	if r.Metadata == nil || r.Metadata.DomainRegistrar == "" {
+		return nil
+	}
+	s := r.Metadata.DomainRegistrar
+	return &s
+}
+
+func metaFromPG(row pgsqlc.Resource) *domain.ResourceMetaData {
+	md := &domain.ResourceMetaData{}
+	any := false
+	if row.SslExpirationDate.Valid {
+		t := row.SslExpirationDate.Time
+		md.SSLExpirationDate = &t
+		any = true
+	}
+	if row.SslIssuer.Valid {
+		md.SSLIssuer = row.SslIssuer.String
+		any = true
+	}
+	if row.DomainExpirationDate.Valid {
+		t := row.DomainExpirationDate.Time
+		md.DomainExpirationDate = &t
+		any = true
+	}
+	if row.DomainRegistrar.Valid {
+		md.DomainRegistrar = row.DomainRegistrar.String
+		any = true
+	}
+	if !any {
+		return nil
+	}
+	return md
+}
+
+func metaFromSQLite(row sqlitesqlc.Resource) *domain.ResourceMetaData {
+	md := &domain.ResourceMetaData{}
+	any := false
+	if row.SslExpirationDate.Valid {
+		t := row.SslExpirationDate.Time
+		md.SSLExpirationDate = &t
+		any = true
+	}
+	if row.SslIssuer.Valid {
+		md.SSLIssuer = row.SslIssuer.String
+		any = true
+	}
+	if row.DomainExpirationDate.Valid {
+		t := row.DomainExpirationDate.Time
+		md.DomainExpirationDate = &t
+		any = true
+	}
+	if row.DomainRegistrar.Valid {
+		md.DomainRegistrar = row.DomainRegistrar.String
+		any = true
+	}
+	if !any {
+		return nil
+	}
+	return md
+}
+
+// ---------- shared scalar helpers (local — could move to a helpers file later) ----------
+
+func pgPlainTimestampFromPtr(p *time.Time) pgtype.Timestamp {
+	if p == nil {
+		return pgtype.Timestamp{}
+	}
+	return pgtype.Timestamp{Time: *p, Valid: true}
+}
+
+func nullInt64FromPtrInt(p *int) sql.NullInt64 {
+	if p == nil {
+		return sql.NullInt64{}
+	}
+	return sql.NullInt64{Int64: int64(*p), Valid: true}
+}
+
+func ptrTimeFromPGTimestamptz(t pgtype.Timestamptz) *time.Time {
+	if !t.Valid {
+		return nil
+	}
+	v := t.Time
+	return &v
+}
+
+func ptrTimeFromPGTimestamp(t pgtype.Timestamp) *time.Time {
+	if !t.Valid {
+		return nil
+	}
+	v := t.Time
+	return &v
+}
+
+func ptrTimeFromNullTime(t sql.NullTime) *time.Time {
+	if !t.Valid {
+		return nil
+	}
+	v := t.Time
+	return &v
+}
+
+func ptrStringFromPGText(t pgtype.Text) *string {
+	if !t.Valid {
+		return nil
+	}
+	s := t.String
+	return &s
+}
+
+func ptrStringFromNullString(t sql.NullString) *string {
+	if !t.Valid {
+		return nil
+	}
+	s := t.String
+	return &s
+}
+
+func ptrIntFromPGInt4(t pgtype.Int4) *int {
+	if !t.Valid {
+		return nil
+	}
+	v := int(t.Int32)
+	return &v
+}
+
+func ptrIntFromNullInt64(t sql.NullInt64) *int {
+	if !t.Valid {
+		return nil
+	}
+	v := int(t.Int64)
+	return &v
+}

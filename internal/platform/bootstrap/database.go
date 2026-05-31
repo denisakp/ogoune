@@ -32,6 +32,8 @@ const (
 	envSqlcNotification       = "SQLC_NOTIFICATION"
 	envSqlcMonitoringActivity = "SQLC_MONITORING_ACTIVITY"
 	envSqlcIncidentEventStep  = "SQLC_INCIDENT_EVENT_STEP"
+	// Wave 3 (048)
+	envSqlcResource = "SQLC_RESOURCE"
 )
 
 // checkDialectHandle returns an error when the active dialect's native handle
@@ -50,6 +52,21 @@ func checkDialectHandle(rt *dbruntime.Runtime, envVar string) error {
 		return fmt.Errorf("%s=true but driver %q is unsupported by sqlc impl", envVar, rt.Driver)
 	}
 	return nil
+}
+
+// selectResourceRepo picks the active resource repository based on SQLC_RESOURCE.
+// PR1 of US1 (spec 048): sqlc impl covers CRUD only; Update / FindByTag /
+// UpdateMonitoringState / UpdateMetadata are deferred to later PRs and fail
+// loudly if invoked. Flag stays OFF in production until all PRs land.
+func selectResourceRepo(rt *dbruntime.Runtime, db *gorm.DB) (port.ResourceRepository, string, error) {
+	on, _ := strconv.ParseBool(os.Getenv(envSqlcResource))
+	if !on {
+		return store.NewResourceRepository(db), "gorm", nil
+	}
+	if err := checkDialectHandle(rt, envSqlcResource); err != nil {
+		return nil, "", err
+	}
+	return store.NewResourceRepositorySQLC(rt), "sqlc", nil
 }
 
 // selectTagsRepo picks the active tags repository based on SQLC_TAGS.
@@ -246,7 +263,13 @@ func InitDatabase(app *App) {
 	}
 
 	// Initialize repositories
-	app.ResourceRepo = store.NewResourceRepository(db)
+	resRepo, resImpl, err := selectResourceRepo(rt, db)
+	if err != nil {
+		slog.Error("failed to wire resource repository", "error", err)
+		os.Exit(1)
+	}
+	slog.Info("resource repository wired", "implementation", resImpl)
+	app.ResourceRepo = resRepo
 	app.IncidentRepo = store.NewIncidentRepository(db)
 	iesRepo, iesImpl, err := selectIncidentEventStepRepo(rt, db)
 	if err != nil {

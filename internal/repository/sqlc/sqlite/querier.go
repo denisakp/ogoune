@@ -19,6 +19,7 @@ type Querier interface {
 	CountMonitoringActivityByResourceTotal(ctx context.Context, arg CountMonitoringActivityByResourceTotalParams) (int64, error)
 	CountMonitoringActivitySinceSuccess(ctx context.Context, createdAt time.Time) (int64, error)
 	CountMonitoringActivitySinceTotal(ctx context.Context, createdAt time.Time) (int64, error)
+	CountResourcesByComponentID(ctx context.Context, componentID sql.NullString) (int64, error)
 	CreateAPIKey(ctx context.Context, arg CreateAPIKeyParams) error
 	CreateComponent(ctx context.Context, arg CreateComponentParams) error
 	CreateExpiryNotificationLog(ctx context.Context, arg CreateExpiryNotificationLogParams) error
@@ -28,6 +29,10 @@ type Querier interface {
 	CreateMonitoringActivity(ctx context.Context, arg CreateMonitoringActivityParams) error
 	CreateNotificationChannel(ctx context.Context, arg CreateNotificationChannelParams) error
 	CreateNotificationEvent(ctx context.Context, arg CreateNotificationEventParams) error
+	// PR1 of US1: CRUD without M2M and without 1-to-1 preloads.
+	// Mirror of postgres/resource.sql with SQLite-specific date math for
+	// FindMissedHeartbeats (strftime instead of EXTRACT EPOCH).
+	CreateResource(ctx context.Context, arg CreateResourceParams) error
 	CreateStatusPageSettings(ctx context.Context, arg CreateStatusPageSettingsParams) error
 	CreateTag(ctx context.Context, arg CreateTagParams) (Tag, error)
 	CreateUser(ctx context.Context, arg CreateUserParams) (User, error)
@@ -51,6 +56,7 @@ type Querier interface {
 	FindIncidentEventStepByID(ctx context.Context, id string) (FindIncidentEventStepByIDRow, error)
 	FindLastIncidentEventStepByIncidentAndStep(ctx context.Context, arg FindLastIncidentEventStepByIncidentAndStepParams) (IncidentEventStep, error)
 	FindMaintenanceByID(ctx context.Context, id string) (Maintenance, error)
+	FindMissedHeartbeatsSQLite(ctx context.Context, arg FindMissedHeartbeatsSQLiteParams) ([]Resource, error)
 	FindMonitoringActivitiesByResourceID(ctx context.Context, arg FindMonitoringActivitiesByResourceIDParams) ([]MonitoringActivity, error)
 	FindNotificationChannelByID(ctx context.Context, id string) (NotificationChannel, error)
 	FindNotificationChannelsByComponentID(ctx context.Context, componentID string) ([]NotificationChannel, error)
@@ -58,6 +64,9 @@ type Querier interface {
 	FindNotificationChannelsByType(ctx context.Context, type_ string) ([]NotificationChannel, error)
 	FindNotificationEventByID(ctx context.Context, id string) (NotificationEvent, error)
 	FindPendingNotificationEvents(ctx context.Context, arg FindPendingNotificationEventsParams) ([]NotificationEvent, error)
+	FindResourceByHeartbeatSlug(ctx context.Context, heartbeatSlug sql.NullString) (Resource, error)
+	FindResourceByID(ctx context.Context, id string) (Resource, error)
+	FindResourcesByComponentID(ctx context.Context, componentID sql.NullString) ([]Resource, error)
 	FindTagByID(ctx context.Context, id string) (Tag, error)
 	FindTagByName(ctx context.Context, name string) (Tag, error)
 	FindTagsByIDs(ctx context.Context, ids []string) ([]Tag, error)
@@ -68,6 +77,7 @@ type Querier interface {
 	GetStatusPageSettings(ctx context.Context) (StatusPageSetting, error)
 	LinkMaintenanceResource(ctx context.Context, arg LinkMaintenanceResourceParams) error
 	ListAPIKeysByUserID(ctx context.Context, userID string) ([]ApiKey, error)
+	ListActiveResources(ctx context.Context, arg ListActiveResourcesParams) ([]Resource, error)
 	ListComponents(ctx context.Context, arg ListComponentsParams) ([]Component, error)
 	ListIncidentEventSteps(ctx context.Context, arg ListIncidentEventStepsParams) ([]IncidentEventStep, error)
 	ListMaintenanceResourceIDsByMaintenanceID(ctx context.Context, maintenanceID string) ([]string, error)
@@ -76,7 +86,9 @@ type Querier interface {
 	ListMonitoringActivities(ctx context.Context, arg ListMonitoringActivitiesParams) ([]MonitoringActivity, error)
 	ListNotificationChannels(ctx context.Context, arg ListNotificationChannelsParams) ([]NotificationChannel, error)
 	ListNotificationEvents(ctx context.Context, arg ListNotificationEventsParams) ([]NotificationEvent, error)
+	ListResources(ctx context.Context, arg ListResourcesParams) ([]Resource, error)
 	ListResourcesByComponentID(ctx context.Context, componentID sql.NullString) ([]Resource, error)
+	ListScheduledResources(ctx context.Context) ([]Resource, error)
 	ListTags(ctx context.Context, arg ListTagsParams) ([]Tag, error)
 	MarkNotificationEventTerminal(ctx context.Context, arg MarkNotificationEventTerminalParams) (int64, error)
 	Ping(ctx context.Context) (int64, error)
@@ -84,6 +96,7 @@ type Querier interface {
 	RevokeAPIKey(ctx context.Context, arg RevokeAPIKeyParams) (int64, error)
 	SelectMonitoringActivityHourlyAggregateInputs(ctx context.Context, arg SelectMonitoringActivityHourlyAggregateInputsParams) ([]SelectMonitoringActivityHourlyAggregateInputsRow, error)
 	SelectMonitoringActivitySuccessInWindow(ctx context.Context, arg SelectMonitoringActivitySuccessInWindowParams) ([]int64, error)
+	SoftDeleteResource(ctx context.Context, id string) (int64, error)
 	UnlinkMaintenanceResource(ctx context.Context, arg UnlinkMaintenanceResourceParams) error
 	UpdateAPIKeyLastUsed(ctx context.Context, arg UpdateAPIKeyLastUsedParams) (int64, error)
 	UpdateComponent(ctx context.Context, arg UpdateComponentParams) error
@@ -93,6 +106,9 @@ type Querier interface {
 	UpdateMaintenance(ctx context.Context, arg UpdateMaintenanceParams) error
 	UpdateNotificationChannel(ctx context.Context, arg UpdateNotificationChannelParams) (int64, error)
 	UpdateNotificationEvent(ctx context.Context, arg UpdateNotificationEventParams) (int64, error)
+	UpdateResourceLastPingAt(ctx context.Context, arg UpdateResourceLastPingAtParams) (int64, error)
+	UpdateResourceMain(ctx context.Context, arg UpdateResourceMainParams) (int64, error)
+	UpdateResourceStatus(ctx context.Context, arg UpdateResourceStatusParams) (int64, error)
 	UpdateStatusPageSettings(ctx context.Context, arg UpdateStatusPageSettingsParams) error
 	UpdateTag(ctx context.Context, arg UpdateTagParams) (int64, error)
 	UpdateUser(ctx context.Context, arg UpdateUserParams) error
