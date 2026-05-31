@@ -298,6 +298,42 @@ func (q *Queries) FindResourceByID(ctx context.Context, id string) (Resource, er
 	return i, err
 }
 
+const findResourceIDsByTagName = `-- name: FindResourceIDsByTagName :many
+SELECT r.id
+FROM resources r
+JOIN resource_tags rt ON r.id = rt.resource_id
+JOIN tags t ON rt.tag_id = t.id
+WHERE t.name = $1 AND r.is_active = TRUE
+ORDER BY r.created_at DESC
+LIMIT $2 OFFSET $3
+`
+
+type FindResourceIDsByTagNameParams struct {
+	Name   string `json:"name"`
+	Limit  int32  `json:"limit"`
+	Offset int32  `json:"offset"`
+}
+
+func (q *Queries) FindResourceIDsByTagName(ctx context.Context, arg FindResourceIDsByTagNameParams) ([]string, error) {
+	rows, err := q.db.Query(ctx, findResourceIDsByTagName, arg.Name, arg.Limit, arg.Offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []string{}
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const findResourcesByComponentID = `-- name: FindResourcesByComponentID :many
 SELECT id, created_at, updated_at, name, type, interval, timeout, target, last_checked, status, is_active, failure_count, ssl_expiration_date, ssl_issuer, domain_expiration_date, domain_registrar, component_id, confirmation_checks, confirmation_interval, expiry_alert_thresholds, flap_detection_enabled, flap_threshold, flap_window_seconds, flap_max_duration_minutes, last_status_transition, flap_started_at, reminder_interval_minutes, heartbeat_slug, heartbeat_interval, heartbeat_grace, last_ping_at, keyword, keyword_mode, protocol_type, protocol_port FROM resources
 WHERE component_id = $1 AND is_active = TRUE
@@ -358,6 +394,83 @@ func (q *Queries) FindResourcesByComponentID(ctx context.Context, componentID pg
 		return nil, err
 	}
 	return items, nil
+}
+
+const findResourcesByIDs = `-- name: FindResourcesByIDs :many
+SELECT id, created_at, updated_at, name, type, interval, timeout, target, last_checked, status, is_active, failure_count, ssl_expiration_date, ssl_issuer, domain_expiration_date, domain_registrar, component_id, confirmation_checks, confirmation_interval, expiry_alert_thresholds, flap_detection_enabled, flap_threshold, flap_window_seconds, flap_max_duration_minutes, last_status_transition, flap_started_at, reminder_interval_minutes, heartbeat_slug, heartbeat_interval, heartbeat_grace, last_ping_at, keyword, keyword_mode, protocol_type, protocol_port FROM resources WHERE id = ANY($1::text[])
+`
+
+func (q *Queries) FindResourcesByIDs(ctx context.Context, dollar_1 []string) ([]Resource, error) {
+	rows, err := q.db.Query(ctx, findResourcesByIDs, dollar_1)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Resource{}
+	for rows.Next() {
+		var i Resource
+		if err := rows.Scan(
+			&i.ID,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.Name,
+			&i.Type,
+			&i.Interval,
+			&i.Timeout,
+			&i.Target,
+			&i.LastChecked,
+			&i.Status,
+			&i.IsActive,
+			&i.FailureCount,
+			&i.SslExpirationDate,
+			&i.SslIssuer,
+			&i.DomainExpirationDate,
+			&i.DomainRegistrar,
+			&i.ComponentID,
+			&i.ConfirmationChecks,
+			&i.ConfirmationInterval,
+			&i.ExpiryAlertThresholds,
+			&i.FlapDetectionEnabled,
+			&i.FlapThreshold,
+			&i.FlapWindowSeconds,
+			&i.FlapMaxDurationMinutes,
+			&i.LastStatusTransition,
+			&i.FlapStartedAt,
+			&i.ReminderIntervalMinutes,
+			&i.HeartbeatSlug,
+			&i.HeartbeatInterval,
+			&i.HeartbeatGrace,
+			&i.LastPingAt,
+			&i.Keyword,
+			&i.KeywordMode,
+			&i.ProtocolType,
+			&i.ProtocolPort,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const linkResourceTag = `-- name: LinkResourceTag :exec
+
+INSERT INTO resource_tags (resource_id, tag_id) VALUES ($1, $2)
+ON CONFLICT DO NOTHING
+`
+
+type LinkResourceTagParams struct {
+	ResourceID string `json:"resource_id"`
+	TagID      string `json:"tag_id"`
+}
+
+// M2M: resource_tags ---------------------------------------------------------
+func (q *Queries) LinkResourceTag(ctx context.Context, arg LinkResourceTagParams) error {
+	_, err := q.db.Exec(ctx, linkResourceTag, arg.ResourceID, arg.TagID)
+	return err
 }
 
 const listActiveResources = `-- name: ListActiveResources :many
@@ -558,6 +671,75 @@ func (q *Queries) ListScheduledResources(ctx context.Context) ([]Resource, error
 	return items, nil
 }
 
+const listTagIDsByResourceID = `-- name: ListTagIDsByResourceID :many
+SELECT tag_id FROM resource_tags WHERE resource_id = $1
+`
+
+func (q *Queries) ListTagIDsByResourceID(ctx context.Context, resourceID string) ([]string, error) {
+	rows, err := q.db.Query(ctx, listTagIDsByResourceID, resourceID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []string{}
+	for rows.Next() {
+		var tag_id string
+		if err := rows.Scan(&tag_id); err != nil {
+			return nil, err
+		}
+		items = append(items, tag_id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listTagsByResourceIDs = `-- name: ListTagsByResourceIDs :many
+SELECT rt.resource_id, t.id, t.name, t.color, t.description, t.created_at, t.updated_at
+FROM resource_tags rt
+JOIN tags t ON rt.tag_id = t.id
+WHERE rt.resource_id = ANY($1::text[])
+`
+
+type ListTagsByResourceIDsRow struct {
+	ResourceID  string             `json:"resource_id"`
+	ID          string             `json:"id"`
+	Name        string             `json:"name"`
+	Color       pgtype.Text        `json:"color"`
+	Description pgtype.Text        `json:"description"`
+	CreatedAt   pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt   pgtype.Timestamptz `json:"updated_at"`
+}
+
+func (q *Queries) ListTagsByResourceIDs(ctx context.Context, dollar_1 []string) ([]ListTagsByResourceIDsRow, error) {
+	rows, err := q.db.Query(ctx, listTagsByResourceIDs, dollar_1)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListTagsByResourceIDsRow{}
+	for rows.Next() {
+		var i ListTagsByResourceIDsRow
+		if err := rows.Scan(
+			&i.ResourceID,
+			&i.ID,
+			&i.Name,
+			&i.Color,
+			&i.Description,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const softDeleteResource = `-- name: SoftDeleteResource :execrows
 UPDATE resources SET is_active = FALSE
 WHERE id = $1 AND is_active = TRUE
@@ -569,6 +751,20 @@ func (q *Queries) SoftDeleteResource(ctx context.Context, id string) (int64, err
 		return 0, err
 	}
 	return result.RowsAffected(), nil
+}
+
+const unlinkResourceTag = `-- name: UnlinkResourceTag :exec
+DELETE FROM resource_tags WHERE resource_id = $1 AND tag_id = $2
+`
+
+type UnlinkResourceTagParams struct {
+	ResourceID string `json:"resource_id"`
+	TagID      string `json:"tag_id"`
+}
+
+func (q *Queries) UnlinkResourceTag(ctx context.Context, arg UnlinkResourceTagParams) error {
+	_, err := q.db.Exec(ctx, unlinkResourceTag, arg.ResourceID, arg.TagID)
+	return err
 }
 
 const updateResourceLastPingAt = `-- name: UpdateResourceLastPingAt :execrows

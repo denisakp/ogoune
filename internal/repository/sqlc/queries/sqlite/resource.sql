@@ -92,6 +92,36 @@ UPDATE resources SET status = ?2 WHERE id = ?1;
 UPDATE resources SET last_ping_at = ?2
 WHERE id = ?1 AND type = 'heartbeat' AND is_active = 1;
 
+-- M2M: resource_tags ---------------------------------------------------------
+
+-- name: LinkResourceTag :exec
+INSERT INTO resource_tags (resource_id, tag_id) VALUES (?, ?)
+ON CONFLICT DO NOTHING;
+
+-- name: UnlinkResourceTag :exec
+DELETE FROM resource_tags WHERE resource_id = ? AND tag_id = ?;
+
+-- name: ListTagIDsByResourceID :many
+SELECT tag_id FROM resource_tags WHERE resource_id = ?;
+
+-- name: ListTagsByResourceIDs :many
+SELECT rt.resource_id, t.id, t.name, t.color, t.description, t.created_at, t.updated_at
+FROM resource_tags rt
+JOIN tags t ON rt.tag_id = t.id
+WHERE rt.resource_id IN (sqlc.slice('resource_ids'));
+
+-- name: FindResourceIDsByTagName :many
+SELECT r.id
+FROM resources r
+JOIN resource_tags rt ON r.id = rt.resource_id
+JOIN tags t ON rt.tag_id = t.id
+WHERE t.name = ? AND r.is_active = 1
+ORDER BY r.created_at DESC
+LIMIT ? OFFSET ?;
+
+-- name: FindResourcesByIDs :many
+SELECT * FROM resources WHERE id IN (sqlc.slice('ids'));
+
 -- name: FindMissedHeartbeatsSQLite :many
 SELECT * FROM resources
 WHERE type = 'heartbeat'

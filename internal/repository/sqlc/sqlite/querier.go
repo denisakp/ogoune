@@ -66,7 +66,9 @@ type Querier interface {
 	FindPendingNotificationEvents(ctx context.Context, arg FindPendingNotificationEventsParams) ([]NotificationEvent, error)
 	FindResourceByHeartbeatSlug(ctx context.Context, heartbeatSlug sql.NullString) (Resource, error)
 	FindResourceByID(ctx context.Context, id string) (Resource, error)
+	FindResourceIDsByTagName(ctx context.Context, arg FindResourceIDsByTagNameParams) ([]string, error)
 	FindResourcesByComponentID(ctx context.Context, componentID sql.NullString) ([]Resource, error)
+	FindResourcesByIDs(ctx context.Context, ids []string) ([]Resource, error)
 	FindTagByID(ctx context.Context, id string) (Tag, error)
 	FindTagByName(ctx context.Context, name string) (Tag, error)
 	FindTagsByIDs(ctx context.Context, ids []string) ([]Tag, error)
@@ -76,6 +78,8 @@ type Querier interface {
 	GetResourceCredentialByResourceID(ctx context.Context, resourceID string) (ResourceCredential, error)
 	GetStatusPageSettings(ctx context.Context) (StatusPageSetting, error)
 	LinkMaintenanceResource(ctx context.Context, arg LinkMaintenanceResourceParams) error
+	// M2M: resource_tags ---------------------------------------------------------
+	LinkResourceTag(ctx context.Context, arg LinkResourceTagParams) error
 	ListAPIKeysByUserID(ctx context.Context, userID string) ([]ApiKey, error)
 	ListActiveResources(ctx context.Context, arg ListActiveResourcesParams) ([]Resource, error)
 	ListComponents(ctx context.Context, arg ListComponentsParams) ([]Component, error)
@@ -89,7 +93,9 @@ type Querier interface {
 	ListResources(ctx context.Context, arg ListResourcesParams) ([]Resource, error)
 	ListResourcesByComponentID(ctx context.Context, componentID sql.NullString) ([]Resource, error)
 	ListScheduledResources(ctx context.Context) ([]Resource, error)
+	ListTagIDsByResourceID(ctx context.Context, resourceID string) ([]string, error)
 	ListTags(ctx context.Context, arg ListTagsParams) ([]Tag, error)
+	ListTagsByResourceIDs(ctx context.Context, resourceIds []string) ([]ListTagsByResourceIDsRow, error)
 	MarkNotificationEventTerminal(ctx context.Context, arg MarkNotificationEventTerminalParams) (int64, error)
 	Ping(ctx context.Context) (int64, error)
 	ResourceCredentialExists(ctx context.Context, resourceID string) (int64, error)
@@ -98,6 +104,7 @@ type Querier interface {
 	SelectMonitoringActivitySuccessInWindow(ctx context.Context, arg SelectMonitoringActivitySuccessInWindowParams) ([]int64, error)
 	SoftDeleteResource(ctx context.Context, id string) (int64, error)
 	UnlinkMaintenanceResource(ctx context.Context, arg UnlinkMaintenanceResourceParams) error
+	UnlinkResourceTag(ctx context.Context, arg UnlinkResourceTagParams) error
 	UpdateAPIKeyLastUsed(ctx context.Context, arg UpdateAPIKeyLastUsedParams) (int64, error)
 	UpdateComponent(ctx context.Context, arg UpdateComponentParams) error
 	UpdateComponentLastNotificationStatus(ctx context.Context, arg UpdateComponentLastNotificationStatusParams) (int64, error)

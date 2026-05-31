@@ -8,6 +8,7 @@ package sqlitesqlc
 import (
 	"context"
 	"database/sql"
+	"strings"
 	"time"
 )
 
@@ -301,6 +302,45 @@ func (q *Queries) FindResourceByID(ctx context.Context, id string) (Resource, er
 	return i, err
 }
 
+const findResourceIDsByTagName = `-- name: FindResourceIDsByTagName :many
+SELECT r.id
+FROM resources r
+JOIN resource_tags rt ON r.id = rt.resource_id
+JOIN tags t ON rt.tag_id = t.id
+WHERE t.name = ? AND r.is_active = 1
+ORDER BY r.created_at DESC
+LIMIT ? OFFSET ?
+`
+
+type FindResourceIDsByTagNameParams struct {
+	Name   string `json:"name"`
+	Limit  int64  `json:"limit"`
+	Offset int64  `json:"offset"`
+}
+
+func (q *Queries) FindResourceIDsByTagName(ctx context.Context, arg FindResourceIDsByTagNameParams) ([]string, error) {
+	rows, err := q.db.QueryContext(ctx, findResourceIDsByTagName, arg.Name, arg.Limit, arg.Offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []string{}
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const findResourcesByComponentID = `-- name: FindResourcesByComponentID :many
 SELECT id, created_at, updated_at, name, type, interval, timeout, target, last_checked, status, is_active, failure_count, ssl_expiration_date, ssl_issuer, domain_expiration_date, domain_registrar, component_id, confirmation_checks, confirmation_interval, expiry_alert_thresholds, flap_detection_enabled, flap_threshold, flap_window_seconds, flap_max_duration_minutes, last_status_transition, flap_started_at, reminder_interval_minutes, heartbeat_slug, heartbeat_interval, heartbeat_grace, last_ping_at, keyword, keyword_mode, protocol_type, protocol_port FROM resources
 WHERE component_id = ? AND is_active = 1
@@ -364,6 +404,96 @@ func (q *Queries) FindResourcesByComponentID(ctx context.Context, componentID sq
 		return nil, err
 	}
 	return items, nil
+}
+
+const findResourcesByIDs = `-- name: FindResourcesByIDs :many
+SELECT id, created_at, updated_at, name, type, interval, timeout, target, last_checked, status, is_active, failure_count, ssl_expiration_date, ssl_issuer, domain_expiration_date, domain_registrar, component_id, confirmation_checks, confirmation_interval, expiry_alert_thresholds, flap_detection_enabled, flap_threshold, flap_window_seconds, flap_max_duration_minutes, last_status_transition, flap_started_at, reminder_interval_minutes, heartbeat_slug, heartbeat_interval, heartbeat_grace, last_ping_at, keyword, keyword_mode, protocol_type, protocol_port FROM resources WHERE id IN (/*SLICE:ids*/?)
+`
+
+func (q *Queries) FindResourcesByIDs(ctx context.Context, ids []string) ([]Resource, error) {
+	query := findResourcesByIDs
+	var queryParams []interface{}
+	if len(ids) > 0 {
+		for _, v := range ids {
+			queryParams = append(queryParams, v)
+		}
+		query = strings.Replace(query, "/*SLICE:ids*/?", strings.Repeat(",?", len(ids))[1:], 1)
+	} else {
+		query = strings.Replace(query, "/*SLICE:ids*/?", "NULL", 1)
+	}
+	rows, err := q.db.QueryContext(ctx, query, queryParams...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Resource{}
+	for rows.Next() {
+		var i Resource
+		if err := rows.Scan(
+			&i.ID,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.Name,
+			&i.Type,
+			&i.Interval,
+			&i.Timeout,
+			&i.Target,
+			&i.LastChecked,
+			&i.Status,
+			&i.IsActive,
+			&i.FailureCount,
+			&i.SslExpirationDate,
+			&i.SslIssuer,
+			&i.DomainExpirationDate,
+			&i.DomainRegistrar,
+			&i.ComponentID,
+			&i.ConfirmationChecks,
+			&i.ConfirmationInterval,
+			&i.ExpiryAlertThresholds,
+			&i.FlapDetectionEnabled,
+			&i.FlapThreshold,
+			&i.FlapWindowSeconds,
+			&i.FlapMaxDurationMinutes,
+			&i.LastStatusTransition,
+			&i.FlapStartedAt,
+			&i.ReminderIntervalMinutes,
+			&i.HeartbeatSlug,
+			&i.HeartbeatInterval,
+			&i.HeartbeatGrace,
+			&i.LastPingAt,
+			&i.Keyword,
+			&i.KeywordMode,
+			&i.ProtocolType,
+			&i.ProtocolPort,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const linkResourceTag = `-- name: LinkResourceTag :exec
+
+INSERT INTO resource_tags (resource_id, tag_id) VALUES (?, ?)
+ON CONFLICT DO NOTHING
+`
+
+type LinkResourceTagParams struct {
+	ResourceID string `json:"resource_id"`
+	TagID      string `json:"tag_id"`
+}
+
+// M2M: resource_tags ---------------------------------------------------------
+func (q *Queries) LinkResourceTag(ctx context.Context, arg LinkResourceTagParams) error {
+	_, err := q.db.ExecContext(ctx, linkResourceTag, arg.ResourceID, arg.TagID)
+	return err
 }
 
 const listActiveResources = `-- name: ListActiveResources :many
@@ -573,6 +703,91 @@ func (q *Queries) ListScheduledResources(ctx context.Context) ([]Resource, error
 	return items, nil
 }
 
+const listTagIDsByResourceID = `-- name: ListTagIDsByResourceID :many
+SELECT tag_id FROM resource_tags WHERE resource_id = ?
+`
+
+func (q *Queries) ListTagIDsByResourceID(ctx context.Context, resourceID string) ([]string, error) {
+	rows, err := q.db.QueryContext(ctx, listTagIDsByResourceID, resourceID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []string{}
+	for rows.Next() {
+		var tag_id string
+		if err := rows.Scan(&tag_id); err != nil {
+			return nil, err
+		}
+		items = append(items, tag_id)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listTagsByResourceIDs = `-- name: ListTagsByResourceIDs :many
+SELECT rt.resource_id, t.id, t.name, t.color, t.description, t.created_at, t.updated_at
+FROM resource_tags rt
+JOIN tags t ON rt.tag_id = t.id
+WHERE rt.resource_id IN (/*SLICE:resource_ids*/?)
+`
+
+type ListTagsByResourceIDsRow struct {
+	ResourceID  string         `json:"resource_id"`
+	ID          string         `json:"id"`
+	Name        string         `json:"name"`
+	Color       sql.NullString `json:"color"`
+	Description sql.NullString `json:"description"`
+	CreatedAt   time.Time      `json:"created_at"`
+	UpdatedAt   time.Time      `json:"updated_at"`
+}
+
+func (q *Queries) ListTagsByResourceIDs(ctx context.Context, resourceIds []string) ([]ListTagsByResourceIDsRow, error) {
+	query := listTagsByResourceIDs
+	var queryParams []interface{}
+	if len(resourceIds) > 0 {
+		for _, v := range resourceIds {
+			queryParams = append(queryParams, v)
+		}
+		query = strings.Replace(query, "/*SLICE:resource_ids*/?", strings.Repeat(",?", len(resourceIds))[1:], 1)
+	} else {
+		query = strings.Replace(query, "/*SLICE:resource_ids*/?", "NULL", 1)
+	}
+	rows, err := q.db.QueryContext(ctx, query, queryParams...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListTagsByResourceIDsRow{}
+	for rows.Next() {
+		var i ListTagsByResourceIDsRow
+		if err := rows.Scan(
+			&i.ResourceID,
+			&i.ID,
+			&i.Name,
+			&i.Color,
+			&i.Description,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const softDeleteResource = `-- name: SoftDeleteResource :execrows
 UPDATE resources SET is_active = 0
 WHERE id = ? AND is_active = 1
@@ -584,6 +799,20 @@ func (q *Queries) SoftDeleteResource(ctx context.Context, id string) (int64, err
 		return 0, err
 	}
 	return result.RowsAffected()
+}
+
+const unlinkResourceTag = `-- name: UnlinkResourceTag :exec
+DELETE FROM resource_tags WHERE resource_id = ? AND tag_id = ?
+`
+
+type UnlinkResourceTagParams struct {
+	ResourceID string `json:"resource_id"`
+	TagID      string `json:"tag_id"`
+}
+
+func (q *Queries) UnlinkResourceTag(ctx context.Context, arg UnlinkResourceTagParams) error {
+	_, err := q.db.ExecContext(ctx, unlinkResourceTag, arg.ResourceID, arg.TagID)
+	return err
 }
 
 const updateResourceLastPingAt = `-- name: UpdateResourceLastPingAt :execrows

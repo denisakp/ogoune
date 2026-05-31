@@ -9,6 +9,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/denisakp/ogoune/internal/domain"
 	"github.com/denisakp/ogoune/internal/port"
@@ -32,15 +33,19 @@ import (
 // `NotificationChannels = nil`, `Credential = nil`. Callers that need
 // preloads must continue using the GORM impl until later PRs land.
 type ResourceRepositorySQLC struct {
-	pgQ     *pgsqlc.Queries
-	sqliteQ *sqlitesqlc.Queries
+	pgQ      *pgsqlc.Queries
+	sqliteQ  *sqlitesqlc.Queries
+	pgPool   *pgxpool.Pool
+	sqliteDB *sql.DB
 }
 
 func NewResourceRepositorySQLC(rt SqlcRuntime) port.ResourceRepository {
 	r := &ResourceRepositorySQLC{}
 	if pool := rt.PgxPool(); pool != nil {
+		r.pgPool = pool
 		r.pgQ = pgsqlc.New(pool)
 	} else if db := rt.SQLiteDB(); db != nil {
+		r.sqliteDB = db
 		r.sqliteQ = sqlitesqlc.New(db)
 	}
 	return r
@@ -72,14 +77,41 @@ func (r *ResourceRepositorySQLC) Create(ctx context.Context, res *domain.Resourc
 	if res.Timeout == 0 {
 		res.Timeout = 10
 	}
+	tagIDs := tagIDsFromResource(res)
 	switch {
 	case r.pgQ != nil:
-		if err := r.pgQ.CreateResource(ctx, resourceToPGCreate(res)); err != nil {
+		err := pgsqlc.WithTx(ctx, r.pgPool, func(q *pgsqlc.Queries) error {
+			if err := q.CreateResource(ctx, resourceToPGCreate(res)); err != nil {
+				return err
+			}
+			for _, tid := range tagIDs {
+				if err := q.LinkResourceTag(ctx, pgsqlc.LinkResourceTagParams{
+					ResourceID: res.ID, TagID: tid,
+				}); err != nil {
+					return err
+				}
+			}
+			return nil
+		})
+		if err != nil {
 			return nil, fmt.Errorf("sqlc: create resource: %w", err)
 		}
 		return res, nil
 	case r.sqliteQ != nil:
-		if err := r.sqliteQ.CreateResource(ctx, resourceToSQLiteCreate(res)); err != nil {
+		err := sqlitesqlc.WithTx(ctx, r.sqliteDB, func(q *sqlitesqlc.Queries) error {
+			if err := q.CreateResource(ctx, resourceToSQLiteCreate(res)); err != nil {
+				return err
+			}
+			for _, tid := range tagIDs {
+				if err := q.LinkResourceTag(ctx, sqlitesqlc.LinkResourceTagParams{
+					ResourceID: res.ID, TagID: tid,
+				}); err != nil {
+					return err
+				}
+			}
+			return nil
+		})
+		if err != nil {
 			return nil, fmt.Errorf("sqlc: create resource: %w", err)
 		}
 		return res, nil
@@ -89,6 +121,7 @@ func (r *ResourceRepositorySQLC) Create(ctx context.Context, res *domain.Resourc
 }
 
 func (r *ResourceRepositorySQLC) FindByID(ctx context.Context, id string) (*domain.Resource, error) {
+	var out *domain.Resource
 	switch {
 	case r.pgQ != nil:
 		row, err := r.pgQ.FindResourceByID(ctx, id)
@@ -98,7 +131,7 @@ func (r *ResourceRepositorySQLC) FindByID(ctx context.Context, id string) (*doma
 			}
 			return nil, fmt.Errorf("sqlc: find resource by id: %w", err)
 		}
-		return resourceFromPG(row), nil
+		out = resourceFromPG(row)
 	case r.sqliteQ != nil:
 		row, err := r.sqliteQ.FindResourceByID(ctx, id)
 		if err != nil {
@@ -107,13 +140,18 @@ func (r *ResourceRepositorySQLC) FindByID(ctx context.Context, id string) (*doma
 			}
 			return nil, fmt.Errorf("sqlc: find resource by id: %w", err)
 		}
-		return resourceFromSQLite(row), nil
+		out = resourceFromSQLite(row)
 	default:
 		return nil, r.unconfigured()
 	}
+	if err := r.attachTagsToResources(ctx, []*domain.Resource{out}); err != nil {
+		return nil, err
+	}
+	return out, nil
 }
 
 func (r *ResourceRepositorySQLC) FindByHeartbeatSlug(ctx context.Context, slug string) (*domain.Resource, error) {
+	var out *domain.Resource
 	switch {
 	case r.pgQ != nil:
 		row, err := r.pgQ.FindResourceByHeartbeatSlug(ctx, pgtype.Text{String: slug, Valid: true})
@@ -123,7 +161,7 @@ func (r *ResourceRepositorySQLC) FindByHeartbeatSlug(ctx context.Context, slug s
 			}
 			return nil, fmt.Errorf("sqlc: find resource by heartbeat slug: %w", err)
 		}
-		return resourceFromPG(row), nil
+		out = resourceFromPG(row)
 	case r.sqliteQ != nil:
 		row, err := r.sqliteQ.FindResourceByHeartbeatSlug(ctx, sql.NullString{String: slug, Valid: true})
 		if err != nil {
@@ -132,13 +170,18 @@ func (r *ResourceRepositorySQLC) FindByHeartbeatSlug(ctx context.Context, slug s
 			}
 			return nil, fmt.Errorf("sqlc: find resource by heartbeat slug: %w", err)
 		}
-		return resourceFromSQLite(row), nil
+		out = resourceFromSQLite(row)
 	default:
 		return nil, r.unconfigured()
 	}
+	if err := r.attachTagsToResources(ctx, []*domain.Resource{out}); err != nil {
+		return nil, err
+	}
+	return out, nil
 }
 
 func (r *ResourceRepositorySQLC) List(ctx context.Context, limit, offset int) ([]*domain.Resource, error) {
+	var out []*domain.Resource
 	switch {
 	case r.pgQ != nil:
 		rows, err := r.pgQ.ListResources(ctx, pgsqlc.ListResourcesParams{
@@ -148,7 +191,7 @@ func (r *ResourceRepositorySQLC) List(ctx context.Context, limit, offset int) ([
 		if err != nil {
 			return nil, fmt.Errorf("sqlc: list resources: %w", err)
 		}
-		return resourcesFromPG(rows), nil
+		out = resourcesFromPG(rows)
 	case r.sqliteQ != nil:
 		rows, err := r.sqliteQ.ListResources(ctx, sqlitesqlc.ListResourcesParams{
 			Limit:  int64(limit),
@@ -157,70 +200,129 @@ func (r *ResourceRepositorySQLC) List(ctx context.Context, limit, offset int) ([
 		if err != nil {
 			return nil, fmt.Errorf("sqlc: list resources: %w", err)
 		}
-		return resourcesFromSQLite(rows), nil
+		out = resourcesFromSQLite(rows)
 	default:
 		return nil, r.unconfigured()
 	}
+	if err := r.attachTagsToResources(ctx, out); err != nil {
+		return nil, err
+	}
+	return out, nil
 }
 
 func (r *ResourceRepositorySQLC) Update(ctx context.Context, res *domain.Resource) error {
 	res.UpdatedAt = time.Now()
+	targetTagIDs := tagIDsFromResource(res)
 	switch {
 	case r.pgQ != nil:
-		_, err := r.pgQ.UpdateResourceMain(ctx, pgsqlc.UpdateResourceMainParams{
-			ID:                      res.ID,
-			Name:                    res.Name,
-			Type:                    string(res.Type),
-			Target:                  res.Target,
-			Interval:                int32(res.Interval),
-			Timeout:                 int32(res.Timeout),
-			IsActive:                res.IsActive,
-			ConfirmationChecks:      int32(res.ConfirmationChecks),
-			ConfirmationInterval:    int32(res.ConfirmationInterval),
-			ComponentID:             pgTextFromPtr(res.ComponentID),
-			ExpiryAlertThresholds:   pgTextFromPtr(res.ExpiryAlertThresholds),
-			FlapDetectionEnabled:    res.FlapDetectionEnabled,
-			FlapThreshold:           int32(res.FlapThreshold),
-			FlapWindowSeconds:       int32(res.FlapWindowSeconds),
-			FlapMaxDurationMinutes:  int32(res.FlapMaxDurationMinutes),
-			ReminderIntervalMinutes: int32(res.ReminderIntervalMinutes),
-			HeartbeatInterval:       pgInt4FromPtr(res.HeartbeatInterval),
-			HeartbeatGrace:          pgInt4FromPtr(res.HeartbeatGrace),
-			UpdatedAt:               pgtype.Timestamptz{Time: res.UpdatedAt, Valid: true},
+		return pgsqlc.WithTx(ctx, r.pgPool, func(q *pgsqlc.Queries) error {
+			if err := r.updateMainPG(ctx, q, res); err != nil {
+				return err
+			}
+			currentIDs, err := q.ListTagIDsByResourceID(ctx, res.ID)
+			if err != nil {
+				return err
+			}
+			toAdd, toRemove := diffJunctionSets(currentIDs, targetTagIDs)
+			for _, tid := range toRemove {
+				if err := q.UnlinkResourceTag(ctx, pgsqlc.UnlinkResourceTagParams{
+					ResourceID: res.ID, TagID: tid,
+				}); err != nil {
+					return err
+				}
+			}
+			for _, tid := range toAdd {
+				if err := q.LinkResourceTag(ctx, pgsqlc.LinkResourceTagParams{
+					ResourceID: res.ID, TagID: tid,
+				}); err != nil {
+					return err
+				}
+			}
+			return nil
 		})
-		if err != nil {
-			return fmt.Errorf("sqlc: update resource: %w", err)
-		}
-		return nil
 	case r.sqliteQ != nil:
-		_, err := r.sqliteQ.UpdateResourceMain(ctx, sqlitesqlc.UpdateResourceMainParams{
-			ID:                      res.ID,
-			Name:                    res.Name,
-			Type:                    string(res.Type),
-			Target:                  res.Target,
-			Interval:                int64(res.Interval),
-			Timeout:                 int64(res.Timeout),
-			IsActive:                boolToInt64(res.IsActive),
-			ConfirmationChecks:      int64(res.ConfirmationChecks),
-			ConfirmationInterval:    int64(res.ConfirmationInterval),
-			ComponentID:             nullStringFromPtr(res.ComponentID),
-			ExpiryAlertThresholds:   nullStringFromPtr(res.ExpiryAlertThresholds),
-			FlapDetectionEnabled:    boolToInt64(res.FlapDetectionEnabled),
-			FlapThreshold:           int64(res.FlapThreshold),
-			FlapWindowSeconds:       int64(res.FlapWindowSeconds),
-			FlapMaxDurationMinutes:  int64(res.FlapMaxDurationMinutes),
-			ReminderIntervalMinutes: int64(res.ReminderIntervalMinutes),
-			HeartbeatInterval:       nullInt64FromPtrInt(res.HeartbeatInterval),
-			HeartbeatGrace:          nullInt64FromPtrInt(res.HeartbeatGrace),
-			UpdatedAt:               res.UpdatedAt,
+		return sqlitesqlc.WithTx(ctx, r.sqliteDB, func(q *sqlitesqlc.Queries) error {
+			if err := r.updateMainSQLite(ctx, q, res); err != nil {
+				return err
+			}
+			currentIDs, err := q.ListTagIDsByResourceID(ctx, res.ID)
+			if err != nil {
+				return err
+			}
+			toAdd, toRemove := diffJunctionSets(currentIDs, targetTagIDs)
+			for _, tid := range toRemove {
+				if err := q.UnlinkResourceTag(ctx, sqlitesqlc.UnlinkResourceTagParams{
+					ResourceID: res.ID, TagID: tid,
+				}); err != nil {
+					return err
+				}
+			}
+			for _, tid := range toAdd {
+				if err := q.LinkResourceTag(ctx, sqlitesqlc.LinkResourceTagParams{
+					ResourceID: res.ID, TagID: tid,
+				}); err != nil {
+					return err
+				}
+			}
+			return nil
 		})
-		if err != nil {
-			return fmt.Errorf("sqlc: update resource: %w", err)
-		}
-		return nil
 	default:
 		return r.unconfigured()
 	}
+}
+
+func (r *ResourceRepositorySQLC) updateMainPG(ctx context.Context, q *pgsqlc.Queries, res *domain.Resource) error {
+	if _, err := q.UpdateResourceMain(ctx, pgsqlc.UpdateResourceMainParams{
+		ID:                      res.ID,
+		Name:                    res.Name,
+		Type:                    string(res.Type),
+		Target:                  res.Target,
+		Interval:                int32(res.Interval),
+		Timeout:                 int32(res.Timeout),
+		IsActive:                res.IsActive,
+		ConfirmationChecks:      int32(res.ConfirmationChecks),
+		ConfirmationInterval:    int32(res.ConfirmationInterval),
+		ComponentID:             pgTextFromPtr(res.ComponentID),
+		ExpiryAlertThresholds:   pgTextFromPtr(res.ExpiryAlertThresholds),
+		FlapDetectionEnabled:    res.FlapDetectionEnabled,
+		FlapThreshold:           int32(res.FlapThreshold),
+		FlapWindowSeconds:       int32(res.FlapWindowSeconds),
+		FlapMaxDurationMinutes:  int32(res.FlapMaxDurationMinutes),
+		ReminderIntervalMinutes: int32(res.ReminderIntervalMinutes),
+		HeartbeatInterval:       pgInt4FromPtr(res.HeartbeatInterval),
+		HeartbeatGrace:          pgInt4FromPtr(res.HeartbeatGrace),
+		UpdatedAt:               pgtype.Timestamptz{Time: res.UpdatedAt, Valid: true},
+	}); err != nil {
+		return fmt.Errorf("sqlc: update resource: %w", err)
+	}
+	return nil
+}
+
+func (r *ResourceRepositorySQLC) updateMainSQLite(ctx context.Context, q *sqlitesqlc.Queries, res *domain.Resource) error {
+	if _, err := q.UpdateResourceMain(ctx, sqlitesqlc.UpdateResourceMainParams{
+		ID:                      res.ID,
+		Name:                    res.Name,
+		Type:                    string(res.Type),
+		Target:                  res.Target,
+		Interval:                int64(res.Interval),
+		Timeout:                 int64(res.Timeout),
+		IsActive:                boolToInt64(res.IsActive),
+		ConfirmationChecks:      int64(res.ConfirmationChecks),
+		ConfirmationInterval:    int64(res.ConfirmationInterval),
+		ComponentID:             nullStringFromPtr(res.ComponentID),
+		ExpiryAlertThresholds:   nullStringFromPtr(res.ExpiryAlertThresholds),
+		FlapDetectionEnabled:    boolToInt64(res.FlapDetectionEnabled),
+		FlapThreshold:           int64(res.FlapThreshold),
+		FlapWindowSeconds:       int64(res.FlapWindowSeconds),
+		FlapMaxDurationMinutes:  int64(res.FlapMaxDurationMinutes),
+		ReminderIntervalMinutes: int64(res.ReminderIntervalMinutes),
+		HeartbeatInterval:       nullInt64FromPtrInt(res.HeartbeatInterval),
+		HeartbeatGrace:          nullInt64FromPtrInt(res.HeartbeatGrace),
+		UpdatedAt:               res.UpdatedAt,
+	}); err != nil {
+		return fmt.Errorf("sqlc: update resource: %w", err)
+	}
+	return nil
 }
 
 func (r *ResourceRepositorySQLC) Delete(ctx context.Context, id string) error {
@@ -249,6 +351,7 @@ func (r *ResourceRepositorySQLC) Delete(ctx context.Context, id string) error {
 }
 
 func (r *ResourceRepositorySQLC) FindActive(ctx context.Context, limit, offset int) ([]*domain.Resource, error) {
+	var out []*domain.Resource
 	switch {
 	case r.pgQ != nil:
 		rows, err := r.pgQ.ListActiveResources(ctx, pgsqlc.ListActiveResourcesParams{
@@ -257,7 +360,7 @@ func (r *ResourceRepositorySQLC) FindActive(ctx context.Context, limit, offset i
 		if err != nil {
 			return nil, fmt.Errorf("sqlc: find active resources: %w", err)
 		}
-		return resourcesFromPG(rows), nil
+		out = resourcesFromPG(rows)
 	case r.sqliteQ != nil:
 		rows, err := r.sqliteQ.ListActiveResources(ctx, sqlitesqlc.ListActiveResourcesParams{
 			Limit: int64(limit), Offset: int64(offset),
@@ -265,33 +368,83 @@ func (r *ResourceRepositorySQLC) FindActive(ctx context.Context, limit, offset i
 		if err != nil {
 			return nil, fmt.Errorf("sqlc: find active resources: %w", err)
 		}
-		return resourcesFromSQLite(rows), nil
+		out = resourcesFromSQLite(rows)
+	default:
+		return nil, r.unconfigured()
+	}
+	if err := r.attachTagsToResources(ctx, out); err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (r *ResourceRepositorySQLC) FindByTag(ctx context.Context, tagName string, limit, offset int) ([]*domain.Resource, error) {
+	switch {
+	case r.pgQ != nil:
+		ids, err := r.pgQ.FindResourceIDsByTagName(ctx, pgsqlc.FindResourceIDsByTagNameParams{
+			Name: tagName, Limit: int32(limit), Offset: int32(offset),
+		})
+		if err != nil {
+			return nil, fmt.Errorf("sqlc: find resource ids by tag: %w", err)
+		}
+		if len(ids) == 0 {
+			return []*domain.Resource{}, nil
+		}
+		rows, err := r.pgQ.FindResourcesByIDs(ctx, ids)
+		if err != nil {
+			return nil, fmt.Errorf("sqlc: find resources by ids: %w", err)
+		}
+		out := resourcesInOrder(resourcesFromPG(rows), ids)
+		if err := r.attachTagsToResources(ctx, out); err != nil {
+			return nil, err
+		}
+		return out, nil
+	case r.sqliteQ != nil:
+		ids, err := r.sqliteQ.FindResourceIDsByTagName(ctx, sqlitesqlc.FindResourceIDsByTagNameParams{
+			Name: tagName, Limit: int64(limit), Offset: int64(offset),
+		})
+		if err != nil {
+			return nil, fmt.Errorf("sqlc: find resource ids by tag: %w", err)
+		}
+		if len(ids) == 0 {
+			return []*domain.Resource{}, nil
+		}
+		rows, err := r.sqliteQ.FindResourcesByIDs(ctx, ids)
+		if err != nil {
+			return nil, fmt.Errorf("sqlc: find resources by ids: %w", err)
+		}
+		out := resourcesInOrder(resourcesFromSQLite(rows), ids)
+		if err := r.attachTagsToResources(ctx, out); err != nil {
+			return nil, err
+		}
+		return out, nil
 	default:
 		return nil, r.unconfigured()
 	}
 }
 
-func (r *ResourceRepositorySQLC) FindByTag(ctx context.Context, tagName string, limit, offset int) ([]*domain.Resource, error) {
-	return nil, fmt.Errorf("resource_repository_sqlc: FindByTag deferred to PR2 (M2M join)")
-}
-
 func (r *ResourceRepositorySQLC) FindByComponentID(ctx context.Context, componentID string) ([]*domain.Resource, error) {
+	var out []*domain.Resource
 	switch {
 	case r.pgQ != nil:
 		rows, err := r.pgQ.FindResourcesByComponentID(ctx, pgtype.Text{String: componentID, Valid: true})
 		if err != nil {
 			return nil, fmt.Errorf("sqlc: find resources by component: %w", err)
 		}
-		return resourcesFromPG(rows), nil
+		out = resourcesFromPG(rows)
 	case r.sqliteQ != nil:
 		rows, err := r.sqliteQ.FindResourcesByComponentID(ctx, sql.NullString{String: componentID, Valid: true})
 		if err != nil {
 			return nil, fmt.Errorf("sqlc: find resources by component: %w", err)
 		}
-		return resourcesFromSQLite(rows), nil
+		out = resourcesFromSQLite(rows)
 	default:
 		return nil, r.unconfigured()
 	}
+	if err := r.attachTagsToResources(ctx, out); err != nil {
+		return nil, err
+	}
+	return out, nil
 }
 
 func (r *ResourceRepositorySQLC) CountByComponentID(ctx context.Context, componentID string) (int64, error) {
@@ -317,6 +470,7 @@ func (r *ResourceRepositorySQLC) FindMissedHeartbeats(ctx context.Context, now t
 	if limit <= 0 {
 		limit = 1000
 	}
+	var out []*domain.Resource
 	switch {
 	case r.pgQ != nil:
 		rows, err := r.pgQ.FindMissedHeartbeatsPG(ctx, pgsqlc.FindMissedHeartbeatsPGParams{
@@ -326,7 +480,7 @@ func (r *ResourceRepositorySQLC) FindMissedHeartbeats(ctx context.Context, now t
 		if err != nil {
 			return nil, fmt.Errorf("sqlc: find missed heartbeats: %w", err)
 		}
-		return resourcesFromPG(rows), nil
+		out = resourcesFromPG(rows)
 	case r.sqliteQ != nil:
 		rows, err := r.sqliteQ.FindMissedHeartbeatsSQLite(ctx, sqlitesqlc.FindMissedHeartbeatsSQLiteParams{
 			NowUnix:  now.Unix(),
@@ -335,10 +489,14 @@ func (r *ResourceRepositorySQLC) FindMissedHeartbeats(ctx context.Context, now t
 		if err != nil {
 			return nil, fmt.Errorf("sqlc: find missed heartbeats: %w", err)
 		}
-		return resourcesFromSQLite(rows), nil
+		out = resourcesFromSQLite(rows)
 	default:
 		return nil, r.unconfigured()
 	}
+	if err := r.attachTagsToResources(ctx, out); err != nil {
+		return nil, err
+	}
+	return out, nil
 }
 
 func (r *ResourceRepositorySQLC) UpdateLastPingAt(ctx context.Context, id string, at time.Time) error {
@@ -410,22 +568,27 @@ func (r *ResourceRepositorySQLC) UpdateMetadata(ctx context.Context, id string, 
 }
 
 func (r *ResourceRepositorySQLC) FindScheduledResources(ctx context.Context) ([]*domain.Resource, error) {
+	var out []*domain.Resource
 	switch {
 	case r.pgQ != nil:
 		rows, err := r.pgQ.ListScheduledResources(ctx)
 		if err != nil {
 			return nil, fmt.Errorf("sqlc: list scheduled resources: %w", err)
 		}
-		return resourcesFromPG(rows), nil
+		out = resourcesFromPG(rows)
 	case r.sqliteQ != nil:
 		rows, err := r.sqliteQ.ListScheduledResources(ctx)
 		if err != nil {
 			return nil, fmt.Errorf("sqlc: list scheduled resources: %w", err)
 		}
-		return resourcesFromSQLite(rows), nil
+		out = resourcesFromSQLite(rows)
 	default:
 		return nil, r.unconfigured()
 	}
+	if err := r.attachTagsToResources(ctx, out); err != nil {
+		return nil, err
+	}
+	return out, nil
 }
 
 // ---------- Mapping helpers ----------
@@ -606,6 +769,98 @@ func resourcesFromSQLite(rows []sqlitesqlc.Resource) []*domain.Resource {
 	out := make([]*domain.Resource, len(rows))
 	for i, row := range rows {
 		out[i] = resourceFromSQLite(row)
+	}
+	return out
+}
+
+// ---------- M2M (resource_tags) helpers ----------
+
+func tagIDsFromResource(r *domain.Resource) []string {
+	if len(r.Tags) == 0 {
+		return nil
+	}
+	out := make([]string, 0, len(r.Tags))
+	for _, t := range r.Tags {
+		if t != nil && t.ID != "" {
+			out = append(out, t.ID)
+		}
+	}
+	return out
+}
+
+// attachTagsToResources fetches resource_tags + tags for a set of resource IDs
+// (one round-trip) and attaches the resulting *domain.Tags slices to each
+// matching resource in `resources`. Resources with no tags get an empty slice
+// (consistent with GORM Preload semantics: nil-vs-empty distinction not
+// preserved by the underlying join).
+func (r *ResourceRepositorySQLC) attachTagsToResources(ctx context.Context, resources []*domain.Resource) error {
+	if len(resources) == 0 {
+		return nil
+	}
+	ids := make([]string, len(resources))
+	for i, res := range resources {
+		ids[i] = res.ID
+	}
+	byID := make(map[string][]*domain.Tags, len(resources))
+	switch {
+	case r.pgQ != nil:
+		rows, err := r.pgQ.ListTagsByResourceIDs(ctx, ids)
+		if err != nil {
+			return fmt.Errorf("sqlc: preload tags: %w", err)
+		}
+		for _, row := range rows {
+			t := &domain.Tags{
+				Base: domain.Base{
+					ID:        row.ID,
+					CreatedAt: row.CreatedAt.Time,
+					UpdatedAt: row.UpdatedAt.Time,
+				},
+				Name:        row.Name,
+				Color:       ptrStringFromPGText(row.Color),
+				Description: ptrStringFromPGText(row.Description),
+			}
+			byID[row.ResourceID] = append(byID[row.ResourceID], t)
+		}
+	case r.sqliteQ != nil:
+		rows, err := r.sqliteQ.ListTagsByResourceIDs(ctx, ids)
+		if err != nil {
+			return fmt.Errorf("sqlc: preload tags: %w", err)
+		}
+		for _, row := range rows {
+			t := &domain.Tags{
+				Base: domain.Base{
+					ID:        row.ID,
+					CreatedAt: row.CreatedAt,
+					UpdatedAt: row.UpdatedAt,
+				},
+				Name:        row.Name,
+				Color:       ptrStringFromNullString(row.Color),
+				Description: ptrStringFromNullString(row.Description),
+			}
+			byID[row.ResourceID] = append(byID[row.ResourceID], t)
+		}
+	default:
+		return r.unconfigured()
+	}
+	for _, res := range resources {
+		res.Tags = byID[res.ID]
+	}
+	return nil
+}
+
+// resourcesInOrder reorders `loaded` to match the order of `ids`. Used after
+// FindResourcesByIDs (which loses ORDER BY) to restore the order produced by
+// the upstream FindResourceIDs* query.
+func resourcesInOrder(loaded []*domain.Resource, ids []string) []*domain.Resource {
+	byID := make(map[string]*domain.Resource, len(loaded))
+	for _, r := range loaded {
+		byID[r.ID] = r
+	}
+	out := make([]*domain.Resource, 0, len(ids))
+	for _, id := range ids {
+		if r, ok := byID[id]; ok {
+			out = append(out, r)
+		}
 	}
 	return out
 }
