@@ -15,6 +15,7 @@ type Querier interface {
 	ClaimNotificationEventForUpdate(ctx context.Context, id string) (string, error)
 	CountAPIKeysByUserID(ctx context.Context, userID string) (int64, error)
 	CountExpiryNotificationLogsByKey(ctx context.Context, arg CountExpiryNotificationLogsByKeyParams) (int64, error)
+	CountIncidentsByResourceID(ctx context.Context, resourceID string) (int64, error)
 	CountMonitoringActivityByResourceSuccess(ctx context.Context, arg CountMonitoringActivityByResourceSuccessParams) (int64, error)
 	CountMonitoringActivityByResourceTotal(ctx context.Context, arg CountMonitoringActivityByResourceTotalParams) (int64, error)
 	CountMonitoringActivitySinceSuccess(ctx context.Context, createdAt pgtype.Timestamptz) (int64, error)
@@ -23,6 +24,10 @@ type Querier interface {
 	CreateAPIKey(ctx context.Context, arg CreateAPIKeyParams) error
 	CreateComponent(ctx context.Context, arg CreateComponentParams) error
 	CreateExpiryNotificationLog(ctx context.Context, arg CreateExpiryNotificationLogParams) error
+	// US2 of spec 048: incident_repository sqlc migration. No M2M;
+	// controlled-N+1 preload for Resource and IncidentDiagnostics
+	// (1-to-1, FK uniqueIndex on incident_id).
+	CreateIncident(ctx context.Context, arg CreateIncidentParams) error
 	CreateIncidentDiagnostics(ctx context.Context, arg CreateIncidentDiagnosticsParams) (IncidentDiagnostic, error)
 	CreateIncidentEventStep(ctx context.Context, arg CreateIncidentEventStepParams) error
 	CreateMaintenance(ctx context.Context, arg CreateMaintenanceParams) error
@@ -39,6 +44,7 @@ type Querier interface {
 	DeleteComponent(ctx context.Context, id string) (int64, error)
 	DeleteExpiryNotificationLogsByResourceIDAndType(ctx context.Context, arg DeleteExpiryNotificationLogsByResourceIDAndTypeParams) error
 	DeleteExpiryNotificationLogsOlderThan(ctx context.Context, sentAt pgtype.Timestamptz) error
+	DeleteIncident(ctx context.Context, id string) (int64, error)
 	DeleteIncidentDiagnostics(ctx context.Context, id string) (int64, error)
 	DeleteIncidentEventStep(ctx context.Context, id string) (int64, error)
 	DeleteMaintenance(ctx context.Context, id string) (int64, error)
@@ -49,13 +55,18 @@ type Querier interface {
 	DeleteUser(ctx context.Context, id string) error
 	FindAPIKeyByIDForUser(ctx context.Context, arg FindAPIKeyByIDForUserParams) (ApiKey, error)
 	FindAPIKeyByKeyHash(ctx context.Context, keyHash string) (ApiKey, error)
+	FindActiveIncidentByResourceID(ctx context.Context, resourceID string) (Incident, error)
 	FindActiveMaintenancesForResource(ctx context.Context, arg FindActiveMaintenancesForResourceParams) ([]Maintenance, error)
 	FindComponentByID(ctx context.Context, id string) (Component, error)
 	FindDefaultNotificationChannels(ctx context.Context) ([]NotificationChannel, error)
+	FindIncidentByID(ctx context.Context, id string) (Incident, error)
 	FindIncidentDiagnosticsByIncidentID(ctx context.Context, incidentID string) (IncidentDiagnostic, error)
 	// Single JOIN preload (Clarification Q1) — incident embedded into event step.
 	FindIncidentEventStepByID(ctx context.Context, id string) (FindIncidentEventStepByIDRow, error)
+	FindIncidentsByIDs(ctx context.Context, dollar_1 []string) ([]Incident, error)
+	FindIncidentsByResource(ctx context.Context, arg FindIncidentsByResourceParams) ([]Incident, error)
 	FindLastIncidentEventStepByIncidentAndStep(ctx context.Context, arg FindLastIncidentEventStepByIncidentAndStepParams) (IncidentEventStep, error)
+	FindLastResolvedIncident(ctx context.Context) (Incident, error)
 	FindMaintenanceByID(ctx context.Context, id string) (Maintenance, error)
 	FindMissedHeartbeatsPG(ctx context.Context, arg FindMissedHeartbeatsPGParams) ([]Resource, error)
 	FindMonitoringActivitiesByResourceID(ctx context.Context, arg FindMonitoringActivitiesByResourceIDParams) ([]MonitoringActivity, error)
@@ -73,11 +84,16 @@ type Querier interface {
 	FindTagByID(ctx context.Context, id string) (Tag, error)
 	FindTagByName(ctx context.Context, name string) (Tag, error)
 	FindTagsByIDs(ctx context.Context, dollar_1 []string) ([]Tag, error)
+	FindUnresolvedIncidents(ctx context.Context, arg FindUnresolvedIncidentsParams) ([]Incident, error)
 	FindUserByEmail(ctx context.Context, email string) (User, error)
 	FindUserByID(ctx context.Context, id string) (User, error)
+	// Two aggregated counts in a single round-trip. CTE keeps the row scan
+	// to one pass over the window.
+	GetIncidentStatsPG(ctx context.Context, startedAt pgtype.Timestamptz) (GetIncidentStatsPGRow, error)
 	GetRecentResponseTimes(ctx context.Context, arg GetRecentResponseTimesParams) ([]GetRecentResponseTimesRow, error)
 	GetResourceCredentialByResourceID(ctx context.Context, resourceID string) (ResourceCredential, error)
 	GetStatusPageSettings(ctx context.Context) (StatusPageSetting, error)
+	HasActiveIncident(ctx context.Context) (bool, error)
 	LinkMaintenanceResource(ctx context.Context, arg LinkMaintenanceResourceParams) error
 	// M2M: resource_notification_channels ---------------------------------------
 	LinkResourceChannel(ctx context.Context, arg LinkResourceChannelParams) error
@@ -91,7 +107,9 @@ type Querier interface {
 	// 1-to-1 preloads ------------------------------------------------------------
 	ListComponentsByIDs(ctx context.Context, dollar_1 []string) ([]Component, error)
 	ListCredentialsByResourceIDs(ctx context.Context, dollar_1 []string) ([]ResourceCredential, error)
+	ListIncidentDiagnosticsByIncidentIDs(ctx context.Context, dollar_1 []string) ([]IncidentDiagnostic, error)
 	ListIncidentEventSteps(ctx context.Context, arg ListIncidentEventStepsParams) ([]IncidentEventStep, error)
+	ListIncidents(ctx context.Context, arg ListIncidentsParams) ([]Incident, error)
 	ListMaintenanceResourceIDsByMaintenanceID(ctx context.Context, maintenanceID string) ([]string, error)
 	ListMaintenancesAll(ctx context.Context, arg ListMaintenancesAllParams) ([]Maintenance, error)
 	ListMaintenancesByStatus(ctx context.Context, arg ListMaintenancesByStatusParams) ([]Maintenance, error)
@@ -117,6 +135,7 @@ type Querier interface {
 	UpdateAPIKeyLastUsed(ctx context.Context, arg UpdateAPIKeyLastUsedParams) (int64, error)
 	UpdateComponent(ctx context.Context, arg UpdateComponentParams) error
 	UpdateComponentLastNotificationStatus(ctx context.Context, arg UpdateComponentLastNotificationStatusParams) (int64, error)
+	UpdateIncident(ctx context.Context, arg UpdateIncidentParams) (int64, error)
 	UpdateIncidentDiagnostics(ctx context.Context, arg UpdateIncidentDiagnosticsParams) (int64, error)
 	UpdateIncidentEventStep(ctx context.Context, arg UpdateIncidentEventStepParams) (int64, error)
 	UpdateMaintenance(ctx context.Context, arg UpdateMaintenanceParams) error

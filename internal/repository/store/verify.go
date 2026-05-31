@@ -11,6 +11,7 @@ var (
 	_ port.ComponentRepository           = (*ComponentRepositoryImpl)(nil)
 	_ port.ComponentRepository           = (*ComponentRepositorySQLC)(nil)
 	_ port.IncidentRepository            = (*IncidentRepositoryImpl)(nil)
+	_ port.IncidentRepository            = (*IncidentRepositorySQLC)(nil)
 	_ port.IncidentEventStepRepository   = (*IncidentEventStepRepositoryImpl)(nil)
 	_ port.IncidentEventStepRepository   = (*IncidentEventStepRepositorySQLC)(nil)
 	_ port.NotificationRepository        = (*NotificationRepositoryImpl)(nil)

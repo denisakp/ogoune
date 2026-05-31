@@ -34,6 +34,7 @@ const (
 	envSqlcIncidentEventStep  = "SQLC_INCIDENT_EVENT_STEP"
 	// Wave 3 (048)
 	envSqlcResource = "SQLC_RESOURCE"
+	envSqlcIncident = "SQLC_INCIDENT"
 )
 
 // checkDialectHandle returns an error when the active dialect's native handle
@@ -67,6 +68,19 @@ func selectResourceRepo(rt *dbruntime.Runtime, db *gorm.DB) (port.ResourceReposi
 		return nil, "", err
 	}
 	return store.NewResourceRepositorySQLC(rt), "sqlc", nil
+}
+
+// selectIncidentRepo picks the active incident repository based on
+// SQLC_INCIDENT. US2 of spec 048.
+func selectIncidentRepo(rt *dbruntime.Runtime, db *gorm.DB) (port.IncidentRepository, string, error) {
+	on, _ := strconv.ParseBool(os.Getenv(envSqlcIncident))
+	if !on {
+		return store.NewIncidentRepository(db), "gorm", nil
+	}
+	if err := checkDialectHandle(rt, envSqlcIncident); err != nil {
+		return nil, "", err
+	}
+	return store.NewIncidentRepositorySQLC(rt), "sqlc", nil
 }
 
 // selectTagsRepo picks the active tags repository based on SQLC_TAGS.
@@ -270,7 +284,13 @@ func InitDatabase(app *App) {
 	}
 	slog.Info("resource repository wired", "implementation", resImpl)
 	app.ResourceRepo = resRepo
-	app.IncidentRepo = store.NewIncidentRepository(db)
+	incRepo, incImpl, err := selectIncidentRepo(rt, db)
+	if err != nil {
+		slog.Error("failed to wire incident repository", "error", err)
+		os.Exit(1)
+	}
+	slog.Info("incident repository wired", "implementation", incImpl)
+	app.IncidentRepo = incRepo
 	iesRepo, iesImpl, err := selectIncidentEventStepRepo(rt, db)
 	if err != nil {
 		slog.Error("failed to wire incident_event_step repository", "error", err)
