@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/denisakp/ogoune/internal/domain"
+	"github.com/denisakp/ogoune/internal/port"
 	"github.com/denisakp/ogoune/internal/repository"
 	"github.com/prometheus/client_golang/prometheus"
 	dto "github.com/prometheus/client_model/go"
@@ -55,10 +56,10 @@ func (s *stubResourceRepo) UpdateLastPingAt(ctx context.Context, id string, at t
 func (s *stubResourceRepo) UpdateStatus(ctx context.Context, id string, status domain.ResourceStatus) error {
 	return nil
 }
-func (s *stubResourceRepo) UpdateMonitoringState(ctx context.Context, resource *domain.Resource) error {
+func (s *stubResourceRepo) UpdateMonitoringState(ctx context.Context, id string, req port.UpdateMonitoringStateRequest) error {
 	return nil
 }
-func (s *stubResourceRepo) UpdateMetadata(ctx context.Context, id string, metadata *domain.ResourceMetaData) error {
+func (s *stubResourceRepo) UpdateMetadata(ctx context.Context, id string, req port.UpdateMetadataRequest) error {
 	return nil
 }
 func (s *stubResourceRepo) FindScheduledResources(ctx context.Context) ([]*domain.Resource, error) {
