@@ -110,6 +110,42 @@ FROM resource_tags rt
 JOIN tags t ON rt.tag_id = t.id
 WHERE rt.resource_id IN (sqlc.slice('resource_ids'));
 
+-- M2M: resource_notification_channels ---------------------------------------
+
+-- name: LinkResourceChannel :exec
+INSERT INTO resource_notification_channels (resource_id, notification_channel_id)
+VALUES (?, ?)
+ON CONFLICT DO NOTHING;
+
+-- name: UnlinkResourceChannel :exec
+DELETE FROM resource_notification_channels
+WHERE resource_id = ? AND notification_channel_id = ?;
+
+-- name: ListChannelIDsByResourceID :many
+SELECT notification_channel_id FROM resource_notification_channels
+WHERE resource_id = ?;
+
+-- name: ListChannelsByResourceIDs :many
+SELECT rnc.resource_id,
+       nc.id, nc.name, nc.type, nc.config, nc.enabled_by_default,
+       nc.created_at, nc.updated_at
+FROM resource_notification_channels rnc
+JOIN notification_channels nc ON rnc.notification_channel_id = nc.id
+WHERE rnc.resource_id IN (sqlc.slice('resource_ids'));
+
+-- 1-to-1 preloads ------------------------------------------------------------
+
+-- name: ListComponentsByIDs :many
+SELECT id, created_at, updated_at, name, description,
+       last_notification_status, grouping_window_seconds
+FROM components
+WHERE id IN (sqlc.slice('ids'));
+
+-- name: ListCredentialsByResourceIDs :many
+SELECT id, resource_id, username, password, options, created_at, updated_at
+FROM resource_credentials
+WHERE resource_id IN (sqlc.slice('resource_ids'));
+
 -- name: FindResourceIDsByTagName :many
 SELECT r.id
 FROM resources r

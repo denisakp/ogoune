@@ -78,6 +78,7 @@ func (r *ResourceRepositorySQLC) Create(ctx context.Context, res *domain.Resourc
 		res.Timeout = 10
 	}
 	tagIDs := tagIDsFromResource(res)
+	channelIDs := channelIDsFromResource(res)
 	switch {
 	case r.pgQ != nil:
 		err := pgsqlc.WithTx(ctx, r.pgPool, func(q *pgsqlc.Queries) error {
@@ -87,6 +88,13 @@ func (r *ResourceRepositorySQLC) Create(ctx context.Context, res *domain.Resourc
 			for _, tid := range tagIDs {
 				if err := q.LinkResourceTag(ctx, pgsqlc.LinkResourceTagParams{
 					ResourceID: res.ID, TagID: tid,
+				}); err != nil {
+					return err
+				}
+			}
+			for _, cid := range channelIDs {
+				if err := q.LinkResourceChannel(ctx, pgsqlc.LinkResourceChannelParams{
+					ResourceID: res.ID, NotificationChannelID: cid,
 				}); err != nil {
 					return err
 				}
@@ -105,6 +113,13 @@ func (r *ResourceRepositorySQLC) Create(ctx context.Context, res *domain.Resourc
 			for _, tid := range tagIDs {
 				if err := q.LinkResourceTag(ctx, sqlitesqlc.LinkResourceTagParams{
 					ResourceID: res.ID, TagID: tid,
+				}); err != nil {
+					return err
+				}
+			}
+			for _, cid := range channelIDs {
+				if err := q.LinkResourceChannel(ctx, sqlitesqlc.LinkResourceChannelParams{
+					ResourceID: res.ID, NotificationChannelID: cid,
 				}); err != nil {
 					return err
 				}
@@ -144,7 +159,7 @@ func (r *ResourceRepositorySQLC) FindByID(ctx context.Context, id string) (*doma
 	default:
 		return nil, r.unconfigured()
 	}
-	if err := r.attachTagsToResources(ctx, []*domain.Resource{out}); err != nil {
+	if err := r.attachPreloads(ctx, []*domain.Resource{out}); err != nil {
 		return nil, err
 	}
 	return out, nil
@@ -174,7 +189,7 @@ func (r *ResourceRepositorySQLC) FindByHeartbeatSlug(ctx context.Context, slug s
 	default:
 		return nil, r.unconfigured()
 	}
-	if err := r.attachTagsToResources(ctx, []*domain.Resource{out}); err != nil {
+	if err := r.attachPreloads(ctx, []*domain.Resource{out}); err != nil {
 		return nil, err
 	}
 	return out, nil
@@ -204,7 +219,7 @@ func (r *ResourceRepositorySQLC) List(ctx context.Context, limit, offset int) ([
 	default:
 		return nil, r.unconfigured()
 	}
-	if err := r.attachTagsToResources(ctx, out); err != nil {
+	if err := r.attachPreloads(ctx, out); err != nil {
 		return nil, err
 	}
 	return out, nil
@@ -213,27 +228,49 @@ func (r *ResourceRepositorySQLC) List(ctx context.Context, limit, offset int) ([
 func (r *ResourceRepositorySQLC) Update(ctx context.Context, res *domain.Resource) error {
 	res.UpdatedAt = time.Now()
 	targetTagIDs := tagIDsFromResource(res)
+	targetChannelIDs := channelIDsFromResource(res)
 	switch {
 	case r.pgQ != nil:
 		return pgsqlc.WithTx(ctx, r.pgPool, func(q *pgsqlc.Queries) error {
 			if err := r.updateMainPG(ctx, q, res); err != nil {
 				return err
 			}
-			currentIDs, err := q.ListTagIDsByResourceID(ctx, res.ID)
+			// Tags diff
+			currentTagIDs, err := q.ListTagIDsByResourceID(ctx, res.ID)
 			if err != nil {
 				return err
 			}
-			toAdd, toRemove := diffJunctionSets(currentIDs, targetTagIDs)
-			for _, tid := range toRemove {
+			tagAdd, tagRemove := diffJunctionSets(currentTagIDs, targetTagIDs)
+			for _, tid := range tagRemove {
 				if err := q.UnlinkResourceTag(ctx, pgsqlc.UnlinkResourceTagParams{
 					ResourceID: res.ID, TagID: tid,
 				}); err != nil {
 					return err
 				}
 			}
-			for _, tid := range toAdd {
+			for _, tid := range tagAdd {
 				if err := q.LinkResourceTag(ctx, pgsqlc.LinkResourceTagParams{
 					ResourceID: res.ID, TagID: tid,
+				}); err != nil {
+					return err
+				}
+			}
+			// Channels diff
+			currentChannelIDs, err := q.ListChannelIDsByResourceID(ctx, res.ID)
+			if err != nil {
+				return err
+			}
+			chAdd, chRemove := diffJunctionSets(currentChannelIDs, targetChannelIDs)
+			for _, cid := range chRemove {
+				if err := q.UnlinkResourceChannel(ctx, pgsqlc.UnlinkResourceChannelParams{
+					ResourceID: res.ID, NotificationChannelID: cid,
+				}); err != nil {
+					return err
+				}
+			}
+			for _, cid := range chAdd {
+				if err := q.LinkResourceChannel(ctx, pgsqlc.LinkResourceChannelParams{
+					ResourceID: res.ID, NotificationChannelID: cid,
 				}); err != nil {
 					return err
 				}
@@ -245,21 +282,40 @@ func (r *ResourceRepositorySQLC) Update(ctx context.Context, res *domain.Resourc
 			if err := r.updateMainSQLite(ctx, q, res); err != nil {
 				return err
 			}
-			currentIDs, err := q.ListTagIDsByResourceID(ctx, res.ID)
+			currentTagIDs, err := q.ListTagIDsByResourceID(ctx, res.ID)
 			if err != nil {
 				return err
 			}
-			toAdd, toRemove := diffJunctionSets(currentIDs, targetTagIDs)
-			for _, tid := range toRemove {
+			tagAdd, tagRemove := diffJunctionSets(currentTagIDs, targetTagIDs)
+			for _, tid := range tagRemove {
 				if err := q.UnlinkResourceTag(ctx, sqlitesqlc.UnlinkResourceTagParams{
 					ResourceID: res.ID, TagID: tid,
 				}); err != nil {
 					return err
 				}
 			}
-			for _, tid := range toAdd {
+			for _, tid := range tagAdd {
 				if err := q.LinkResourceTag(ctx, sqlitesqlc.LinkResourceTagParams{
 					ResourceID: res.ID, TagID: tid,
+				}); err != nil {
+					return err
+				}
+			}
+			currentChannelIDs, err := q.ListChannelIDsByResourceID(ctx, res.ID)
+			if err != nil {
+				return err
+			}
+			chAdd, chRemove := diffJunctionSets(currentChannelIDs, targetChannelIDs)
+			for _, cid := range chRemove {
+				if err := q.UnlinkResourceChannel(ctx, sqlitesqlc.UnlinkResourceChannelParams{
+					ResourceID: res.ID, NotificationChannelID: cid,
+				}); err != nil {
+					return err
+				}
+			}
+			for _, cid := range chAdd {
+				if err := q.LinkResourceChannel(ctx, sqlitesqlc.LinkResourceChannelParams{
+					ResourceID: res.ID, NotificationChannelID: cid,
 				}); err != nil {
 					return err
 				}
@@ -372,7 +428,7 @@ func (r *ResourceRepositorySQLC) FindActive(ctx context.Context, limit, offset i
 	default:
 		return nil, r.unconfigured()
 	}
-	if err := r.attachTagsToResources(ctx, out); err != nil {
+	if err := r.attachPreloads(ctx, out); err != nil {
 		return nil, err
 	}
 	return out, nil
@@ -395,7 +451,7 @@ func (r *ResourceRepositorySQLC) FindByTag(ctx context.Context, tagName string, 
 			return nil, fmt.Errorf("sqlc: find resources by ids: %w", err)
 		}
 		out := resourcesInOrder(resourcesFromPG(rows), ids)
-		if err := r.attachTagsToResources(ctx, out); err != nil {
+		if err := r.attachPreloads(ctx, out); err != nil {
 			return nil, err
 		}
 		return out, nil
@@ -414,7 +470,7 @@ func (r *ResourceRepositorySQLC) FindByTag(ctx context.Context, tagName string, 
 			return nil, fmt.Errorf("sqlc: find resources by ids: %w", err)
 		}
 		out := resourcesInOrder(resourcesFromSQLite(rows), ids)
-		if err := r.attachTagsToResources(ctx, out); err != nil {
+		if err := r.attachPreloads(ctx, out); err != nil {
 			return nil, err
 		}
 		return out, nil
@@ -441,7 +497,7 @@ func (r *ResourceRepositorySQLC) FindByComponentID(ctx context.Context, componen
 	default:
 		return nil, r.unconfigured()
 	}
-	if err := r.attachTagsToResources(ctx, out); err != nil {
+	if err := r.attachPreloads(ctx, out); err != nil {
 		return nil, err
 	}
 	return out, nil
@@ -493,7 +549,7 @@ func (r *ResourceRepositorySQLC) FindMissedHeartbeats(ctx context.Context, now t
 	default:
 		return nil, r.unconfigured()
 	}
-	if err := r.attachTagsToResources(ctx, out); err != nil {
+	if err := r.attachPreloads(ctx, out); err != nil {
 		return nil, err
 	}
 	return out, nil
@@ -585,7 +641,7 @@ func (r *ResourceRepositorySQLC) FindScheduledResources(ctx context.Context) ([]
 	default:
 		return nil, r.unconfigured()
 	}
-	if err := r.attachTagsToResources(ctx, out); err != nil {
+	if err := r.attachPreloads(ctx, out); err != nil {
 		return nil, err
 	}
 	return out, nil
@@ -773,6 +829,30 @@ func resourcesFromSQLite(rows []sqlitesqlc.Resource) []*domain.Resource {
 	return out
 }
 
+// ---------- preload composite ----------
+
+// attachPreloads fetches Tags + NotificationChannels + Component + Credential
+// for the given resources via 4 round-trips (controlled N+1, clarification Q1
+// and FR-006). Each helper is a no-op when the underlying ID set is empty.
+func (r *ResourceRepositorySQLC) attachPreloads(ctx context.Context, resources []*domain.Resource) error {
+	if len(resources) == 0 {
+		return nil
+	}
+	if err := r.attachTagsToResources(ctx, resources); err != nil {
+		return err
+	}
+	if err := r.attachChannelsToResources(ctx, resources); err != nil {
+		return err
+	}
+	if err := r.attachComponentsToResources(ctx, resources); err != nil {
+		return err
+	}
+	if err := r.attachCredentialsToResources(ctx, resources); err != nil {
+		return err
+	}
+	return nil
+}
+
 // ---------- M2M (resource_tags) helpers ----------
 
 func tagIDsFromResource(r *domain.Resource) []string {
@@ -844,6 +924,213 @@ func (r *ResourceRepositorySQLC) attachTagsToResources(ctx context.Context, reso
 	}
 	for _, res := range resources {
 		res.Tags = byID[res.ID]
+	}
+	return nil
+}
+
+// ---------- M2M (resource_notification_channels) helpers ----------
+
+func channelIDsFromResource(r *domain.Resource) []string {
+	if len(r.NotificationChannels) == 0 {
+		return nil
+	}
+	out := make([]string, 0, len(r.NotificationChannels))
+	for _, c := range r.NotificationChannels {
+		if c != nil && c.ID != "" {
+			out = append(out, c.ID)
+		}
+	}
+	return out
+}
+
+func (r *ResourceRepositorySQLC) attachChannelsToResources(ctx context.Context, resources []*domain.Resource) error {
+	if len(resources) == 0 {
+		return nil
+	}
+	ids := make([]string, len(resources))
+	for i, res := range resources {
+		ids[i] = res.ID
+	}
+	byID := make(map[string][]*domain.NotificationChannel, len(resources))
+	switch {
+	case r.pgQ != nil:
+		rows, err := r.pgQ.ListChannelsByResourceIDs(ctx, ids)
+		if err != nil {
+			return fmt.Errorf("sqlc: preload channels: %w", err)
+		}
+		for _, row := range rows {
+			cfg, err := decryptChannelConfig(row.Config)
+			if err != nil {
+				return fmt.Errorf("sqlc: preload channels (decrypt config): %w", err)
+			}
+			ch := &domain.NotificationChannel{
+				Base: domain.Base{
+					ID:        row.ID,
+					CreatedAt: row.CreatedAt.Time,
+					UpdatedAt: row.UpdatedAt.Time,
+				},
+				Name:             row.Name,
+				Type:             domain.NotificationChannelType(row.Type),
+				Config:           cfg,
+				EnabledByDefault: row.EnabledByDefault,
+			}
+			byID[row.ResourceID] = append(byID[row.ResourceID], ch)
+		}
+	case r.sqliteQ != nil:
+		rows, err := r.sqliteQ.ListChannelsByResourceIDs(ctx, ids)
+		if err != nil {
+			return fmt.Errorf("sqlc: preload channels: %w", err)
+		}
+		for _, row := range rows {
+			cfg, err := decryptChannelConfig(row.Config)
+			if err != nil {
+				return fmt.Errorf("sqlc: preload channels (decrypt config): %w", err)
+			}
+			ch := &domain.NotificationChannel{
+				Base: domain.Base{
+					ID:        row.ID,
+					CreatedAt: row.CreatedAt,
+					UpdatedAt: row.UpdatedAt,
+				},
+				Name:             row.Name,
+				Type:             domain.NotificationChannelType(row.Type),
+				Config:           cfg,
+				EnabledByDefault: row.EnabledByDefault == 1,
+			}
+			byID[row.ResourceID] = append(byID[row.ResourceID], ch)
+		}
+	default:
+		return r.unconfigured()
+	}
+	for _, res := range resources {
+		res.NotificationChannels = byID[res.ID]
+	}
+	return nil
+}
+
+// ---------- 1-to-1 preload (Component) ----------
+
+func (r *ResourceRepositorySQLC) attachComponentsToResources(ctx context.Context, resources []*domain.Resource) error {
+	ids := make([]string, 0, len(resources))
+	for _, res := range resources {
+		if res.ComponentID != nil && *res.ComponentID != "" {
+			ids = append(ids, *res.ComponentID)
+		}
+	}
+	if len(ids) == 0 {
+		return nil
+	}
+	byID := make(map[string]*domain.Component, len(ids))
+	switch {
+	case r.pgQ != nil:
+		rows, err := r.pgQ.ListComponentsByIDs(ctx, ids)
+		if err != nil {
+			return fmt.Errorf("sqlc: preload components: %w", err)
+		}
+		for _, row := range rows {
+			byID[row.ID] = componentFromPG(row)
+		}
+	case r.sqliteQ != nil:
+		rows, err := r.sqliteQ.ListComponentsByIDs(ctx, ids)
+		if err != nil {
+			return fmt.Errorf("sqlc: preload components: %w", err)
+		}
+		for _, row := range rows {
+			byID[row.ID] = componentFromSQLite(row)
+		}
+	default:
+		return r.unconfigured()
+	}
+	for _, res := range resources {
+		if res.ComponentID == nil {
+			continue
+		}
+		if c, ok := byID[*res.ComponentID]; ok {
+			res.Component = c
+		}
+	}
+	return nil
+}
+
+// ---------- 1-to-1 preload (Credential) ----------
+
+func (r *ResourceRepositorySQLC) attachCredentialsToResources(ctx context.Context, resources []*domain.Resource) error {
+	if len(resources) == 0 {
+		return nil
+	}
+	ids := make([]string, len(resources))
+	for i, res := range resources {
+		ids[i] = res.ID
+	}
+	byResourceID := make(map[string]*domain.ResourceCredential, len(resources))
+	switch {
+	case r.pgQ != nil:
+		rows, err := r.pgQ.ListCredentialsByResourceIDs(ctx, ids)
+		if err != nil {
+			return fmt.Errorf("sqlc: preload credentials: %w", err)
+		}
+		for _, row := range rows {
+			pw, err := decryptCredentialPassword(row.Password)
+			if err != nil {
+				return err
+			}
+			opts, err := decryptCredentialOptions(row.Options)
+			if err != nil {
+				return err
+			}
+			username := ""
+			if row.Username.Valid {
+				username = row.Username.String
+			}
+			byResourceID[row.ResourceID] = &domain.ResourceCredential{
+				Base: domain.Base{
+					ID:        row.ID,
+					CreatedAt: row.CreatedAt.Time,
+					UpdatedAt: row.UpdatedAt.Time,
+				},
+				ResourceID: row.ResourceID,
+				Username:   username,
+				Password:   pw,
+				Options:    opts,
+			}
+		}
+	case r.sqliteQ != nil:
+		rows, err := r.sqliteQ.ListCredentialsByResourceIDs(ctx, ids)
+		if err != nil {
+			return fmt.Errorf("sqlc: preload credentials: %w", err)
+		}
+		for _, row := range rows {
+			pw, err := decryptCredentialPassword(row.Password)
+			if err != nil {
+				return err
+			}
+			opts, err := decryptCredentialOptions(row.Options)
+			if err != nil {
+				return err
+			}
+			username := ""
+			if row.Username.Valid {
+				username = row.Username.String
+			}
+			byResourceID[row.ResourceID] = &domain.ResourceCredential{
+				Base: domain.Base{
+					ID:        row.ID,
+					CreatedAt: row.CreatedAt,
+					UpdatedAt: row.UpdatedAt,
+				},
+				ResourceID: row.ResourceID,
+				Username:   username,
+				Password:   pw,
+				Options:    opts,
+			}
+		}
+	default:
+		return r.unconfigured()
+	}
+	for _, res := range resources {
+		if c, ok := byResourceID[res.ID]; ok {
+			res.Credential = c
+		}
 	}
 	return nil
 }

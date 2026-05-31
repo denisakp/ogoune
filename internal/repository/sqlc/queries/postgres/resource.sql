@@ -113,6 +113,42 @@ WHERE rt.resource_id = ANY($1::text[]);
 -- name: FindResourcesByIDs :many
 SELECT * FROM resources WHERE id = ANY($1::text[]);
 
+-- M2M: resource_notification_channels ---------------------------------------
+
+-- name: LinkResourceChannel :exec
+INSERT INTO resource_notification_channels (resource_id, notification_channel_id)
+VALUES ($1, $2)
+ON CONFLICT DO NOTHING;
+
+-- name: UnlinkResourceChannel :exec
+DELETE FROM resource_notification_channels
+WHERE resource_id = $1 AND notification_channel_id = $2;
+
+-- name: ListChannelIDsByResourceID :many
+SELECT notification_channel_id FROM resource_notification_channels
+WHERE resource_id = $1;
+
+-- name: ListChannelsByResourceIDs :many
+SELECT rnc.resource_id,
+       nc.id, nc.name, nc.type, nc.config, nc.enabled_by_default,
+       nc.created_at, nc.updated_at
+FROM resource_notification_channels rnc
+JOIN notification_channels nc ON rnc.notification_channel_id = nc.id
+WHERE rnc.resource_id = ANY($1::text[]);
+
+-- 1-to-1 preloads ------------------------------------------------------------
+
+-- name: ListComponentsByIDs :many
+SELECT id, created_at, updated_at, name, description,
+       last_notification_status, grouping_window_seconds
+FROM components
+WHERE id = ANY($1::text[]);
+
+-- name: ListCredentialsByResourceIDs :many
+SELECT id, resource_id, username, password, options, created_at, updated_at
+FROM resource_credentials
+WHERE resource_id = ANY($1::text[]);
+
 -- name: FindResourceIDsByTagName :many
 SELECT r.id
 FROM resources r

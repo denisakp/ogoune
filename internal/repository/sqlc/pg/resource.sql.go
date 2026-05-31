@@ -456,6 +456,24 @@ func (q *Queries) FindResourcesByIDs(ctx context.Context, dollar_1 []string) ([]
 	return items, nil
 }
 
+const linkResourceChannel = `-- name: LinkResourceChannel :exec
+
+INSERT INTO resource_notification_channels (resource_id, notification_channel_id)
+VALUES ($1, $2)
+ON CONFLICT DO NOTHING
+`
+
+type LinkResourceChannelParams struct {
+	ResourceID            string `json:"resource_id"`
+	NotificationChannelID string `json:"notification_channel_id"`
+}
+
+// M2M: resource_notification_channels ---------------------------------------
+func (q *Queries) LinkResourceChannel(ctx context.Context, arg LinkResourceChannelParams) error {
+	_, err := q.db.Exec(ctx, linkResourceChannel, arg.ResourceID, arg.NotificationChannelID)
+	return err
+}
+
 const linkResourceTag = `-- name: LinkResourceTag :exec
 
 INSERT INTO resource_tags (resource_id, tag_id) VALUES ($1, $2)
@@ -530,6 +548,151 @@ func (q *Queries) ListActiveResources(ctx context.Context, arg ListActiveResourc
 			&i.KeywordMode,
 			&i.ProtocolType,
 			&i.ProtocolPort,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listChannelIDsByResourceID = `-- name: ListChannelIDsByResourceID :many
+SELECT notification_channel_id FROM resource_notification_channels
+WHERE resource_id = $1
+`
+
+func (q *Queries) ListChannelIDsByResourceID(ctx context.Context, resourceID string) ([]string, error) {
+	rows, err := q.db.Query(ctx, listChannelIDsByResourceID, resourceID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []string{}
+	for rows.Next() {
+		var notification_channel_id string
+		if err := rows.Scan(&notification_channel_id); err != nil {
+			return nil, err
+		}
+		items = append(items, notification_channel_id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listChannelsByResourceIDs = `-- name: ListChannelsByResourceIDs :many
+SELECT rnc.resource_id,
+       nc.id, nc.name, nc.type, nc.config, nc.enabled_by_default,
+       nc.created_at, nc.updated_at
+FROM resource_notification_channels rnc
+JOIN notification_channels nc ON rnc.notification_channel_id = nc.id
+WHERE rnc.resource_id = ANY($1::text[])
+`
+
+type ListChannelsByResourceIDsRow struct {
+	ResourceID       string             `json:"resource_id"`
+	ID               string             `json:"id"`
+	Name             string             `json:"name"`
+	Type             string             `json:"type"`
+	Config           []byte             `json:"config"`
+	EnabledByDefault bool               `json:"enabled_by_default"`
+	CreatedAt        pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt        pgtype.Timestamptz `json:"updated_at"`
+}
+
+func (q *Queries) ListChannelsByResourceIDs(ctx context.Context, dollar_1 []string) ([]ListChannelsByResourceIDsRow, error) {
+	rows, err := q.db.Query(ctx, listChannelsByResourceIDs, dollar_1)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListChannelsByResourceIDsRow{}
+	for rows.Next() {
+		var i ListChannelsByResourceIDsRow
+		if err := rows.Scan(
+			&i.ResourceID,
+			&i.ID,
+			&i.Name,
+			&i.Type,
+			&i.Config,
+			&i.EnabledByDefault,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listComponentsByIDs = `-- name: ListComponentsByIDs :many
+
+SELECT id, created_at, updated_at, name, description,
+       last_notification_status, grouping_window_seconds
+FROM components
+WHERE id = ANY($1::text[])
+`
+
+// 1-to-1 preloads ------------------------------------------------------------
+func (q *Queries) ListComponentsByIDs(ctx context.Context, dollar_1 []string) ([]Component, error) {
+	rows, err := q.db.Query(ctx, listComponentsByIDs, dollar_1)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Component{}
+	for rows.Next() {
+		var i Component
+		if err := rows.Scan(
+			&i.ID,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.Name,
+			&i.Description,
+			&i.LastNotificationStatus,
+			&i.GroupingWindowSeconds,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listCredentialsByResourceIDs = `-- name: ListCredentialsByResourceIDs :many
+SELECT id, resource_id, username, password, options, created_at, updated_at
+FROM resource_credentials
+WHERE resource_id = ANY($1::text[])
+`
+
+func (q *Queries) ListCredentialsByResourceIDs(ctx context.Context, dollar_1 []string) ([]ResourceCredential, error) {
+	rows, err := q.db.Query(ctx, listCredentialsByResourceIDs, dollar_1)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ResourceCredential{}
+	for rows.Next() {
+		var i ResourceCredential
+		if err := rows.Scan(
+			&i.ID,
+			&i.ResourceID,
+			&i.Username,
+			&i.Password,
+			&i.Options,
+			&i.CreatedAt,
+			&i.UpdatedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -751,6 +914,21 @@ func (q *Queries) SoftDeleteResource(ctx context.Context, id string) (int64, err
 		return 0, err
 	}
 	return result.RowsAffected(), nil
+}
+
+const unlinkResourceChannel = `-- name: UnlinkResourceChannel :exec
+DELETE FROM resource_notification_channels
+WHERE resource_id = $1 AND notification_channel_id = $2
+`
+
+type UnlinkResourceChannelParams struct {
+	ResourceID            string `json:"resource_id"`
+	NotificationChannelID string `json:"notification_channel_id"`
+}
+
+func (q *Queries) UnlinkResourceChannel(ctx context.Context, arg UnlinkResourceChannelParams) error {
+	_, err := q.db.Exec(ctx, unlinkResourceChannel, arg.ResourceID, arg.NotificationChannelID)
+	return err
 }
 
 const unlinkResourceTag = `-- name: UnlinkResourceTag :exec

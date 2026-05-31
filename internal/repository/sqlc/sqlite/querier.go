@@ -78,11 +78,18 @@ type Querier interface {
 	GetResourceCredentialByResourceID(ctx context.Context, resourceID string) (ResourceCredential, error)
 	GetStatusPageSettings(ctx context.Context) (StatusPageSetting, error)
 	LinkMaintenanceResource(ctx context.Context, arg LinkMaintenanceResourceParams) error
+	// M2M: resource_notification_channels ---------------------------------------
+	LinkResourceChannel(ctx context.Context, arg LinkResourceChannelParams) error
 	// M2M: resource_tags ---------------------------------------------------------
 	LinkResourceTag(ctx context.Context, arg LinkResourceTagParams) error
 	ListAPIKeysByUserID(ctx context.Context, userID string) ([]ApiKey, error)
 	ListActiveResources(ctx context.Context, arg ListActiveResourcesParams) ([]Resource, error)
+	ListChannelIDsByResourceID(ctx context.Context, resourceID string) ([]string, error)
+	ListChannelsByResourceIDs(ctx context.Context, resourceIds []string) ([]ListChannelsByResourceIDsRow, error)
 	ListComponents(ctx context.Context, arg ListComponentsParams) ([]Component, error)
+	// 1-to-1 preloads ------------------------------------------------------------
+	ListComponentsByIDs(ctx context.Context, ids []string) ([]Component, error)
+	ListCredentialsByResourceIDs(ctx context.Context, resourceIds []string) ([]ResourceCredential, error)
 	ListIncidentEventSteps(ctx context.Context, arg ListIncidentEventStepsParams) ([]IncidentEventStep, error)
 	ListMaintenanceResourceIDsByMaintenanceID(ctx context.Context, maintenanceID string) ([]string, error)
 	ListMaintenancesAll(ctx context.Context, arg ListMaintenancesAllParams) ([]Maintenance, error)
@@ -104,6 +111,7 @@ type Querier interface {
 	SelectMonitoringActivitySuccessInWindow(ctx context.Context, arg SelectMonitoringActivitySuccessInWindowParams) ([]int64, error)
 	SoftDeleteResource(ctx context.Context, id string) (int64, error)
 	UnlinkMaintenanceResource(ctx context.Context, arg UnlinkMaintenanceResourceParams) error
+	UnlinkResourceChannel(ctx context.Context, arg UnlinkResourceChannelParams) error
 	UnlinkResourceTag(ctx context.Context, arg UnlinkResourceTagParams) error
 	UpdateAPIKeyLastUsed(ctx context.Context, arg UpdateAPIKeyLastUsedParams) (int64, error)
 	UpdateComponent(ctx context.Context, arg UpdateComponentParams) error
