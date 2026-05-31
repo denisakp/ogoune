@@ -149,7 +149,7 @@ jobs:
       - name: dual-dialect tests with all Wave-1 flags ON
         run: make test-be-pg
 
-  test-be-sqlc-wave2:
+  test-be-sqlc-wave3:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     env:
@@ -169,6 +169,9 @@ jobs:
       SQLC_NOTIFICATION: "true"
       SQLC_MONITORING_ACTIVITY: "true"
       SQLC_INCIDENT_EVENT_STEP: "true"
+      # Wave 3
+      SQLC_RESOURCE: "true"
+      SQLC_INCIDENT: "true"
     steps:
       - uses: actions/checkout@v6
 
@@ -191,5 +194,5 @@ jobs:
       - name: pre-pull postgres image
         run: docker pull postgres:16-alpine
 
-      - name: dual-dialect tests with all Wave-2 flags ON
+      - name: dual-dialect tests with all Wave-3 flags ON
         run: make test-be-pg

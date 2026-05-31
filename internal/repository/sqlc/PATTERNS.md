@@ -221,3 +221,188 @@ sqlc generates a flat row struct (`FindIncidentEventStepByIDRow`) with all step 
 **Canonical example**: `internal/repository/store/incident_event_step_repository_sqlc.go:eventStepFromPGJoin` / `eventStepFromSQLiteJoin`. Test: `TestIncidentEventStepRepository_SqlcJoinPreload`.
 
 **For 1:many preloads** (maintenance.Resources): use **two queries** instead (principal + junction list). Wrapper assembles via stub resources (just IDs populated, full hydration deferred — service layer falls back to a separate `FindByComponentID` / `FindByID` lookup).
+
+## 11. Controlled-N+1 multi-relation preload (Wave 3)
+
+**Decision**: when a row carries more than one preloaded relation (M2M + 1-to-1 mixed), use the **controlled-N+1** shape — one query for the principal set + one `WHERE id IN (...)` per relation. Total round-trips bounded by `1 + R` where R is the number of preloaded relations.
+
+**Rationale** (Clarification Q1 of spec 048):
+
+- A single multi-LEFT-JOIN that materialises all relations row-explodes to `O(N × T × C × …)` and forces Go-side dedup. With `1000 × 50 × 20` rows the wire cost dwarfs any saved round-trip.
+- Cross-dialect `array_agg(... ORDER BY ...)` (PG) vs `group_concat(...)` (SQLite) requires per-dialect SQL and per-dialect string parsing. Controlled-N+1 keeps SQL straightforward and Go mapping identical.
+- The single-JOIN pattern (Wave 2 §10) still applies for **one** relation on a small fan-out (incident_event_step → incident, 1-to-1).
+
+**Shape** (4 preloads on `domain.Resource` — Tags, NotificationChannels, Component, Credential):
+
+```go
+// In the principal read method:
+out := resourcesFromPG(rows)
+if err := r.attachPreloads(ctx, out); err != nil { return nil, err }
+return out, nil
+
+// Composite — 4 round-trips:
+func (r *ResourceRepositorySQLC) attachPreloads(ctx context.Context, resources []*domain.Resource) error {
+    if len(resources) == 0 { return nil }
+    if err := r.attachTagsToResources(ctx, resources);        err != nil { return err }
+    if err := r.attachChannelsToResources(ctx, resources);    err != nil { return err }
+    if err := r.attachComponentsToResources(ctx, resources);  err != nil { return err }
+    if err := r.attachCredentialsToResources(ctx, resources); err != nil { return err }
+    return nil
+}
+
+// Each attach helper:
+// 1. Collect unique IDs from the principal slice (skip resources with no FK).
+// 2. SELECT ... WHERE id = ANY($1::text[])  -- PG
+//    SELECT ... WHERE id IN (sqlc.slice('ids'))  -- SQLite
+// 3. Build a map[FK]→entity, then write back onto the principal slice.
+```
+
+**Empty-set short-circuit**: each helper returns early when its ID set is empty (e.g. no resource has a component_id → skip the components round-trip). Real round-trip count is `1 + R'` where `R' ≤ R` is the count of relations *actually used*.
+
+**Decrypt-in-preload**: when the underlying GORM model uses a hook (e.g. `NotificationChannel.AfterFind` decrypts `Config`, `ResourceCredential` AES-decrypts `Password`/`Options`), the sqlc preload helper MUST replicate that decryption. Reuse the existing helpers from the per-table sqlc impls (`decryptChannelConfig`, `decryptCredentialPassword`, `decryptCredentialOptions`). The preloaded value reaches the caller as plaintext — parity with GORM.
+
+**Canonical examples**:
+- `internal/repository/store/resource_repository_sqlc.go:attachPreloads` + 4 `attach*ToResources` helpers (Wave 3 US1 PR3).
+- `internal/repository/store/incident_repository_sqlc.go:attachPreloads` (2 relations: Resource + IncidentDiagnostics).
+
+**Anti-pattern**: per-resource per-relation fetch (the literal N+1). Forbidden — defeats the bound entirely.
+
+## 12. Dynamic-SQL partial updates (Wave 3)
+
+**Problem**: a sqlc-generated query has a fixed column list. `UpdateMonitoringState` / `UpdateMetadata` need to write a *variable subset* of columns chosen at call time — sqlc can't express "skip column N" without `2^N` static query variants.
+
+**Decision**: hand-build the SQL string from a small `setBuilder`, execute via the runtime's underlying handle (`pgxpool.Pool` / `*sql.DB`). The repo struct already holds both handles since the WithTx work in Wave 2/3.
+
+**Shape**:
+
+```go
+type setBuilder struct { cols []string; vals []any }
+
+func (b *setBuilder) add(col string, v any) { b.cols = append(b.cols, col); b.vals = append(b.vals, v) }
+func (b *setBuilder) buildPG(id string) (string, []any) {
+    // "UPDATE resources SET c1=$1, c2=$2, ... WHERE id=$N", vals + id
+}
+func (b *setBuilder) buildSQLite(id string) (string, []any) {
+    // "UPDATE resources SET c1=?, c2=?, ... WHERE id=?", vals + id
+}
+
+func (r *ResourceRepositorySQLC) UpdateMonitoringState(ctx context.Context, id string, req port.UpdateMonitoringStateRequest) error {
+    b := newSetBuilder()
+    if req.Status != nil       { b.add("status", string(*req.Status)) }
+    if req.FailureCount != nil { b.add("failure_count", *req.FailureCount) }
+    if req.LastChecked != nil  { b.add("last_checked", derefTimePtr(req.LastChecked)) }
+    // ...
+    return r.execDynamicUpdate(ctx, id, b)
+}
+```
+
+**Safety**: column names are **hardcoded** (not user-derived). Values cross the driver via parameterized SQL — no string concat of values, no SQL injection vector.
+
+**Empty request**: `b.empty()` short-circuits to a no-op (no SQL fired, no `ErrNotFound`). Distinguishes "caller passed nothing intentionally" from "caller passed a nonexistent id".
+
+**Documented exception**: this is the *only* place in the codebase where Go directly executes SQL against the dialect handle instead of going through sqlc-generated functions. A top-of-method comment flags the deviation.
+
+**Canonical example**: `internal/repository/store/resource_repository_sqlc.go:UpdateMonitoringState` and `UpdateMetadata`.
+
+## 13. Pointer / double-pointer port-API for partial updates (Wave 3)
+
+**Problem**: GORM `Updates(struct)` magically skips zero-value fields. sqlc has no equivalent, so the port API must explicitly carry the "preserve" vs "write" distinction.
+
+**Decision**:
+
+- Non-nullable columns (`Status string`, `FailureCount int`, `SSLIssuer string`): use `*T`.
+- Nullable timestamp columns (`LastChecked *time.Time`, `FlapStartedAt *time.Time`, `SSLExpirationDate *time.Time`, …): use `**time.Time`.
+
+**Why double pointer for nullable timestamps**: single `*time.Time` collapses two distinct intents to the same value:
+- `nil`: "don't touch this column"
+- `&time.Time{}`: "write the zero time" — but zero time is NOT NULL.
+
+The DB column is nullable; callers need a third option: "set NULL". `**time.Time` gives 3 states:
+
+| Value | Meaning |
+|---|---|
+| outer `nil`                    | preserve column |
+| outer `&((*time.Time)(nil))`   | write NULL |
+| outer `&(&t)` (both non-nil)   | write `t` |
+
+**Worker callsite idiom** (preserves pre-migration "always write all columns" behaviour):
+
+```go
+return port.UpdateMonitoringStateRequest{
+    Status:               &r.Status,                 // *T
+    FailureCount:         &r.FailureCount,           // *T
+    LastChecked:          &r.LastChecked,            // **T — r.LastChecked is *time.Time
+    LastStatusTransition: &r.LastStatusTransition,   // **T
+    FlapStartedAt:        &r.FlapStartedAt,          // **T — may have inner nil → clears column
+}
+```
+
+**Driver translation**: `derefTimePtr(req.LastChecked)` returns either the inner `time.Time` value or untyped `nil`. `pgx` and `database/sql` both translate untyped nil → SQL NULL.
+
+**Discovery story**: initially shipped with single `*time.Time` for all fields. `TestFlap_ExitAfterStable` caught the regression: the worker writes `resource.FlapStartedAt = nil` when leaving flapping, but with single-pointer semantics the helper passed `nil` (interpreted as "preserve"), so the stale timestamp persisted. Required `**time.Time` and the helper now takes the address of the `*time.Time` field.
+
+**Canonical example**: `internal/port/repository.go:UpdateMonitoringStateRequest` and `internal/worker/handler_monitoring.go:monitoringStateFromResource`.
+
+## 14. Last-write-wins M2M tx (Wave 3)
+
+**Decision** (Clarification Q2 of spec 048): for `resource_tags` and `resource_notification_channels` synchronisation in `Update`, do NOT take `SELECT … FOR UPDATE` on the principal row. Both concurrent writers commit; the later one wins. Tx isolation prevents orphan junction rows.
+
+**Rationale**:
+
+- Matches current GORM behaviour. `resources` has no `version` column.
+- Adding optimistic versioning would require a schema migration, caller retry logic, and a new error path — out of scope for a translation wave.
+- Pessimistic locking would serialise writers per resource — adds latency on a hot key and is not what GORM does today.
+
+**Shape**: principal `UPDATE` + `ListXxxIDsByResourceID` snapshot + `diffJunctionSets` + DELETE/INSERT diff, all inside `WithTx`.
+
+```go
+return pgsqlc.WithTx(ctx, r.pgPool, func(q *pgsqlc.Queries) error {
+    if err := r.updateMainPG(ctx, q, res); err != nil { return err }
+
+    currentTagIDs, err := q.ListTagIDsByResourceID(ctx, res.ID)
+    if err != nil { return err }
+    toAdd, toRemove := diffJunctionSets(currentTagIDs, targetTagIDs)
+    for _, tid := range toRemove { /* UnlinkResourceTag */ }
+    for _, tid := range toAdd    { /* LinkResourceTag */ }
+    // ... repeat for channels ...
+    return nil
+})
+```
+
+**Snapshot consistency**: each tx's `ListXxxIDsByResourceID` reads the visible state at tx start. The diff computed against that snapshot is applied inside the same tx. No orphan can survive: if two writers diff against the same initial set and one inserts a row the other meant to delete, the deleter's DELETE re-runs the row away.
+
+**Canonical example**: `internal/repository/store/resource_repository_sqlc.go:Update`.
+
+**Test**: SC-006 covered by `TestResourceRepository_M2M_Tags_Transitions` and `_M2M_Channels_Transitions` (0→N, N→M overlap, N→0 on both dialects). A 1000-iteration concurrent soak (SC-008) is deferred to a follow-up.
+
+## 15. Dialect-divergent aggregations — incident stats (Wave 3)
+
+Extends Wave 2 §9 with a worked example for a multi-aggregate window query.
+
+**`GetIncidentStats(hours)` returns `(total_incidents, affected_monitors)` for the last N hours.**
+
+- **PG** — one-pass CTE with two aggregates:
+  ```sql
+  WITH window_inc AS (
+      SELECT resource_id FROM incidents WHERE started_at >= $1
+  )
+  SELECT
+      COUNT(*)::bigint                    AS total_incidents,
+      COUNT(DISTINCT resource_id)::bigint AS affected_monitors
+  FROM window_inc;
+  ```
+
+- **SQLite** — two correlated sub-queries with aliased table refs:
+  ```sql
+  SELECT
+      (SELECT COUNT(*)                       FROM incidents i1 WHERE i1.started_at >= sqlc.arg('since')) AS total_incidents,
+      (SELECT COUNT(DISTINCT i2.resource_id) FROM incidents i2 WHERE i2.started_at >= sqlc.arg('since')) AS affected_monitors;
+  ```
+
+**sqlc ambiguity caveat**: a SQLite sub-query that references a column with the same name across multiple sub-selects (`started_at` here) is flagged as ambiguous. Workaround: alias the table inside each sub-select (`i1`, `i2`).
+
+**`sqlc.arg('since')`**: lets both sub-queries share a single named parameter, avoiding the `(?, ?)` ordinal duplication that would force the caller to pass the value twice.
+
+**Parity test**: `TestIncidentRepository_GetIncidentStats_DialectParity` seeds the same fixture on both dialects, asserts identical integer outputs, and cross-checks the two dialect runs against each other (FR-007 of spec 048).
+
+**Canonical example**: `internal/repository/store/incident_repository_sqlc.go:GetIncidentStats`.
