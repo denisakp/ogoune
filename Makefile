@@ -3,7 +3,7 @@ SHELL := /bin/sh
 BINARY := dist/ogoune
 SQLC_VERSION := v1.27.0
 
-.PHONY: build build-be build-fe test test-be test-be-pg test-fe lint clean docker swag run-ci license-audit sqlc-bin sqlc-generate sqlc-check migrations-drift-check
+.PHONY: build build-be build-fe test test-be test-be-pg test-be-bench test-fe lint clean docker swag run-ci license-audit sqlc-bin sqlc-generate sqlc-check migrations-drift-check
 
 build: build-fe build-be
 
@@ -48,6 +48,19 @@ test-be-pg:
 		exit 0; \
 	fi
 	go test -race -timeout 300s ./internal/repository/store/... ./internal/repository/internaltest/...
+
+# Paired benches (spec 049): GORM vs sqlc p95 ratio gates on Resource.List
+# and Incident.GetIncidentStats. Runs WITHOUT -race (race detector inflates
+# p95 ~10× and drowns the signal). SQLite only — paired ratio is dialect-
+# invariant; adding the Postgres testcontainer would double bench time
+# without changing the signal.
+#
+# Output: each bench emits a structured `paired_bench …` line for CI capture.
+# Gate: default warn-and-pass; set PAIRED_BENCH_STRICT=true to escalate
+# ratio > 1.10 to a hard failure.
+test-be-bench:
+	go test -bench=Paired -benchtime=1x -run=^$$ -count=1 \
+	  ./internal/repository/store/... | tee bench-output.txt
 
 test-fe:
 	cd web && pnpm test

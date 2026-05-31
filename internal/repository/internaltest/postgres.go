@@ -16,7 +16,7 @@ import (
 //
 // Per-test isolation: the package-wide container provisions a fresh database
 // cloned from a migrated template; t.Cleanup drops it.
-func SetupPostgres(t *testing.T) *DialectFixture {
+func SetupPostgres(t testing.TB) *DialectFixture {
 	t.Helper()
 	c, skipReason := getPgContainer(t)
 	if c == nil {
