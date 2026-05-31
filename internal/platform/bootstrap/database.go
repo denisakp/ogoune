@@ -26,6 +26,12 @@ const (
 	envSqlcStatusPageSettings    = "SQLC_STATUSPAGE_SETTINGS"
 	envSqlcIncidentDiagnostics   = "SQLC_INCIDENT_DIAGNOSTICS"
 	envSqlcResourceCredential    = "SQLC_RESOURCE_CREDENTIAL"
+	// Wave 2 (047)
+	envSqlcComponent          = "SQLC_COMPONENT"
+	envSqlcMaintenance        = "SQLC_MAINTENANCE"
+	envSqlcNotification       = "SQLC_NOTIFICATION"
+	envSqlcMonitoringActivity = "SQLC_MONITORING_ACTIVITY"
+	envSqlcIncidentEventStep  = "SQLC_INCIDENT_EVENT_STEP"
 )
 
 // checkDialectHandle returns an error when the active dialect's native handle
@@ -138,6 +144,63 @@ func selectResourceCredentialRepo(rt *dbruntime.Runtime, db *gorm.DB) (port.Reso
 	return store.NewResourceCredentialRepositorySQLC(rt), "sqlc", nil
 }
 
+// ---------- Wave 2 (047) selection helpers ----------
+
+func selectComponentRepo(rt *dbruntime.Runtime, db *gorm.DB) (port.ComponentRepository, string, error) {
+	on, _ := strconv.ParseBool(os.Getenv(envSqlcComponent))
+	if !on {
+		return store.NewComponentRepository(db), "gorm", nil
+	}
+	if err := checkDialectHandle(rt, envSqlcComponent); err != nil {
+		return nil, "", err
+	}
+	return store.NewComponentRepositorySQLC(rt), "sqlc", nil
+}
+
+func selectMaintenanceRepo(rt *dbruntime.Runtime, db *gorm.DB) (port.MaintenanceRepository, string, error) {
+	on, _ := strconv.ParseBool(os.Getenv(envSqlcMaintenance))
+	if !on {
+		return store.NewMaintenanceRepository(db), "gorm", nil
+	}
+	if err := checkDialectHandle(rt, envSqlcMaintenance); err != nil {
+		return nil, "", err
+	}
+	return store.NewMaintenanceRepositorySQLC(rt), "sqlc", nil
+}
+
+func selectIncidentEventStepRepo(rt *dbruntime.Runtime, db *gorm.DB) (port.IncidentEventStepRepository, string, error) {
+	on, _ := strconv.ParseBool(os.Getenv(envSqlcIncidentEventStep))
+	if !on {
+		return store.NewIncidentEventStepRepository(db), "gorm", nil
+	}
+	if err := checkDialectHandle(rt, envSqlcIncidentEventStep); err != nil {
+		return nil, "", err
+	}
+	return store.NewIncidentEventStepRepositorySQLC(rt), "sqlc", nil
+}
+
+func selectNotificationRepo(rt *dbruntime.Runtime, db *gorm.DB) (port.NotificationRepository, string, error) {
+	on, _ := strconv.ParseBool(os.Getenv(envSqlcNotification))
+	if !on {
+		return store.NewNotificationRepository(db), "gorm", nil
+	}
+	if err := checkDialectHandle(rt, envSqlcNotification); err != nil {
+		return nil, "", err
+	}
+	return store.NewNotificationRepositorySQLC(rt), "sqlc", nil
+}
+
+func selectMonitoringActivityRepo(rt *dbruntime.Runtime, db *gorm.DB) (port.MonitoringActivityRepository, string, error) {
+	on, _ := strconv.ParseBool(os.Getenv(envSqlcMonitoringActivity))
+	if !on {
+		return store.NewMonitoringActivityRepository(db), "gorm", nil
+	}
+	if err := checkDialectHandle(rt, envSqlcMonitoringActivity); err != nil {
+		return nil, "", err
+	}
+	return store.NewMonitoringActivityRepositorySQLC(rt), "sqlc", nil
+}
+
 // InitDatabase initializes the database connection, runs health check, and creates all repositories.
 //
 // The full *database.Runtime is reachable through database.Instance()-adjacent
@@ -185,7 +248,13 @@ func InitDatabase(app *App) {
 	// Initialize repositories
 	app.ResourceRepo = store.NewResourceRepository(db)
 	app.IncidentRepo = store.NewIncidentRepository(db)
-	app.IncidentEventStepRepo = store.NewIncidentEventStepRepository(db)
+	iesRepo, iesImpl, err := selectIncidentEventStepRepo(rt, db)
+	if err != nil {
+		slog.Error("failed to wire incident_event_step repository", "error", err)
+		os.Exit(1)
+	}
+	slog.Info("incident_event_step repository wired", "implementation", iesImpl)
+	app.IncidentEventStepRepo = iesRepo
 
 	idRepo, idImpl, err := selectIncidentDiagnosticsRepo(rt, db)
 	if err != nil {
@@ -195,8 +264,20 @@ func InitDatabase(app *App) {
 	slog.Info("incident_diagnostics repository wired", "implementation", idImpl)
 	app.IncidentDiagnosticsRepo = idRepo
 
-	app.NotificationRepo = store.NewNotificationRepository(db)
-	app.MaintenanceRepo = store.NewMaintenanceRepository(db)
+	notifRepo, notifImpl, err := selectNotificationRepo(rt, db)
+	if err != nil {
+		slog.Error("failed to wire notification repository", "error", err)
+		os.Exit(1)
+	}
+	slog.Info("notification repository wired", "implementation", notifImpl)
+	app.NotificationRepo = notifRepo
+	maintenanceRepo, maintenanceImpl, err := selectMaintenanceRepo(rt, db)
+	if err != nil {
+		slog.Error("failed to wire maintenance repository", "error", err)
+		os.Exit(1)
+	}
+	slog.Info("maintenance repository wired", "implementation", maintenanceImpl)
+	app.MaintenanceRepo = maintenanceRepo
 	ncRepo, ncImpl, err := selectNotificationChannelRepo(rt, db)
 	if err != nil {
 		slog.Error("failed to wire notification_channel repository", "error", err)
@@ -204,7 +285,13 @@ func InitDatabase(app *App) {
 	}
 	slog.Info("notification_channel repository wired", "implementation", ncImpl)
 	app.NotificationChannelRepo = ncRepo
-	app.MonitoringActivityRepo = store.NewMonitoringActivityRepository(db)
+	maRepo, maImpl, err := selectMonitoringActivityRepo(rt, db)
+	if err != nil {
+		slog.Error("failed to wire monitoring_activity repository", "error", err)
+		os.Exit(1)
+	}
+	slog.Info("monitoring_activity repository wired", "implementation", maImpl)
+	app.MonitoringActivityRepo = maRepo
 
 	tagsRepo, tagsImpl, err := selectTagsRepo(rt, db)
 	if err != nil {
@@ -221,7 +308,13 @@ func InitDatabase(app *App) {
 	slog.Info("status_page_settings repository wired", "implementation", spsImpl)
 	app.StatusPageSettingsRepo = spsRepo
 
-	app.ComponentRepo = store.NewComponentRepository(db)
+	componentRepo, componentImpl, err := selectComponentRepo(rt, db)
+	if err != nil {
+		slog.Error("failed to wire component repository", "error", err)
+		os.Exit(1)
+	}
+	slog.Info("component repository wired", "implementation", componentImpl)
+	app.ComponentRepo = componentRepo
 
 	userRepo, userImpl, err := selectUserRepo(rt, db)
 	if err != nil {

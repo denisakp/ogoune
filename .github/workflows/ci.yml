@@ -226,3 +226,41 @@ jobs:
           commit_message: "ci: update image digest for ogoune [skip ci]"
           branch: main
           file_pattern: docker-compose.yml
+
+  test-be-sqlc-wave2:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      SQLC_TAGS: "true"
+      SQLC_API_KEY: "true"
+      SQLC_USER: "true"
+      SQLC_NOTIFICATION_CHANNEL: "true"
+      SQLC_EXPIRY_NOTIFICATION_LOG: "true"
+      SQLC_STATUSPAGE_SETTINGS: "true"
+      SQLC_INCIDENT_DIAGNOSTICS: "true"
+      SQLC_RESOURCE_CREDENTIAL: "true"
+      SQLC_COMPONENT: "true"
+      SQLC_MAINTENANCE: "true"
+      SQLC_NOTIFICATION: "true"
+      SQLC_MONITORING_ACTIVITY: "true"
+      SQLC_INCIDENT_EVENT_STEP: "true"
+    steps:
+      - uses: actions/checkout@v6
+      - name: setup Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: '1.25.1'
+      - name: cache Go modules
+        uses: actions/cache@v5
+        with:
+          path: |
+            ~/go/pkg/mod
+            ~/.cache/go-build
+            ~/go/bin
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+      - name: pre-pull postgres image
+        run: docker pull postgres:16-alpine
+      - name: dual-dialect tests with all Wave-2 flags ON
+        run: make test-be-pg

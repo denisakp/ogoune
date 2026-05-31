@@ -11,46 +11,90 @@ import (
 )
 
 type Querier interface {
+	AvgResponseTimeByResourceInWindow(ctx context.Context, arg AvgResponseTimeByResourceInWindowParams) (float64, error)
+	ClaimNotificationEventForUpdate(ctx context.Context, id string) (string, error)
 	CountAPIKeysByUserID(ctx context.Context, userID string) (int64, error)
 	CountExpiryNotificationLogsByKey(ctx context.Context, arg CountExpiryNotificationLogsByKeyParams) (int64, error)
+	CountMonitoringActivityByResourceSuccess(ctx context.Context, arg CountMonitoringActivityByResourceSuccessParams) (int64, error)
+	CountMonitoringActivityByResourceTotal(ctx context.Context, arg CountMonitoringActivityByResourceTotalParams) (int64, error)
+	CountMonitoringActivitySinceSuccess(ctx context.Context, createdAt pgtype.Timestamptz) (int64, error)
+	CountMonitoringActivitySinceTotal(ctx context.Context, createdAt pgtype.Timestamptz) (int64, error)
 	CreateAPIKey(ctx context.Context, arg CreateAPIKeyParams) error
+	CreateComponent(ctx context.Context, arg CreateComponentParams) error
 	CreateExpiryNotificationLog(ctx context.Context, arg CreateExpiryNotificationLogParams) error
 	CreateIncidentDiagnostics(ctx context.Context, arg CreateIncidentDiagnosticsParams) (IncidentDiagnostic, error)
+	CreateIncidentEventStep(ctx context.Context, arg CreateIncidentEventStepParams) error
+	CreateMaintenance(ctx context.Context, arg CreateMaintenanceParams) error
+	CreateMonitoringActivity(ctx context.Context, arg CreateMonitoringActivityParams) error
 	CreateNotificationChannel(ctx context.Context, arg CreateNotificationChannelParams) error
+	CreateNotificationEvent(ctx context.Context, arg CreateNotificationEventParams) error
 	CreateStatusPageSettings(ctx context.Context, arg CreateStatusPageSettingsParams) error
 	CreateTag(ctx context.Context, arg CreateTagParams) (Tag, error)
 	CreateUser(ctx context.Context, arg CreateUserParams) (User, error)
+	DeleteComponent(ctx context.Context, id string) (int64, error)
 	DeleteExpiryNotificationLogsByResourceIDAndType(ctx context.Context, arg DeleteExpiryNotificationLogsByResourceIDAndTypeParams) error
 	DeleteExpiryNotificationLogsOlderThan(ctx context.Context, sentAt pgtype.Timestamptz) error
 	DeleteIncidentDiagnostics(ctx context.Context, id string) (int64, error)
+	DeleteIncidentEventStep(ctx context.Context, id string) (int64, error)
+	DeleteMaintenance(ctx context.Context, id string) (int64, error)
 	DeleteNotificationChannel(ctx context.Context, id string) (int64, error)
+	DeleteNotificationEvent(ctx context.Context, id string) error
 	DeleteResourceCredentialByResourceID(ctx context.Context, resourceID string) (int64, error)
 	DeleteTag(ctx context.Context, id string) (int64, error)
 	DeleteUser(ctx context.Context, id string) error
 	FindAPIKeyByIDForUser(ctx context.Context, arg FindAPIKeyByIDForUserParams) (ApiKey, error)
 	FindAPIKeyByKeyHash(ctx context.Context, keyHash string) (ApiKey, error)
+	FindActiveMaintenancesForResource(ctx context.Context, arg FindActiveMaintenancesForResourceParams) ([]Maintenance, error)
+	FindComponentByID(ctx context.Context, id string) (Component, error)
 	FindDefaultNotificationChannels(ctx context.Context) ([]NotificationChannel, error)
 	FindIncidentDiagnosticsByIncidentID(ctx context.Context, incidentID string) (IncidentDiagnostic, error)
+	// Single JOIN preload (Clarification Q1) — incident embedded into event step.
+	FindIncidentEventStepByID(ctx context.Context, id string) (FindIncidentEventStepByIDRow, error)
+	FindLastIncidentEventStepByIncidentAndStep(ctx context.Context, arg FindLastIncidentEventStepByIncidentAndStepParams) (IncidentEventStep, error)
+	FindMaintenanceByID(ctx context.Context, id string) (Maintenance, error)
+	FindMonitoringActivitiesByResourceID(ctx context.Context, arg FindMonitoringActivitiesByResourceIDParams) ([]MonitoringActivity, error)
 	FindNotificationChannelByID(ctx context.Context, id string) (NotificationChannel, error)
 	FindNotificationChannelsByComponentID(ctx context.Context, componentID string) ([]NotificationChannel, error)
 	FindNotificationChannelsByResourceID(ctx context.Context, resourceID string) ([]NotificationChannel, error)
 	FindNotificationChannelsByType(ctx context.Context, type_ string) ([]NotificationChannel, error)
+	FindNotificationEventByID(ctx context.Context, id string) (NotificationEvent, error)
+	FindPendingNotificationEvents(ctx context.Context, arg FindPendingNotificationEventsParams) ([]NotificationEvent, error)
 	FindTagByID(ctx context.Context, id string) (Tag, error)
 	FindTagByName(ctx context.Context, name string) (Tag, error)
 	FindTagsByIDs(ctx context.Context, dollar_1 []string) ([]Tag, error)
 	FindUserByEmail(ctx context.Context, email string) (User, error)
 	FindUserByID(ctx context.Context, id string) (User, error)
+	GetRecentResponseTimes(ctx context.Context, arg GetRecentResponseTimesParams) ([]GetRecentResponseTimesRow, error)
 	GetResourceCredentialByResourceID(ctx context.Context, resourceID string) (ResourceCredential, error)
 	GetStatusPageSettings(ctx context.Context) (StatusPageSetting, error)
+	LinkMaintenanceResource(ctx context.Context, arg LinkMaintenanceResourceParams) error
 	ListAPIKeysByUserID(ctx context.Context, userID string) ([]ApiKey, error)
+	ListComponents(ctx context.Context, arg ListComponentsParams) ([]Component, error)
+	ListIncidentEventSteps(ctx context.Context, arg ListIncidentEventStepsParams) ([]IncidentEventStep, error)
+	ListMaintenanceResourceIDsByMaintenanceID(ctx context.Context, maintenanceID string) ([]string, error)
+	ListMaintenancesAll(ctx context.Context, arg ListMaintenancesAllParams) ([]Maintenance, error)
+	ListMaintenancesByStatus(ctx context.Context, arg ListMaintenancesByStatusParams) ([]Maintenance, error)
+	ListMonitoringActivities(ctx context.Context, arg ListMonitoringActivitiesParams) ([]MonitoringActivity, error)
 	ListNotificationChannels(ctx context.Context, arg ListNotificationChannelsParams) ([]NotificationChannel, error)
+	ListNotificationEvents(ctx context.Context, arg ListNotificationEventsParams) ([]NotificationEvent, error)
+	ListResourcesByComponentID(ctx context.Context, componentID pgtype.Text) ([]Resource, error)
 	ListTags(ctx context.Context, arg ListTagsParams) ([]Tag, error)
+	MarkNotificationEventTerminal(ctx context.Context, arg MarkNotificationEventTerminalParams) (int64, error)
 	Ping(ctx context.Context) (int32, error)
 	ResourceCredentialExists(ctx context.Context, resourceID string) (int64, error)
 	RevokeAPIKey(ctx context.Context, arg RevokeAPIKeyParams) (int64, error)
+	SelectMonitoringActivityHourlyAggregateInputs(ctx context.Context, arg SelectMonitoringActivityHourlyAggregateInputsParams) ([]SelectMonitoringActivityHourlyAggregateInputsRow, error)
+	SelectMonitoringActivitySuccessInWindow(ctx context.Context, arg SelectMonitoringActivitySuccessInWindowParams) ([]bool, error)
+	UnlinkMaintenanceResource(ctx context.Context, arg UnlinkMaintenanceResourceParams) error
 	UpdateAPIKeyLastUsed(ctx context.Context, arg UpdateAPIKeyLastUsedParams) (int64, error)
+	UpdateComponent(ctx context.Context, arg UpdateComponentParams) error
+	UpdateComponentLastNotificationStatus(ctx context.Context, arg UpdateComponentLastNotificationStatusParams) (int64, error)
 	UpdateIncidentDiagnostics(ctx context.Context, arg UpdateIncidentDiagnosticsParams) (int64, error)
+	UpdateIncidentEventStep(ctx context.Context, arg UpdateIncidentEventStepParams) (int64, error)
+	UpdateMaintenance(ctx context.Context, arg UpdateMaintenanceParams) error
 	UpdateNotificationChannel(ctx context.Context, arg UpdateNotificationChannelParams) (int64, error)
+	UpdateNotificationEvent(ctx context.Context, arg UpdateNotificationEventParams) (int64, error)
+	UpdateNotificationEventClaim(ctx context.Context, arg UpdateNotificationEventClaimParams) error
 	UpdateStatusPageSettings(ctx context.Context, arg UpdateStatusPageSettingsParams) error
 	UpdateTag(ctx context.Context, arg UpdateTagParams) (int64, error)
 	UpdateUser(ctx context.Context, arg UpdateUserParams) error

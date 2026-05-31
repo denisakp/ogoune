@@ -145,3 +145,79 @@ Future waves follow the same pattern: one combined lane per wave, not per repo.
 - **Don't edit GORM impl** when shipping a sqlc wrapper. Both coexist until Wave 4.
 - **Don't compute timestamps in Go** when the GORM impl uses SQL-native (`CURRENT_TIMESTAMP`, etc.).
 - **VARCHAR(26) limit on resource_credentials.id** — IDs longer than 26 chars fail; if a column has a length constraint, the wrapper's caller must honor it (tests must use short IDs).
+
+---
+
+## 7. M2M write transactions (Wave 2)
+
+True M2M wrappers (currently `maintenance_repository`) wrap multi-row writes in `pg.WithTx` / `sqlitesqlc.WithTx` (045 helpers). Pattern:
+
+- **Create**: principal INSERT + N junction INSERTs inside one tx.
+- **Update**: principal UPDATE + diff DELETE/INSERT on junction set, all in one tx.
+- **Delete**: relies on FK `ON DELETE CASCADE` (verified in migration 0001). No Go-side junction DELETE.
+
+Diff helper: `internal/repository/store/m2m_helpers.go:diffJunctionSets(current, target) (toAdd, toRemove)`.
+
+**Canonical example**: `internal/repository/store/maintenance_repository_sqlc.go` — Create/Update wrap in `WithTx`; M2M rollback test at `maintenance_repository_sqlc_test.go:TestMaintenanceRepository_SqlcMM_TxRollback` (SC-008) injects FK violation, asserts principal row absent.
+
+**Behavior divergence flagged**: GORM's `Save(m)` **appends** to M2M associations without removing diffs. The sqlc impl computes a proper diff. The contract test for `Update` only asserts principal-field semantics; the diff assertion is sqlc-specific (`TestMaintenanceRepository_SqlcMM_DiffOnUpdate`).
+
+**Note**: `component_repository` originally appeared to be M2M (`component_notification_channels` junction), but the GORM impl preloads only `Resources` (one-to-many via `resources.component_id`). No junction writes from the component side. Sqlc impl is a plain CRUD wrapper.
+
+---
+
+## 8. ClaimPending dialect-divergent patterns (Wave 2)
+
+`notification_repository.ClaimPending` is an atomic-claim hot path. Diverges per dialect:
+
+- **Postgres**: `SELECT id … FOR UPDATE SKIP LOCKED` inside `pg.WithTx`, then `UPDATE … SET claim_owner, claimed_at`. SELECT either returns one locked row (we won) or zero (skipped). UPDATE under held lock is atomic.
+- **SQLite**: single `UPDATE … WHERE id = ? AND status = 'pending' AND (claim_owner IS NULL OR claim_owner = '')`. SQLite's single-writer lock serializes; WHERE-guard ensures only one UPDATE matches.
+
+**Test pattern** (SC-006 gate): `TestNotificationRepository_ClaimPending_ConcurrentSafety` spawns N=10 goroutines all calling `ClaimPending(ctx, sameID, …)`; asserts exactly-one-winner. Run 50× with `-race` for flake-flush.
+
+**Canonical example**: `internal/repository/store/notification_repository_sqlc.go` (`ClaimPending` branches on driver).
+
+**Validation contract**: Empty `id` or `claimOwner` → `repository.ErrInvalidInput`. Already-claimed or non-pending row → `(false, nil)`.
+
+---
+
+## 9. Dialect-divergent aggregations (Wave 2 chose Go-side)
+
+For analytical queries (`monitoring_activity.GetUptimeStats` etc.), Wave 2 chose **Go-side aggregation over single SELECT** instead of dialect-divergent SQL (CTE/window vs. GROUP BY). Rationale:
+
+- The GORM impl already does Go-side aggregation; sqlc impl mirroring it guarantees per-dialect numerical parity for free.
+- Avoids `-- PG-only` / `-- SQLite-only` SQL drift maintenance.
+- One Go code path → one parity gate (`TestMonitoringActivityRepository_Aggregations_GORMvsSQLC_SameDialect`, SC-007).
+
+**Annotation convention** stays available for future repos that genuinely need dialect-divergent SQL (e.g., Wave-3 `resource_repository` may need PG-specific JSONB ops): `-- PG-only` / `-- SQLite-only` at the top of divergent queries.
+
+**Canonical example**: `internal/repository/store/monitoring_activity_repository_sqlc.go` — all aggregations do Go-side bucketing/counting from base SELECTs. `GetAvgResponseTimeByWindow` uses native `AVG()` SQL but COUNT-first to avoid NULL scanning on empty windows.
+
+**Raw-SQL migration**: `GetRecentResponseTimes` was raw SQL in the GORM impl; now a named `:many` sqlc query.
+
+---
+
+## 10. Preload via single JOIN (Wave 2)
+
+For 1:1 PK-lookup preloads (e.g., `incident_event_step.FindByID` → embedded `Incident`), use a **single JOIN query** instead of two sequential queries. Clarification Q1 locked this — one round-trip beats two.
+
+**SQL shape**:
+
+```sql
+SELECT
+    s.id, s.created_at, s.updated_at, s.incident_id, s.step, s.message,
+    i.created_at AS i_created_at,
+    i.updated_at AS i_updated_at,
+    i.resource_id, i.cause, i.resolved_at, i.started_at, i.details
+FROM incident_event_steps s
+JOIN incidents i ON i.id = s.incident_id
+WHERE s.id = $1;
+```
+
+sqlc generates a flat row struct (`FindIncidentEventStepByIDRow`) with all step + incident columns (renamed via `AS x_alias` to avoid name collisions). Wrapper splits the flat row into `*domain.IncidentEventStep{Incident: domain.Incident{…}}`.
+
+**SQLite parser caveat**: sqlc's sqlite parser fails on certain alias forms (numeric suffix like `_2`, complex AS aliases on the same name across tables). Workaround: rename aliases to underscored prefixes (`i_created_at` not `incident_id_2`).
+
+**Canonical example**: `internal/repository/store/incident_event_step_repository_sqlc.go:eventStepFromPGJoin` / `eventStepFromSQLiteJoin`. Test: `TestIncidentEventStepRepository_SqlcJoinPreload`.
+
+**For 1:many preloads** (maintenance.Resources): use **two queries** instead (principal + junction list). Wrapper assembles via stub resources (just IDs populated, full hydration deferred — service layer falls back to a separate `FindByComponentID` / `FindByID` lookup).
