@@ -11,10 +11,8 @@ we are going.
 
 Ogoune follows an **Open Core** model:
 
-- The **Community Edition** is free, self-hosted, open source under **AGPL v3**. Everything you need to monitor your
-infrastructure and get alerted belongs here. Nobody should have to pay to know if their service is down.
-- The **Enterprise Edition** adds features that only make sense in a hosted, multi-tenant context — team management, SSO,
-enterprise integrations, AI analytics. This code lives in `internal/ee/` and is covered by a separate commercial licence.
+- The **Community Edition** is free, self-hosted, and open source under **Apache License 2.0**. Everything you need to monitor your infrastructure and get alerted belongs here. Nobody should have to pay to know if their service is down.
+- The **Enterprise Edition** adds features that only make sense in a hosted, multi-tenant context — team management, SSO, enterprise integrations, AI analytics. This code lives in `internal/ee/` and is covered by a separate commercial source-available licence (`LicenseRef-Ogoune-EE`).
 
 **We will never degrade the Community Edition to force upgrades.**
 
@@ -24,17 +22,16 @@ enterprise integrations, AI analytics. This code lives in `internal/ee/` and is 
 
 | Edition | Licence | Code location |
 |---|---|---|
-| Community Edition | **AGPL v3** | All directories except `internal/ee/` |
-| Enterprise Edition | Proprietary (see `LICENSE_EE`) | `internal/ee/` |
+| Community Edition | **Apache License 2.0** (see [`LICENSE`](./LICENSE)) | All files except `internal/ee/` |
+| Enterprise Edition | **Commercial source-available** — `LicenseRef-Ogoune-EE` (see [`LICENSE.ee`](./LICENSE.ee)) | `internal/ee/` and any file carrying the SPDX identifier `LicenseRef-Ogoune-EE` |
 
-The AGPL v3 licence means anyone running Ogoune as a service must publish their modifications. If you want to use Ogoune
-commercially without sharing your modifications, contact us for a commercial licence.
+The Apache 2.0 licence on the core lets you use, modify, deploy, and fork Ogoune Community Edition under standard permissive terms — no copyleft obligation. If you want to use Enterprise features in production, contact us for a commercial licence (`hello@ogoune.com`).
+
+**Pre-v2.0.0 distributions remain AGPL v3 forever.** Releases distributed under AGPL prior to v2.0.0 stay under those terms in perpetuity; the dual model above applies only to commits and releases from v2.0.0 onward.
 
 ### Contributing
 
-All contributors must sign our **CLA (Contributor Licence Agreement)** before their pull request can be merged. This
-allows us to license community contributions under AGPL v3 while retaining the ability to offer commercial licences.
-The CLA bot handles this automatically on your first PR.
+All contributors must sign our **CLA (Contributor Licence Agreement)** before their pull request can be merged. The current version is v1.1 (see [`cla.md`](./cla.md)). The CLA authorises us to licence contributions under any OSI-approved open source licence (currently Apache 2.0 on the core) and under any proprietary or commercial licence (currently `LicenseRef-Ogoune-EE` on `internal/ee/`). The CLA bot handles signature automatically on your first PR.
 
 ---
 

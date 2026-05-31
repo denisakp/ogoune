@@ -244,8 +244,16 @@ pnpm dev
 ### Run tests
 
 ```bash
-make test
+make test            # frontend + backend (SQLite-only)
 ```
+
+### Run tests against Postgres (dual-dialect)
+
+```bash
+make test-be-pg      # boots testcontainers postgres:16-alpine; needs Docker
+```
+
+Skips gracefully when Docker is unavailable. Repository contract tests run against both SQLite and Postgres via the helper at `internal/repository/internaltest/`. See that package's README for the full usage.
 
 ### Build from the repo root
 
@@ -257,6 +265,20 @@ This produces:
 - `dist/ogoune`
 - `web/dist/index.html`
 - `web/dist/status.html`
+
+### Type-safe DB queries (sqlc)
+
+Repository queries written under `internal/repository/sqlc/queries/{postgres,sqlite}/`
+are compiled to Go via [sqlc](https://sqlc.dev/). After editing or adding a `.sql`
+file:
+
+```bash
+make sqlc-generate      # regenerate Go code under internal/repository/sqlc/{pg,sqlite}/
+make sqlc-check         # fail if committed code drifts vs queries (also runs in CI)
+```
+
+`make build-be` runs `sqlc-check` automatically. The sqlc CLI is auto-installed
+at the pinned version on first run.
 
 ---
 

@@ -2,14 +2,17 @@ package database
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"log"
 	"log/slog"
 	"os"
+	"reflect"
 	"strings"
 	"sync"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgxpool"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 )
@@ -41,10 +44,79 @@ type Config struct {
 }
 
 // Runtime captures the active database runtime selected at startup.
+//
+// Invariants:
+//   - Exactly one of pgxPool / sqliteDB is non-nil, matching Driver.
+//   - The raw handle and DB (GORM) share the same underlying physical pool.
 type Runtime struct {
 	Driver           Driver
 	DB               *gorm.DB
 	PermissionStatus PermissionStatus
+
+	pgxPool  *pgxpool.Pool
+	sqliteDB *sql.DB
+}
+
+// RuntimeStats exposes pool identity and live counts for observability and
+// single-pool assertion in tests.
+type RuntimeStats struct {
+	Driver      Driver
+	OpenConns   int
+	InUseConns  int
+	IdleConns   int
+	PoolPointer uintptr
+}
+
+// PgxPool returns the underlying pgx pool. Nil when Driver != DriverPostgres.
+func (r *Runtime) PgxPool() *pgxpool.Pool {
+	if r == nil {
+		return nil
+	}
+	return r.pgxPool
+}
+
+// SQLiteDB returns the underlying SQLite *sql.DB. Nil when Driver != DriverSQLite.
+func (r *Runtime) SQLiteDB() *sql.DB {
+	if r == nil {
+		return nil
+	}
+	return r.sqliteDB
+}
+
+// GormDB returns the GORM handle. Convenience getter mirroring the PRD wording.
+func (r *Runtime) GormDB() *gorm.DB {
+	if r == nil {
+		return nil
+	}
+	return r.DB
+}
+
+// Stats returns pool identity + live counts. PoolPointer is stable across
+// calls for the lifetime of the Runtime and identifies the single underlying pool.
+func (r *Runtime) Stats() RuntimeStats {
+	if r == nil {
+		return RuntimeStats{}
+	}
+	out := RuntimeStats{Driver: r.Driver}
+	switch r.Driver {
+	case DriverPostgres:
+		if r.pgxPool != nil {
+			out.PoolPointer = reflect.ValueOf(r.pgxPool).Pointer()
+			s := r.pgxPool.Stat()
+			out.OpenConns = int(s.TotalConns())
+			out.InUseConns = int(s.AcquiredConns())
+			out.IdleConns = int(s.IdleConns())
+		}
+	case DriverSQLite:
+		if r.sqliteDB != nil {
+			out.PoolPointer = reflect.ValueOf(r.sqliteDB).Pointer()
+			s := r.sqliteDB.Stats()
+			out.OpenConns = s.OpenConnections
+			out.InUseConns = s.InUse
+			out.IdleConns = s.Idle
+		}
+	}
+	return out
 }
 
 type resolvedConfig struct {
@@ -75,14 +147,19 @@ func openRuntime(ctx context.Context, cfg resolvedConfig, migrationFS migrationF
 	var (
 		db               *gorm.DB
 		permissionStatus = PermissionStatusNotApplicable
+		pgxPool          *pgxpool.Pool
+		sqliteDB         *sql.DB
 		err              error
 	)
 
 	switch cfg.Driver {
 	case DriverPostgres:
-		db, err = openPostgres(cfg)
+		db, pgxPool, err = openPostgres(ctx, cfg)
 	case DriverSQLite:
 		db, permissionStatus, err = openSQLite(cfg)
+		if err == nil {
+			sqliteDB, err = db.DB()
+		}
 	default:
 		return nil, fmt.Errorf("db init: unsupported driver %q", cfg.Driver)
 	}
@@ -106,6 +183,8 @@ func openRuntime(ctx context.Context, cfg resolvedConfig, migrationFS migrationF
 		Driver:           cfg.Driver,
 		DB:               db,
 		PermissionStatus: permissionStatus,
+		pgxPool:          pgxPool,
+		sqliteDB:         sqliteDB,
 	}, nil
 }
 
@@ -133,6 +212,11 @@ func Init(ctx context.Context, cfg Config) error {
 }
 
 // Instance returns the active gorm database handle, lazily initializing from env when needed.
+//
+// Deprecated: prefer obtaining the full *Runtime from bootstrap and using
+// Runtime.GormDB(), Runtime.PgxPool(), or Runtime.SQLiteDB() as appropriate.
+// This accessor is preserved during the sqlc migration and will be removed
+// in a follow-up ticket.
 func Instance() (*gorm.DB, error) {
 	runtimeMu.RLock()
 	currentRuntime := activeRuntime
@@ -158,6 +242,20 @@ func Instance() (*gorm.DB, error) {
 	}
 
 	return activeRuntime.DB, nil
+}
+
+// ActiveRuntime returns the active *Runtime once the singleton has been
+// initialized. Returns an error if Init has not been called or failed.
+// Prefer this over Instance() when callers need driver-specific handles
+// (PgxPool, SQLiteDB) in addition to the GORM DB.
+func ActiveRuntime() (*Runtime, error) {
+	runtimeMu.RLock()
+	defer runtimeMu.RUnlock()
+
+	if activeRuntime == nil {
+		return nil, fmt.Errorf("db runtime: not initialized")
+	}
+	return activeRuntime, nil
 }
 
 // DriverName returns the active driver name once the singleton has been initialized.
@@ -196,10 +294,15 @@ func Reset() {
 	runtimeMu.Lock()
 	defer runtimeMu.Unlock()
 
-	if activeRuntime != nil && activeRuntime.DB != nil {
-		sqlDB, err := activeRuntime.DB.DB()
-		if err == nil && sqlDB != nil {
-			_ = sqlDB.Close()
+	if activeRuntime != nil {
+		if activeRuntime.DB != nil {
+			sqlDB, err := activeRuntime.DB.DB()
+			if err == nil && sqlDB != nil {
+				_ = sqlDB.Close()
+			}
+		}
+		if activeRuntime.pgxPool != nil {
+			activeRuntime.pgxPool.Close()
 		}
 	}
 

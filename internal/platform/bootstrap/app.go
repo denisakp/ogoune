@@ -43,6 +43,7 @@ type App struct {
 	UserRepo                port.UserRepository
 	APIKeyRepo              port.APIKeyRepository
 	ResourceCredentialRepo  port.ResourceCredentialRepository
+	ExpiryNotificationLogRepo port.ExpiryNotificationLogRepository
 
 	// Metrics phase
 	MetricsRecorder domain.MetricsRecorder

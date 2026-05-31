@@ -1,0 +1,15 @@
+# Allowed runtime-dependency licenses on the Ogoune core scope.
+# Source: specs/040-relicense-apache-ee/data-model.md §3.
+# Adding an entry is a deliberate policy change — review carefully.
+
+Apache-2.0
+MIT
+BSD-2-Clause
+BSD-3-Clause
+ISC
+MPL-2.0
+Unlicense
+CC0-1.0
+Zlib
+BlueOak-1.0.0
+0BSD

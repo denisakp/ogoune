@@ -1,0 +1,9 @@
+# Denied runtime-dependency license families on the Ogoune core scope.
+# Matched as regex prefixes against SPDX identifiers.
+# Source: specs/040-relicense-apache-ee/data-model.md §3.
+
+GPL-
+LGPL-
+AGPL-
+SSPL-
+BUSL-

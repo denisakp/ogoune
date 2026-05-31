@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: LicenseRef-Ogoune-EE
 package license
 
 import (

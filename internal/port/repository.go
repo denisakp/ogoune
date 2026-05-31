@@ -18,6 +18,29 @@ type TagsRepository interface {
 	Delete(ctx context.Context, id string) error
 }
 
+// UpdateMonitoringStateRequest carries the columns mutated by the monitoring
+// worker after a check cycle. Pointer semantics: nil preserves the existing
+// column value; a non-nil pointer writes it. For nullable timestamp columns
+// the outer pointer is double-indirected so callers can distinguish
+// "preserve" (outer nil) from "set to NULL" (outer non-nil, inner nil).
+type UpdateMonitoringStateRequest struct {
+	Status               *domain.ResourceStatus
+	FailureCount         *int
+	LastChecked          **time.Time
+	LastStatusTransition **time.Time
+	FlapStartedAt        **time.Time
+}
+
+// UpdateMetadataRequest carries the SSL/domain expiry fields populated by the
+// metadata-enrichment path. Same nil-vs-non-nil semantics as
+// UpdateMonitoringStateRequest; nullable timestamps use **time.Time.
+type UpdateMetadataRequest struct {
+	SSLExpirationDate    **time.Time
+	SSLIssuer            *string
+	DomainExpirationDate **time.Time
+	DomainRegistrar      *string
+}
+
 // ResourceRepository manages monitored resources.
 type ResourceRepository interface {
 	Create(ctx context.Context, r *domain.Resource) (*domain.Resource, error)
@@ -33,8 +56,8 @@ type ResourceRepository interface {
 	FindMissedHeartbeats(ctx context.Context, now time.Time, limit int) ([]*domain.Resource, error)
 	UpdateLastPingAt(ctx context.Context, id string, at time.Time) error
 	UpdateStatus(ctx context.Context, id string, status domain.ResourceStatus) error
-	UpdateMonitoringState(ctx context.Context, resource *domain.Resource) error
-	UpdateMetadata(ctx context.Context, id string, metadata *domain.ResourceMetaData) error
+	UpdateMonitoringState(ctx context.Context, id string, req UpdateMonitoringStateRequest) error
+	UpdateMetadata(ctx context.Context, id string, req UpdateMetadataRequest) error
 	FindScheduledResources(ctx context.Context) ([]*domain.Resource, error)
 }
 

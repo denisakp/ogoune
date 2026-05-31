@@ -1,0 +1,10 @@
+# Phrases that exempt a line from the docs-drift AGPL scan.
+# A line is exempt if it contains any of these substrings (case-insensitive).
+# Source: specs/040-relicense-apache-ee/data-model.md §4.
+
+previously AGPL
+pre-v2.0.0
+prior to v2.0.0
+releases distributed under AGPL
+AGPL forever
+was AGPL

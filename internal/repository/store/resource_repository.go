@@ -278,19 +278,30 @@ func (r *ResourceRepositoryImpl) UpdateLastPingAt(ctx context.Context, id string
 }
 
 // UpdateMonitoringState persists the monitoring-controlled fields after a check cycle.
-// These fields are intentionally excluded from Update() (user-facing) to prevent
-// user PATCH requests from overwriting monitoring state.
-func (r *ResourceRepositoryImpl) UpdateMonitoringState(ctx context.Context, resource *domain.Resource) error {
-	updates := map[string]interface{}{
-		"status":                 resource.Status,
-		"failure_count":          resource.FailureCount,
-		"last_checked":           resource.LastChecked,
-		"last_status_transition": resource.LastStatusTransition,
-		"flap_started_at":        resource.FlapStartedAt,
+// Pointer fields on the request distinguish "preserve" (nil) from "write zero" (&zero).
+func (r *ResourceRepositoryImpl) UpdateMonitoringState(ctx context.Context, id string, req port.UpdateMonitoringStateRequest) error {
+	updates := map[string]interface{}{}
+	if req.Status != nil {
+		updates["status"] = *req.Status
+	}
+	if req.FailureCount != nil {
+		updates["failure_count"] = *req.FailureCount
+	}
+	if req.LastChecked != nil {
+		updates["last_checked"] = *req.LastChecked
+	}
+	if req.LastStatusTransition != nil {
+		updates["last_status_transition"] = *req.LastStatusTransition
+	}
+	if req.FlapStartedAt != nil {
+		updates["flap_started_at"] = *req.FlapStartedAt
+	}
+	if len(updates) == 0 {
+		return nil
 	}
 	result := r.db.WithContext(ctx).
 		Model(&domain.Resource{}).
-		Where("id = ?", resource.ID).
+		Where("id = ?", id).
 		Updates(updates)
 	if result.Error != nil {
 		return fmt.Errorf("failed to update monitoring state: %w", result.Error)
@@ -318,16 +329,23 @@ func (r *ResourceRepositoryImpl) UpdateStatus(ctx context.Context, id string, st
 }
 
 // UpdateMetadata updates only the metadata fields of a resource to avoid touching associations.
-func (r *ResourceRepositoryImpl) UpdateMetadata(ctx context.Context, id string, metadata *domain.ResourceMetaData) error {
-	if metadata == nil {
-		return fmt.Errorf("metadata cannot be nil")
+// Pointer fields on the request distinguish "preserve" (nil) from "write zero" (&zero).
+func (r *ResourceRepositoryImpl) UpdateMetadata(ctx context.Context, id string, req port.UpdateMetadataRequest) error {
+	updates := map[string]any{}
+	if req.SSLExpirationDate != nil {
+		updates["ssl_expiration_date"] = *req.SSLExpirationDate
 	}
-
-	updates := map[string]any{
-		"ssl_expiration_date":    metadata.SSLExpirationDate,
-		"ssl_issuer":             metadata.SSLIssuer,
-		"domain_expiration_date": metadata.DomainExpirationDate,
-		"domain_registrar":       metadata.DomainRegistrar,
+	if req.SSLIssuer != nil {
+		updates["ssl_issuer"] = *req.SSLIssuer
+	}
+	if req.DomainExpirationDate != nil {
+		updates["domain_expiration_date"] = *req.DomainExpirationDate
+	}
+	if req.DomainRegistrar != nil {
+		updates["domain_registrar"] = *req.DomainRegistrar
+	}
+	if len(updates) == 0 {
+		return nil
 	}
 
 	result := r.db.WithContext(ctx).

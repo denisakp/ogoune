@@ -16,7 +16,8 @@ make build-fe           # Vue SPA → web/dist
 
 # Test
 make test               # both
-make test-be            # go test -race ./...
+make test-be            # go test -race ./... (SQLite-only; Postgres tests skip)
+make test-be-pg         # dual-dialect (SQLite + Postgres via testcontainers); needs Docker
 make test-fe            # cd web && pnpm test
 go test -race ./internal/scheduler/...  # single package
 make run-ci             # full local CI gate: lint + race tests + build
@@ -39,6 +40,13 @@ cd web && pnpm install && pnpm dev  # http://localhost:5173, needs VITE_API_BASE
 # Swagger
 make swag               # regenerate docs/ from annotations, commit the result
                         # UI at /api/v1/docs/* (ENABLE_SWAGGER=true)
+
+# sqlc (type-safe DB queries)
+make sqlc-generate      # regenerate Go code under internal/repository/sqlc/{pg,sqlite}/
+make sqlc-check         # fail if generated code is drift vs queries (run by build-be + CI)
+
+# Migrations drift (file-pair + column name + nullability across dialects)
+make migrations-drift-check  # run by CI before tests
 
 # Docker
 make docker             # builds ogoune:test image
@@ -135,48 +143,30 @@ Vue 3 Composition API + TypeScript + Pinia + Ant Design Vue.
 - SQLite: no `ADD COLUMN IF NOT EXISTS`, no multi-column `ALTER TABLE`
 - Use `GORM serializer:json` instead of `type:jsonb` for cross-driver JSON fields
 - Naming: `XXXX_description.up.sql` / `.down.sql`
+- One migration = two files with the same `NNNN_` prefix and the same intent. Drift between trees is enforced by `make migrations-drift-check`
+- Column **name + nullability MUST match** across dialects. Type tokens are intentionally NOT enforced cross-dialect (`JSONB`↔`TEXT`, `TIMESTAMPTZ`↔`TEXT`, `BIGINT`↔`INTEGER`)
+- JSON columns: `JSONB` (Postgres) / `TEXT` (SQLite). See `internal/database/migrations/README.md` for the full type-mapping table
+- `PRAGMA`, triggers, and stored functions in `.sql` migration files require tech-lead validation (sqlc compatibility risk)
 
 ### Testing
 
 - DB tests use `setupTestDB(t)` helper (SQLite in-memory)
+- Repository contract tests are dual-dialect (SQLite + Postgres) via `internal/repository/internaltest.ForEachDialect`. See `internal/repository/internaltest/README.md` for usage
 - Table-driven tests for multi-case scenarios
-- `go test -race ./...` must pass
+- `go test -race ./...` must pass (SQLite-only path; Postgres tests skip gracefully)
+- `make test-be-pg` runs the dual-dialect matrix locally; requires Docker. CI job `test-be-postgres` runs it on every PR
 - Frontend: Vitest + jsdom, `*.spec.ts` colocated next to source or under `web/src/test/`
 
 ## Code Quality — SonarQube (MANDATORY)
 
-Before completing any task or commit, you MUST:
+Quality gate must pass before merge (in addition to `make lint` + `make test`).
 
-1. **Ensure coverage reports are generated** (both stacks):
-   ```bash
-   make test-be          # generates coverage/unit.out (Go)
-   make test-fe          # generates web/coverage/lcov.info (Vue/TS)
-   ```
+```bash
+make test-be && make test-fe        # coverage/unit.out + web/coverage/lcov.info
+sonar-scanner                       # uses SONAR_TOKEN env var; config in sonar-project.properties
+```
 
-2. **Run the SonarQube scanner**:
-   ```bash
-   sonar-scanner -Dsonar.token=<YOUR_TOKEN>
-   ```
-   (Set `SONAR_TOKEN` env var or pass via `-D` flag. Config is in `sonar-project.properties`.)
-
-3. **Verify quality gate** via SonarQube dashboard (local: http://localhost:9009):
-   - Project: `ogoune`
-   - Check for **CRITICAL** and **BLOCKER** issues in **both**:
-     - Go backend (`cmd/`, `internal/`, `pkg/`)
-     - Vue frontend (`web/src/`)
-
-4. **If issues are detected**:
-   - **Go issues**: fix in `cmd/`, `internal/`, `pkg/`, re-run `make test-be && sonar-scanner`
-   - **TS/Vue issues**: fix in `web/src/`, re-run `make test-fe && sonar-scanner`
-   - **Maximum 3 cycles total** — if still failing after 3 attempts, stop and report remaining issues
-   
-5. **Never merge with Quality Gate = FAILED**
-   - This is in addition to `make lint` and `make test` (which also remain mandatory)
-
-### Why monorepo matters
-- Two coverage reports are required (Go + TS/lcov)
-- Each stack may have different critical issues
-- Fixing one stack's issue doesn't block the other
+Dashboard: http://localhost:9009 (project `ogoune`). Block on CRITICAL/BLOCKER in either stack — Go (`cmd/`, `internal/`, `pkg/`) or Vue (`web/src/`). Two coverage reports are required because each stack scores independently. Cap at 3 fix-rescan cycles; report remaining if still failing.
 
 ## Gotchas
 
@@ -186,9 +176,11 @@ Before completing any task or commit, you MUST:
 - Never block on scheduler failures — log and return `ErrSchedulerSync`
 - Commits use Conventional Commits format (`feat:`, `fix:`, `docs:`, `refactor:`, `test:`, `chore:`)
 - `web/.npmrc` sets `onlyBuiltDependencies=[]` — pnpm skips all install scripts. If a new dep needs native build, allowlist it explicitly
+- After editing any `.sql` file under `internal/repository/sqlc/queries/`, run `make sqlc-generate` and commit the result. CI runs `make sqlc-check` and fails on drift. Generated code lives in `internal/repository/sqlc/{pg,sqlite}/` and is versioned
+- After editing any migration `.sql` under `internal/database/migrations/`, run `make migrations-drift-check` locally. CI runs it before tests and fails on file-pair / column name / nullability divergence between dialects
 
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan:
-`specs/039-broker-protocol-checks/plan.md`
+`specs/048-wave3-resource-incident-sqlc/plan.md`
 <!-- SPECKIT END -->

@@ -17,7 +17,7 @@ services:
       DB_DRIVER: ${DB_DRIVER:-sqlite}
       SQLITE_PATH: /data/ogoune.db
       DATABASE_URL: ${DATABASE_URL:-}
-      DB_LOG_LEVEL: error
+      DB_LOG_LEVEL: debug
       # Scheduler — defaults to in-process TimingWheel, override to asynq for full stack
       SCHEDULER_MODE: ${SCHEDULER_MODE:-timingwheel}
       SCHEDULER_MAX_WORKERS: ${SCHEDULER_MAX_WORKERS:-10}

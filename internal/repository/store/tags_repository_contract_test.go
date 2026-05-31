@@ -1,4 +1,4 @@
-package store
+package store_test
 
 import (
 	"context"
@@ -6,157 +6,133 @@ import (
 	"testing"
 	"time"
 
-	domain "github.com/denisakp/ogoune/internal/domain"
-	"github.com/denisakp/ogoune/internal/repository/fake"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	domain "github.com/denisakp/ogoune/internal/domain"
+	"github.com/denisakp/ogoune/internal/port"
+	"github.com/denisakp/ogoune/internal/repository"
+	"github.com/denisakp/ogoune/internal/repository/internaltest"
+	"github.com/denisakp/ogoune/internal/repository/store"
 )
 
+// TestTagsRepository_Contract validates the GORM-backed TagsRepository
+// against the dual-dialect helper. Contract = behaviors that MUST hold for
+// any implementation of port.TagsRepository, regardless of backend.
+//
+// Fake-only assertions (e.g. ErrDuplicate / ErrInvalidInput sentinels that
+// the in-memory fake emits but the GORM impl does not map to) live in
+// tags_repository_fake_test.go.
 func TestTagsRepository_Contract(t *testing.T) {
-	// Use fake implementation for contract tests
-	repo := fake.NewTagsFake()
+	internaltest.ForEachDialect(t, func(t *testing.T, fx *internaltest.DialectFixture) {
+		repo := store.NewTagsRepository(fx.Runtime.GormDB())
+		runTagsContract(t, repo)
+	})
+}
+
+func runTagsContract(t *testing.T, repo port.TagsRepository) {
+	t.Helper()
+	ctx := context.Background()
 
 	t.Run("Create", func(t *testing.T) {
 		tag := &domain.Tags{
-			Base: domain.Base{
-				ID:        "test-tag-1",
-				CreatedAt: time.Now(),
-			},
+			Base: domain.Base{ID: "01TAG00000000000000000001A", CreatedAt: time.Now()},
 			Name: "Test Tag",
 		}
-
-		err := repo.Create(context.Background(), tag)
-		require.NoError(t, err)
-
-		// Test duplicate creation
-		err = repo.Create(context.Background(), tag)
-		assert.ErrorIs(t, err, fake.ErrDuplicate)
-
-		// Test invalid input (empty ID)
-		invalidTag := &domain.Tags{Name: "Invalid"}
-		err = repo.Create(context.Background(), invalidTag)
-		assert.ErrorIs(t, err, fake.ErrInvalidInput)
+		require.NoError(t, repo.Create(ctx, tag))
 	})
 
 	t.Run("FindByID", func(t *testing.T) {
 		tag := &domain.Tags{
-			Base: domain.Base{
-				ID:        "test-tag-2",
-				CreatedAt: time.Now(),
-			},
+			Base: domain.Base{ID: "01TAG00000000000000000002A", CreatedAt: time.Now()},
 			Name: "Test Tag 2",
 		}
+		require.NoError(t, repo.Create(ctx, tag))
 
-		err := repo.Create(context.Background(), tag)
-		require.NoError(t, err)
-
-		found, err := repo.FindByID(context.Background(), "test-tag-2")
+		found, err := repo.FindByID(ctx, tag.ID)
 		require.NoError(t, err)
 		assert.Equal(t, tag.ID, found.ID)
 		assert.Equal(t, tag.Name, found.Name)
 
-		// Test not found
-		_, err = repo.FindByID(context.Background(), "non-existent-id")
-		assert.ErrorIs(t, err, fake.ErrNotFound)
+		_, err = repo.FindByID(ctx, "non-existent-id")
+		assert.ErrorIs(t, err, repository.ErrNotFound)
 	})
 
 	t.Run("FindByName", func(t *testing.T) {
 		tag := &domain.Tags{
-			Base: domain.Base{
-				ID:        "test-tag-3",
-				CreatedAt: time.Now(),
-			},
+			Base: domain.Base{ID: "01TAG00000000000000000003A", CreatedAt: time.Now()},
 			Name: "Unique Tag Name",
 		}
+		require.NoError(t, repo.Create(ctx, tag))
 
-		err := repo.Create(context.Background(), tag)
-		require.NoError(t, err)
-
-		found, err := repo.FindByName(context.Background(), "Unique Tag Name")
+		found, err := repo.FindByName(ctx, tag.Name)
 		require.NoError(t, err)
 		assert.Equal(t, tag.ID, found.ID)
 		assert.Equal(t, tag.Name, found.Name)
 
-		// Test not found
-		_, err = repo.FindByName(context.Background(), "Non-Existent Name")
-		assert.ErrorIs(t, err, fake.ErrNotFound)
+		_, err = repo.FindByName(ctx, "Non-Existent Name")
+		assert.ErrorIs(t, err, repository.ErrNotFound)
 	})
 
 	t.Run("Update", func(t *testing.T) {
 		tag := &domain.Tags{
-			Base: domain.Base{
-				ID:        "test-update",
-				CreatedAt: time.Now(),
-			},
+			Base: domain.Base{ID: "01TAG00000000000000000004A", CreatedAt: time.Now()},
 			Name: "Initial Name",
 		}
-
-		err := repo.Create(context.Background(), tag)
-		require.NoError(t, err)
+		require.NoError(t, repo.Create(ctx, tag))
 
 		tag.Name = "Updated Name"
-		err = repo.Update(context.Background(), tag)
-		require.NoError(t, err)
+		require.NoError(t, repo.Update(ctx, tag))
 
-		updated, err := repo.FindByID(context.Background(), "test-update")
+		updated, err := repo.FindByID(ctx, tag.ID)
 		require.NoError(t, err)
 		assert.Equal(t, "Updated Name", updated.Name)
 
-		// Test update non-existent
-		nonExistent := &domain.Tags{
-			Base: domain.Base{ID: "non-existent"},
-			Name: "Doesn't Matter",
-		}
-		err = repo.Update(context.Background(), nonExistent)
-		assert.ErrorIs(t, err, fake.ErrNotFound)
+		// NOTE: GORM's Save() upserts on non-existent rows — it does NOT
+		// return ErrNotFound. The fake implementation does. That assertion
+		// is therefore fake-specific and lives in tags_repository_fake_test.go.
 	})
 
 	t.Run("Delete", func(t *testing.T) {
 		tag := &domain.Tags{
-			Base: domain.Base{
-				ID:        "test-delete",
-				CreatedAt: time.Now(),
-			},
+			Base: domain.Base{ID: "01TAG00000000000000000005A", CreatedAt: time.Now()},
 			Name: "To Be Deleted",
 		}
+		require.NoError(t, repo.Create(ctx, tag))
+		require.NoError(t, repo.Delete(ctx, tag.ID))
 
-		err := repo.Create(context.Background(), tag)
-		require.NoError(t, err)
+		_, err := repo.FindByID(ctx, tag.ID)
+		assert.ErrorIs(t, err, repository.ErrNotFound)
 
-		err = repo.Delete(context.Background(), "test-delete")
-		require.NoError(t, err)
-
-		_, err = repo.FindByID(context.Background(), "test-delete")
-		assert.ErrorIs(t, err, fake.ErrNotFound)
-
-		// Test delete non-existent
-		err = repo.Delete(context.Background(), "non-existent")
-		assert.ErrorIs(t, err, fake.ErrNotFound)
+		err = repo.Delete(ctx, "non-existent")
+		assert.ErrorIs(t, err, repository.ErrNotFound)
 	})
 
 	t.Run("List", func(t *testing.T) {
-		// Clear existing tags in fake
-		repo = fake.NewTagsFake()
+		// Insert N distinct rows. Other sub-tests may have created tags in
+		// this dialect's DB earlier; we count what THIS sub-test added.
+		const n = 5
+		before, err := repo.List(ctx, 1000, 0)
+		require.NoError(t, err)
+		baseline := len(before)
 
-		// Create multiple tags
-		for i := 1; i <= 5; i++ {
+		for i := 1; i <= n; i++ {
 			tag := &domain.Tags{
 				Base: domain.Base{
-					ID:        fmt.Sprintf("tag-%d", i),
+					ID:        fmt.Sprintf("01TAGLIST%016d", i),
 					CreatedAt: time.Now(),
 				},
-				Name: fmt.Sprintf("Tag %d", i),
+				Name: fmt.Sprintf("Tag List %d", i),
 			}
-			err := repo.Create(context.Background(), tag)
-			require.NoError(t, err)
+			require.NoError(t, repo.Create(ctx, tag))
 		}
 
-		tags, err := repo.List(context.Background(), 10, 0)
+		got, err := repo.List(ctx, 1000, 0)
 		require.NoError(t, err)
-		assert.Len(t, tags, 5)
+		assert.Equal(t, baseline+n, len(got))
 
-		tags, err = repo.List(context.Background(), 2, 1)
+		page, err := repo.List(ctx, 2, 1)
 		require.NoError(t, err)
-		assert.Len(t, tags, 2)
+		assert.Len(t, page, 2)
 	})
 }

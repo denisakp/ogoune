@@ -20,6 +20,7 @@ This document tells you everything you need to know to go from "I want to help" 
 - [For technical writers](#for-technical-writers)
 - [Issue labels explained](#issue-labels-explained)
 - [Code of conduct](#code-of-conduct)
+- [Outbound licensing of your contributions](#outbound-licensing-of-your-contributions)
 
 ---
 
@@ -457,3 +458,18 @@ All endpoints under `/api/v1/` form the stable public API surface. Changes to th
 - `GET /api/v1/openapi.json` always serves the spec (no auth required).
 - The Swagger UI at `GET /api/v1/docs/*` is gated by `ENABLE_SWAGGER=true` (default: false in production).
 - Always commit the generated `docs/` directory after running `make swag`.
+
+---
+
+## Outbound licensing of your contributions
+
+Ogoune follows an **Open Core** dual-licensing model from v2.0.0 onward:
+
+- The **core** (everything outside `internal/ee/`) is distributed under **Apache License 2.0** — see [`LICENSE`](./LICENSE).
+- The **Enterprise Edition** (`internal/ee/` and any file carrying the SPDX identifier `LicenseRef-Ogoune-EE`) is distributed under a separate commercial source-available licence — see [`LICENSE.ee`](./LICENSE.ee).
+
+All contributions are subject to the Ogoune **Contributor License Agreement** ([`cla.md`](./cla.md), currently v1.1). By signing the CLA you grant us the right to distribute your contribution under any OSI-approved open source licence and/or any proprietary or commercial licence. In concrete terms today: a contribution to the core ships under Apache 2.0; a contribution to `internal/ee/` ships under `LicenseRef-Ogoune-EE`. The CLA bot prompts you to accept the current CLA version on your first pull request.
+
+**Past releases**: any Ogoune distribution made publicly available prior to v2.0.0 remains licensed under **AGPL v3 forever**. The dual model above applies only to commits and releases made from v2.0.0 onward.
+
+If you have a question about how the licence applies to a specific contribution, open a GitHub Discussion or email `hello@ogoune.com` before submitting the PR.
