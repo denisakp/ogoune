@@ -34,6 +34,8 @@ GORM impl they shadow.
 
 ---
 
+> **See also**: [PATTERNS.md](./PATTERNS.md) — Wave-1 (046) cross-cutting patterns (encryption call-sites, SQL-native expressions, singleton upserts, JSON columns, mapping helper reference table).
+
 ## How to add a sqlc-backed query (worked example: tags)
 
 1. **Write the queries** — same logical operations, one file per dialect.

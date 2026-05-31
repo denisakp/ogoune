@@ -10,7 +10,6 @@ import (
 	"github.com/denisakp/ogoune/internal/domain"
 	"github.com/denisakp/ogoune/internal/maintenance"
 	"github.com/denisakp/ogoune/internal/monitoring"
-	"github.com/denisakp/ogoune/internal/repository/store"
 	"github.com/denisakp/ogoune/internal/scheduler"
 	"github.com/denisakp/ogoune/internal/service"
 	"github.com/denisakp/ogoune/internal/worker"
@@ -124,7 +123,7 @@ func processTimingWheelJob(job *scheduler.CheckJob, handler *worker.MonitoringTa
 }
 
 func startTimingWheelExpiryCheck(app *App, enrichmentService *service.EnrichmentService) {
-	twExpiryNotificationLogRepo := store.NewExpiryNotificationLogRepository(app.DB)
+	twExpiryNotificationLogRepo := app.ExpiryNotificationLogRepo
 	twExpiryService := service.NewExpiryNotificationService(
 		twExpiryNotificationLogRepo,
 		app.NotificationChannelRepo,
@@ -202,7 +201,7 @@ func initAsynqProcessor(app *App, enrichmentService *service.EnrichmentService) 
 	monitoringHandler := worker.NewMonitoringTaskHandler(app.ResourceRepo, app.MonitoringActivityRepo, app.MaintenanceRepo, app.IncidentDiagnosticsRepo, executor, incidentService, app.ComponentService, app.ConfirmationScheduler)
 	maintenanceTaskHandler := maintenance.NewTaskHandler(app.MaintenanceRepo, &maintenance.AsynqClientAdapter{Client: app.AsynqClient})
 
-	expiryNotificationLogRepo := store.NewExpiryNotificationLogRepository(app.DB)
+	expiryNotificationLogRepo := app.ExpiryNotificationLogRepo
 	expiryService := service.NewExpiryNotificationService(
 		expiryNotificationLogRepo,
 		app.NotificationChannelRepo,

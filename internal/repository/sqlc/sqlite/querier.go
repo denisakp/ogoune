@@ -6,17 +6,57 @@ package sqlitesqlc
 
 import (
 	"context"
+	"time"
 )
 
 type Querier interface {
+	CountAPIKeysByUserID(ctx context.Context, userID string) (int64, error)
+	CountExpiryNotificationLogsByKey(ctx context.Context, arg CountExpiryNotificationLogsByKeyParams) (int64, error)
+	CreateAPIKey(ctx context.Context, arg CreateAPIKeyParams) error
+	CreateExpiryNotificationLog(ctx context.Context, arg CreateExpiryNotificationLogParams) error
+	CreateIncidentDiagnostics(ctx context.Context, arg CreateIncidentDiagnosticsParams) (IncidentDiagnostic, error)
+	CreateNotificationChannel(ctx context.Context, arg CreateNotificationChannelParams) error
+	CreateStatusPageSettings(ctx context.Context, arg CreateStatusPageSettingsParams) error
 	CreateTag(ctx context.Context, arg CreateTagParams) (Tag, error)
+	CreateUser(ctx context.Context, arg CreateUserParams) (User, error)
+	DeleteExpiryNotificationLogsByResourceIDAndType(ctx context.Context, arg DeleteExpiryNotificationLogsByResourceIDAndTypeParams) error
+	DeleteExpiryNotificationLogsOlderThan(ctx context.Context, sentAt time.Time) error
+	DeleteIncidentDiagnostics(ctx context.Context, id string) (int64, error)
+	DeleteNotificationChannel(ctx context.Context, id string) (int64, error)
+	DeleteResourceCredentialByResourceID(ctx context.Context, resourceID string) (int64, error)
 	DeleteTag(ctx context.Context, id string) (int64, error)
+	DeleteUser(ctx context.Context, id string) error
+	FindAPIKeyByIDForUser(ctx context.Context, arg FindAPIKeyByIDForUserParams) (ApiKey, error)
+	FindAPIKeyByKeyHash(ctx context.Context, keyHash string) (ApiKey, error)
+	FindDefaultNotificationChannels(ctx context.Context) ([]NotificationChannel, error)
+	FindIncidentDiagnosticsByIncidentID(ctx context.Context, incidentID string) (IncidentDiagnostic, error)
+	FindNotificationChannelByID(ctx context.Context, id string) (NotificationChannel, error)
+	FindNotificationChannelsByComponentID(ctx context.Context, componentID string) ([]NotificationChannel, error)
+	FindNotificationChannelsByResourceID(ctx context.Context, resourceID string) ([]NotificationChannel, error)
+	FindNotificationChannelsByType(ctx context.Context, type_ string) ([]NotificationChannel, error)
 	FindTagByID(ctx context.Context, id string) (Tag, error)
 	FindTagByName(ctx context.Context, name string) (Tag, error)
 	FindTagsByIDs(ctx context.Context, ids []string) ([]Tag, error)
+	FindUserByEmail(ctx context.Context, email string) (User, error)
+	FindUserByID(ctx context.Context, id string) (User, error)
+	GetResourceCredentialByResourceID(ctx context.Context, resourceID string) (ResourceCredential, error)
+	GetStatusPageSettings(ctx context.Context) (StatusPageSetting, error)
+	ListAPIKeysByUserID(ctx context.Context, userID string) ([]ApiKey, error)
+	ListNotificationChannels(ctx context.Context, arg ListNotificationChannelsParams) ([]NotificationChannel, error)
 	ListTags(ctx context.Context, arg ListTagsParams) ([]Tag, error)
 	Ping(ctx context.Context) (int64, error)
+	ResourceCredentialExists(ctx context.Context, resourceID string) (int64, error)
+	RevokeAPIKey(ctx context.Context, arg RevokeAPIKeyParams) (int64, error)
+	UpdateAPIKeyLastUsed(ctx context.Context, arg UpdateAPIKeyLastUsedParams) (int64, error)
+	UpdateIncidentDiagnostics(ctx context.Context, arg UpdateIncidentDiagnosticsParams) (int64, error)
+	UpdateNotificationChannel(ctx context.Context, arg UpdateNotificationChannelParams) (int64, error)
+	UpdateStatusPageSettings(ctx context.Context, arg UpdateStatusPageSettingsParams) error
 	UpdateTag(ctx context.Context, arg UpdateTagParams) (int64, error)
+	UpdateUser(ctx context.Context, arg UpdateUserParams) error
+	UpdateUserLastLogin(ctx context.Context, id string) error
+	UpdateUserPassword(ctx context.Context, arg UpdateUserPasswordParams) error
+	UpdateUserTwoFactorSecret(ctx context.Context, arg UpdateUserTwoFactorSecretParams) error
+	UpsertResourceCredential(ctx context.Context, arg UpsertResourceCredentialParams) error
 }
 
 var _ Querier = (*Queries)(nil)

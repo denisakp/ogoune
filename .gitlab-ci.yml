@@ -150,6 +150,58 @@ backend-tests-sqlc-tags:
     - if: '$CI_COMMIT_BRANCH == "main"'
     - if: '$CI_PIPELINE_SOURCE == "web"'
 
+# ─── Wave 1 sqlc lane: full suite with all 7 Wave-1 flags ON ─────────────────
+
+backend-tests-sqlc-wave1:
+  stage: test
+  image: golang:${GO_VERSION}
+  services:
+    - docker:27-dind
+  variables:
+    DOCKER_HOST: tcp://docker:2376
+    DOCKER_TLS_CERTDIR: "/certs"
+    DOCKER_TLS_VERIFY: "1"
+    DOCKER_CERT_PATH: "/certs/client"
+    SQLC_API_KEY: "true"
+    SQLC_USER: "true"
+    SQLC_NOTIFICATION_CHANNEL: "true"
+    SQLC_EXPIRY_NOTIFICATION_LOG: "true"
+    SQLC_STATUSPAGE_SETTINGS: "true"
+    SQLC_INCIDENT_DIAGNOSTICS: "true"
+    SQLC_RESOURCE_CREDENTIAL: "true"
+  timeout: 5 minutes
+  cache:
+    key:
+      files:
+        - go.sum
+    paths:
+      - /root/go/pkg/mod
+      - .cache/go-build
+  before_script:
+    - mkdir -p .cache/go-build
+    - export GOPATH=/root/go
+    - export GOCACHE=$CI_PROJECT_DIR/.cache/go-build
+    - apt-get update -qq && apt-get install -y -qq make docker.io >/dev/null
+    - until docker info >/dev/null 2>&1; do sleep 1; done
+    - docker pull postgres:16-alpine
+  script:
+    - make test-be-pg
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "dev"'
+      changes:
+        - "**/*.go"
+        - go.mod
+        - go.sum
+        - .gitlab-ci.yml
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event" && $CI_MERGE_REQUEST_TARGET_BRANCH_NAME == "dev"'
+      changes:
+        - "**/*.go"
+        - go.mod
+        - go.sum
+        - .gitlab-ci.yml
+    - if: '$CI_COMMIT_BRANCH == "main"'
+    - if: '$CI_PIPELINE_SOURCE == "web"'
+
 # ─── Build & Push (mirrors ci.yml build-and-push job) ────────────────────────
 
 build-and-push:
