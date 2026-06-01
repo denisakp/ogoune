@@ -223,7 +223,7 @@ func (r *ResourceRepositorySQLC) List(ctx context.Context, limit, offset int) ([
 	default:
 		return nil, r.unconfigured()
 	}
-	if err := r.attachPreloads(ctx, out); err != nil {
+	if err := r.attachTagsOnly(ctx, out); err != nil {
 		return nil, err
 	}
 	return out, nil
@@ -966,6 +966,15 @@ func resourcesFromSQLite(rows []sqlitesqlc.Resource) []*domain.Resource {
 // attachPreloads fetches Tags + NotificationChannels + Component + Credential
 // for the given resources via 4 round-trips (controlled N+1, clarification Q1
 // and FR-006). Each helper is a no-op when the underlying ID set is empty.
+//
+// Used by FindByID / FindByHeartbeatSlug / FindActive / FindByTag /
+// FindByComponentID / FindMissedHeartbeats / FindScheduledResources — paths
+// whose callers consume the full graph (workers checking credentials,
+// scheduler reading config, etc.).
+//
+// For the v1 List path (MonitorHandler.List), use attachTagsOnly: the
+// response mapper consumes only Tags, the 3 other preloads were dead code on
+// that path and accounted for ~80% of the GORM-vs-sqlc perf gap.
 func (r *ResourceRepositorySQLC) attachPreloads(ctx context.Context, resources []*domain.Resource) error {
 	if len(resources) == 0 {
 		return nil
@@ -983,6 +992,17 @@ func (r *ResourceRepositorySQLC) attachPreloads(ctx context.Context, resources [
 		return err
 	}
 	return nil
+}
+
+// attachTagsOnly is the list-view variant: only Tags are preloaded. Used by
+// List + ListResourcesByFilter where the v1 response mapper consumes only
+// tag names. Drops 3 round-trips vs attachPreloads. See spec 050 retro for
+// the audit confirming Channels/Component/Credential are unused on this path.
+func (r *ResourceRepositorySQLC) attachTagsOnly(ctx context.Context, resources []*domain.Resource) error {
+	if len(resources) == 0 {
+		return nil
+	}
+	return r.attachTagsToResources(ctx, resources)
 }
 
 // ---------- M2M (resource_tags) helpers ----------
@@ -1495,7 +1515,7 @@ func (r *ResourceRepositorySQLC) ListResourcesByFilter(ctx context.Context, f dy
 			return nil, 0, fmt.Errorf("sqlc: find resources by ids: %w", err)
 		}
 		out := resourcesInOrder(resourcesFromPG(rrows), ids)
-		if err := r.attachPreloads(ctx, out); err != nil {
+		if err := r.attachTagsOnly(ctx, out); err != nil {
 			return nil, 0, err
 		}
 		return out, int(total), nil
@@ -1524,7 +1544,7 @@ func (r *ResourceRepositorySQLC) ListResourcesByFilter(ctx context.Context, f dy
 			return nil, 0, fmt.Errorf("sqlc: find resources by ids: %w", err)
 		}
 		out := resourcesInOrder(resourcesFromSQLite(rrows), ids)
-		if err := r.attachPreloads(ctx, out); err != nil {
+		if err := r.attachTagsOnly(ctx, out); err != nil {
 			return nil, 0, err
 		}
 		return out, int(total), nil

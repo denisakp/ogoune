@@ -41,18 +41,16 @@ func roundtripFactory(t *testing.T, fx *internaltest.DialectFixture) (port.Resou
 }
 
 // TestResourceRepository_ListPreloads_RoundTripBound enforces the round-trip
-// bound for Resource.List (spec 048 §FR-006, spec 049 §FR-003).
+// bound for Resource.List (spec 048 §FR-006, spec 049 §FR-003, spec 050).
 //
-// The impl always does exactly `1 + 4` round-trips for a list call:
-// 1 principal SELECT + 1 per preloaded relation (Tags, NotificationChannels,
-// Component, Credential). The bound is invariant in N — that's the
-// controlled-N+1 property the test asserts.
+// As of spec 050 the list-view path uses attachTagsOnly: 1 principal SELECT
+// + 1 Tags preload = 2 round-trips. Channels / Component / Credential
+// preloads were dropped from the list path after audit confirmed no caller
+// of List consumes those fields. Full preloads remain on FindByID /
+// FindActive / FindByHeartbeatSlug for callers that need them (workers,
+// detail view).
 //
-// Caveat: empty-set short-circuit only applies to Component (FK on principal
-// row, known after the principal SELECT). For M2M (Tags, Channels) and
-// 1-to-1-via-FK-on-other-side (Credential), the impl still issues the IN
-// query even when result is empty — the query IS the check. The test
-// reflects what the impl delivers.
+// Bound is invariant in N (controlled-N+1).
 func TestResourceRepository_ListPreloads_RoundTripBound(t *testing.T) {
 	t.Setenv("APP_SECRET_KEY", roundtripTestKey)
 	crypto.SetGlobalProvider(&crypto.EnvKeyProvider{})
@@ -126,9 +124,11 @@ func TestResourceRepository_ListPreloads_RoundTripBound(t *testing.T) {
 			}
 		}
 
-		// Cases. The bound is always 1 + 4 = 5 round-trips on a full-preload
-		// list call. Component short-circuits to 4 when no resource has a
-		// component_id. The test runs for two N values to prove invariance.
+		// Cases. As of spec 050 the bound is always 1 + 1 = 2 round-trips
+		// for List (1 principal + 1 Tags). Channels / Component / Credential
+		// presence on seeded rows is irrelevant to the count — those preloads
+		// are no longer issued on the list path. The test runs for two N
+		// values to prove invariance.
 		type tc struct {
 			name             string
 			withTags         bool
@@ -137,10 +137,10 @@ func TestResourceRepository_ListPreloads_RoundTripBound(t *testing.T) {
 			expectedRoundTrip int64
 		}
 		cases := []tc{
-			{name: "no_relations", expectedRoundTrip: 4},           // 1 principal + Tags + Channels + Credential (Component skipped: no IDs)
-			{name: "tags_channels_only", withTags: true, withCh: true, expectedRoundTrip: 4},
-			{name: "with_component", withTags: true, withCh: true, withComp: true, expectedRoundTrip: 5},
-			{name: "component_only", withComp: true, expectedRoundTrip: 5},
+			{name: "no_relations", expectedRoundTrip: 2},
+			{name: "tags_channels_only", withTags: true, withCh: true, expectedRoundTrip: 2},
+			{name: "with_component", withTags: true, withCh: true, withComp: true, expectedRoundTrip: 2},
+			{name: "component_only", withComp: true, expectedRoundTrip: 2},
 		}
 
 		for _, n := range []int{10, 100} {
