@@ -11,6 +11,7 @@ import (
 	"github.com/denisakp/ogoune/internal/domain"
 	"github.com/denisakp/ogoune/internal/dto"
 	dtoV1 "github.com/denisakp/ogoune/internal/dto/v1"
+	"github.com/denisakp/ogoune/internal/repository/sqlc/dynquery"
 	"github.com/denisakp/ogoune/internal/service"
 	"github.com/go-chi/chi/v5"
 )
@@ -19,6 +20,7 @@ import (
 type MonitorV1ServiceInterface interface {
 	ListActiveResources(ctx context.Context, limit, offset int) ([]*domain.Resource, error)
 	ListAll(ctx context.Context) ([]*domain.Resource, error)
+	ListByFilter(ctx context.Context, f dynquery.MonitorFilter, page, perPage int) ([]*domain.Resource, int, error)
 	GetResourceByID(ctx context.Context, id string) (*domain.Resource, error)
 	CreateResource(ctx context.Context, payload *dto.CreateResourcePayload) (*domain.Resource, error)
 	UpdateResource(ctx context.Context, id string, payload *dto.UpdateResourcePayload) (*domain.Resource, error)
@@ -71,9 +73,14 @@ func mapMonitorResponse(r *domain.Resource) dtoV1.MonitorResponse {
 // @Tags        monitors
 // @Security    BearerAuth
 // @Produce     json
-// @Param       page     query int false "Page number (default 1)"
-// @Param       per_page query int false "Items per page (1-100, default 20)"
+// @Param       page      query int    false "Page number (default 1)"
+// @Param       per_page  query int    false "Items per page (1-100, default 20)"
+// @Param       tag       query string false "Filter by exact tag name"
+// @Param       type      query string false "Filter by monitor type (http|tcp|dns|icmp|keyword|protocol|heartbeat)"
+// @Param       is_active query bool   false "Filter by active state (default true)"
+// @Param       q         query string false "Substring search on name + target (case-insensitive)"
 // @Success     200 {object} map[string]interface{}
+// @Failure     400 {object} dtoV1.ErrorResponse
 // @Failure     401 {object} dtoV1.ErrorResponse
 // @Failure     422 {object} dtoV1.ErrorResponse
 // @Router      /monitors [get]
@@ -84,16 +91,15 @@ func (h *MonitorHandler) List(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	offset := (params.Page - 1) * params.PerPage
-	items, err := h.service.ListActiveResources(r.Context(), params.PerPage, offset)
-	if err != nil {
-		respondError(w, r, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to list monitors")
+	filter, ferrs := parseMonitorFilter(r)
+	if len(ferrs) > 0 {
+		respondError(w, r, http.StatusBadRequest, "VALIDATION_FAILED", "invalid filter parameters", ferrs...)
 		return
 	}
 
-	all, err := h.service.ListAll(r.Context())
+	items, total, err := h.service.ListByFilter(r.Context(), filter, params.Page, params.PerPage)
 	if err != nil {
-		respondError(w, r, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to count monitors")
+		respondError(w, r, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to list monitors")
 		return
 	}
 
@@ -105,7 +111,7 @@ func (h *MonitorHandler) List(w http.ResponseWriter, r *http.Request) {
 	respondPaginated(w, data, dtoV1.MetaResponse{
 		Page:    params.Page,
 		PerPage: params.PerPage,
-		Total:   len(all),
+		Total:   total,
 	})
 }
 

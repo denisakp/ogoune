@@ -10,6 +10,7 @@ import (
 	"github.com/denisakp/ogoune/internal/config"
 	"github.com/denisakp/ogoune/internal/domain"
 	"github.com/denisakp/ogoune/internal/dto"
+	"github.com/denisakp/ogoune/internal/repository/sqlc/dynquery"
 	icmppkg "github.com/denisakp/ogoune/internal/icmp"
 	"github.com/denisakp/ogoune/internal/port"
 	"github.com/denisakp/ogoune/internal/repository"
@@ -405,5 +406,10 @@ func (s *ResourceService) ListUnresolvedIncidents(ctx context.Context, resourceI
 func (s *ResourceService) ListAll(ctx context.Context) ([]*domain.Resource, error) {
 	// Use a large limit to get all resources (can be optimized with proper pagination later)
 	return s.resources.List(ctx, 1000, 0)
+}
+
+// ListByFilter passes the dynamic filter through to the repo (spec 051).
+func (s *ResourceService) ListByFilter(ctx context.Context, f dynquery.MonitorFilter, page, perPage int) ([]*domain.Resource, int, error) {
+	return s.resources.ListResourcesByFilter(ctx, f, page, perPage)
 }
 

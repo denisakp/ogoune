@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/denisakp/ogoune/internal/domain"
+	"github.com/denisakp/ogoune/internal/repository/sqlc/dynquery"
 )
 
 // TagsRepository manages tag lifecycle.
@@ -59,6 +60,7 @@ type ResourceRepository interface {
 	UpdateMonitoringState(ctx context.Context, id string, req UpdateMonitoringStateRequest) error
 	UpdateMetadata(ctx context.Context, id string, req UpdateMetadataRequest) error
 	FindScheduledResources(ctx context.Context) ([]*domain.Resource, error)
+	ListResourcesByFilter(ctx context.Context, f dynquery.MonitorFilter, page, perPage int) ([]*domain.Resource, int, error)
 }
 
 // ComponentRepository manages logical component groups.
@@ -85,6 +87,7 @@ type IncidentRepository interface {
 	HasActiveIncident(ctx context.Context) (bool, error)
 	FindLastResolved(ctx context.Context) (*domain.Incident, error)
 	CountByResourceID(ctx context.Context, resourceID string) (int64, error)
+	ListIncidentsByFilter(ctx context.Context, f dynquery.IncidentFilter, page, perPage int) ([]*domain.Incident, int, error)
 }
 
 // IncidentEventStepRepository manages lifecycle steps.

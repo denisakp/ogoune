@@ -6,6 +6,7 @@ import (
 	"sync"
 
 	domain "github.com/denisakp/ogoune/internal/domain"
+	"github.com/denisakp/ogoune/internal/repository/sqlc/dynquery"
 )
 
 // IncidentFake provides an in-memory implementation of IncidentRepository for testing.
@@ -253,4 +254,52 @@ func (r *IncidentFake) FindActiveByResourceID(ctx context.Context, resourceID st
 		return nil, ErrNotFound
 	}
 	return latest, nil
+}
+
+// ListIncidentsByFilter applies the dynamic filter in memory (spec 051 fake).
+func (r *IncidentFake) ListIncidentsByFilter(ctx context.Context, f dynquery.IncidentFilter, page, perPage int) ([]*domain.Incident, int, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	matched := make([]*domain.Incident, 0)
+	for _, inc := range r.incidents {
+		if f.Status != nil {
+			isOpen := inc.ResolvedAt == nil
+			switch *f.Status {
+			case "open":
+				if !isOpen {
+					continue
+				}
+			case "resolved":
+				if isOpen {
+					continue
+				}
+			}
+		}
+		if f.MonitorID != nil && inc.ResourceID != *f.MonitorID {
+			continue
+		}
+		if f.From != nil && inc.StartedAt.Before(*f.From) {
+			continue
+		}
+		if f.To != nil && inc.StartedAt.After(*f.To) {
+			continue
+		}
+		copy := *inc
+		matched = append(matched, &copy)
+	}
+
+	sort.Slice(matched, func(i, j int) bool {
+		return matched[i].CreatedAt.After(matched[j].CreatedAt)
+	})
+	total := len(matched)
+	offset := (page - 1) * perPage
+	if offset >= total {
+		return []*domain.Incident{}, total, nil
+	}
+	end := offset + perPage
+	if end > total {
+		end = total
+	}
+	return matched[offset:end], total, nil
 }

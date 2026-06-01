@@ -16,6 +16,8 @@ import (
 	"github.com/denisakp/ogoune/internal/domain"
 	"github.com/denisakp/ogoune/internal/port"
 	"github.com/denisakp/ogoune/internal/repository"
+	sq "github.com/Masterminds/squirrel"
+	"github.com/denisakp/ogoune/internal/repository/sqlc/dynquery"
 	pgsqlc "github.com/denisakp/ogoune/internal/repository/sqlc/pg"
 	sqlitesqlc "github.com/denisakp/ogoune/internal/repository/sqlc/sqlite"
 )
@@ -1438,4 +1440,95 @@ func ptrIntFromNullInt64(t sql.NullInt64) *int {
 	}
 	v := int(t.Int64)
 	return &v
+}
+
+// ListResourcesByFilter implements dynamic filtering for the v1 monitors
+// list endpoint (spec 051). Builds the ID + COUNT queries via squirrel,
+// executes via the raw pool/db handle, then reuses FindResourcesByIDs +
+// attachPreloads to materialise full domain rows with preloads.
+func (r *ResourceRepositorySQLC) ListResourcesByFilter(ctx context.Context, f dynquery.MonitorFilter, page, perPage int) ([]*domain.Resource, int, error) {
+	var ph sq.PlaceholderFormat
+	switch {
+	case r.pgQ != nil:
+		ph = sq.Dollar
+	case r.sqliteQ != nil:
+		ph = sq.Question
+	default:
+		return nil, 0, r.unconfigured()
+	}
+
+	idSQL, idArgs, err := dynquery.BuildMonitorIDsQuery(f, page, perPage, ph)
+	if err != nil {
+		return nil, 0, fmt.Errorf("dynquery: build monitor ids: %w", err)
+	}
+	countSQL, countArgs, err := dynquery.BuildMonitorCountQuery(f, ph)
+	if err != nil {
+		return nil, 0, fmt.Errorf("dynquery: build monitor count: %w", err)
+	}
+
+	var ids []string
+	var total int64
+
+	switch {
+	case r.pgQ != nil:
+		rows, err := r.pgPool.Query(ctx, idSQL, idArgs...)
+		if err != nil {
+			return nil, 0, fmt.Errorf("sqlc: list monitors by filter (ids): %w", err)
+		}
+		for rows.Next() {
+			var id string
+			if err := rows.Scan(&id); err != nil {
+				rows.Close()
+				return nil, 0, fmt.Errorf("sqlc: scan monitor id: %w", err)
+			}
+			ids = append(ids, id)
+		}
+		rows.Close()
+		if err := r.pgPool.QueryRow(ctx, countSQL, countArgs...).Scan(&total); err != nil {
+			return nil, 0, fmt.Errorf("sqlc: list monitors by filter (count): %w", err)
+		}
+		if len(ids) == 0 {
+			return []*domain.Resource{}, int(total), nil
+		}
+		rrows, err := r.pgQ.FindResourcesByIDs(ctx, ids)
+		if err != nil {
+			return nil, 0, fmt.Errorf("sqlc: find resources by ids: %w", err)
+		}
+		out := resourcesInOrder(resourcesFromPG(rrows), ids)
+		if err := r.attachPreloads(ctx, out); err != nil {
+			return nil, 0, err
+		}
+		return out, int(total), nil
+	case r.sqliteQ != nil:
+		rows, err := r.sqliteDB.QueryContext(ctx, idSQL, idArgs...)
+		if err != nil {
+			return nil, 0, fmt.Errorf("sqlc: list monitors by filter (ids): %w", err)
+		}
+		for rows.Next() {
+			var id string
+			if err := rows.Scan(&id); err != nil {
+				rows.Close()
+				return nil, 0, fmt.Errorf("sqlc: scan monitor id: %w", err)
+			}
+			ids = append(ids, id)
+		}
+		rows.Close()
+		if err := r.sqliteDB.QueryRowContext(ctx, countSQL, countArgs...).Scan(&total); err != nil {
+			return nil, 0, fmt.Errorf("sqlc: list monitors by filter (count): %w", err)
+		}
+		if len(ids) == 0 {
+			return []*domain.Resource{}, int(total), nil
+		}
+		rrows, err := r.sqliteQ.FindResourcesByIDs(ctx, ids)
+		if err != nil {
+			return nil, 0, fmt.Errorf("sqlc: find resources by ids: %w", err)
+		}
+		out := resourcesInOrder(resourcesFromSQLite(rrows), ids)
+		if err := r.attachPreloads(ctx, out); err != nil {
+			return nil, 0, err
+		}
+		return out, int(total), nil
+	default:
+		return nil, 0, r.unconfigured()
+	}
 }

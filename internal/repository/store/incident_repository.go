@@ -6,9 +6,11 @@ import (
 	"fmt"
 	"time"
 
+	sq "github.com/Masterminds/squirrel"
 	"github.com/denisakp/ogoune/internal/domain"
 	"github.com/denisakp/ogoune/internal/port"
 	"github.com/denisakp/ogoune/internal/repository"
+	"github.com/denisakp/ogoune/internal/repository/sqlc/dynquery"
 	"gorm.io/gorm"
 )
 
@@ -209,4 +211,27 @@ func (r *IncidentRepositoryImpl) GetIncidentStats(ctx context.Context, hours int
 	}
 
 	return int(totalIncidents), int(affectedMonitors), nil
+}
+
+// ListIncidentsByFilter implements dynamic filtering for the v1 incidents
+// list endpoint (spec 051).
+func (r *IncidentRepositoryImpl) ListIncidentsByFilter(ctx context.Context, f dynquery.IncidentFilter, page, perPage int) ([]*domain.Incident, int, error) {
+	rowsSQL, rowsArgs, err := dynquery.BuildIncidentsQuery(f, page, perPage, sq.Question)
+	if err != nil {
+		return nil, 0, fmt.Errorf("dynquery: build incidents: %w", err)
+	}
+	var incidents []*domain.Incident
+	if err := r.db.WithContext(ctx).Raw(rowsSQL, rowsArgs...).Scan(&incidents).Error; err != nil {
+		return nil, 0, fmt.Errorf("list incidents by filter (rows): %w", err)
+	}
+
+	countSQL, countArgs, err := dynquery.BuildIncidentCountQuery(f, sq.Question)
+	if err != nil {
+		return nil, 0, fmt.Errorf("dynquery: build incidents count: %w", err)
+	}
+	var total int64
+	if err := r.db.WithContext(ctx).Raw(countSQL, countArgs...).Scan(&total).Error; err != nil {
+		return nil, 0, fmt.Errorf("list incidents by filter (count): %w", err)
+	}
+	return incidents, int(total), nil
 }

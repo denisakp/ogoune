@@ -9,6 +9,7 @@ import (
 	"github.com/denisakp/ogoune/internal/dto"
 	"github.com/denisakp/ogoune/internal/port"
 	"github.com/denisakp/ogoune/internal/repository"
+	"github.com/denisakp/ogoune/internal/repository/sqlc/dynquery"
 )
 
 // IncidentService provides business logic for incident management operations.
@@ -46,6 +47,11 @@ func (s *IncidentService) ListAll(ctx context.Context, limit, offset int) ([]*do
 	}
 
 	return incidents, nil
+}
+
+// ListByFilter passes the dynamic filter through to the repo (spec 051).
+func (s *IncidentService) ListByFilter(ctx context.Context, f dynquery.IncidentFilter, page, perPage int) ([]*domain.Incident, int, error) {
+	return s.incidents.ListIncidentsByFilter(ctx, f, page, perPage)
 }
 
 // ListUnresolved retrieves all unresolved incidents with pagination.
