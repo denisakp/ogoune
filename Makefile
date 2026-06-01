@@ -1,7 +1,7 @@
 SHELL := /bin/sh
 
 BINARY := dist/ogoune
-SQLC_VERSION := v1.27.0
+SQLC_VERSION := v1.31.1
 
 .PHONY: build build-be build-fe test test-be test-be-pg test-be-bench test-fe lint clean docker swag run-ci ci-local license-audit sqlc-bin sqlc-generate sqlc-check migrations-drift-check fuzz-dynquery
 
