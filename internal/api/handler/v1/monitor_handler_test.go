@@ -13,6 +13,7 @@ import (
 	"github.com/denisakp/ogoune/internal/api/middleware"
 	"github.com/denisakp/ogoune/internal/domain"
 	"github.com/denisakp/ogoune/internal/dto"
+	"github.com/denisakp/ogoune/internal/repository/sqlc/dynquery"
 	"github.com/go-chi/chi/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -63,6 +64,22 @@ func (m *mockMonitorService) ListAll(_ context.Context) ([]*domain.Resource, err
 		return nil, m.listErr
 	}
 	return m.resources, nil
+}
+
+func (m *mockMonitorService) ListByFilter(_ context.Context, _ dynquery.MonitorFilter, page, perPage int) ([]*domain.Resource, int, error) {
+	if m.listErr != nil {
+		return nil, 0, m.listErr
+	}
+	total := len(m.resources)
+	offset := (page - 1) * perPage
+	if offset >= total {
+		return []*domain.Resource{}, total, nil
+	}
+	end := offset + perPage
+	if end > total {
+		end = total
+	}
+	return m.resources[offset:end], total, nil
 }
 
 func (m *mockMonitorService) GetResourceByID(_ context.Context, id string) (*domain.Resource, error) {

@@ -9,6 +9,7 @@ import (
 	"github.com/denisakp/ogoune/internal/domain"
 	"github.com/denisakp/ogoune/internal/port"
 	"github.com/denisakp/ogoune/internal/repository"
+	"github.com/denisakp/ogoune/internal/repository/sqlc/dynquery"
 	"github.com/prometheus/client_golang/prometheus"
 	dto "github.com/prometheus/client_model/go"
 	"github.com/stretchr/testify/assert"
@@ -65,6 +66,9 @@ func (s *stubResourceRepo) UpdateMetadata(ctx context.Context, id string, req po
 func (s *stubResourceRepo) FindScheduledResources(ctx context.Context) ([]*domain.Resource, error) {
 	return nil, nil
 }
+func (s *stubResourceRepo) ListResourcesByFilter(ctx context.Context, f dynquery.MonitorFilter, page, perPage int) ([]*domain.Resource, int, error) {
+	return nil, 0, nil
+}
 
 type stubIncidentRepo struct {
 	countByResourceID      func(ctx context.Context, resourceID string) (int64, error)
@@ -100,6 +104,9 @@ func (s *stubIncidentRepo) GetIncidentStats(ctx context.Context, hours int) (int
 func (s *stubIncidentRepo) HasActiveIncident(ctx context.Context) (bool, error) { return false, nil }
 func (s *stubIncidentRepo) FindLastResolved(ctx context.Context) (*domain.Incident, error) {
 	return nil, repository.ErrNotFound
+}
+func (s *stubIncidentRepo) ListIncidentsByFilter(ctx context.Context, f dynquery.IncidentFilter, page, perPage int) ([]*domain.Incident, int, error) {
+	return nil, 0, nil
 }
 
 type stubActivityRepo struct {

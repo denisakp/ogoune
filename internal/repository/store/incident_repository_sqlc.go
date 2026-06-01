@@ -9,10 +9,13 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/jackc/pgx/v5/pgxpool"
 
+	sq "github.com/Masterminds/squirrel"
 	"github.com/denisakp/ogoune/internal/domain"
 	"github.com/denisakp/ogoune/internal/port"
 	"github.com/denisakp/ogoune/internal/repository"
+	"github.com/denisakp/ogoune/internal/repository/sqlc/dynquery"
 	pgsqlc "github.com/denisakp/ogoune/internal/repository/sqlc/pg"
 	sqlitesqlc "github.com/denisakp/ogoune/internal/repository/sqlc/sqlite"
 )
@@ -23,15 +26,19 @@ import (
 // controlled-N+1 (1 + R round-trips, here R = up to 2). GetIncidentStats is
 // dialect-divergent: CTE one-pass on PG, two correlated sub-queries on SQLite.
 type IncidentRepositorySQLC struct {
-	pgQ     *pgsqlc.Queries
-	sqliteQ *sqlitesqlc.Queries
+	pgQ      *pgsqlc.Queries
+	sqliteQ  *sqlitesqlc.Queries
+	pgPool   *pgxpool.Pool
+	sqliteDB *sql.DB
 }
 
 func NewIncidentRepositorySQLC(rt SqlcRuntime) port.IncidentRepository {
 	r := &IncidentRepositorySQLC{}
 	if pool := rt.PgxPool(); pool != nil {
+		r.pgPool = pool
 		r.pgQ = pgsqlc.New(pool)
 	} else if db := rt.SQLiteDB(); db != nil {
+		r.sqliteDB = db
 		r.sqliteQ = sqlitesqlc.New(db)
 	}
 	return r
@@ -530,4 +537,82 @@ func incidentsFromSQLite(rows []sqlitesqlc.Incident) []*domain.Incident {
 		out[i] = incidentFromSQLite(row)
 	}
 	return out
+}
+
+// ListIncidentsByFilter implements dynamic filtering for the v1 incidents
+// list endpoint (spec 051). Builds the SELECT + COUNT via squirrel, executes
+// via the raw pool/db, and scans the typed sqlc row representations using
+// existing mappers. Preloads (Resource, Diagnostics) are NOT attached — the
+// v1 handler's mapIncidentResponse only needs incident columns.
+func (r *IncidentRepositorySQLC) ListIncidentsByFilter(ctx context.Context, f dynquery.IncidentFilter, page, perPage int) ([]*domain.Incident, int, error) {
+	var ph sq.PlaceholderFormat
+	switch {
+	case r.pgQ != nil:
+		ph = sq.Dollar
+	case r.sqliteQ != nil:
+		ph = sq.Question
+	default:
+		return nil, 0, r.unconfigured()
+	}
+
+	rowsSQL, rowsArgs, err := dynquery.BuildIncidentsQuery(f, page, perPage, ph)
+	if err != nil {
+		return nil, 0, fmt.Errorf("dynquery: build incidents: %w", err)
+	}
+	countSQL, countArgs, err := dynquery.BuildIncidentCountQuery(f, ph)
+	if err != nil {
+		return nil, 0, fmt.Errorf("dynquery: build incidents count: %w", err)
+	}
+
+	var total int64
+	switch {
+	case r.pgQ != nil:
+		pgRows, err := r.pgPool.Query(ctx, rowsSQL, rowsArgs...)
+		if err != nil {
+			return nil, 0, fmt.Errorf("sqlc: list incidents by filter (rows): %w", err)
+		}
+		var typed []pgsqlc.Incident
+		for pgRows.Next() {
+			var row pgsqlc.Incident
+			if err := pgRows.Scan(
+				&row.ID, &row.ResourceID, &row.Cause, &row.ResolvedAt, &row.StartedAt,
+				&row.Details, &row.CreatedAt, &row.UpdatedAt,
+			); err != nil {
+				pgRows.Close()
+				return nil, 0, fmt.Errorf("sqlc: scan incident row: %w", err)
+			}
+			typed = append(typed, row)
+		}
+		pgRows.Close()
+		if err := r.pgPool.QueryRow(ctx, countSQL, countArgs...).Scan(&total); err != nil {
+			return nil, 0, fmt.Errorf("sqlc: list incidents by filter (count): %w", err)
+		}
+		return incidentsFromPG(typed), int(total), nil
+
+	case r.sqliteQ != nil:
+		sqlRows, err := r.sqliteDB.QueryContext(ctx, rowsSQL, rowsArgs...)
+		if err != nil {
+			return nil, 0, fmt.Errorf("sqlc: list incidents by filter (rows): %w", err)
+		}
+		var typed []sqlitesqlc.Incident
+		for sqlRows.Next() {
+			var row sqlitesqlc.Incident
+			if err := sqlRows.Scan(
+				&row.ID, &row.ResourceID, &row.Cause, &row.ResolvedAt, &row.StartedAt,
+				&row.Details, &row.CreatedAt, &row.UpdatedAt,
+			); err != nil {
+				sqlRows.Close()
+				return nil, 0, fmt.Errorf("sqlc: scan incident row: %w", err)
+			}
+			typed = append(typed, row)
+		}
+		sqlRows.Close()
+		if err := r.sqliteDB.QueryRowContext(ctx, countSQL, countArgs...).Scan(&total); err != nil {
+			return nil, 0, fmt.Errorf("sqlc: list incidents by filter (count): %w", err)
+		}
+		return incidentsFromSQLite(typed), int(total), nil
+
+	default:
+		return nil, 0, r.unconfigured()
+	}
 }

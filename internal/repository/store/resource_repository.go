@@ -6,9 +6,11 @@ import (
 	"fmt"
 	"time"
 
+	sq "github.com/Masterminds/squirrel"
 	"github.com/denisakp/ogoune/internal/domain"
 	"github.com/denisakp/ogoune/internal/port"
 	"github.com/denisakp/ogoune/internal/repository"
+	"github.com/denisakp/ogoune/internal/repository/sqlc/dynquery"
 	"gorm.io/gorm"
 )
 
@@ -360,4 +362,43 @@ func (r *ResourceRepositoryImpl) UpdateMetadata(ctx context.Context, id string, 
 		return repository.ErrNotFound
 	}
 	return nil
+}
+
+// ListResourcesByFilter implements dynamic filtering for the v1 monitors
+// list endpoint (spec 051). Uses squirrel to build the ID-only and COUNT
+// queries, then re-fetches full rows via GORM with preloads so the response
+// mapper still has Tags / Component available.
+func (r *ResourceRepositoryImpl) ListResourcesByFilter(ctx context.Context, f dynquery.MonitorFilter, page, perPage int) ([]*domain.Resource, int, error) {
+	idSQL, idArgs, err := dynquery.BuildMonitorIDsQuery(f, page, perPage, sq.Question)
+	if err != nil {
+		return nil, 0, fmt.Errorf("dynquery: build monitor ids: %w", err)
+	}
+	var ids []string
+	if err := r.db.WithContext(ctx).Raw(idSQL, idArgs...).Scan(&ids).Error; err != nil {
+		return nil, 0, fmt.Errorf("list monitors by filter (ids): %w", err)
+	}
+
+	countSQL, countArgs, err := dynquery.BuildMonitorCountQuery(f, sq.Question)
+	if err != nil {
+		return nil, 0, fmt.Errorf("dynquery: build monitor count: %w", err)
+	}
+	var total int64
+	if err := r.db.WithContext(ctx).Raw(countSQL, countArgs...).Scan(&total).Error; err != nil {
+		return nil, 0, fmt.Errorf("list monitors by filter (count): %w", err)
+	}
+
+	if len(ids) == 0 {
+		return []*domain.Resource{}, int(total), nil
+	}
+
+	var resources []*domain.Resource
+	if err := r.db.WithContext(ctx).
+		Preload("Tags").
+		Preload("Component").
+		Where("id IN ?", ids).
+		Order("created_at DESC").
+		Find(&resources).Error; err != nil {
+		return nil, 0, fmt.Errorf("list monitors by filter (rows): %w", err)
+	}
+	return resources, int(total), nil
 }

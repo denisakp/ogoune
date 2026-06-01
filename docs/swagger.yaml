@@ -510,11 +510,11 @@ paths:
       - description: Page number
         in: query
         name: page
-        type: string
+        type: integer
       - description: Items per page (1-100)
         in: query
         name: per_page
-        type: string
+        type: integer
       - description: Filter by monitor ID
         in: query
         name: monitor_id
@@ -522,6 +522,14 @@ paths:
       - description: Filter by status (open|resolved)
         in: query
         name: status
+        type: string
+      - description: Filter incidents started_at >= (RFC 3339)
+        in: query
+        name: from
+        type: string
+      - description: Filter incidents started_at <= (RFC 3339)
+        in: query
+        name: to
         type: string
       produces:
       - application/json
@@ -531,6 +539,10 @@ paths:
           schema:
             additionalProperties: true
             type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse'
         "401":
           description: Unauthorized
           schema:
@@ -579,6 +591,22 @@ paths:
         in: query
         name: per_page
         type: integer
+      - description: Filter by exact tag name
+        in: query
+        name: tag
+        type: string
+      - description: Filter by monitor type (http|tcp|dns|icmp|keyword|protocol|heartbeat)
+        in: query
+        name: type
+        type: string
+      - description: Filter by active state (default true)
+        in: query
+        name: is_active
+        type: boolean
+      - description: Substring search on name + target (case-insensitive)
+        in: query
+        name: q
+        type: string
       produces:
       - application/json
       responses:
@@ -587,6 +615,10 @@ paths:
           schema:
             additionalProperties: true
             type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse'
         "401":
           description: Unauthorized
           schema:

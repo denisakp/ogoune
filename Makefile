@@ -3,7 +3,7 @@ SHELL := /bin/sh
 BINARY := dist/ogoune
 SQLC_VERSION := v1.27.0
 
-.PHONY: build build-be build-fe test test-be test-be-pg test-be-bench test-fe lint clean docker swag run-ci license-audit sqlc-bin sqlc-generate sqlc-check migrations-drift-check
+.PHONY: build build-be build-fe test test-be test-be-pg test-be-bench test-fe lint clean docker swag run-ci license-audit sqlc-bin sqlc-generate sqlc-check migrations-drift-check fuzz-dynquery
 
 build: build-fe build-be
 
@@ -99,3 +99,8 @@ license-audit:
 	@echo "=== Docs AGPL-drift guard ==="
 	scripts/license/check-docs.sh
 	@echo "=== License audit: ALL PASSED ==="
+
+# Spec 051 — fuzz the dynquery SQL builders (30s per campaign).
+fuzz-dynquery:
+	go test -run=^$$ -fuzz=FuzzBuildMonitorsQuery -fuzztime=30s ./internal/repository/sqlc/dynquery/...
+	go test -run=^$$ -fuzz=FuzzBuildIncidentsQuery -fuzztime=30s ./internal/repository/sqlc/dynquery/...

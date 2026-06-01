@@ -301,13 +301,13 @@ const docTemplate = `{
                 "summary": "List incidents",
                 "parameters": [
                     {
-                        "type": "string",
+                        "type": "integer",
                         "description": "Page number",
                         "name": "page",
                         "in": "query"
                     },
                     {
-                        "type": "string",
+                        "type": "integer",
                         "description": "Items per page (1-100)",
                         "name": "per_page",
                         "in": "query"
@@ -323,6 +323,18 @@ const docTemplate = `{
                         "description": "Filter by status (open|resolved)",
                         "name": "status",
                         "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter incidents started_at \u003e= (RFC 3339)",
+                        "name": "from",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter incidents started_at \u003c= (RFC 3339)",
+                        "name": "to",
+                        "in": "query"
                     }
                 ],
                 "responses": {
@@ -331,6 +343,12 @@ const docTemplate = `{
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse"
                         }
                     },
                     "401": {
@@ -413,6 +431,30 @@ const docTemplate = `{
                         "description": "Items per page (1-100, default 20)",
                         "name": "per_page",
                         "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by exact tag name",
+                        "name": "tag",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by monitor type (http|tcp|dns|icmp|keyword|protocol|heartbeat)",
+                        "name": "type",
+                        "in": "query"
+                    },
+                    {
+                        "type": "boolean",
+                        "description": "Filter by active state (default true)",
+                        "name": "is_active",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Substring search on name + target (case-insensitive)",
+                        "name": "q",
+                        "in": "query"
                     }
                 ],
                 "responses": {
@@ -421,6 +463,12 @@ const docTemplate = `{
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse"
                         }
                     },
                     "401": {
