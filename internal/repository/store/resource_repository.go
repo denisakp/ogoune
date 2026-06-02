@@ -66,11 +66,14 @@ func (r *ResourceRepositoryImpl) FindByHeartbeatSlug(ctx context.Context, slug s
 }
 
 // List retrieves all resources with pagination, ordered by creation time descending.
+// Preloads Tags only — the v1 list-view consumers (MonitorHandler.List,
+// MonitorHandler.List with filters) read tag names but never Component /
+// Credential / NotificationChannels. Workers needing those use FindByID
+// (which still preloads everything). Spec 050.
 func (r *ResourceRepositoryImpl) List(ctx context.Context, limit, offset int) ([]*domain.Resource, error) {
 	var resources []*domain.Resource
 	err := r.db.WithContext(ctx).
 		Preload("Tags").
-		Preload("Component").
 		Where("is_active = ?", true).
 		Order("created_at DESC").
 		Limit(limit).
@@ -394,7 +397,6 @@ func (r *ResourceRepositoryImpl) ListResourcesByFilter(ctx context.Context, f dy
 	var resources []*domain.Resource
 	if err := r.db.WithContext(ctx).
 		Preload("Tags").
-		Preload("Component").
 		Where("id IN ?", ids).
 		Order("created_at DESC").
 		Find(&resources).Error; err != nil {

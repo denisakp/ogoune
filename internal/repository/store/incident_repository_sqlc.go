@@ -336,11 +336,12 @@ func (r *IncidentRepositorySQLC) HasActiveIncident(ctx context.Context) (bool, e
 		}
 		return v, nil
 	case r.sqliteQ != nil:
+		// sqlc v1.30 generates int64 (not bool) for SQLite EXISTS(...) — coerce.
 		v, err := r.sqliteQ.HasActiveIncident(ctx)
 		if err != nil {
 			return false, fmt.Errorf("sqlc: has active incident: %w", err)
 		}
-		return v, nil
+		return v != 0, nil
 	default:
 		return false, r.unconfigured()
 	}

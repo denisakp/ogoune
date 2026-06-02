@@ -1,9 +1,9 @@
 SHELL := /bin/sh
 
 BINARY := dist/ogoune
-SQLC_VERSION := v1.27.0
+SQLC_VERSION := v1.30.0
 
-.PHONY: build build-be build-fe test test-be test-be-pg test-be-bench test-fe lint clean docker swag run-ci license-audit sqlc-bin sqlc-generate sqlc-check migrations-drift-check fuzz-dynquery
+.PHONY: build build-be build-fe test test-be test-be-pg test-be-bench test-fe lint clean docker swag run-ci ci-local license-audit sqlc-bin sqlc-generate sqlc-check migrations-drift-check fuzz-dynquery
 
 build: build-fe build-be
 
@@ -11,14 +11,18 @@ build-be: sqlc-check
 	mkdir -p dist
 	go build -o $(BINARY) ./cmd/api/main.go
 
+SQLC_BIN := $(shell go env GOPATH)/bin/sqlc
+
 sqlc-bin:
-	@command -v sqlc >/dev/null 2>&1 || go install github.com/sqlc-dev/sqlc/cmd/sqlc@$(SQLC_VERSION)
+	@if [ ! -x "$(SQLC_BIN)" ] || [ "$$($(SQLC_BIN) version)" != "$(SQLC_VERSION:v%=%)" ]; then \
+		go install github.com/sqlc-dev/sqlc/cmd/sqlc@$(SQLC_VERSION); \
+	fi
 
 sqlc-generate: sqlc-bin
-	sqlc generate -f sqlc.yaml
+	$(SQLC_BIN) generate -f sqlc.yaml
 
 sqlc-check: sqlc-bin
-	@sqlc generate -f sqlc.yaml
+	@$(SQLC_BIN) generate -f sqlc.yaml
 	@drift=$$(git status --porcelain -- internal/repository/sqlc/pg internal/repository/sqlc/sqlite \
 		| grep -Ev '^A  ' || true); \
 	if [ -n "$$drift" ]; then \
@@ -79,17 +83,26 @@ docker:
 swag:
 	swag init -g cmd/api/main.go --output docs --parseDependency --parseInternal
 
-run-ci:
-	@echo "=== Lint ==="
-	go vet ./...
-	cd web && pnpm lint
-	@echo "=== Backend tests (race + timeout, like CI) ==="
-	go test -v -race -timeout 120s ./...
-	@echo "=== Frontend tests ==="
-	cd web && pnpm test
-	@echo "=== Build ==="
-	$(MAKE) build
-	@echo "=== CI local: ALL PASSED ==="
+run-ci: ci-local
+
+# Tier 1 local CI gate — must pass before every push.
+# Mirrors what GitHub Actions runs except for Docker-dependent lanes
+# (dual-dialect Postgres + paired benches). Catches ~80% of CI breaks
+# locally so we don't burn compute minutes on red lanes.
+ci-local:
+	@echo "=== 1/6 sqlc drift check ==="
+	$(MAKE) sqlc-check
+	@echo "=== 2/6 migrations drift check ==="
+	$(MAKE) migrations-drift-check
+	@echo "=== 3/6 Lint (go vet + pnpm lint) ==="
+	$(MAKE) lint
+	@echo "=== 4/6 Backend tests (race + timeout, SQLite) ==="
+	go test -race -timeout 120s ./...
+	@echo "=== 5/6 Frontend tests ==="
+	$(MAKE) test-fe
+	@echo "=== 6/6 License audit ==="
+	$(MAKE) license-audit
+	@echo "=== ci-local: ALL PASSED ==="
 
 license-audit:
 	@echo "=== SPDX coverage guard ==="

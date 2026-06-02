@@ -25,6 +25,8 @@ Thumbs.db
 
 .vroom
 .prds/
+.private/
 .claude/
 .scannerwork/
 bench-output.txt
+.private/

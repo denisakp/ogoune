@@ -20,7 +20,8 @@ make test-be            # go test -race ./... (SQLite-only; Postgres tests skip)
 make test-be-pg         # dual-dialect (SQLite + Postgres via testcontainers); needs Docker
 make test-fe            # cd web && pnpm test
 go test -race ./internal/scheduler/...  # single package
-make run-ci             # full local CI gate: lint + race tests + build
+make ci-local           # full local CI gate: sqlc-check + drift + lint + race tests + frontend tests + license-audit
+                        # `make run-ci` kept as alias. Run before every push to catch CI breaks locally.
 
 # Lint
 make lint               # go vet + pnpm lint
@@ -182,5 +183,5 @@ Dashboard: http://localhost:9009 (project `ogoune`). Block on CRITICAL/BLOCKER i
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan:
-`specs/049-sqlc-test-infra-benches/plan.md`
+`specs/051-dynamic-filters/plan.md`
 <!-- SPECKIT END -->
