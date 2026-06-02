@@ -26,6 +26,10 @@ make ci-local           # full local CI gate: sqlc-check + drift + lint + race t
 # Lint
 make lint               # go vet + pnpm lint
 
+# Perf / fuzz (manual; not part of ci-local)
+make bench-api          # Go httptest bench of GET /api/v1/{monitors,incidents} — SC-005/006 baseline + post-change check
+make fuzz-dynquery      # 30s × 2 fuzz campaigns over the dynquery SQL builders (SQL injection guard)
+
 # Run locally (community mode, zero deps)
 cp .env.example .env    # set APP_SECRET_KEY (openssl rand -hex 32)
 DB_DRIVER=sqlite SQLITE_PATH=./ogoune.db SCHEDULER_MODE=timingwheel go run ./cmd/api
@@ -150,7 +154,6 @@ sqlc-only workflow. Full walkthrough at `internal/repository/sqlc/README.md`; ca
 
 - Add to both `sqlite/` and `postgres/` trees
 - SQLite: no `ADD COLUMN IF NOT EXISTS`, no multi-column `ALTER TABLE`
-- JSON columns: declare as `JSONB` (Postgres) / `TEXT` (SQLite). Go marshalling happens in the wrapper, not via struct tags.
 - Naming: `XXXX_description.up.sql` / `.down.sql`
 - One migration = two files with the same `NNNN_` prefix and the same intent. Drift between trees is enforced by `make migrations-drift-check`
 - Column **name + nullability MUST match** across dialects. Type tokens are intentionally NOT enforced cross-dialect (`JSONB`↔`TEXT`, `TIMESTAMPTZ`↔`TEXT`, `BIGINT`↔`INTEGER`)
@@ -159,7 +162,7 @@ sqlc-only workflow. Full walkthrough at `internal/repository/sqlc/README.md`; ca
 
 ### Testing
 
-- DB tests use `setupTestDB(t)` helper (SQLite in-memory)
+- DB tests use `internaltest.SetupSQLite(t)` for one-shot SQLite fixtures, or `internaltest.ForEachDialect(t, fn)` for dual-dialect contract tests
 - Repository contract tests are dual-dialect (SQLite + Postgres) via `internal/repository/internaltest.ForEachDialect`. See `internal/repository/internaltest/README.md` for usage
 - Table-driven tests for multi-case scenarios
 - `go test -race ./...` must pass (SQLite-only path; Postgres tests skip gracefully)
@@ -180,6 +183,7 @@ Dashboard: http://localhost:9009 (project `ogoune`). Block on CRITICAL/BLOCKER i
 ## Gotchas
 
 - `APP_SECRET_KEY` env var is mandatory — app refuses to start without it
+- `.private/` is gitignored — drop personal scratch / strategy docs there. `specs/` is also gitignored per the chantier convention.
 - Repository errors: map `repository.ErrNotFound` to service-level errors, handlers map those to HTTP status
 - Incident event steps (`detected`, `resource_down_alert`, `resolved`, `resource_up_alert`) may not all be present
 - Never block on scheduler failures — log and return `ErrSchedulerSync`
@@ -187,6 +191,7 @@ Dashboard: http://localhost:9009 (project `ogoune`). Block on CRITICAL/BLOCKER i
 - `web/.npmrc` sets `onlyBuiltDependencies=[]` — pnpm skips all install scripts. If a new dep needs native build, allowlist it explicitly
 - After editing any `.sql` file under `internal/repository/sqlc/queries/`, run `make sqlc-generate` and commit the result. CI runs `make sqlc-check` and fails on drift. Generated code lives in `internal/repository/sqlc/{pg,sqlite}/` and is versioned
 - After editing any migration `.sql` under `internal/database/migrations/`, run `make migrations-drift-check` locally. CI runs it before tests and fails on file-pair / column name / nullability divergence between dialects
+- SQLite `strftime('%s', col)` returns NULL on modernc.org/sqlite-bound `time.Time` values (the driver binds Go's `String()` format, not RFC 3339). Use `strftime('%s', substr(col, 1, 19))` to extract the parseable `YYYY-MM-DD HH:MM:SS` prefix. See `internal/repository/sqlc/README.md` gotchas + `FindMissedHeartbeatsSQLite` for the canonical workaround.
 
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,
