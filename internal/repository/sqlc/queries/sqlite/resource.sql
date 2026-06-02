@@ -164,6 +164,6 @@ WHERE type = 'heartbeat'
   AND status = 'up'
   AND is_active = 1
   AND last_ping_at IS NOT NULL
-  AND (CAST(strftime('%s', last_ping_at) AS INTEGER) + heartbeat_interval + heartbeat_grace) < CAST(sqlc.arg('now_unix') AS INTEGER)
+  AND (CAST(strftime('%s', substr(last_ping_at, 1, 19)) AS INTEGER) + heartbeat_interval + heartbeat_grace) < CAST(sqlc.arg('now_unix') AS INTEGER)
 ORDER BY last_ping_at ASC
 LIMIT CAST(sqlc.arg('row_limit') AS INTEGER);
