@@ -2,6 +2,7 @@ package database
 
 import (
 	"context"
+	"database/sql"
 	"embed"
 	"fmt"
 	"io/fs"
@@ -9,8 +10,6 @@ import (
 	"sort"
 	"strings"
 	"time"
-
-	"gorm.io/gorm"
 )
 
 //go:embed migrations/postgres/*.sql migrations/sqlite/*.sql
@@ -25,7 +24,10 @@ type migrationFile struct {
 	SQL     string
 }
 
-func runMigrations(ctx context.Context, db *gorm.DB, driver Driver, migrationFS migrationFS) error {
+// runMigrations applies pending SQL migration files in lexicographic order
+// against the provided *sql.DB. Constitution IV gate: fails fast on any apply
+// error; the returned error wraps the failing file path and dialect.
+func runMigrations(ctx context.Context, db *sql.DB, driver Driver, migrationFS migrationFS) error {
 	migrations, err := loadMigrations(migrationFS, driver)
 	if err != nil {
 		return fmt.Errorf("db init: failed to load migrations: %w", err)
@@ -36,10 +38,10 @@ func runMigrations(ctx context.Context, db *gorm.DB, driver Driver, migrationFS 
 
 	bootstrap := migrations[0]
 	if err := executeStatements(ctx, db, splitSQLStatements(bootstrap.SQL)); err != nil {
-		return fmt.Errorf("db init: failed to bootstrap schema migrations table: %w", err)
+		return fmt.Errorf("db init: failed to bootstrap schema_migrations table (%s on %s): %w", bootstrap.Path, driver, err)
 	}
 	if err := recordMigration(ctx, db, driver, bootstrap); err != nil {
-		return fmt.Errorf("db init: failed to record bootstrap migration: %w", err)
+		return fmt.Errorf("db init: failed to record bootstrap migration (%s on %s): %w", bootstrap.Path, driver, err)
 	}
 
 	appliedVersions, err := appliedMigrationVersions(ctx, db)
@@ -52,21 +54,21 @@ func runMigrations(ctx context.Context, db *gorm.DB, driver Driver, migrationFS 
 			continue
 		}
 
-		tx := db.WithContext(ctx).Begin()
-		if tx.Error != nil {
-			return fmt.Errorf("db init: failed to start migration transaction for %s: %w", migration.Path, tx.Error)
+		tx, err := db.BeginTx(ctx, nil)
+		if err != nil {
+			return fmt.Errorf("db init: failed to start migration transaction for %s on %s: %w", migration.Path, driver, err)
 		}
 
-		if err := executeStatements(ctx, tx, splitSQLStatements(migration.SQL)); err != nil {
-			tx.Rollback()
-			return fmt.Errorf("db init: migration %s failed: %w", migration.Path, err)
+		if err := executeStatementsTx(ctx, tx, splitSQLStatements(migration.SQL)); err != nil {
+			_ = tx.Rollback()
+			return fmt.Errorf("db init: migrate %s on %s: %w", migration.Path, driver, err)
 		}
-		if err := recordMigration(ctx, tx, driver, migration); err != nil {
-			tx.Rollback()
-			return fmt.Errorf("db init: failed to record migration %s: %w", migration.Path, err)
+		if err := recordMigrationTx(ctx, tx, driver, migration); err != nil {
+			_ = tx.Rollback()
+			return fmt.Errorf("db init: failed to record migration %s on %s: %w", migration.Path, driver, err)
 		}
-		if err := tx.Commit().Error; err != nil {
-			return fmt.Errorf("db init: failed to commit migration %s: %w", migration.Path, err)
+		if err := tx.Commit(); err != nil {
+			return fmt.Errorf("db init: failed to commit migration %s on %s: %w", migration.Path, driver, err)
 		}
 	}
 
@@ -117,8 +119,8 @@ func parseMigrationFileName(name string) (string, string) {
 	return parts[0], parts[1]
 }
 
-func appliedMigrationVersions(ctx context.Context, db *gorm.DB) (map[string]struct{}, error) {
-	rows, err := db.WithContext(ctx).Raw("SELECT version FROM schema_migrations ORDER BY version ASC").Rows()
+func appliedMigrationVersions(ctx context.Context, db *sql.DB) (map[string]struct{}, error) {
+	rows, err := db.QueryContext(ctx, "SELECT version FROM schema_migrations ORDER BY version ASC")
 	if err != nil {
 		return nil, err
 	}
@@ -136,24 +138,46 @@ func appliedMigrationVersions(ctx context.Context, db *gorm.DB) (map[string]stru
 	return versions, rows.Err()
 }
 
-func recordMigration(ctx context.Context, db *gorm.DB, driver Driver, migration migrationFile) error {
-	query := "INSERT INTO schema_migrations (version, name, applied_at) VALUES (?, ?, ?)"
-	switch driver {
-	case DriverPostgres:
-		query = "INSERT INTO schema_migrations (version, name, applied_at) VALUES ($1, $2, $3) ON CONFLICT (version) DO NOTHING"
-	case DriverSQLite:
-		query = "INSERT OR IGNORE INTO schema_migrations (version, name, applied_at) VALUES (?, ?, ?)"
-	}
-
-	return db.WithContext(ctx).Exec(query, migration.Version, migration.Name, time.Now().UTC()).Error
+func recordMigration(ctx context.Context, db *sql.DB, driver Driver, migration migrationFile) error {
+	query := recordQuery(driver)
+	_, err := db.ExecContext(ctx, query, migration.Version, migration.Name, time.Now().UTC())
+	return err
 }
 
-func executeStatements(ctx context.Context, db *gorm.DB, statements []string) error {
+func recordMigrationTx(ctx context.Context, tx *sql.Tx, driver Driver, migration migrationFile) error {
+	query := recordQuery(driver)
+	_, err := tx.ExecContext(ctx, query, migration.Version, migration.Name, time.Now().UTC())
+	return err
+}
+
+func recordQuery(driver Driver) string {
+	switch driver {
+	case DriverPostgres:
+		return "INSERT INTO schema_migrations (version, name, applied_at) VALUES ($1, $2, $3) ON CONFLICT (version) DO NOTHING"
+	case DriverSQLite:
+		return "INSERT OR IGNORE INTO schema_migrations (version, name, applied_at) VALUES (?, ?, ?)"
+	}
+	return "INSERT INTO schema_migrations (version, name, applied_at) VALUES (?, ?, ?)"
+}
+
+func executeStatements(ctx context.Context, db *sql.DB, statements []string) error {
 	for _, statement := range statements {
 		if strings.TrimSpace(statement) == "" {
 			continue
 		}
-		if err := db.WithContext(ctx).Exec(statement).Error; err != nil {
+		if _, err := db.ExecContext(ctx, statement); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func executeStatementsTx(ctx context.Context, tx *sql.Tx, statements []string) error {
+	for _, statement := range statements {
+		if strings.TrimSpace(statement) == "" {
+			continue
+		}
+		if _, err := tx.ExecContext(ctx, statement); err != nil {
 			return err
 		}
 	}

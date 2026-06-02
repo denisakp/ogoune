@@ -1,10 +1,12 @@
 package store_test
 
 import (
+	"context"
 	"testing"
 
 	domain "github.com/denisakp/ogoune/internal/domain"
 	"github.com/denisakp/ogoune/internal/repository/internaltest"
+	"github.com/denisakp/ogoune/internal/repository/store"
 )
 
 // seedResource inserts a minimal Resource row so child tables with a
@@ -20,7 +22,7 @@ func seedResource(t *testing.T, fx *internaltest.DialectFixture, id, name string
 		Timeout:  10,
 		IsActive: true,
 	}
-	if err := fx.Runtime.GormDB().Create(res).Error; err != nil {
+	if _, err := store.NewResourceRepositorySQLC(fx.Runtime).Create(context.Background(), res); err != nil {
 		t.Fatalf("seed resource %q: %v", id, err)
 	}
 	return res
@@ -34,7 +36,7 @@ func seedIncident(t *testing.T, fx *internaltest.DialectFixture, id, resourceID 
 		ResourceID: resourceID,
 		Cause:      "seed",
 	}
-	if err := fx.Runtime.GormDB().Create(inc).Error; err != nil {
+	if _, err := store.NewIncidentRepositorySQLC(fx.Runtime).Create(context.Background(), inc); err != nil {
 		t.Fatalf("seed incident %q: %v", id, err)
 	}
 	return inc

@@ -19,7 +19,7 @@ import (
 func TestIncidentDiagnosticsRepository_Contract(t *testing.T) {
 	internaltest.ForEachDialect(t, func(t *testing.T, fx *internaltest.DialectFixture) {
 		seedIncidents(t, fx, "inc-diag-1", "inc-diag-2", "inc-diag-3")
-		repo := store.NewIncidentDiagnosticsRepository(fx.Runtime.GormDB())
+		repo := store.NewIncidentDiagnosticsRepositorySQLC(fx.Runtime)
 		runIncidentDiagnosticsContract(t, repo)
 	})
 }
@@ -27,14 +27,21 @@ func TestIncidentDiagnosticsRepository_Contract(t *testing.T) {
 // seedIncidents inserts minimal Incident + Resource rows so the FK chain resolves.
 func seedIncidents(t *testing.T, fx *internaltest.DialectFixture, incidentIDs ...string) {
 	t.Helper()
+	ctx := context.Background()
 	resourceID := "res-for-diag-" + fmt.Sprintf("%d", time.Now().UnixNano())
 	res := &domain.Resource{
-		Base:   domain.Base{ID: resourceID},
-		Name:   "diag-resource",
-		Type:   domain.ResourceHTTP,
-		Target: "https://example.invalid/diag",
+		Base:     domain.Base{ID: resourceID},
+		Name:     "diag-resource",
+		Type:     domain.ResourceHTTP,
+		Target:   "https://example.invalid/diag",
+		IsActive: true,
+		Interval: 60,
+		Timeout:  10,
 	}
-	require.NoError(t, fx.Runtime.GormDB().Create(res).Error)
+	resRepo := store.NewResourceRepositorySQLC(fx.Runtime)
+	incRepo := store.NewIncidentRepositorySQLC(fx.Runtime)
+	_, err := resRepo.Create(ctx, res)
+	require.NoError(t, err)
 	for _, id := range incidentIDs {
 		inc := &domain.Incident{
 			Base:       domain.Base{ID: id},
@@ -42,7 +49,8 @@ func seedIncidents(t *testing.T, fx *internaltest.DialectFixture, incidentIDs ..
 			Cause:      "test",
 			StartedAt:  time.Now(),
 		}
-		require.NoError(t, fx.Runtime.GormDB().Create(inc).Error)
+		_, err := incRepo.Create(ctx, inc)
+		require.NoError(t, err)
 	}
 }
 

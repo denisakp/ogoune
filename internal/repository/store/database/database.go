@@ -6,7 +6,6 @@ import (
 
 	"github.com/denisakp/ogoune/internal/config"
 	shareddb "github.com/denisakp/ogoune/internal/database"
-	"gorm.io/gorm"
 )
 
 // Init initializes the database connection with the provided configuration.
@@ -23,12 +22,6 @@ func Init(ctx context.Context, dsn *string) error {
 		SQLitePath:  config.GetEnv("SQLITE_PATH", "ogoune.db"),
 		LogLevel:    config.GetEnv("DB_LOG_LEVEL", "error"),
 	})
-}
-
-// Instance returns the singleton database instance.
-// If Init has not been called, it attempts lazy initialization using environment variables.
-func Instance() (*gorm.DB, error) {
-	return shareddb.Instance()
 }
 
 // Ping checks the database connection health by executing a simple query.

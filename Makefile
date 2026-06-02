@@ -3,7 +3,7 @@ SHELL := /bin/sh
 BINARY := dist/ogoune
 SQLC_VERSION := v1.30.0
 
-.PHONY: build build-be build-fe test test-be test-be-pg test-be-bench test-fe lint clean docker swag run-ci ci-local license-audit sqlc-bin sqlc-generate sqlc-check migrations-drift-check fuzz-dynquery
+.PHONY: build build-be build-fe test test-be test-be-pg test-be-bench bench-api test-fe lint clean docker swag run-ci ci-local license-audit sqlc-bin sqlc-generate sqlc-check migrations-drift-check fuzz-dynquery
 
 build: build-fe build-be
 
@@ -24,7 +24,7 @@ sqlc-generate: sqlc-bin
 sqlc-check: sqlc-bin
 	@$(SQLC_BIN) generate -f sqlc.yaml
 	@drift=$$(git status --porcelain -- internal/repository/sqlc/pg internal/repository/sqlc/sqlite \
-		| grep -Ev '^A  ' || true); \
+		| grep -Ev '^A  |_test\.go$$' || true); \
 	if [ -n "$$drift" ]; then \
 		echo "sqlc drift: run 'make sqlc-generate' and commit the result"; \
 		printf '%s\n' "$$drift"; \
@@ -65,6 +65,12 @@ test-be-pg:
 test-be-bench:
 	go test -bench=Paired -benchtime=1x -run=^$$ -count=1 \
 	  ./internal/repository/store/... | tee bench-output.txt
+
+# Spec 052 — API hot-path p95 bench for SC-005/SC-006 regression check.
+# Outputs `api_bench name=… p50_us=… p95_us=… p99_us=…` lines.
+bench-api:
+	go test -bench=^BenchmarkAPI_ -benchtime=1x -run=^$$ -count=3 \
+	  ./internal/api/handler/v1/... | tee api-bench-output.txt
 
 test-fe:
 	cd web && pnpm test

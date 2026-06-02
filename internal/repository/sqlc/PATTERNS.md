@@ -1,8 +1,10 @@
-# sqlc Migration Patterns
+# sqlc Patterns
 
-Living document. Wave-1 (046) populated the worked examples below from the 7 migrated repos. Future-wave maintainers append entries as new patterns surface.
+Living document covering recurring patterns when adding sqlc-backed repositories. Wave-1 (046) populated the worked examples below from the 7 then-migrated repos; subsequent waves appended entries.
 
-See also: [README.md](./README.md) (pilot walkthrough — 045 tags) and `specs/046-wave1-sqlc-crud/contracts/tx-and-helpers.md` for the call-site conventions.
+**Post-spec-052 status**: GORM is gone (see [ADR 0003](../../../docs/adrs/0003-sqlc-replaces-gorm.md)). Entries below that compare a "GORM-impl behaviour" vs the "sqlc behaviour" are historical — they document **why** the sqlc shape is what it is, not a choice you need to make today. The migration is done; only the sqlc patterns are live going forward.
+
+See also: [README.md](./README.md) (contributor onboarding — adding a new repository).
 
 ---
 

@@ -136,7 +136,7 @@ WHERE type = 'heartbeat'
   AND status = 'up'
   AND is_active = 1
   AND last_ping_at IS NOT NULL
-  AND (CAST(strftime('%s', last_ping_at) AS INTEGER) + heartbeat_interval + heartbeat_grace) < CAST(?1 AS INTEGER)
+  AND (CAST(strftime('%s', substr(last_ping_at, 1, 19)) AS INTEGER) + heartbeat_interval + heartbeat_grace) < CAST(?1 AS INTEGER)
 ORDER BY last_ping_at ASC
 LIMIT CAST(?2 AS INTEGER)
 `

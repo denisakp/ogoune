@@ -133,11 +133,6 @@ func (c *pgContainer) initTemplate() error {
 			err = fmt.Errorf("apply migrations to template: %w", e)
 			return
 		}
-		if rt != nil && rt.GormDB() != nil {
-			if sqlDB, dbErr := rt.GormDB().DB(); dbErr == nil && sqlDB != nil {
-				_ = sqlDB.Close()
-			}
-		}
 		if rt != nil && rt.PgxPool() != nil {
 			rt.PgxPool().Close()
 		}

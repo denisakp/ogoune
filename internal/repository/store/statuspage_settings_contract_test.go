@@ -15,7 +15,7 @@ import (
 
 func TestStatusPageSettingsRepository_Contract(t *testing.T) {
 	internaltest.ForEachDialect(t, func(t *testing.T, fx *internaltest.DialectFixture) {
-		repo := store.NewStatusPageSettingsRepository(fx.Runtime.GormDB())
+		repo := store.NewStatusPageSettingsRepositorySQLC(fx.Runtime)
 		runStatusPageSettingsContract(t, repo)
 	})
 }

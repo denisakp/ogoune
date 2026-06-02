@@ -29,4 +29,4 @@ Thumbs.db
 .claude/
 .scannerwork/
 bench-output.txt
-.private/
+api-bench-output.txt

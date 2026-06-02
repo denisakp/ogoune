@@ -19,8 +19,8 @@ import (
 func sqliteHandle(t *testing.T) *sql.DB {
 	t.Helper()
 	fx := internaltest.SetupSQLite(t)
-	sqlDB, err := fx.Runtime.GormDB().DB()
-	require.NoError(t, err)
+	sqlDB := fx.Runtime.SQLiteDB()
+	require.NotNil(t, sqlDB)
 	return sqlDB
 }
 

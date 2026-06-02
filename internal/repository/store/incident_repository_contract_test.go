@@ -22,7 +22,7 @@ func TestIncidentRepository_Contract(t *testing.T) {
 		seedResource(t, fx, "resource-1", "res-1b")
 		seedResource(t, fx, "resource-2", "res-2")
 
-		repo := store.NewIncidentRepository(fx.Runtime.GormDB())
+		repo := store.NewIncidentRepositorySQLC(fx.Runtime)
 		runIncidentContract(t, repo)
 	})
 }

@@ -25,7 +25,7 @@ import (
 // tags_repository_fake_test.go.
 func TestTagsRepository_Contract(t *testing.T) {
 	internaltest.ForEachDialect(t, func(t *testing.T, fx *internaltest.DialectFixture) {
-		repo := store.NewTagsRepository(fx.Runtime.GormDB())
+		repo := store.NewTagsRepositorySQLC(fx.Runtime)
 		runTagsContract(t, repo)
 	})
 }

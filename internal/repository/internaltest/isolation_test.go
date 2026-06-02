@@ -1,10 +1,12 @@
 package internaltest_test
 
 import (
+	"context"
 	"testing"
 
 	"github.com/denisakp/ogoune/internal/domain"
 	"github.com/denisakp/ogoune/internal/repository/internaltest"
+	"github.com/denisakp/ogoune/internal/repository/store"
 )
 
 // TestIsolation_ParallelSamePrimaryKey defends SC-007: two parallel
@@ -25,7 +27,7 @@ func TestIsolation_ParallelSamePrimaryKey(t *testing.T) {
 				}
 			}
 			tag := &domain.Tags{Base: domain.Base{ID: sharedID}, Name: "x"}
-			if err := inner.Runtime.GormDB().Create(tag).Error; err != nil {
+			if err := store.NewTagsRepositorySQLC(inner.Runtime).Create(context.Background(), tag); err != nil {
 				t.Fatalf("create x: %v", err)
 			}
 		})
@@ -40,7 +42,7 @@ func TestIsolation_ParallelSamePrimaryKey(t *testing.T) {
 				}
 			}
 			tag := &domain.Tags{Base: domain.Base{ID: sharedID}, Name: "y"}
-			if err := inner.Runtime.GormDB().Create(tag).Error; err != nil {
+			if err := store.NewTagsRepositorySQLC(inner.Runtime).Create(context.Background(), tag); err != nil {
 				t.Fatalf("create y: %v", err)
 			}
 		})

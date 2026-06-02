@@ -15,8 +15,8 @@ import (
 func TestRuntimeSinglePool(t *testing.T) {
 	runtime := openSQLiteTestRuntime(t)
 	t.Cleanup(func() {
-		if sqlDB, err := runtime.DB.DB(); err == nil && sqlDB != nil {
-			_ = sqlDB.Close()
+		if runtime.sqliteDB != nil {
+			_ = runtime.sqliteDB.Close()
 		}
 	})
 
@@ -39,8 +39,8 @@ func TestRuntimeSinglePool(t *testing.T) {
 func TestStatsCountsTrack(t *testing.T) {
 	runtime := openSQLiteTestRuntime(t)
 	t.Cleanup(func() {
-		if sqlDB, err := runtime.DB.DB(); err == nil && sqlDB != nil {
-			_ = sqlDB.Close()
+		if runtime.sqliteDB != nil {
+			_ = runtime.sqliteDB.Close()
 		}
 	})
 

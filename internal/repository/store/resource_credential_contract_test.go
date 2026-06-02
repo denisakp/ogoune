@@ -34,7 +34,7 @@ func TestResourceCredentialRepository_Contract(t *testing.T) {
 	setupCredentialCryptoForTest(t)
 	internaltest.ForEachDialect(t, func(t *testing.T, fx *internaltest.DialectFixture) {
 		seedResources(t, fx, "res-cred-1", "res-cred-2", "res-cred-3", "res-cred-roundtrip")
-		repo := store.NewResourceCredentialRepository(fx.Runtime.GormDB())
+		repo := store.NewResourceCredentialRepositorySQLC(fx.Runtime)
 		runResourceCredentialContract(t, repo)
 	})
 }

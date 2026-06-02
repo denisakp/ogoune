@@ -45,6 +45,9 @@ jobs:
       - name: run backend tests
         run: go test -C ./ ./...
 
+      - name: concurrent-update soak (spec 049 US3 — race detector ON)
+        run: go test -race -count=1 -timeout 90s -run TestResourceRepository_Update_ConcurrentSoak ./internal/repository/store/...
+
   test-be-postgres:
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -71,72 +74,6 @@ jobs:
         run: docker pull postgres:16-alpine
 
       - name: dual-dialect tests (Postgres + SQLite via testcontainers)
-        run: make test-be-pg
-
-  test-be-sqlc-tags:
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    env:
-      SQLC_TAGS: "true"
-    steps:
-      - uses: actions/checkout@v6
-
-      - name: setup Go
-        uses: actions/setup-go@v6
-        with:
-          go-version: '1.25.1'
-
-      - name: cache Go modules
-        uses: actions/cache@v5
-        with:
-          path: |
-            ~/go/pkg/mod
-            ~/.cache/go-build
-            ~/go/bin
-          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
-          restore-keys: |
-            ${{ runner.os }}-go-
-
-      - name: pre-pull postgres image
-        run: docker pull postgres:16-alpine
-
-      - name: dual-dialect tests with SQLC_TAGS=true
-        run: make test-be-pg
-
-  test-be-sqlc-wave1:
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    env:
-      SQLC_API_KEY: "true"
-      SQLC_USER: "true"
-      SQLC_NOTIFICATION_CHANNEL: "true"
-      SQLC_EXPIRY_NOTIFICATION_LOG: "true"
-      SQLC_STATUSPAGE_SETTINGS: "true"
-      SQLC_INCIDENT_DIAGNOSTICS: "true"
-      SQLC_RESOURCE_CREDENTIAL: "true"
-    steps:
-      - uses: actions/checkout@v6
-
-      - name: setup Go
-        uses: actions/setup-go@v6
-        with:
-          go-version: '1.25.1'
-
-      - name: cache Go modules
-        uses: actions/cache@v5
-        with:
-          path: |
-            ~/go/pkg/mod
-            ~/.cache/go-build
-            ~/go/bin
-          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
-          restore-keys: |
-            ${{ runner.os }}-go-
-
-      - name: pre-pull postgres image
-        run: docker pull postgres:16-alpine
-
-      - name: dual-dialect tests with all Wave-1 flags ON
         run: make test-be-pg
 
   build-and-push:
@@ -226,64 +163,3 @@ jobs:
           commit_message: "ci: update image digest for ogoune [skip ci]"
           branch: main
           file_pattern: docker-compose.yml
-
-  test-be-sqlc-wave3:
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    env:
-      SQLC_TAGS: "true"
-      SQLC_API_KEY: "true"
-      SQLC_USER: "true"
-      SQLC_NOTIFICATION_CHANNEL: "true"
-      SQLC_EXPIRY_NOTIFICATION_LOG: "true"
-      SQLC_STATUSPAGE_SETTINGS: "true"
-      SQLC_INCIDENT_DIAGNOSTICS: "true"
-      SQLC_RESOURCE_CREDENTIAL: "true"
-      SQLC_COMPONENT: "true"
-      SQLC_MAINTENANCE: "true"
-      SQLC_NOTIFICATION: "true"
-      SQLC_MONITORING_ACTIVITY: "true"
-      SQLC_INCIDENT_EVENT_STEP: "true"
-      SQLC_RESOURCE: "true"
-      SQLC_INCIDENT: "true"
-    steps:
-      - uses: actions/checkout@v6
-      - name: setup Go
-        uses: actions/setup-go@v6
-        with:
-          go-version: '1.25.1'
-      - name: cache Go modules
-        uses: actions/cache@v5
-        with:
-          path: |
-            ~/go/pkg/mod
-            ~/.cache/go-build
-            ~/go/bin
-          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
-          restore-keys: |
-            ${{ runner.os }}-go-
-      - name: pre-pull postgres image
-        run: docker pull postgres:16-alpine
-      - name: dual-dialect tests with all Wave-3 flags ON
-        run: make test-be-pg
-
-      - name: concurrent-update soak (spec 049 US3 — race detector ON)
-        run: go test -race -count=1 -timeout 90s -run TestResourceRepository_Update_ConcurrentSoak ./internal/repository/store/...
-
-      - name: paired benches — GORM vs sqlc p95 ratios (spec 049 US2)
-        run: make test-be-bench
-
-      - name: post paired-bench summary to job summary
-        if: always()
-        run: |
-          {
-            echo "## Paired bench results (spec 049)"
-            echo ""
-            echo '```'
-            grep -E "^paired_bench " bench-output.txt 2>/dev/null || echo "no paired_bench output captured"
-            echo '```'
-            echo ""
-            if grep -q "^WARN:" bench-output.txt 2>/dev/null; then
-              echo "⚠ One or more paired benches exceeded the 1.10 ratio gate (non-strict mode). Set PAIRED_BENCH_STRICT=true to fail the lane."
-            fi
-          } >> "$GITHUB_STEP_SUMMARY"

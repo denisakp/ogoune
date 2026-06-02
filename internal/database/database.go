@@ -4,17 +4,13 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"log"
 	"log/slog"
 	"os"
 	"reflect"
 	"strings"
 	"sync"
-	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
-	"gorm.io/gorm"
-	"gorm.io/gorm/logger"
 )
 
 type Driver string
@@ -47,14 +43,16 @@ type Config struct {
 //
 // Invariants:
 //   - Exactly one of pgxPool / sqliteDB is non-nil, matching Driver.
-//   - The raw handle and DB (GORM) share the same underlying physical pool.
+//   - For Postgres, pgxPool is the production handle for sqlc; pgSQL is a
+//     stdlib.OpenDBFromPool *sql.DB used internally by migrations and the
+//     startup schema validator. Both share the same underlying physical pool.
 type Runtime struct {
 	Driver           Driver
-	DB               *gorm.DB
 	PermissionStatus PermissionStatus
 
 	pgxPool  *pgxpool.Pool
-	sqliteDB *sql.DB
+	pgSQL    *sql.DB // Postgres: stdlib.OpenDBFromPool(pgxPool). Migrations/validation only.
+	sqliteDB *sql.DB // SQLite: the production handle.
 }
 
 // RuntimeStats exposes pool identity and live counts for observability and
@@ -83,12 +81,20 @@ func (r *Runtime) SQLiteDB() *sql.DB {
 	return r.sqliteDB
 }
 
-// GormDB returns the GORM handle. Convenience getter mirroring the PRD wording.
-func (r *Runtime) GormDB() *gorm.DB {
+// migratorDB returns the *sql.DB used by the migrator + ValidateStartupSchema.
+// For Postgres this is the stdlib wrapper around the pgx pool; for SQLite
+// it is the production handle.
+func (r *Runtime) migratorDB() *sql.DB {
 	if r == nil {
 		return nil
 	}
-	return r.DB
+	switch r.Driver {
+	case DriverPostgres:
+		return r.pgSQL
+	case DriverSQLite:
+		return r.sqliteDB
+	}
+	return nil
 }
 
 // Stats returns pool identity + live counts. PoolPointer is stable across
@@ -120,10 +126,9 @@ func (r *Runtime) Stats() RuntimeStats {
 }
 
 type resolvedConfig struct {
-	Driver       Driver
-	DSN          string
-	SQLitePath   string
-	GormLogLevel logger.LogLevel
+	Driver     Driver
+	DSN        string
+	SQLitePath string
 }
 
 var (
@@ -145,21 +150,15 @@ func Open(ctx context.Context, cfg Config) (*Runtime, error) {
 
 func openRuntime(ctx context.Context, cfg resolvedConfig, migrationFS migrationFS) (*Runtime, error) {
 	var (
-		db               *gorm.DB
-		permissionStatus = PermissionStatusNotApplicable
-		pgxPool          *pgxpool.Pool
-		sqliteDB         *sql.DB
-		err              error
+		rt  = &Runtime{Driver: cfg.Driver, PermissionStatus: PermissionStatusNotApplicable}
+		err error
 	)
 
 	switch cfg.Driver {
 	case DriverPostgres:
-		db, pgxPool, err = openPostgres(ctx, cfg)
+		rt.pgxPool, rt.pgSQL, err = openPostgres(ctx, cfg)
 	case DriverSQLite:
-		db, permissionStatus, err = openSQLite(cfg)
-		if err == nil {
-			sqliteDB, err = db.DB()
-		}
+		rt.sqliteDB, rt.PermissionStatus, err = openSQLite(cfg)
 	default:
 		return nil, fmt.Errorf("db init: unsupported driver %q", cfg.Driver)
 	}
@@ -167,25 +166,19 @@ func openRuntime(ctx context.Context, cfg resolvedConfig, migrationFS migrationF
 		return nil, err
 	}
 
-	if err := runMigrations(ctx, db, cfg.Driver, migrationFS); err != nil {
+	if err := runMigrations(ctx, rt.migratorDB(), cfg.Driver, migrationFS); err != nil {
 		return nil, err
 	}
 
-	if err := ValidateStartupSchema(db); err != nil {
+	if err := ValidateStartupSchema(rt.migratorDB()); err != nil {
 		return nil, err
 	}
 
 	if cfg.Driver == DriverSQLite {
-		permissionStatus = mergePermissionStatus(permissionStatus, hardenSQLiteArtifacts(cfg.SQLitePath))
+		rt.PermissionStatus = mergePermissionStatus(rt.PermissionStatus, hardenSQLiteArtifacts(cfg.SQLitePath))
 	}
 
-	return &Runtime{
-		Driver:           cfg.Driver,
-		DB:               db,
-		PermissionStatus: permissionStatus,
-		pgxPool:          pgxPool,
-		sqliteDB:         sqliteDB,
-	}, nil
+	return rt, nil
 }
 
 // Init initializes the shared database singleton exactly once for the process.
@@ -211,43 +204,8 @@ func Init(ctx context.Context, cfg Config) error {
 	return nil
 }
 
-// Instance returns the active gorm database handle, lazily initializing from env when needed.
-//
-// Deprecated: prefer obtaining the full *Runtime from bootstrap and using
-// Runtime.GormDB(), Runtime.PgxPool(), or Runtime.SQLiteDB() as appropriate.
-// This accessor is preserved during the sqlc migration and will be removed
-// in a follow-up ticket.
-func Instance() (*gorm.DB, error) {
-	runtimeMu.RLock()
-	currentRuntime := activeRuntime
-	isInitialized := initializedRuntime
-	runtimeMu.RUnlock()
-
-	if isInitialized {
-		if currentRuntime == nil || currentRuntime.DB == nil {
-			return nil, fmt.Errorf("db instance: database initialization failed previously")
-		}
-		return currentRuntime.DB, nil
-	}
-
-	if err := Init(context.Background(), configFromEnv()); err != nil {
-		return nil, fmt.Errorf("db instance: initialization failed: %w", err)
-	}
-
-	runtimeMu.RLock()
-	defer runtimeMu.RUnlock()
-
-	if activeRuntime == nil || activeRuntime.DB == nil {
-		return nil, fmt.Errorf("db instance: database not initialized")
-	}
-
-	return activeRuntime.DB, nil
-}
-
 // ActiveRuntime returns the active *Runtime once the singleton has been
 // initialized. Returns an error if Init has not been called or failed.
-// Prefer this over Instance() when callers need driver-specific handles
-// (PgxPool, SQLiteDB) in addition to the GORM DB.
 func ActiveRuntime() (*Runtime, error) {
 	runtimeMu.RLock()
 	defer runtimeMu.RUnlock()
@@ -272,20 +230,22 @@ func DriverName() (Driver, error) {
 
 // Ping validates the underlying SQL connection.
 func Ping(ctx context.Context) error {
-	db, err := Instance()
+	rt, err := ActiveRuntime()
 	if err != nil {
 		return fmt.Errorf("db ping: %w", err)
 	}
-
-	sqlDB, err := db.DB()
-	if err != nil {
-		return fmt.Errorf("db ping: failed to get underlying db: %w", err)
+	switch rt.Driver {
+	case DriverPostgres:
+		if err := rt.pgxPool.Ping(ctx); err != nil {
+			return fmt.Errorf("db ping: postgres: %w", err)
+		}
+	case DriverSQLite:
+		if err := rt.sqliteDB.PingContext(ctx); err != nil {
+			return fmt.Errorf("db ping: sqlite: %w", err)
+		}
+	default:
+		return fmt.Errorf("db ping: unsupported driver %q", rt.Driver)
 	}
-
-	if err := sqlDB.PingContext(ctx); err != nil {
-		return fmt.Errorf("db ping: connection failed: %w", err)
-	}
-
 	return nil
 }
 
@@ -295,14 +255,14 @@ func Reset() {
 	defer runtimeMu.Unlock()
 
 	if activeRuntime != nil {
-		if activeRuntime.DB != nil {
-			sqlDB, err := activeRuntime.DB.DB()
-			if err == nil && sqlDB != nil {
-				_ = sqlDB.Close()
-			}
+		if activeRuntime.pgSQL != nil {
+			_ = activeRuntime.pgSQL.Close()
 		}
 		if activeRuntime.pgxPool != nil {
 			activeRuntime.pgxPool.Close()
+		}
+		if activeRuntime.sqliteDB != nil {
+			_ = activeRuntime.sqliteDB.Close()
 		}
 	}
 
@@ -317,11 +277,6 @@ func (cfg Config) resolve() (resolvedConfig, error) {
 		driver = DriverPostgres
 	}
 
-	gormLogLevel, err := parseLogLevel(cfg.LogLevel)
-	if err != nil {
-		return resolvedConfig{}, err
-	}
-
 	switch driver {
 	case DriverPostgres:
 		dsn := strings.TrimSpace(cfg.DatabaseURL)
@@ -329,9 +284,8 @@ func (cfg Config) resolve() (resolvedConfig, error) {
 			return resolvedConfig{}, fmt.Errorf("db init: DATABASE_URL is required when DB_DRIVER=postgres")
 		}
 		return resolvedConfig{
-			Driver:       driver,
-			DSN:          dsn,
-			GormLogLevel: gormLogLevel,
+			Driver: driver,
+			DSN:    dsn,
 		}, nil
 	case DriverSQLite:
 		path := strings.TrimSpace(cfg.SQLitePath)
@@ -339,10 +293,9 @@ func (cfg Config) resolve() (resolvedConfig, error) {
 			path = "ogoune.db"
 		}
 		return resolvedConfig{
-			Driver:       driver,
-			DSN:          path,
-			SQLitePath:   path,
-			GormLogLevel: gormLogLevel,
+			Driver:     driver,
+			DSN:        path,
+			SQLitePath: path,
 		}, nil
 	default:
 		return resolvedConfig{}, fmt.Errorf("db init: unsupported DB_DRIVER %q", driver)
@@ -366,34 +319,6 @@ func getEnv(key, defaultValue string) string {
 	return value
 }
 
-func parseLogLevel(value string) (logger.LogLevel, error) {
-	switch strings.ToLower(strings.TrimSpace(value)) {
-	case "", "error":
-		return logger.Error, nil
-	case "silent":
-		return logger.Silent, nil
-	case "warn":
-		return logger.Warn, nil
-	case "info":
-		return logger.Info, nil
-	default:
-		return logger.Error, fmt.Errorf("db init: unsupported DB_LOG_LEVEL %q", value)
-	}
-}
-
-func newGormLogger(level logger.LogLevel) logger.Interface {
-	return logger.New(
-		log.New(os.Stdout, "\r\n", log.LstdFlags),
-		logger.Config{
-			SlowThreshold:             200 * time.Millisecond,
-			LogLevel:                  level,
-			Colorful:                  false,
-			IgnoreRecordNotFoundError: true,
-			ParameterizedQueries:      true,
-		},
-	)
-}
-
 func mergePermissionStatus(current, next PermissionStatus) PermissionStatus {
 	if current == PermissionStatusWarned || next == PermissionStatusWarned {
 		return PermissionStatusWarned
@@ -404,28 +329,28 @@ func mergePermissionStatus(current, next PermissionStatus) PermissionStatus {
 	return PermissionStatusNotApplicable
 }
 
-// ValidateStartupSchema validates required schema columns before the application starts serving traffic.
-func ValidateStartupSchema(db *gorm.DB) error {
-	if !db.Migrator().HasColumn("resources", "confirmation_checks") {
-		return fmt.Errorf("db init: missing required confirmation schema column resources.confirmation_checks; run latest migrations")
+// ValidateStartupSchema validates required schema columns before the application
+// starts serving traffic. Uses a dialect-agnostic probe (`SELECT col FROM table LIMIT 0`)
+// — if the column is missing, the SQL driver returns an error pointing at it.
+func ValidateStartupSchema(db *sql.DB) error {
+	required := []struct {
+		Table, Column string
+	}{
+		{"resources", "confirmation_checks"},
+		{"resources", "confirmation_interval"},
+		{"notification_events", "status"},
+		{"notification_events", "claim_owner"},
+		{"notification_events", "claimed_at"},
+		{"notification_events", "processed_at"},
+		{"notification_events", "last_error"},
 	}
-	if !db.Migrator().HasColumn("resources", "confirmation_interval") {
-		return fmt.Errorf("db init: missing required confirmation schema column resources.confirmation_interval; run latest migrations")
-	}
-	if !db.Migrator().HasColumn("notification_events", "status") {
-		return fmt.Errorf("db init: missing required notification retry schema column notification_events.status; run latest migrations")
-	}
-	if !db.Migrator().HasColumn("notification_events", "claim_owner") {
-		return fmt.Errorf("db init: missing required notification retry schema column notification_events.claim_owner; run latest migrations")
-	}
-	if !db.Migrator().HasColumn("notification_events", "claimed_at") {
-		return fmt.Errorf("db init: missing required notification retry schema column notification_events.claimed_at; run latest migrations")
-	}
-	if !db.Migrator().HasColumn("notification_events", "processed_at") {
-		return fmt.Errorf("db init: missing required notification retry schema column notification_events.processed_at; run latest migrations")
-	}
-	if !db.Migrator().HasColumn("notification_events", "last_error") {
-		return fmt.Errorf("db init: missing required notification retry schema column notification_events.last_error; run latest migrations")
+	for _, r := range required {
+		// Defence in depth: identifier interpolation is safe here because both
+		// table and column are hardcoded constants in this slice (not user-derived).
+		q := fmt.Sprintf("SELECT %s FROM %s LIMIT 0", r.Column, r.Table)
+		if _, err := db.Exec(q); err != nil {
+			return fmt.Errorf("db init: missing required schema column %s.%s; run latest migrations: %w", r.Table, r.Column, err)
+		}
 	}
 	return nil
 }

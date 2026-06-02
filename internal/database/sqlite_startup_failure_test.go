@@ -17,5 +17,5 @@ func TestSQLiteStartupFailsOnInvalidPendingMigration(t *testing.T) {
 	runtime, err := openSQLiteTestRuntimeWithFS(t, newSQLiteTestConfig(t), migrations)
 	require.Error(t, err)
 	require.Nil(t, runtime)
-	require.Contains(t, err.Error(), "migration migrations/sqlite/0002_bad.sql failed")
+	require.Contains(t, err.Error(), "migrate migrations/sqlite/0002_bad.sql on sqlite")
 }

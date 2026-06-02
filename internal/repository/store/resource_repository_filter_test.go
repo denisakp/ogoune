@@ -24,15 +24,14 @@ func boolP(b bool) *bool    { return &b }
 func TestResourceRepository_ListByFilter(t *testing.T) {
 	internaltest.ForEachDialect(t, func(t *testing.T, fx *internaltest.DialectFixture) {
 		ctx := context.Background()
-		repo := store.NewResourceRepository(fx.Runtime.GormDB())
+		repo := store.NewResourceRepositorySQLC(fx.Runtime)
 
-		// Seed tags directly via GORM (no tag repository wiring needed for
-		// this filter test).
-		db := fx.Runtime.GormDB()
+		// Seed tags via the sqlc tags repo (sole impl post-decom).
+		tagsRepo := store.NewTagsRepositorySQLC(fx.Runtime)
 		tagProd := &domain.Tags{Base: domain.Base{ID: "tag-prod-" + fx.Dialect}, Name: "production"}
 		tagStg := &domain.Tags{Base: domain.Base{ID: "tag-stg-" + fx.Dialect}, Name: "staging"}
-		require.NoError(t, db.Create(tagProd).Error)
-		require.NoError(t, db.Create(tagStg).Error)
+		require.NoError(t, tagsRepo.Create(ctx, tagProd))
+		require.NoError(t, tagsRepo.Create(ctx, tagStg))
 
 		// Seed 8 resources covering all filter combinations.
 		seed := []struct {
@@ -69,9 +68,10 @@ func TestResourceRepository_ListByFilter(t *testing.T) {
 			created, err := repo.Create(ctx, res)
 			require.NoError(t, err, "seed %s", s.id)
 			if !s.isActive {
-				require.NoError(t, db.Model(&domain.Resource{}).
-					Where("id = ?", created.ID).
-					Update("is_active", false).Error)
+				// Drop is_active=false via a raw UPDATE (sqlc Resource Update
+				// would require a full domain object; this is simpler for
+				// post-create state adjustment in seed code).
+				require.NoError(t, execRawUpdate(ctx, fx, "UPDATE resources SET is_active = ? WHERE id = ?", false, created.ID))
 			}
 		}
 
@@ -168,4 +168,36 @@ func TestResourceRepository_ListByFilter(t *testing.T) {
 			assert.Equal(t, 1, total, fmt.Sprintf("got items=%d", len(items)))
 		})
 	})
+}
+
+// execRawUpdate runs a parameterised UPDATE/DELETE statement via the raw
+// driver-specific handle. Local helper used by filter tests for post-create
+// state adjustments that aren't exposed via the sqlc Update wrappers.
+func execRawUpdate(ctx context.Context, fx *internaltest.DialectFixture, query string, args ...any) error {
+	if pool := fx.Runtime.PgxPool(); pool != nil {
+		// pgx wants $1 placeholders; convert ? to $1, $2, ...
+		q := convertQuestionMarksToDollar(query)
+		_, err := pool.Exec(ctx, q, args...)
+		return err
+	}
+	if db := fx.Runtime.SQLiteDB(); db != nil {
+		_, err := db.ExecContext(ctx, query, args...)
+		return err
+	}
+	return nil
+}
+
+func convertQuestionMarksToDollar(q string) string {
+	var b []byte
+	i := 1
+	for _, c := range []byte(q) {
+		if c == '?' {
+			b = append(b, '$')
+			b = append(b, []byte(fmt.Sprintf("%d", i))...)
+			i++
+			continue
+		}
+		b = append(b, c)
+	}
+	return string(b)
 }

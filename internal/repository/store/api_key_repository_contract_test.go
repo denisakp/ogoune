@@ -20,7 +20,7 @@ func TestAPIKeyRepository_Contract(t *testing.T) {
 		// the FK; the in-memory fake did not.
 		seedUsers(t, fx, "user-1", "user-dup", "user-2", "user-3", "user-4",
 			"user-list", "user-count", "user-revoke", "user-revoke2", "user-lastused")
-		repo := store.NewAPIKeyRepository(fx.Runtime.GormDB())
+		repo := store.NewAPIKeyRepositorySQLC(fx.Runtime)
 		runAPIKeyContract(t, repo)
 	})
 }
@@ -29,13 +29,15 @@ func TestAPIKeyRepository_Contract(t *testing.T) {
 // api_keys.user_id FK references resolve.
 func seedUsers(t *testing.T, fx *internaltest.DialectFixture, ids ...string) {
 	t.Helper()
+	ctx := context.Background()
+	userRepo := store.NewUserRepositorySQLC(fx.Runtime)
 	for _, id := range ids {
 		u := &domain.User{
 			Base:           domain.Base{ID: id},
 			Email:          id + "@example.invalid",
 			HashedPassword: "hash",
 		}
-		if err := fx.Runtime.GormDB().Create(u).Error; err != nil {
+		if _, err := userRepo.Create(ctx, u); err != nil {
 			t.Fatalf("seed user %q: %v", id, err)
 		}
 	}

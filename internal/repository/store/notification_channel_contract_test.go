@@ -31,7 +31,7 @@ func setupChannelCryptoKey(t *testing.T) {
 func TestNotificationChannelRepository_Contract(t *testing.T) {
 	setupChannelCryptoKey(t)
 	internaltest.ForEachDialect(t, func(t *testing.T, fx *internaltest.DialectFixture) {
-		repo := store.NewNotificationChannelRepository(fx.Runtime.GormDB())
+		repo := store.NewNotificationChannelRepositorySQLC(fx.Runtime)
 		runNotificationChannelContract(t, repo)
 	})
 }

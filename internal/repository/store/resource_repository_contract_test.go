@@ -17,7 +17,7 @@ import (
 
 func TestResourceRepository_Contract(t *testing.T) {
 	internaltest.ForEachDialect(t, func(t *testing.T, fx *internaltest.DialectFixture) {
-		repo := store.NewResourceRepository(fx.Runtime.GormDB())
+		repo := store.NewResourceRepositorySQLC(fx.Runtime)
 		runResourceContract(t, repo)
 	})
 }
