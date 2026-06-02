@@ -45,5 +45,9 @@ When `CLAUDE.md` describes a non-obvious pattern, it should link the ADR that ju
 | [0001](./0001-open-core-apache-2.0-ee.md) | Open-core relicense to Apache 2.0 + LicenseRef-Ogoune-EE | Accepted | 2026-05-29 | Both | license, business |
 | [0002](./0002-dual-dialect-sqlite-postgres.md) | Dual-dialect SQLite (CE) + Postgres (prod) with enforced parity | Accepted | 2026-05-30 | Both | storage, schema |
 | [0003](./0003-sqlc-replaces-gorm.md) | sqlc replaces GORM for all repositories | Accepted | 2026-05-29 | Both | storage, repositories |
+| [0004](./0004-confirmation-window-hardcoded-3.md) | Hardcoded N=3 confirmation window before alerting | Accepted | 2026-05-29 | Both | monitoring, incident |
+| [0005](./0005-scheduler-dual-timingwheel-asynq.md) | Dual scheduler: TimingWheel (CE) and Asynq (production) | Accepted | 2026-05-29 | Both | scheduler, runtime |
+| [0006](./0006-license-key-prefix-defer-crypto.md) | Prefix-based license metadata, defer cryptographic enforcement | Accepted | 2026-05-29 | EE | license, crypto |
+| [0007](./0007-zero-telemetry-ce.md) | Zero telemetry in Community Edition | Accepted | 2026-05-29 | CE | privacy, business |
 
 <!-- New ADRs added below as accepted. Keep chronological by ADR number. -->
