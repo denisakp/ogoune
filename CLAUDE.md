@@ -79,10 +79,10 @@ Handlers never run checks or query DB directly. Scheduling goes through the Sche
 
 - **Entry point**: `cmd/api/main.go` — thin orchestrator (~26 lines), delegates to `internal/platform/bootstrap/`
 - **HTTP**: `internal/api/router.go` (Chi router), handlers in `internal/api/handler/`
-- **Domain models**: `internal/domain/models.go` — source of truth, IDs are ULIDs (set in `BeforeCreate` GORM hook)
+- **Domain models**: `internal/domain/models.go` — source of truth, IDs are ULIDs (set in `EnsureID()` called explicitly by sqlc Create wrappers)
 - **Services**: `internal/service/` — business logic, domain-level errors (not HTTP errors)
 - **Ports (contracts)**: `internal/port/` — all interface definitions (repository, scheduler, notifier, monitoring)
-- **Repositories**: `internal/repository/store/` — GORM implementations of port interfaces; `internal/repository/interfaces.go` holds only error sentinels
+- **Repositories**: `internal/repository/store/*_sqlc.go` — hand-written wrappers over sqlc-generated query bindings (under `internal/repository/sqlc/{pg,sqlite}/`). See `internal/repository/sqlc/README.md` for the contributor onboarding workflow. `internal/repository/interfaces.go` holds only error sentinels.
 - **Scheduler**: `internal/scheduler/` — TimingWheel and Asynq implementations of `port.Scheduler`
 - **Workers**: `internal/worker/` — `handler_monitoring.go` (check execution + incident triggering), `handler_expiry.go`, `handler_notification.go`
 - **Check strategies**: `internal/monitoring/strategy/` — HTTP, TCP, DNS, ICMP, Keyword, Protocol
@@ -125,10 +125,18 @@ Vue 3 Composition API + TypeScript + Pinia + Ant Design Vue.
 
 ### Adding a new repository
 
-1. Define interface in `internal/port/repository.go`
-2. Implement in `internal/repository/store/yourrepo.go`
-3. Add compile-time check in `internal/repository/store/verify.go`: `var _ port.YourRepository = (*YourRepoImpl)(nil)`
-4. Wire in `internal/platform/bootstrap/database.go`
+sqlc-only workflow. Full walkthrough at `internal/repository/sqlc/README.md`; canonical patterns at `internal/repository/sqlc/PATTERNS.md`.
+
+1. Write paired migrations under `internal/database/migrations/{postgres,sqlite}/NNNN_yourtable.up.sql` + `.down.sql`. Run `make migrations-drift-check`.
+2. Write paired sqlc queries under `internal/repository/sqlc/queries/{postgres,sqlite}/yourtable.sql`. Run `make sqlc-generate` and commit the result.
+3. Add the domain struct to `internal/domain/models.go` (no `gorm:"..."` tags, no hooks).
+4. Define the port interface in `internal/port/repository.go`.
+5. Author the wrapper at `internal/repository/store/yourrepo_repository_sqlc.go` following the `PATTERNS.md` shape (dual-dialect dispatch, explicit `EnsureID()` + timestamps in `Create`).
+6. Add compile-time check in `internal/repository/store/verify.go`: `var _ port.YourRepository = (*YourRepositorySQLC)(nil)`.
+7. Author the dual-dialect contract test at `internal/repository/store/yourrepo_repository_contract_test.go` using `internaltest.ForEachDialect`.
+8. Author the in-memory fake at `internal/repository/fake/yourrepo_fake.go` for handler/service unit tests.
+9. Wire in `internal/platform/bootstrap/database.go`: `app.YourRepo = store.NewYourRepositorySQLC(rt)`.
+10. `make ci-local`.
 
 ### Adding a new v1 API endpoint
 
@@ -142,7 +150,7 @@ Vue 3 Composition API + TypeScript + Pinia + Ant Design Vue.
 
 - Add to both `sqlite/` and `postgres/` trees
 - SQLite: no `ADD COLUMN IF NOT EXISTS`, no multi-column `ALTER TABLE`
-- Use `GORM serializer:json` instead of `type:jsonb` for cross-driver JSON fields
+- JSON columns: declare as `JSONB` (Postgres) / `TEXT` (SQLite). Go marshalling happens in the wrapper, not via struct tags.
 - Naming: `XXXX_description.up.sql` / `.down.sql`
 - One migration = two files with the same `NNNN_` prefix and the same intent. Drift between trees is enforced by `make migrations-drift-check`
 - Column **name + nullability MUST match** across dialects. Type tokens are intentionally NOT enforced cross-dialect (`JSONB`↔`TEXT`, `TIMESTAMPTZ`↔`TEXT`, `BIGINT`↔`INTEGER`)
