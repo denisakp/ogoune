@@ -196,5 +196,5 @@ Dashboard: http://localhost:9009 (project `ogoune`). Block on CRITICAL/BLOCKER i
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan:
-`specs/052-decommission-gorm/plan.md`
+`specs/053-slice-nuxtui-foundation/plan.md`
 <!-- SPECKIT END -->

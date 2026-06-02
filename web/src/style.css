@@ -1,5 +1,30 @@
-/* Ant Design Vue styles are automatically imported */
-/* Global styles can be added here */
+@import "tailwindcss";
+@import "@nuxt/ui";
+
+@theme {
+  /* Brand — Indigo (per .prds/frontend/000-design-identity.md) */
+  --color-primary-50:  #EEF2FF;
+  --color-primary-100: #E0E7FF;
+  --color-primary-500: #4F46E5;
+  --color-primary-600: #4338CA;
+  --color-primary-700: #3730A3;
+
+  /* Semantic status colors */
+  --color-status-up:          #10B981;
+  --color-status-down:        #EF4444;
+  --color-status-warning:     #F59E0B;
+  --color-status-maintenance: #0EA5E9;
+  --color-status-unknown:     #94A3B8;
+
+  /* Typography */
+  --font-sans: "Inter", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", "IBM Plex Mono", monospace;
+
+  /* Radius (restrained scale) */
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+}
 
 :root {
   color-scheme: light dark;

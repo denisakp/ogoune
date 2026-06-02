@@ -51,5 +51,6 @@ When `CLAUDE.md` describes a non-obvious pattern, it should link the ADR that ju
 | [0007](./0007-zero-telemetry-ce.md) | Zero telemetry in Community Edition | Accepted | 2026-05-29 | CE | privacy, business |
 | [0008](./0008-ulid-as-primary-id.md) | ULIDs as primary IDs across all domain entities | Accepted | 2026-05-30 | Both | schema, identifiers |
 | [0009](./0009-aes-256-gcm-credential-encryption.md) | AES-256-GCM for notification credential encryption at rest | Accepted | 2026-05-30 | Both | crypto, security |
+| [0010](./0010-frontend-stack-nuxtui-tailwind-ky-zod.md) | Frontend stack: Nuxt UI + Tailwind v4 + Iconify + Ky + Zod | Proposed | 2026-06-02 | Both | frontend, design-system |
 
 <!-- New ADRs added below as accepted. Keep chronological by ADR number. -->

@@ -94,6 +94,17 @@ const routes: RouteRecordRaw[] = [
   },
 ]
 
+// Dev-only demo route — build-time tree-shaken in production.
+// Spec 053 FR-006, SC-007 · contract: contracts/component-resolver.md
+if (import.meta.env.DEV) {
+  routes.push({
+    path: '/_dev/nuxtui-demo',
+    name: 'NuxtUIDemo',
+    component: () => import('@/views/_dev/NuxtUIDemoView.vue'),
+    meta: { public: true, requiresLayout: false },
+  })
+}
+
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes,
