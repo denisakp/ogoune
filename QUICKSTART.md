@@ -213,7 +213,7 @@ SQLITE_PATH=./ogoune.db
 SCHEDULER_MODE=timingwheel
 JWT_SECRET=dev-secret-change-in-production
 AUTH_EMAIL=admin@ogoune.test
-PORT=8080
+APP_PORT=9596
 STATIC_DIR=web/dist
 APP_SECRET_KEY=<output of: openssl rand -hex 32>
 ```
@@ -616,7 +616,7 @@ CONFIRMATION_INTERVAL=30      # Seconds between confirmation checks
 EXPIRY_ALERT_THRESHOLDS=30,14,7,1  # Days before SSL/domain expiry to alert
 
 # ── Application ──────────────────────────────────────────────────────────────
-APP_PORT=8080
+APP_APP_PORT=9596
 APP_ENV=production            # development | production
 ENABLE_ICMP=false             # Optional ICMP monitoring
 

@@ -40,10 +40,10 @@ services:
       timeout: 5s
       retries: 5
   ogoune:
-    image: ghcr.io/denisakp/ogoune@sha256:0cbefa0188ad86772fcdcb31804df1df15a602d4f3189f85b531609c422f21fa
+    image: ghcr.io/denisakp/ogoune:7ec1646
     restart: unless-stopped
     ports:
-      - "${APP_PORT:-8080}:8080"
+      - "${APP_PORT:-9596}:9596"
     environment:
       # Database — defaults to embedded SQLite, override to postgres for full stack
       DB_DRIVER: ${DB_DRIVER:-sqlite}
@@ -62,6 +62,5 @@ services:
       # Enterprise Edition — leave empty for Community Edition
       ENTERPRISE_LICENSE_KEY: ${ENTERPRISE_LICENSE_KEY:-}
       STATIC_DIR: /app/static
-      PORT: 8080
     volumes:
       - ogoune-data:/data

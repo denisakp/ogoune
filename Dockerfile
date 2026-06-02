@@ -14,7 +14,7 @@ RUN corepack enable
 COPY web/package.json web/pnpm-lock.yaml web/pnpm-workspace.yaml ./
 RUN printf 'verify-deps-before-run=false\nconfirm-modules-purge=false\n' > .npmrc
 
-RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --frozen-lockfile --config.dangerouslyAllowAllBuilds=true
+RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --frozen-lockfile
 COPY web .
 RUN printf 'verify-deps-before-run=false\nconfirm-modules-purge=false\n' > .npmrc
 
@@ -62,7 +62,6 @@ COPY --from=frontend-builder /build/web/dist ./static
 RUN chown -R ogoune:ogoune /app /data
 USER ogoune
 
-ENV PORT=9500
-EXPOSE 9500
+EXPOSE 9596
 
 CMD ["./ogoune"]

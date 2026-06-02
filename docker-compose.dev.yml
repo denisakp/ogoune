@@ -9,7 +9,7 @@ services:
       context: .
     restart: unless-stopped
     ports:
-      - "${APP_PORT:-9500}:${APP_PORT:-9500}"
+      - "${APP_PORT:-9596}:9596"
     environment:
       AUTH_EMAIL: ${AUTH_EMAIL:-admin@ogoune.test}
       AUTH_PASSWORD: ${AUTH_PASSWORD:?AUTH_PASSWORD is required}
@@ -30,6 +30,5 @@ services:
       # Enterprise Edition — leave empty for Community Edition
       ENTERPRISE_LICENSE_KEY: ${ENTERPRISE_LICENSE_KEY:-}
       STATIC_DIR: /app/static
-      PORT: "${APP_PORT:-9500}"
     volumes:
       - ogoune-data:/data
