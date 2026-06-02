@@ -62,6 +62,7 @@ COPY --from=frontend-builder /build/web/dist ./static
 RUN chown -R ogoune:ogoune /app /data
 USER ogoune
 
+ENV STATIC_DIR=/app/static
 EXPOSE 9596
 
 CMD ["./ogoune"]
