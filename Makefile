@@ -11,14 +11,18 @@ build-be: sqlc-check
 	mkdir -p dist
 	go build -o $(BINARY) ./cmd/api/main.go
 
+SQLC_BIN := $(shell go env GOPATH)/bin/sqlc
+
 sqlc-bin:
-	@command -v sqlc >/dev/null 2>&1 || go install github.com/sqlc-dev/sqlc/cmd/sqlc@$(SQLC_VERSION)
+	@if [ ! -x "$(SQLC_BIN)" ] || [ "$$($(SQLC_BIN) version)" != "$(SQLC_VERSION:v%=%)" ]; then \
+		go install github.com/sqlc-dev/sqlc/cmd/sqlc@$(SQLC_VERSION); \
+	fi
 
 sqlc-generate: sqlc-bin
-	sqlc generate -f sqlc.yaml
+	$(SQLC_BIN) generate -f sqlc.yaml
 
 sqlc-check: sqlc-bin
-	@sqlc generate -f sqlc.yaml
+	@$(SQLC_BIN) generate -f sqlc.yaml
 	@drift=$$(git status --porcelain -- internal/repository/sqlc/pg internal/repository/sqlc/sqlite \
 		| grep -Ev '^A  ' || true); \
 	if [ -n "$$drift" ]; then \
