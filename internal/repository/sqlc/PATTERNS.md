@@ -2,7 +2,7 @@
 
 Living document covering recurring patterns when adding sqlc-backed repositories. Wave-1 (046) populated the worked examples below from the 7 then-migrated repos; subsequent waves appended entries.
 
-**Post-spec-052 status**: GORM is gone (see [ADR 0001](../../../docs/adr/0001-migrate-gorm-to-sqlc.md)). Entries below that compare a "GORM-impl behaviour" vs the "sqlc behaviour" are historical — they document **why** the sqlc shape is what it is, not a choice you need to make today. The migration is done; only the sqlc patterns are live going forward.
+**Post-spec-052 status**: GORM is gone (see [ADR 0003](../../../docs/adrs/0003-sqlc-replaces-gorm.md)). Entries below that compare a "GORM-impl behaviour" vs the "sqlc behaviour" are historical — they document **why** the sqlc shape is what it is, not a choice you need to make today. The migration is done; only the sqlc patterns are live going forward.
 
 See also: [README.md](./README.md) (contributor onboarding — adding a new repository).
 

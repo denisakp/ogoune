@@ -7,7 +7,7 @@ follows [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/).
 
 Release-candidate. **GORM removed; sqlc is the only ORM.** Closes the 9-month
 sqlc chantier (specs 041–052). See
-[ADR 0001](docs/adr/0001-migrate-gorm-to-sqlc.md) for the decision record and
+[ADR 0003](docs/adrs/0003-sqlc-replaces-gorm.md) for the decision record and
 lessons learned.
 
 A 7-day community-feedback window opens at RC tag. The final `v2.0.0` follows
@@ -75,16 +75,9 @@ issues on the GitHub Discussion thread linked in the release notes.
 
 ### Documentation
 
-- **New ADR**: `docs/adr/0001-migrate-gorm-to-sqlc.md` — the formal decision
-  record covering context, alternatives considered (GORM kept, ent, raw
-  `database/sql`, SQLBoiler, hybrid), and 8 lessons learned compiled from
-  prior spec retros.
-- **New contributor guide**: `internal/repository/sqlc/README.md` — 9-step
-  walkthrough for adding a new repository, sqlc-only.
-- **New patterns catalogue**: `internal/repository/sqlc/PATTERNS.md` —
-  canonical implementations of recurring shapes (M2M, controlled-N+1
-  preload, dynamic filters via `dynquery`, transactions, encrypted columns,
-  dialect-specific aggregates).
+- **ADR reference**: [`docs/adrs/0003-sqlc-replaces-gorm.md`](docs/adrs/0003-sqlc-replaces-gorm.md) — the strategic decision record (written at chantier start in 2026-05) covering context, alternatives, and the migration plan now closed by this release.
+- **Contributor guide rewritten**: `internal/repository/sqlc/README.md` — 9-step walkthrough for adding a new repository, sqlc-only.
+- **Patterns catalogue annotated**: `internal/repository/sqlc/PATTERNS.md` — existing catalogue preserved; header note clarifies that GORM-vs-sqlc comparison entries are now historical context.
 - **Updated `CLAUDE.md`**: "Adding a new repository" section rewritten as
   10-step sqlc-only recipe; "Domain models" + "Repositories" + "Database
   migrations" sections updated.
