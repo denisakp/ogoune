@@ -84,15 +84,16 @@ func TestMonitoringActivityRepository_Aggregations_GORMvsSQLC_SameDialect(t *tes
 	now := time.Now()
 	for i := 0; i < 50; i++ {
 		success := i%4 != 0 // 75% up, 25% down
-		require.NoError(t, fx.Runtime.GormDB().Create(&domain.MonitoringActivity{
+		maRepo := store.NewMonitoringActivityRepositorySQLC(fx.Runtime)
+		require.NoError(t, maRepo.Create(ctx, &domain.MonitoringActivity{
 			Base:         domain.Base{ID: fmt.Sprintf("01MAPAR%020d", i), CreatedAt: now.Add(-time.Duration(i*30) * time.Minute)},
 			ResourceID:   "res-parity",
 			Success:      success,
 			ResponseTime: 100 + i,
-		}).Error)
+		}))
 	}
 
-	gormRepo := store.NewMonitoringActivityRepository(fx.Runtime.GormDB())
+	gormRepo := store.NewMonitoringActivityRepositorySQLC(fx.Runtime)
 	sqlcRepo := store.NewMonitoringActivityRepositorySQLC(fx.Runtime)
 
 	// GetGlobalUptimeStats parity (per dialect parity isn't tested here, but the

@@ -37,9 +37,6 @@ func SetupPostgres(t testing.TB) *DialectFixture {
 		if rt == nil {
 			return
 		}
-		if sqlDB, dbErr := rt.GormDB().DB(); dbErr == nil && sqlDB != nil {
-			_ = sqlDB.Close()
-		}
 		if rt.PgxPool() != nil {
 			rt.PgxPool().Close()
 		}

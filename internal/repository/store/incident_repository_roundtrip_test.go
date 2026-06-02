@@ -45,7 +45,7 @@ func TestIncidentRepository_FindByID_RoundTripBound(t *testing.T) {
 		seedResource(t, fx, "irt-res-1", "irt-res-1")
 
 		// Seed one incident.
-		seedRepo := store.NewIncidentRepository(fx.Runtime.GormDB())
+		seedRepo := store.NewIncidentRepositorySQLC(fx.Runtime)
 		_, err := seedRepo.Create(ctx, &domain.Incident{
 			Base:       domain.Base{ID: "irt-inc-1", CreatedAt: time.Now()},
 			ResourceID: "irt-res-1",
@@ -72,10 +72,10 @@ func TestIncidentRepository_List_RoundTripBound(t *testing.T) {
 		ctx := context.Background()
 		seedResource(t, fx, "ilrt-res", "ilrt-res")
 
-		seedRepo := store.NewIncidentRepository(fx.Runtime.GormDB())
+		seedRepo := store.NewIncidentRepositorySQLC(fx.Runtime)
 		for _, n := range []int{10, 100} {
-			require.NoError(t, fx.Runtime.GormDB().Exec("DELETE FROM incident_diagnostics").Error)
-			require.NoError(t, fx.Runtime.GormDB().Exec("DELETE FROM incidents").Error)
+			require.NoError(t, execRawDelete(ctx, fx, "DELETE FROM incident_diagnostics"))
+			require.NoError(t, execRawDelete(ctx, fx, "DELETE FROM incidents"))
 			for i := 0; i < n; i++ {
 				_, err := seedRepo.Create(ctx, &domain.Incident{
 					Base:       domain.Base{ID: fmt.Sprintf("ilrt-%04d", i), CreatedAt: time.Now()},
@@ -96,4 +96,19 @@ func TestIncidentRepository_List_RoundTripBound(t *testing.T) {
 				"List(N=%d): expected 3 round-trips invariant in N", n)
 		}
 	})
+}
+
+// execRawDelete runs a DELETE statement via the raw driver-specific handle
+// (sqlite *sql.DB or pgxpool.Pool) — used by round-trip tests to wipe tables
+// between iterations without going through a repository method.
+func execRawDelete(ctx context.Context, fx *internaltest.DialectFixture, query string) error {
+	if pool := fx.Runtime.PgxPool(); pool != nil {
+		_, err := pool.Exec(ctx, query)
+		return err
+	}
+	if db := fx.Runtime.SQLiteDB(); db != nil {
+		_, err := db.ExecContext(ctx, query)
+		return err
+	}
+	return nil
 }

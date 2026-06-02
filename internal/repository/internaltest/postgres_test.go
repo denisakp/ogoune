@@ -1,10 +1,12 @@
 package internaltest_test
 
 import (
+	"context"
 	"testing"
 
 	"github.com/denisakp/ogoune/internal/domain"
 	"github.com/denisakp/ogoune/internal/repository/internaltest"
+	"github.com/denisakp/ogoune/internal/repository/store"
 )
 
 // TestSetupPostgres_TemplateCloneIsolates verifies the Postgres helper
@@ -23,9 +25,11 @@ func TestSetupPostgres_TemplateCloneIsolates(t *testing.T) {
 		t.Error("expected non-empty DSN on Postgres fixture")
 	}
 
+	ctx := context.Background()
+	tagsA := store.NewTagsRepositorySQLC(fxA.Runtime)
 	tag := &domain.Tags{Name: "pg-isolation-a"}
 	tag.EnsureID()
-	if err := fxA.Runtime.GormDB().Create(tag).Error; err != nil {
+	if err := tagsA.Create(ctx, tag); err != nil {
 		t.Fatalf("create in fixture A: %v", err)
 	}
 
@@ -35,8 +39,9 @@ func TestSetupPostgres_TemplateCloneIsolates(t *testing.T) {
 		if fxB == nil {
 			return
 		}
-		var count int64
-		if err := fxB.Runtime.GormDB().Model(&domain.Tags{}).Count(&count).Error; err != nil {
+		// Raw COUNT(*) via pgx pool — the template clone must produce 0 rows.
+		var count int
+		if err := fxB.Runtime.PgxPool().QueryRow(ctx, "SELECT COUNT(*) FROM tags").Scan(&count); err != nil {
 			t.Fatalf("count B: %v", err)
 		}
 		if count != 0 {

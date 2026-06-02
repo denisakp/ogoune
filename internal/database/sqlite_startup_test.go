@@ -16,7 +16,11 @@ func TestSQLiteStartupRunsMigrationsAutomatically(t *testing.T) {
 
 	_, statErr := os.Stat(cfg.SQLitePath)
 	require.NoError(t, statErr)
-	require.True(t, runtime.DB.Migrator().HasTable("schema_migrations"))
-	require.True(t, runtime.DB.Migrator().HasTable("notification_channels"))
-	require.True(t, runtime.DB.Migrator().HasTable("users"))
+	// Probe schema via raw queries (post-decom: no GORM Migrator).
+	sqlDB := runtime.SQLiteDB()
+	require.NotNil(t, sqlDB)
+	for _, table := range []string{"schema_migrations", "notification_channels", "users"} {
+		_, err := sqlDB.Exec("SELECT 1 FROM " + table + " LIMIT 0")
+		require.NoError(t, err, "expected table %s to exist post-migration", table)
+	}
 }

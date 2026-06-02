@@ -24,7 +24,7 @@ sqlc-generate: sqlc-bin
 sqlc-check: sqlc-bin
 	@$(SQLC_BIN) generate -f sqlc.yaml
 	@drift=$$(git status --porcelain -- internal/repository/sqlc/pg internal/repository/sqlc/sqlite \
-		| grep -Ev '^A  ' || true); \
+		| grep -Ev '^A  |_test\.go$$' || true); \
 	if [ -n "$$drift" ]; then \
 		echo "sqlc drift: run 'make sqlc-generate' and commit the result"; \
 		printf '%s\n' "$$drift"; \

@@ -16,7 +16,6 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/hibiken/asynq"
 	"github.com/prometheus/client_golang/prometheus"
-	"gorm.io/gorm"
 )
 
 const AppVersion = "1.0.0"
@@ -28,7 +27,6 @@ type App struct {
 	Cfg *config.Config
 
 	// Database phase
-	DB                      *gorm.DB
 	ResourceRepo            port.ResourceRepository
 	IncidentRepo            port.IncidentRepository
 	IncidentEventStepRepo   port.IncidentEventStepRepository

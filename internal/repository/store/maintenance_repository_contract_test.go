@@ -19,7 +19,7 @@ import (
 func TestMaintenanceRepository_Contract(t *testing.T) {
 	internaltest.ForEachDialect(t, func(t *testing.T, fx *internaltest.DialectFixture) {
 		seedResources(t, fx, "res-mtc-1", "res-mtc-2", "res-mtc-3")
-		repo := store.NewMaintenanceRepository(fx.Runtime.GormDB())
+		repo := store.NewMaintenanceRepositorySQLC(fx.Runtime)
 		runMaintenanceContract(t, repo)
 	})
 }

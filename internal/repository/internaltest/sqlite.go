@@ -23,13 +23,10 @@ func SetupSQLite(t *testing.T) *DialectFixture {
 		t.Fatalf("internaltest: SetupSQLite open: %v", err)
 	}
 	t.Cleanup(func() {
-		if rt == nil || rt.GormDB() == nil {
+		if rt == nil || rt.SQLiteDB() == nil {
 			return
 		}
-		sqlDB, err := rt.GormDB().DB()
-		if err == nil && sqlDB != nil {
-			_ = sqlDB.Close()
-		}
+		_ = rt.SQLiteDB().Close()
 	})
 	return &DialectFixture{Dialect: "sqlite", Runtime: rt}
 }

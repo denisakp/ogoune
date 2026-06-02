@@ -15,7 +15,7 @@ import (
 
 func TestMonitoringActivityRepository_Create(t *testing.T) {
 	internaltest.ForEachDialect(t, func(t *testing.T, fx *internaltest.DialectFixture) {
-		repo := store.NewMonitoringActivityRepository(fx.Runtime.GormDB())
+		repo := store.NewMonitoringActivityRepositorySQLC(fx.Runtime)
 		resource := seedResource(t, fx, "res-ma-create", "ma-create")
 
 		activity := &domain.MonitoringActivity{
@@ -33,7 +33,7 @@ func TestMonitoringActivityRepository_Create(t *testing.T) {
 
 func TestMonitoringActivityRepository_List(t *testing.T) {
 	internaltest.ForEachDialect(t, func(t *testing.T, fx *internaltest.DialectFixture) {
-		repo := store.NewMonitoringActivityRepository(fx.Runtime.GormDB())
+		repo := store.NewMonitoringActivityRepositorySQLC(fx.Runtime)
 		resource := seedResource(t, fx, "res-ma-list", "ma-list")
 
 		ctx := context.Background()
@@ -59,7 +59,7 @@ func TestMonitoringActivityRepository_List(t *testing.T) {
 
 func TestMonitoringActivityRepository_FindByResourceID(t *testing.T) {
 	internaltest.ForEachDialect(t, func(t *testing.T, fx *internaltest.DialectFixture) {
-		repo := store.NewMonitoringActivityRepository(fx.Runtime.GormDB())
+		repo := store.NewMonitoringActivityRepositorySQLC(fx.Runtime)
 		r1 := seedResource(t, fx, "res-ma-find1", "ma-find1")
 		r2 := seedResource(t, fx, "res-ma-find2", "ma-find2")
 
@@ -90,7 +90,7 @@ func TestMonitoringActivityRepository_FindByResourceID(t *testing.T) {
 
 func TestMonitoringActivityRepository_Pagination(t *testing.T) {
 	internaltest.ForEachDialect(t, func(t *testing.T, fx *internaltest.DialectFixture) {
-		repo := store.NewMonitoringActivityRepository(fx.Runtime.GormDB())
+		repo := store.NewMonitoringActivityRepositorySQLC(fx.Runtime)
 		resource := seedResource(t, fx, "res-ma-page", "ma-page")
 
 		ctx := context.Background()

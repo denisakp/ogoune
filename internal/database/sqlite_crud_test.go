@@ -14,8 +14,8 @@ func TestSQLiteCRUDForResourcesAndIncidents(t *testing.T) {
 	runtime := openSQLiteTestRuntime(t)
 	ctx := context.Background()
 
-	resourceRepo := storeRepo.NewResourceRepository(runtime.DB)
-	incidentRepo := storeRepo.NewIncidentRepository(runtime.DB)
+	resourceRepo := storeRepo.NewResourceRepositorySQLC(runtime)
+	incidentRepo := storeRepo.NewIncidentRepositorySQLC(runtime)
 
 	resource, err := resourceRepo.Create(ctx, &domain.Resource{
 		Name:     "Website",
@@ -23,6 +23,7 @@ func TestSQLiteCRUDForResourcesAndIncidents(t *testing.T) {
 		Target:   "https://example.com",
 		Interval: 60,
 		Timeout:  5,
+		IsActive: true,
 	})
 	require.NoError(t, err)
 	require.NotEmpty(t, resource.ID)

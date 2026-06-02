@@ -20,7 +20,7 @@ func TestNotificationRepository_Contract(t *testing.T) {
 	internaltest.ForEachDialect(t, func(t *testing.T, fx *internaltest.DialectFixture) {
 		seedResource(t, fx, "res-notif", "res-notif")
 		seedIncident(t, fx, "incident-notif", "res-notif")
-		repo := store.NewNotificationRepository(fx.Runtime.GormDB())
+		repo := store.NewNotificationRepositorySQLC(fx.Runtime)
 		runNotificationContract(t, repo, "incident-notif")
 	})
 }

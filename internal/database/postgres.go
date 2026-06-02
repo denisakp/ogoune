@@ -2,20 +2,20 @@ package database
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"log/slog"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/jackc/pgx/v5/stdlib"
-	"gorm.io/driver/postgres"
-	"gorm.io/gorm"
 )
 
-// openPostgres opens a single physical pgxpool, wraps it as *sql.DB via
-// stdlib.OpenDBFromPool, and hands that *sql.DB to GORM so the GORM handle
-// and the returned *pgxpool.Pool share one underlying pool.
-func openPostgres(ctx context.Context, cfg resolvedConfig) (*gorm.DB, *pgxpool.Pool, error) {
+// openPostgres opens a single physical pgxpool, then wraps it with
+// stdlib.OpenDBFromPool to obtain a *sql.DB used by the migrator and the
+// startup schema validator. The pgxpool is the production handle for sqlc
+// queries (via the generated pgsqlc.New(pool) constructor in repos).
+func openPostgres(ctx context.Context, cfg resolvedConfig) (*pgxpool.Pool, *sql.DB, error) {
 	slog.Info("opening database connection", "driver", string(cfg.Driver))
 
 	poolCfg, err := pgxpool.ParseConfig(cfg.DSN)
@@ -32,13 +32,5 @@ func openPostgres(ctx context.Context, cfg resolvedConfig) (*gorm.DB, *pgxpool.P
 
 	sqlDB := stdlib.OpenDBFromPool(pool)
 
-	database, err := gorm.Open(postgres.New(postgres.Config{Conn: sqlDB}), &gorm.Config{
-		Logger: newGormLogger(cfg.GormLogLevel),
-	})
-	if err != nil {
-		pool.Close()
-		return nil, nil, fmt.Errorf("db init: failed to connect to postgres: %w", err)
-	}
-
-	return database, pool, nil
+	return pool, sqlDB, nil
 }

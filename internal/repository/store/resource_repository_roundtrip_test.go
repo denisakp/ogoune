@@ -65,9 +65,9 @@ func TestResourceRepository_ListPreloads_RoundTripBound(t *testing.T) {
 		sqlcSeedRepo := store.NewResourceRepositorySQLC(fx.Runtime)
 
 		// Seed 3 tags, 2 channels, 1 component.
-		tagsRepo := store.NewTagsRepository(fx.Runtime.GormDB())
-		chRepo := store.NewNotificationChannelRepository(fx.Runtime.GormDB())
-		compRepo := store.NewComponentRepository(fx.Runtime.GormDB())
+		tagsRepo := store.NewTagsRepositorySQLC(fx.Runtime)
+		chRepo := store.NewNotificationChannelRepositorySQLC(fx.Runtime)
+		compRepo := store.NewComponentRepositorySQLC(fx.Runtime)
 
 		comp := &domain.Component{
 			Base: domain.Base{ID: "rt-comp", CreatedAt: time.Now()},
@@ -96,9 +96,9 @@ func TestResourceRepository_ListPreloads_RoundTripBound(t *testing.T) {
 
 		// Wipe resources between cases.
 		wipeResources := func() {
-			require.NoError(t, fx.Runtime.GormDB().Exec("DELETE FROM resource_tags").Error)
-			require.NoError(t, fx.Runtime.GormDB().Exec("DELETE FROM resource_notification_channels").Error)
-			require.NoError(t, fx.Runtime.GormDB().Exec("DELETE FROM resources").Error)
+			require.NoError(t, execRawDelete(ctx, fx, "DELETE FROM resource_tags"))
+			require.NoError(t, execRawDelete(ctx, fx, "DELETE FROM resource_notification_channels"))
+			require.NoError(t, execRawDelete(ctx, fx, "DELETE FROM resources"))
 		}
 		compID := comp.ID
 		seedN := func(n int, withTags, withCh, withComp bool) {

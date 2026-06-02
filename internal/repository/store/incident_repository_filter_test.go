@@ -22,15 +22,15 @@ func timePtr(t time.Time) *time.Time { return &t }
 func TestIncidentRepository_ListByFilter(t *testing.T) {
 	internaltest.ForEachDialect(t, func(t *testing.T, fx *internaltest.DialectFixture) {
 		ctx := context.Background()
-		repo := store.NewIncidentRepository(fx.Runtime.GormDB())
+		repo := store.NewIncidentRepositorySQLC(fx.Runtime)
 
 		// Seed parent resources so FK references resolve.
-		db := fx.Runtime.GormDB()
+		resRepo := store.NewResourceRepositorySQLC(fx.Runtime)
 		mon1 := "mon-" + fx.Dialect + "-1"
 		mon2 := "mon-" + fx.Dialect + "-2"
 		mon3 := "mon-" + fx.Dialect + "-3"
 		for _, mid := range []string{mon1, mon2, mon3} {
-			require.NoError(t, db.Create(&domain.Resource{
+			_, err := resRepo.Create(ctx, &domain.Resource{
 				Base:     domain.Base{ID: mid},
 				Name:     mid,
 				Type:     domain.ResourceHTTP,
@@ -38,7 +38,8 @@ func TestIncidentRepository_ListByFilter(t *testing.T) {
 				IsActive: true,
 				Interval: 60,
 				Timeout:  10,
-			}).Error)
+			})
+			require.NoError(t, err)
 		}
 
 		// Window: 2026-05-01 .. 2026-05-31.

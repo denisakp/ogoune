@@ -18,7 +18,7 @@ import (
 func TestExpiryNotificationLogRepository_Contract(t *testing.T) {
 	internaltest.ForEachDialect(t, func(t *testing.T, fx *internaltest.DialectFixture) {
 		seedResources(t, fx, "res-enl-1", "res-enl-2", "res-enl-old")
-		repo := store.NewExpiryNotificationLogRepository(fx.Runtime.GormDB())
+		repo := store.NewExpiryNotificationLogRepositorySQLC(fx.Runtime)
 		runExpiryNotificationLogContract(t, repo)
 	})
 }
@@ -26,14 +26,19 @@ func TestExpiryNotificationLogRepository_Contract(t *testing.T) {
 // seedResources inserts minimal Resource rows so the expiry_notification_logs.resource_id FK resolves.
 func seedResources(t *testing.T, fx *internaltest.DialectFixture, ids ...string) {
 	t.Helper()
+	ctx := context.Background()
+	resRepo := store.NewResourceRepositorySQLC(fx.Runtime)
 	for _, id := range ids {
 		res := &domain.Resource{
-			Base:   domain.Base{ID: id},
-			Name:   "seed-" + id,
-			Type:   domain.ResourceHTTP,
-			Target: "https://example.invalid/" + id,
+			Base:     domain.Base{ID: id},
+			Name:     "seed-" + id,
+			Type:     domain.ResourceHTTP,
+			Target:   "https://example.invalid/" + id,
+			IsActive: true,
+			Interval: 60,
+			Timeout:  10,
 		}
-		if err := fx.Runtime.GormDB().Create(res).Error; err != nil {
+		if _, err := resRepo.Create(ctx, res); err != nil {
 			t.Fatalf("seed resource %q: %v", id, err)
 		}
 	}

@@ -36,7 +36,7 @@ func TestIncidentEventStepRepository_Contract(t *testing.T) {
 			seed(fmt.Sprintf("incident-%d", i))
 		}
 
-		repo := store.NewIncidentEventStepRepository(fx.Runtime.GormDB())
+		repo := store.NewIncidentEventStepRepositorySQLC(fx.Runtime)
 		runIncidentEventStepContract(t, repo)
 	})
 }

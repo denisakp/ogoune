@@ -18,7 +18,7 @@ import (
 
 func TestComponentRepository_Contract(t *testing.T) {
 	internaltest.ForEachDialect(t, func(t *testing.T, fx *internaltest.DialectFixture) {
-		repo := store.NewComponentRepository(fx.Runtime.GormDB())
+		repo := store.NewComponentRepositorySQLC(fx.Runtime)
 		runComponentContract(t, repo)
 	})
 }

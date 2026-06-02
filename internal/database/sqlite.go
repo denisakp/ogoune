@@ -1,15 +1,18 @@
 package database
 
 import (
+	"database/sql"
 	"fmt"
 	"log/slog"
 	"strings"
 
-	"github.com/glebarez/sqlite"
-	"gorm.io/gorm"
+	_ "modernc.org/sqlite" // pure-Go SQLite driver registered as "sqlite"
 )
 
-func openSQLite(cfg resolvedConfig) (*gorm.DB, PermissionStatus, error) {
+// openSQLite opens the SQLite database, applies the standard PRAGMAs
+// (foreign_keys ON, busy_timeout 5s, WAL journal mode for non-memory DSNs),
+// and returns the production *sql.DB.
+func openSQLite(cfg resolvedConfig) (*sql.DB, PermissionStatus, error) {
 	if err := prepareSQLiteTarget(cfg.DSN); err != nil {
 		return nil, PermissionStatusNotApplicable, fmt.Errorf("db init: failed to prepare sqlite path: %w", err)
 	}
@@ -17,37 +20,34 @@ func openSQLite(cfg resolvedConfig) (*gorm.DB, PermissionStatus, error) {
 	permissionStatus := hardenSQLiteArtifacts(cfg.DSN)
 	slog.Info("opening database connection", "driver", string(cfg.Driver), "dsn", cfg.DSN)
 
-	database, err := gorm.Open(sqlite.Open(cfg.DSN), &gorm.Config{
-		Logger: newGormLogger(cfg.GormLogLevel),
-	})
+	db, err := sql.Open("sqlite", cfg.DSN)
 	if err != nil {
-		return nil, permissionStatus, fmt.Errorf("db init: failed to connect to sqlite: %w", err)
+		return nil, permissionStatus, fmt.Errorf("db init: failed to open sqlite: %w", err)
 	}
 
-	sqlDB, err := database.DB()
-	if err != nil {
-		return nil, permissionStatus, fmt.Errorf("db init: failed to get sqlite db handle: %w", err)
-	}
+	db.SetMaxOpenConns(1)
+	db.SetMaxIdleConns(1)
 
-	sqlDB.SetMaxOpenConns(1)
-	sqlDB.SetMaxIdleConns(1)
-
-	if err := database.Exec("PRAGMA foreign_keys = ON;").Error; err != nil {
+	if _, err := db.Exec("PRAGMA foreign_keys = ON;"); err != nil {
+		_ = db.Close()
 		return nil, permissionStatus, fmt.Errorf("db init: failed to enable sqlite foreign keys: %w", err)
 	}
-	if err := database.Exec("PRAGMA busy_timeout = 5000;").Error; err != nil {
+	if _, err := db.Exec("PRAGMA busy_timeout = 5000;"); err != nil {
+		_ = db.Close()
 		return nil, permissionStatus, fmt.Errorf("db init: failed to configure sqlite busy_timeout: %w", err)
 	}
 
 	if !isSQLiteMemoryDSN(cfg.DSN) {
 		var journalMode string
-		if err := database.Raw("PRAGMA journal_mode = WAL;").Scan(&journalMode).Error; err != nil {
+		if err := db.QueryRow("PRAGMA journal_mode = WAL;").Scan(&journalMode); err != nil {
+			_ = db.Close()
 			return nil, permissionStatus, fmt.Errorf("db init: failed to enable sqlite WAL mode: %w", err)
 		}
 		if !strings.EqualFold(journalMode, "wal") {
+			_ = db.Close()
 			return nil, permissionStatus, fmt.Errorf("db init: sqlite WAL mode not active (got %q)", journalMode)
 		}
 	}
 
-	return database, permissionStatus, nil
+	return db, permissionStatus, nil
 }

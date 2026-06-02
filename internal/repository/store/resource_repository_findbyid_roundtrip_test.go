@@ -25,9 +25,9 @@ func TestResourceRepository_FindByIDPreloads_RoundTripBound(t *testing.T) {
 	internaltest.ForEachDialect(t, func(t *testing.T, fx *internaltest.DialectFixture) {
 		ctx := context.Background()
 		sqlcSeedRepo := store.NewResourceRepositorySQLC(fx.Runtime)
-		tagsRepo := store.NewTagsRepository(fx.Runtime.GormDB())
-		chRepo := store.NewNotificationChannelRepository(fx.Runtime.GormDB())
-		compRepo := store.NewComponentRepository(fx.Runtime.GormDB())
+		tagsRepo := store.NewTagsRepositorySQLC(fx.Runtime)
+		chRepo := store.NewNotificationChannelRepositorySQLC(fx.Runtime)
+		compRepo := store.NewComponentRepositorySQLC(fx.Runtime)
 
 		comp := &domain.Component{Base: domain.Base{ID: "fbid-comp", CreatedAt: time.Now()}, Name: "fbid-comp"}
 		_, err := compRepo.Create(ctx, comp)

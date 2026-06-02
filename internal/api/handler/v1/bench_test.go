@@ -94,8 +94,7 @@ const (
 func seedAPIBenchFixture(b *testing.B, fx *internaltest.DialectFixture) {
 	b.Helper()
 	ctx := context.Background()
-	db := fx.Runtime.GormDB() // OK pre-decom; the DB.GormDB() is still around for now
-	resourceRepo := store.NewResourceRepository(db)
+	resourceRepo := store.NewResourceRepositorySQLC(fx.Runtime)
 
 	// Seed 300 monitors via the sqlc create path (sole impl post-decom).
 	for i := 0; i < apiBenchNumMonitors; i++ {
@@ -117,7 +116,7 @@ func seedAPIBenchFixture(b *testing.B, fx *internaltest.DialectFixture) {
 	}
 
 	// Seed 100 incidents distributed across the first 30 monitors.
-	incidentRepo := store.NewIncidentRepository(db)
+	incidentRepo := store.NewIncidentRepositorySQLC(fx.Runtime)
 	now := time.Now()
 	for i := 0; i < apiBenchNumIncidents; i++ {
 		resourceID := fmt.Sprintf("api-bench-res-%04d", i%30)

@@ -36,9 +36,9 @@ func TestResourceRepository_Update_ConcurrentSoak(t *testing.T) {
 
 	internaltest.ForEachDialect(t, func(t *testing.T, fx *internaltest.DialectFixture) {
 		ctx := context.Background()
-		gormRepo := store.NewResourceRepository(fx.Runtime.GormDB())
+		gormRepo := store.NewResourceRepositorySQLC(fx.Runtime)
 		sqlcRepo := store.NewResourceRepositorySQLC(fx.Runtime)
-		tagsRepo := store.NewTagsRepository(fx.Runtime.GormDB())
+		tagsRepo := store.NewTagsRepositorySQLC(fx.Runtime)
 
 		// Seed 4 unique tags + 1 resource.
 		tagAIDs := []string{"soak-tag-a0", "soak-tag-a1"}
@@ -164,10 +164,14 @@ func TestResourceRepository_Update_ConcurrentSoak(t *testing.T) {
 
 		// 3. No orphan rows in resource_tags.
 		var orphanCount int64
-		err = fx.Runtime.GormDB().Raw(
-			`SELECT COUNT(*) FROM resource_tags rt
+		const orphanQuery = `SELECT COUNT(*) FROM resource_tags rt
 			 WHERE rt.resource_id NOT IN (SELECT id FROM resources)
-			    OR rt.tag_id NOT IN (SELECT id FROM tags)`).Scan(&orphanCount).Error
+			    OR rt.tag_id NOT IN (SELECT id FROM tags)`
+		if pool := fx.Runtime.PgxPool(); pool != nil {
+			err = pool.QueryRow(ctx, orphanQuery).Scan(&orphanCount)
+		} else if db := fx.Runtime.SQLiteDB(); db != nil {
+			err = db.QueryRowContext(ctx, orphanQuery).Scan(&orphanCount)
+		}
 		require.NoError(t, err)
 		assert.EqualValues(t, 0, orphanCount, "orphan junction rows must be zero")
 
