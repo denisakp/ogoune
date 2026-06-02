@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What is Ogoune
 
-Uptime monitoring app that confirms failures before alerting (N consecutive failures required). Open-core model: Community Edition (AGPL v3, SQLite + TimingWheel) and Enterprise Edition (Postgres + Redis/Asynq).
+Uptime monitoring app that confirms failures before alerting (N consecutive failures required). Open-core model: Community Edition (Apache 2.0, SQLite + TimingWheel) and Enterprise Edition (LicenseRef-Ogoune-EE, Postgres + Redis/Asynq).
 
 ## Commands
 
