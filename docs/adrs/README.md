@@ -49,5 +49,7 @@ When `CLAUDE.md` describes a non-obvious pattern, it should link the ADR that ju
 | [0005](./0005-scheduler-dual-timingwheel-asynq.md) | Dual scheduler: TimingWheel (CE) and Asynq (production) | Accepted | 2026-05-29 | Both | scheduler, runtime |
 | [0006](./0006-license-key-prefix-defer-crypto.md) | Prefix-based license metadata, defer cryptographic enforcement | Accepted | 2026-05-29 | EE | license, crypto |
 | [0007](./0007-zero-telemetry-ce.md) | Zero telemetry in Community Edition | Accepted | 2026-05-29 | CE | privacy, business |
+| [0008](./0008-ulid-as-primary-id.md) | ULIDs as primary IDs across all domain entities | Accepted | 2026-05-30 | Both | schema, identifiers |
+| [0009](./0009-aes-256-gcm-credential-encryption.md) | AES-256-GCM for notification credential encryption at rest | Accepted | 2026-05-30 | Both | crypto, security |
 
 <!-- New ADRs added below as accepted. Keep chronological by ADR number. -->
