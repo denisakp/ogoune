@@ -48,11 +48,27 @@ export default defineConfig({
       ),
     },
   },
+  server: {
+    proxy: {
+      // Same-origin proxy: browser hits `/api/*` on the Vite dev server,
+      // which forwards to the backend. Avoids CORS entirely in dev.
+      // Set `VITE_API_BASE_URL=/api` in `.env.local`.
+      '/api': {
+        target: 'http://localhost:9596',
+        changeOrigin: true,
+      },
+    },
+  },
   test: {
     environment: 'jsdom',
     globals: true,
     setupFiles: ['src/test/setup.ts'],
     include: ['src/**/*.spec.ts'],
+    // Stable base URL for tests so Ky's `prefix` resolves to a known origin
+    // that MSW handler patterns (`*/path`) can match.
+    env: {
+      VITE_API_BASE_URL: 'http://test.local/api/',
+    },
   },
   build: {
     rollupOptions: {

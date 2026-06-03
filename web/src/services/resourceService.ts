@@ -1,115 +1,87 @@
-import type { AxiosRequestConfig } from 'axios'
+import { getAuthenticatedClient, request } from '@/core/http/client'
+import type {
+  CreateResource,
+  Resource,
+  UpdateResource,
+  HourlyUptimeStat,
+  SystemCapabilities,
+} from '@/types'
 
-import axiosHelper from '../libs/axios.helper'
-import type { CreateResource, Resource, UpdateResource, HourlyUptimeStat, SystemCapabilities } from '@/types'
+const successMsg = (m: string) => ({ headers: { 'x-success-message': m } })
 
-interface CustomAxiosConfig extends AxiosRequestConfig {
-  successMessage?: string
-  skipSuccessToast?: boolean
-  skipErrorToast?: boolean
-}
-
-/**
- * Fetch all resources (monitors)
- */
 export const fetchResources = async (): Promise<Resource[]> => {
-  const { data } = await axiosHelper.get<Resource[]>('/resources')
-  return data
+  return await request<Resource[]>(getAuthenticatedClient(), 'resources')
 }
 
-/**
- * Fetch a single resource by ID
- */
 export const fetchResource = async (id: string, limit?: number): Promise<Resource> => {
-  const params = limit ? { limit } : {}
-  const { data } = await axiosHelper.get<Resource>(`/resources/${id}`, { params })
-  return data
+  const searchParams = limit ? { limit } : undefined
+  return await request<Resource>(getAuthenticatedClient(), `resources/${id}`, { searchParams })
 }
 
-/**
- * Fetch uptime statistics for a resource
- */
 export const fetchUptimeStats = async (
   id: string,
 ): Promise<{ resource_id: string; stats: HourlyUptimeStat[] }> => {
-  const { data } = await axiosHelper.get<{ resource_id: string; stats: HourlyUptimeStat[] }>(
-    `/resources/${id}/uptime-stats`,
+  return await request<{ resource_id: string; stats: HourlyUptimeStat[] }>(
+    getAuthenticatedClient(),
+    `resources/${id}/uptime-stats`,
   )
-  return data
 }
 
-/**
- * Create a new resource
- */
 export const createResource = async (resource: CreateResource): Promise<Resource> => {
-  const config: CustomAxiosConfig = {
-    successMessage: 'Monitor created successfully',
-  }
-  const { data } = await axiosHelper.post<Resource>('/resources', resource, config)
-  return data
+  return await request<Resource>(getAuthenticatedClient(), 'resources', {
+    method: 'POST',
+    json: resource,
+    ...successMsg('Monitor created successfully'),
+  })
 }
 
-/**
- * Update an existing resource
- */
 export const updateResource = async (id: string, resource: UpdateResource): Promise<Resource> => {
-  const config: CustomAxiosConfig = {
-    successMessage: 'Monitor updated successfully',
-  }
-  const { data } = await axiosHelper.patch<Resource>(`/resources/${id}`, resource, config)
-  return data
+  return await request<Resource>(getAuthenticatedClient(), `resources/${id}`, {
+    method: 'PATCH',
+    json: resource,
+    ...successMsg('Monitor updated successfully'),
+  })
 }
 
-/**
- * Delete a resource
- */
 export const deleteResource = async (id: string): Promise<void> => {
-  const config: CustomAxiosConfig = {
-    successMessage: 'Monitor deleted successfully',
-  }
-  await axiosHelper.delete(`/resources/${id}`, config)
+  await request<void>(getAuthenticatedClient(), `resources/${id}`, {
+    method: 'DELETE',
+    ...successMsg('Monitor deleted successfully'),
+  })
 }
 
-/**
- * Pause monitoring for a resource
- */
 export const pauseResource = async (id: string): Promise<Resource> => {
-  const config: CustomAxiosConfig = {
-    successMessage: 'Monitoring paused',
-  }
-  const { data } = await axiosHelper.post<Resource>(`/resources/${id}/pause`, {}, config)
-  return data
+  return await request<Resource>(getAuthenticatedClient(), `resources/${id}/pause`, {
+    method: 'POST',
+    json: {},
+    ...successMsg('Monitoring paused'),
+  })
 }
 
-/**
- * Resume monitoring for a resource
- */
 export const resumeResource = async (id: string): Promise<Resource> => {
-  const config: CustomAxiosConfig = {
-    successMessage: 'Monitoring resumed',
-  }
-  const { data } = await axiosHelper.post<Resource>(`/resources/${id}/resume`, {}, config)
-  return data
+  return await request<Resource>(getAuthenticatedClient(), `resources/${id}/resume`, {
+    method: 'POST',
+    json: {},
+    ...successMsg('Monitoring resumed'),
+  })
 }
 
-/**
- * Add tags to a resource
- */
 export const addTagsToResource = async (resourceId: string, tagIds: string[]): Promise<void> => {
-  await axiosHelper.post(`/resources/${resourceId}/tags`, { tag_ids: tagIds })
+  await request<void>(getAuthenticatedClient(), `resources/${resourceId}/tags`, {
+    method: 'POST',
+    json: { tag_ids: tagIds },
+  })
 }
 
-/**
- * Remove a tag from a resource
- */
-export const removeTagFromResource = async (resourceId: string, tagId: string): Promise<void> => {
-  await axiosHelper.delete(`/resources/${resourceId}/tags/${tagId}`)
+export const removeTagFromResource = async (
+  resourceId: string,
+  tagId: string,
+): Promise<void> => {
+  await request<void>(getAuthenticatedClient(), `resources/${resourceId}/tags/${tagId}`, {
+    method: 'DELETE',
+  })
 }
 
-/**
- * Fetch system capabilities (ICMP availability state)
- */
 export const fetchCapabilities = async (): Promise<SystemCapabilities> => {
-  const { data } = await axiosHelper.get<SystemCapabilities>('/system/capabilities')
-  return data
+  return await request<SystemCapabilities>(getAuthenticatedClient(), 'system/capabilities')
 }

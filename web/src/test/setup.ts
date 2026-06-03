@@ -1,4 +1,11 @@
+import { afterAll, afterEach, beforeAll } from 'vitest'
 import { config } from '@vue/test-utils'
+import { server } from './msw/server'
+
+// MSW server lifecycle — Spec 054 / T009. Contract: specs/054-.../contracts/mock-server.md
+beforeAll(() => server.listen({ onUnhandledRequest: 'error' }))
+afterEach(() => server.resetHandlers())
+afterAll(() => server.close())
 
 // Polyfill localStorage — @vue/devtools-kit calls localStorage.getItem at import
 // time and some jsdom setups expose a non-functional stub that throws.

@@ -1,41 +1,31 @@
-import axiosHelper from '../libs/axios.helper'
+import { getAuthenticatedClient, request } from '@/core/http/client'
 import type { CreateTag, Tag } from '@/types'
 
-/**
- * Fetch all tags
- */
 export const fetchTags = async (): Promise<Tag[]> => {
-  const { data } = await axiosHelper.get<Tag[]>('/tags')
-  return data
+  return await request<Tag[]>(getAuthenticatedClient(), 'tags')
 }
 
-/**
- * Fetch a single tag by ID
- */
 export const fetchTag = async (id: string): Promise<Tag> => {
-  const { data } = await axiosHelper.get<Tag>(`/tags/${id}`)
-  return data
+  return await request<Tag>(getAuthenticatedClient(), `tags/${id}`)
 }
 
-/**
- * Create a new tag
- */
 export const createTag = async (tag: CreateTag): Promise<Tag> => {
-  const { data } = await axiosHelper.post<Tag>('/tags', tag)
-  return data
+  return await request<Tag>(getAuthenticatedClient(), 'tags', {
+    method: 'POST',
+    json: tag,
+  })
 }
 
-/**
- * Update an existing tag
- */
 export const updateTag = async (id: string, tag: Partial<Tag>): Promise<Tag> => {
-  const { data } = await axiosHelper.patch<Tag>(`/tags/${id}`, tag)
-  return data
+  return await request<Tag>(getAuthenticatedClient(), `tags/${id}`, {
+    method: 'PATCH',
+    json: tag,
+  })
 }
 
 /**
- * Delete a tag
+ * Delete a tag. Server returns 204 No Content — `request<T>` returns undefined.
  */
 export const deleteTag = async (id: string): Promise<void> => {
-  await axiosHelper.delete(`/tags/${id}`)
+  await request<void>(getAuthenticatedClient(), `tags/${id}`, { method: 'DELETE' })
 }

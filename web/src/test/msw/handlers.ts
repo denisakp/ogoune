@@ -1,0 +1,72 @@
+import { http, HttpResponse } from 'msw'
+
+/**
+ * Baseline MSW handlers per endpoint family. Each handler returns a minimal
+ * valid shape so specs that don't override get a green path. Per-spec
+ * overrides go through `server.use(...)` in `beforeEach`; `resetHandlers()`
+ * peels them back in `afterEach`.
+ *
+ * Contract: specs/054-slice-http-migration-axios/contracts/mock-server.md
+ */
+
+const API = '*/api/v1'
+
+export const baselineHandlers = [
+  // Auth
+  http.post(`${API}/auth/login`, () =>
+    HttpResponse.json({ token: 'test-token', user: { email: 'test@example.com' } }),
+  ),
+  http.get(`${API}/auth/me`, () =>
+    HttpResponse.json({ email: 'test@example.com', id: '01H' }),
+  ),
+  http.post(`${API}/auth/logout`, () => new HttpResponse(null, { status: 204 })),
+
+  // Resources
+  http.get(`${API}/resources`, () => HttpResponse.json([])),
+  http.get(`${API}/resources/:id`, ({ params }) =>
+    HttpResponse.json({ id: params.id, name: 'res' }),
+  ),
+  http.post(`${API}/resources`, () =>
+    HttpResponse.json({ id: '01H', name: 'new' }, { status: 201 }),
+  ),
+  http.put(`${API}/resources/:id`, ({ params }) =>
+    HttpResponse.json({ id: params.id }),
+  ),
+  http.delete(`${API}/resources/:id`, () => new HttpResponse(null, { status: 204 })),
+
+  // Incidents
+  http.get(`${API}/incidents`, () => HttpResponse.json([])),
+  http.get(`${API}/incidents/:id`, ({ params }) =>
+    HttpResponse.json({ id: params.id, status: 'detected' }),
+  ),
+
+  // Components
+  http.get(`${API}/components`, () => HttpResponse.json([])),
+  http.delete(`${API}/components/:id`, () => new HttpResponse(null, { status: 204 })),
+
+  // Credentials
+  http.get(`${API}/credentials`, () => HttpResponse.json([])),
+
+  // Notification channels
+  http.get(`${API}/notification-channels`, () => HttpResponse.json([])),
+
+  // Status pages
+  http.get(`${API}/status-pages`, () => HttpResponse.json([])),
+
+  // System / edition
+  http.get(`${API}/system/edition`, () =>
+    HttpResponse.json({ edition: 'community', version: '1.0.0' }),
+  ),
+
+  // Tags
+  http.get(`${API}/tags`, () => HttpResponse.json([])),
+
+  // Maintenance
+  http.get(`${API}/maintenances`, () => HttpResponse.json([])),
+
+  // Activity
+  http.get(`${API}/activities`, () => HttpResponse.json([])),
+
+  // Stats
+  http.get(`${API}/stats`, () => HttpResponse.json({})),
+]

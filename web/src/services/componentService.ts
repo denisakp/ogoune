@@ -1,6 +1,4 @@
-import type { AxiosRequestConfig } from 'axios'
-
-import axiosHelper from '../libs/axios.helper'
+import { getAuthenticatedClient, request } from '@/core/http/client'
 import type {
   Component,
   CreateComponent,
@@ -9,82 +7,61 @@ import type {
   BulkRemovePayload,
 } from '@/types'
 
-interface CustomAxiosConfig extends AxiosRequestConfig {
-  successMessage?: string
-  skipSuccessToast?: boolean
-  skipErrorToast?: boolean
-}
+const successMsg = (m: string) => ({ headers: { 'x-success-message': m } })
 
-/**
- * Fetch all components
- */
 export const fetchComponents = async (): Promise<Component[]> => {
-  const { data } = await axiosHelper.get<Component[]>('/components')
-  return data
+  return await request<Component[]>(getAuthenticatedClient(), 'components')
 }
 
-/**
- * Fetch a single component by ID
- */
 export const fetchComponent = async (id: string): Promise<Component> => {
-  const { data } = await axiosHelper.get<Component>(`/components/${id}`)
-  return data
+  return await request<Component>(getAuthenticatedClient(), `components/${id}`)
 }
 
-/**
- * Create a new component
- */
 export const createComponent = async (component: CreateComponent): Promise<Component> => {
-  const config: CustomAxiosConfig = {
-    successMessage: 'Component created successfully',
-  }
-  const { data } = await axiosHelper.post<Component>('/components', component, config)
-  return data
+  return await request<Component>(getAuthenticatedClient(), 'components', {
+    method: 'POST',
+    json: component,
+    ...successMsg('Component created successfully'),
+  })
 }
 
-/**
- * Update an existing component
- */
 export const updateComponent = async (
   id: string,
   component: UpdateComponent,
 ): Promise<Component> => {
-  const config: CustomAxiosConfig = {
-    successMessage: 'Component updated successfully',
-  }
-  const { data } = await axiosHelper.patch<Component>(`/components/${id}`, component, config)
-  return data
+  return await request<Component>(getAuthenticatedClient(), `components/${id}`, {
+    method: 'PATCH',
+    json: component,
+    ...successMsg('Component updated successfully'),
+  })
 }
 
-/**
- * Delete a component
- */
 export const deleteComponent = async (id: string): Promise<void> => {
-  const config: CustomAxiosConfig = {
-    successMessage: 'Component deleted successfully',
-  }
-  await axiosHelper.delete(`/components/${id}`, config)
+  await request<void>(getAuthenticatedClient(), `components/${id}`, {
+    method: 'DELETE',
+    ...successMsg('Component deleted successfully'),
+  })
 }
 
-/**
- * Bulk assign resources to a component
- */
 export const bulkAssignToComponent = async (
   componentId: string,
   payload: BulkAssignPayload,
 ): Promise<void> => {
-  const config: CustomAxiosConfig = {
-    successMessage: 'Resources assigned successfully',
-  }
-  await axiosHelper.post(`/components/${componentId}/resources/bulk-assign`, payload, config)
+  await request<void>(
+    getAuthenticatedClient(),
+    `components/${componentId}/resources/bulk-assign`,
+    {
+      method: 'POST',
+      json: payload,
+      ...successMsg('Resources assigned successfully'),
+    },
+  )
 }
 
-/**
- * Bulk remove resources from their components
- */
 export const bulkRemoveFromComponent = async (payload: BulkRemovePayload): Promise<void> => {
-  const config: CustomAxiosConfig = {
-    successMessage: 'Resources removed from components successfully',
-  }
-  await axiosHelper.post('/components/resources/bulk-remove', payload, config)
+  await request<void>(getAuthenticatedClient(), 'components/resources/bulk-remove', {
+    method: 'POST',
+    json: payload,
+    ...successMsg('Resources removed from components successfully'),
+  })
 }

@@ -1,20 +1,16 @@
-import axiosHelper from '../libs/axios.helper'
+import { http, request } from '@/core/http/client'
 import type { StatusPageData, PublicMonitorDetail } from '@/types'
 
 /**
- * Fetch status page data from /status endpoint
- * Returns comprehensive view of all monitored resources with 90-day uptime statistics
+ * Public status page data. Unauthenticated.
  */
 export const fetchStatusPageData = async (): Promise<StatusPageData> => {
-  const { data } = await axiosHelper.get<StatusPageData>('/status')
-  return data
+  return await request<StatusPageData>(http, 'status')
 }
 
 /**
- * Fetch public monitor detail data from /status/:id endpoint
- * Returns comprehensive view of a single monitor with 90-day statistics
+ * Public monitor detail. Unauthenticated.
  */
 export const fetchStatusPageDataDetail = async (id: string): Promise<PublicMonitorDetail> => {
-  const { data } = await axiosHelper.get<PublicMonitorDetail>(`/status/${id}`)
-  return data
+  return await request<PublicMonitorDetail>(http, `status/${id}`)
 }

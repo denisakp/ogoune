@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-// @ts-expect-error — NuxtUI v3 exports useToast via package map; vue-tsc moduleResolution may not see it
 import { useToast } from '@nuxt/ui/composables/useToast'
 
 const toast = useToast()

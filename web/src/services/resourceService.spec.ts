@@ -1,6 +1,6 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { describe, expect, it } from 'vitest'
+import { http, HttpResponse } from 'msw'
 
-import axiosHelper from '@/libs/axios.helper'
 import {
   fetchResources,
   fetchResource,
@@ -14,190 +14,195 @@ import {
   fetchUptimeStats,
   fetchCapabilities,
 } from '@/services/resourceService'
-
-vi.mock('@/libs/axios.helper', () => ({
-  default: {
-    get: vi.fn(),
-    post: vi.fn(),
-    put: vi.fn(),
-    patch: vi.fn(),
-    delete: vi.fn(),
-  },
-}))
+import { ServerError, ValidationError } from '@/core/errors'
+import { server } from '@/test/msw/server'
 
 describe('resourceService', () => {
-  const mockGet = vi.mocked(axiosHelper.get)
-  const mockPost = vi.mocked(axiosHelper.post)
-  const mockPatch = vi.mocked(axiosHelper.patch)
-  const mockDelete = vi.mocked(axiosHelper.delete)
-
-  beforeEach(() => {
-    vi.clearAllMocks()
-  })
-
   describe('fetchResources', () => {
     it('sends GET to /resources', async () => {
       const resources = [{ id: 'r1', name: 'API Server' }]
-      mockGet.mockResolvedValue({ data: resources })
-
+      server.use(http.get('*/resources', () => HttpResponse.json(resources)))
       const result = await fetchResources()
-
-      expect(mockGet).toHaveBeenCalledOnce()
-      expect(mockGet).toHaveBeenCalledWith('/resources')
       expect(result).toEqual(resources)
     })
 
-    it('propagates errors', async () => {
-      mockGet.mockRejectedValue(new Error('Server Error'))
-
-      await expect(fetchResources()).rejects.toThrow('Server Error')
+    it('propagates server errors as ServerError', async () => {
+      server.use(http.get('*/resources', () => HttpResponse.json({}, { status: 500 })))
+      await expect(fetchResources()).rejects.toBeInstanceOf(ServerError)
     })
   })
 
   describe('fetchResource', () => {
     it('sends GET to /resources/:id', async () => {
       const resource = { id: 'r1', name: 'API Server' }
-      mockGet.mockResolvedValue({ data: resource })
-
+      server.use(http.get('*/resources/r1', () => HttpResponse.json(resource)))
       const result = await fetchResource('r1')
-
-      expect(mockGet).toHaveBeenCalledWith('/resources/r1', { params: {} })
       expect(result).toEqual(resource)
     })
 
     it('passes limit as query param when provided', async () => {
-      mockGet.mockResolvedValue({ data: { id: 'r1' } })
-
+      let limit: string | null = null
+      server.use(
+        http.get('*/resources/r1', ({ request }) => {
+          limit = new URL(request.url).searchParams.get('limit')
+          return HttpResponse.json({ id: 'r1' })
+        }),
+      )
       await fetchResource('r1', 50)
-
-      expect(mockGet).toHaveBeenCalledWith('/resources/r1', { params: { limit: 50 } })
+      expect(limit).toBe('50')
     })
   })
 
   describe('createResource', () => {
-    it('sends POST to /resources with payload and successMessage config', async () => {
+    it('sends POST to /resources with payload and success-message header', async () => {
       const newResource = { name: 'New Monitor', url: 'https://example.com' }
       const created = { id: 'r2', ...newResource }
-      mockPost.mockResolvedValue({ data: created })
+      let body: unknown = null
+      let successHeader: string | null = null
+      server.use(
+        http.post('*/resources', async ({ request }) => {
+          body = await request.json()
+          successHeader = request.headers.get('x-success-message')
+          return HttpResponse.json(created, { status: 201 })
+        }),
+      )
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const result = await createResource(newResource as any)
-
-      expect(mockPost).toHaveBeenCalledOnce()
-      expect(mockPost).toHaveBeenCalledWith(
-        '/resources',
-        newResource,
-        expect.objectContaining({
-          successMessage: 'Monitor created successfully',
-        }),
-      )
+      expect(body).toEqual(newResource)
+      expect(successHeader).toBe('Monitor created successfully')
       expect(result).toEqual(created)
+    })
+
+    it('surfaces 422 validation errors as ValidationError with fieldErrors', async () => {
+      server.use(
+        http.post('*/resources', () =>
+          HttpResponse.json(
+            { message: 'Invalid', fieldErrors: { name: ['required'] } },
+            { status: 422 },
+          ),
+        ),
+      )
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const p = createResource({} as any)
+      await expect(p).rejects.toBeInstanceOf(ValidationError)
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        await createResource({} as any)
+      } catch (e) {
+        expect((e as ValidationError).fieldErrors).toEqual({ name: ['required'] })
+      }
+    })
+
+    it('also normalizes 400 validation errors as ValidationError', async () => {
+      server.use(
+        http.post('*/resources', () =>
+          HttpResponse.json(
+            { message: 'Bad', fieldErrors: { url: ['invalid'] } },
+            { status: 400 },
+          ),
+        ),
+      )
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        await createResource({} as any)
+      } catch (e) {
+        expect(e).toBeInstanceOf(ValidationError)
+        expect((e as ValidationError).fieldErrors).toEqual({ url: ['invalid'] })
+      }
     })
   })
 
   describe('updateResource', () => {
-    it('sends PATCH to /resources/:id with payload and successMessage config', async () => {
+    it('sends PATCH to /resources/:id with payload and success-message header', async () => {
       const updates = { name: 'Updated Monitor' }
       const updated = { id: 'r1', name: 'Updated Monitor' }
-      mockPatch.mockResolvedValue({ data: updated })
+      let body: unknown = null
+      let successHeader: string | null = null
+      server.use(
+        http.patch('*/resources/r1', async ({ request }) => {
+          body = await request.json()
+          successHeader = request.headers.get('x-success-message')
+          return HttpResponse.json(updated)
+        }),
+      )
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const result = await updateResource('r1', updates as any)
-
-      expect(mockPatch).toHaveBeenCalledOnce()
-      expect(mockPatch).toHaveBeenCalledWith(
-        '/resources/r1',
-        updates,
-        expect.objectContaining({
-          successMessage: 'Monitor updated successfully',
-        }),
-      )
+      expect(body).toEqual(updates)
+      expect(successHeader).toBe('Monitor updated successfully')
       expect(result).toEqual(updated)
     })
   })
 
   describe('deleteResource', () => {
-    it('sends DELETE to /resources/:id with successMessage config', async () => {
-      mockDelete.mockResolvedValue({ data: null })
-
-      await deleteResource('r1')
-
-      expect(mockDelete).toHaveBeenCalledOnce()
-      expect(mockDelete).toHaveBeenCalledWith(
-        '/resources/r1',
-        expect.objectContaining({
-          successMessage: 'Monitor deleted successfully',
+    it('sends DELETE to /resources/:id with success-message header and reaches success on 204', async () => {
+      let successHeader: string | null = null
+      server.use(
+        http.delete('*/resources/r1', ({ request }) => {
+          successHeader = request.headers.get('x-success-message')
+          return new HttpResponse(null, { status: 204 })
         }),
       )
+      await deleteResource('r1')
+      expect(successHeader).toBe('Monitor deleted successfully')
     })
   })
 
   describe('pauseResource', () => {
-    it('sends POST to /resources/:id/pause with successMessage config', async () => {
+    it('sends POST to /resources/:id/pause', async () => {
       const paused = { id: 'r1', status: 'paused' }
-      mockPost.mockResolvedValue({ data: paused })
-
+      server.use(http.post('*/resources/r1/pause', () => HttpResponse.json(paused)))
       const result = await pauseResource('r1')
-
-      expect(mockPost).toHaveBeenCalledOnce()
-      expect(mockPost).toHaveBeenCalledWith(
-        '/resources/r1/pause',
-        {},
-        expect.objectContaining({
-          successMessage: 'Monitoring paused',
-        }),
-      )
       expect(result).toEqual(paused)
     })
   })
 
   describe('resumeResource', () => {
-    it('sends POST to /resources/:id/resume with successMessage config', async () => {
+    it('sends POST to /resources/:id/resume', async () => {
       const resumed = { id: 'r1', status: 'active' }
-      mockPost.mockResolvedValue({ data: resumed })
-
+      server.use(http.post('*/resources/r1/resume', () => HttpResponse.json(resumed)))
       const result = await resumeResource('r1')
-
-      expect(mockPost).toHaveBeenCalledOnce()
-      expect(mockPost).toHaveBeenCalledWith(
-        '/resources/r1/resume',
-        {},
-        expect.objectContaining({
-          successMessage: 'Monitoring resumed',
-        }),
-      )
       expect(result).toEqual(resumed)
     })
   })
 
   describe('addTagsToResource', () => {
     it('sends POST to /resources/:id/tags with tag_ids', async () => {
-      mockPost.mockResolvedValue({ data: null })
-
+      let body: { tag_ids: string[] } | null = null
+      server.use(
+        http.post('*/resources/r1/tags', async ({ request }) => {
+          body = (await request.json()) as typeof body
+          return HttpResponse.json({})
+        }),
+      )
       await addTagsToResource('r1', ['t1', 't2'])
-
-      expect(mockPost).toHaveBeenCalledWith('/resources/r1/tags', { tag_ids: ['t1', 't2'] })
+      expect(body).toEqual({ tag_ids: ['t1', 't2'] })
     })
   })
 
   describe('removeTagFromResource', () => {
     it('sends DELETE to /resources/:id/tags/:tagId', async () => {
-      mockDelete.mockResolvedValue({ data: null })
-
+      let called = false
+      server.use(
+        http.delete('*/resources/r1/tags/t1', () => {
+          called = true
+          return new HttpResponse(null, { status: 204 })
+        }),
+      )
       await removeTagFromResource('r1', 't1')
-
-      expect(mockDelete).toHaveBeenCalledWith('/resources/r1/tags/t1')
+      expect(called).toBe(true)
     })
   })
 
   describe('fetchUptimeStats', () => {
     it('sends GET to /resources/:id/uptime-stats', async () => {
       const stats = { resource_id: 'r1', stats: [] }
-      mockGet.mockResolvedValue({ data: stats })
-
+      server.use(
+        http.get('*/resources/r1/uptime-stats', () => HttpResponse.json(stats)),
+      )
       const result = await fetchUptimeStats('r1')
-
-      expect(mockGet).toHaveBeenCalledWith('/resources/r1/uptime-stats')
       expect(result).toEqual(stats)
     })
   })
@@ -205,11 +210,8 @@ describe('resourceService', () => {
   describe('fetchCapabilities', () => {
     it('sends GET to /system/capabilities', async () => {
       const caps = { icmp_available: true }
-      mockGet.mockResolvedValue({ data: caps })
-
+      server.use(http.get('*/system/capabilities', () => HttpResponse.json(caps)))
       const result = await fetchCapabilities()
-
-      expect(mockGet).toHaveBeenCalledWith('/system/capabilities')
       expect(result).toEqual(caps)
     })
   })
