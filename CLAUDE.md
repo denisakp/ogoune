@@ -196,5 +196,5 @@ Dashboard: http://localhost:9009 (project `ogoune`). Block on CRITICAL/BLOCKER i
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan:
-`specs/054-slice-http-migration-axios/plan.md`
+`specs/055-slice-shared-components/plan.md`
 <!-- SPECKIT END -->

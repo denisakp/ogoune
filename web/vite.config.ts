@@ -29,6 +29,13 @@ export default defineConfig({
     // resolvers (local `U*` shadow + AntDV cohabitation) via its `components`
     // option rather than mounting a second `Components(...)` plugin.
     ui({
+      // Slate neutral palette per .prds/frontend/000-design-identity.md §Neutres
+      // (PR-3 / spec 055 Annex F2 carry-over).
+      ui: {
+        colors: {
+          neutral: 'slate',
+        },
+      },
       components: {
         resolvers: [
           LocalUiResolver(),
