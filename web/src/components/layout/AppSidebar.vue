@@ -12,28 +12,28 @@ interface NavItem {
 }
 
 const monitor: NavItem[] = [
-  { label: 'Overview', to: '/monitors', icon: 'i-lucide-layout-dashboard' },
+  { label: 'Overview', to: '/overview', icon: 'i-lucide-gauge' },
   { label: 'Resources', to: '/monitors', icon: 'i-lucide-radar' },
-  { label: 'Incidents', to: '/incidents', icon: 'i-lucide-alert-triangle' },
-  { label: 'Components', to: '/components', icon: 'i-lucide-folder' },
+  { label: 'Incidents', to: '/incidents', icon: 'i-lucide-zap' },
+  { label: 'Maintenance', to: '/maintenance', icon: 'i-lucide-wrench' },
 ]
 
 const report: NavItem[] = [
-  { label: 'Reports', to: '/reports', icon: 'i-lucide-bar-chart-3' },
+  { label: 'Status Pages', to: '/status', icon: 'i-lucide-globe' },
+  { label: 'Reports', to: '/reports', icon: 'i-lucide-file-text' },
   { label: 'Dashboards', to: '/dashboards', icon: 'i-lucide-layout-grid' },
 ]
 
 const tools: NavItem[] = [
-  { label: 'Toolbox', to: '/toolbox', icon: 'i-lucide-wrench' },
-  { label: 'Metrics', to: '/metrics', icon: 'i-lucide-activity' },
+  { label: 'Toolbox', to: '/toolbox', icon: 'i-lucide-hammer' },
+  { label: 'Metrics', to: '/metrics', icon: 'i-lucide-line-chart' },
 ]
 
 const settings: NavItem[] = [
-  { label: 'Account', to: '/settings/account', icon: 'i-lucide-user' },
-  { label: 'Notifications', to: '/settings', icon: 'i-lucide-bell' },
-  { label: 'Status Page', to: '/settings', icon: 'i-lucide-globe' },
-  { label: 'API Keys', to: '/settings', icon: 'i-lucide-key' },
-  { label: 'Maintenance', to: '/maintenance', icon: 'i-lucide-wrench' },
+  { label: 'Notifications', to: '/settings/notifications', icon: 'i-lucide-bell' },
+  { label: 'Escalation', to: '/settings/escalation', icon: 'i-lucide-siren' },
+  { label: 'API Keys', to: '/settings/api-keys', icon: 'i-lucide-key-round' },
+  { label: 'Preferences', to: '/settings', icon: 'i-lucide-settings' },
 ]
 
 function toMenuItems(items: NavItem[]) {
