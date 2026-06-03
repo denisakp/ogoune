@@ -33,6 +33,7 @@ export default defineConfig({
       // (PR-3 / spec 055 Annex F2 carry-over).
       ui: {
         colors: {
+          primary: 'indigo',
           neutral: 'slate',
         },
       },

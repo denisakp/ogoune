@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router'
 import { useAuthStore } from '@/stores/authStore'
 
+const OverviewView = () => import('@/views/overview/OverviewView.vue')
 const MonitorsView = () => import('@/views/MonitorsView.vue')
 const ResourceView = () => import('@/views/resources/ResourceView.vue')
 const ComponentsView = () => import('@/views/ComponentsView.vue')
@@ -11,18 +12,45 @@ const IncidentView = () => import('@/views/incidents/IncidentView.vue')
 const StatusPageView = () => import('@/views/status-page/StatusPageView.vue')
 const StatusPageDetailView = () => import('@/views/status-page/StatusPageDetailView.vue')
 const LoginView = () => import('@/views/auth/LoginView.vue')
+const RegisterView = () => import('@/views/auth/RegisterView.vue')
+const ForgotPasswordView = () => import('@/views/auth/ForgotPasswordView.vue')
+const ResetPasswordView = () => import('@/views/auth/ResetPasswordView.vue')
 const InitializePasswordView = () => import('@/views/auth/InitializePasswordView.vue')
 const MaintenanceView = () => import('@/views/maintenance/MaintenanceView.vue')
 
 const routes: RouteRecordRaw[] = [
   {
     path: '/',
-    redirect: '/monitors',
+    redirect: '/overview',
+  },
+  {
+    path: '/overview',
+    name: 'Overview',
+    component: OverviewView,
+    meta: { requiresAuth: true, requiresLayout: true, breadcrumbLabel: 'Overview' },
   },
   {
     path: '/login',
     name: 'Login',
     component: LoginView,
+    meta: { public: true, requiresLayout: false },
+  },
+  {
+    path: '/register',
+    name: 'Register',
+    component: RegisterView,
+    meta: { public: true, requiresLayout: false },
+  },
+  {
+    path: '/forgot-password',
+    name: 'ForgotPassword',
+    component: ForgotPasswordView,
+    meta: { public: true, requiresLayout: false },
+  },
+  {
+    path: '/reset-password',
+    name: 'ResetPassword',
+    component: ResetPasswordView,
     meta: { public: true, requiresLayout: false },
   },
   {
@@ -125,9 +153,9 @@ router.beforeEach(async (to, from, next) => {
 
   // If route is public, allow access
   if (to.meta.public) {
-    // If already authenticated and trying to access login, redirect to monitors
+    // If already authenticated and trying to access login, redirect to overview
     if (to.path === '/login' && authStore.isAuthenticated) {
-      next('/monitors')
+      next('/overview')
       return
     }
     next()

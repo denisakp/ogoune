@@ -150,6 +150,22 @@ const accountService = {
       { method: 'DELETE' },
     )
   },
+
+  async getOnboardingState(): Promise<{ status: 'pending' | 'done' }> {
+    return await request<{ status: 'pending' | 'done' }>(
+      getAuthenticatedClient(),
+      'v1/me/onboarding-state',
+      SKIP_SUCCESS,
+    )
+  },
+
+  async markOnboardingDone(): Promise<{ status: 'done' }> {
+    return await request<{ status: 'done' }>(
+      getAuthenticatedClient(),
+      'v1/me/onboarding-state',
+      { method: 'PATCH', json: { status: 'done' }, ...SKIP_SUCCESS },
+    )
+  },
 }
 
 export default accountService

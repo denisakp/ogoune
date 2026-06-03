@@ -18,6 +18,17 @@ export interface Verify2FARequest {
   otp: string
 }
 
+export interface SignupRequest {
+  email: string
+  password: string
+  newsletter?: boolean
+}
+
+export interface ResetPasswordRequest {
+  token: string
+  password: string
+}
+
 export interface VerifyResponse {
   email: string
   user_id: string
@@ -73,6 +84,30 @@ const authService = {
     return await request<LoginResponse>(http, 'auth/initialize-password', {
       method: 'POST',
       json: { email, new_password: newPassword },
+      ...SKIP_SUCCESS,
+    })
+  },
+
+  async signUp(input: SignupRequest): Promise<LoginResponse> {
+    return await request<LoginResponse>(http, 'auth/signup', {
+      method: 'POST',
+      json: input,
+      ...SKIP_SUCCESS,
+    })
+  },
+
+  async forgotPassword(email: string): Promise<void> {
+    await request<void>(http, 'auth/forgot-password', {
+      method: 'POST',
+      json: { email },
+      ...SKIP_SUCCESS,
+    })
+  },
+
+  async resetPasswordWithToken(input: ResetPasswordRequest): Promise<LoginResponse> {
+    return await request<LoginResponse>(http, 'auth/reset-password', {
+      method: 'POST',
+      json: input,
       ...SKIP_SUCCESS,
     })
   },

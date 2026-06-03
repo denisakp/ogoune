@@ -1,7 +1,9 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import authService from '@/services/authService'
 import { message } from 'ant-design-vue'
+
+import authService, { type SignupRequest, type ResetPasswordRequest } from '@/services/authService'
+import { ValidationError } from '@/core/errors'
 import type { User } from '@/types'
 
 const TK = 'ogoune_auth_token', EK = 'ogoune_user_email', UK = 'ogoune_user_id'
@@ -36,7 +38,10 @@ export const useAuthStore = defineStore('auth', () => {
         token.value = null; localStorage.removeItem(TK); message.info('Please verify with 2FA'); return false
       }
       setAuth(r.token, r.email); message.success('Successfully logged in!'); return true
-    } catch { return false } finally { isLoading.value = false }
+    } catch (e) {
+      if (e instanceof ValidationError) throw e
+      return false
+    } finally { isLoading.value = false }
   }
 
   async function verifyTwoFactor(otp: string): Promise<boolean> {
@@ -58,6 +63,31 @@ export const useAuthStore = defineStore('auth', () => {
     } catch { logout(); return false }
   }
 
+  async function signUp(input: SignupRequest): Promise<boolean> {
+    isLoading.value = true
+    try {
+      const r = await authService.signUp(input)
+      setAuth(r.token, r.email)
+      message.success('Account created')
+      return true
+    } catch (e) {
+      if (e instanceof ValidationError) throw e
+      return false
+    } finally { isLoading.value = false }
+  }
+
+  async function resetPasswordWithToken(input: ResetPasswordRequest): Promise<boolean> {
+    isLoading.value = true
+    try {
+      const r = await authService.resetPasswordWithToken(input)
+      setAuth(r.token, r.email)
+      return true
+    } catch (e) {
+      if (e instanceof ValidationError) throw e
+      return false
+    } finally { isLoading.value = false }
+  }
+
   function logout() {
     token.value = null; email.value = null; userId.value = null; user.value = null
     requiresPasswordInit.value = false; requires2FA.value = false; pending2FAEmail.value = null
@@ -67,7 +97,7 @@ export const useAuthStore = defineStore('auth', () => {
 
   return {
     token, email, userId, user, isLoading, requiresPasswordInit, requires2FA, pending2FAEmail,
-    isAuthenticated, login, verify, verifyTwoFactor, logout,
+    isAuthenticated, login, signUp, resetPasswordWithToken, verify, verifyTwoFactor, logout,
     getToken: () => token.value,
     clearPasswordInitRequired: () => { requiresPasswordInit.value = false },
     clear2FARequired: () => { requires2FA.value = false; pending2FAEmail.value = null },

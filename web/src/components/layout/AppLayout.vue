@@ -1,11 +1,19 @@
 <script setup lang="ts">
-/**
- * Authenticated app shell — sidebar + topbar + main slot.
- * Scope: authenticated bundle only (spec 055 clarification Q3).
- * Contract: specs/055-slice-shared-components/contracts/app-layout.md
- */
+import { onMounted } from 'vue'
 import AppSidebar from './AppSidebar.vue'
 import AppTopbar from './AppTopbar.vue'
+import OnboardingWizardModal from '@/components/onboarding/OnboardingWizardModal.vue'
+import { useOnboardingState } from '@/composables/useOnboardingState'
+
+const { isPending, load } = useOnboardingState()
+
+onMounted(() => {
+  void load()
+})
+
+function onClose() {
+  // markDone already called from wizard for both Skip + Summary CTA
+}
 </script>
 
 <template>
@@ -17,5 +25,6 @@ import AppTopbar from './AppTopbar.vue'
         <slot />
       </div>
     </main>
+    <OnboardingWizardModal :open="isPending" @close="onClose" />
   </div>
 </template>

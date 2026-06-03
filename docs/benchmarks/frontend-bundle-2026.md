@@ -188,3 +188,34 @@ The architectural win of PR-3 (shell + library + form pattern + EE gating + Acce
 - `pnpm lint` clean.
 - Demo + UFormExample dev routes ABSENT from `dist/` (verified by grep on the production HTML manifest).
 - Phase 7 (21 icon swaps) deferred to a follow-up — fully mechanical, no architectural decisions. PR-3 ships with `@ts-nocheck` on the 11 legacy AntDV files surfaced by the forced rebuild + an `// eslint-disable-next-line` line so `pnpm lint` stays green.
+
+## PR-4 (Slice 2 / PR-1 — Auth flows + Overview + Monitors list + Onboarding wizard)
+
+- **Branch**: `056-slice-auth-flows`.
+- **Build command**: `pnpm build` (no warnings).
+- **Stack added**: no new dependencies (uses existing NuxtUI v4 + Zod + Ky pattern from Slice 1).
+- **Surfaces touched**: `LoginView` rewritten · `RegisterView` (new) · `ForgotPasswordView` (new) · `ResetPasswordView` (new, +strength meter) · `OverviewView` (new, composes HeroCard + SecondaryStats + StatusBreakdown + RecentActivity + ResponseTimeChart) · `MonitorsView` rewritten on `UDataTable` · `OnboardingWizardModal` (new) · `useOnboardingState` composable · `systemService`.
+
+| Build | `main` initial (gz) | Total (gz) | Δ main vs PR-3 | Δ total vs PR-3 | Gate (`main` ≤ PR-3 + 40 KB gz) |
+|-------|--------------------:|-----------:|---------------:|----------------:|--------------------------------|
+| PR-3 | 250,632 | 757,061 | — | — | — |
+| PR-4 | **266,189** | **809,297** | **+15,557 (+6.2%)** | **+52,236 (+6.9%)** | **PASS — +15.2 KB gz ≤ +40 KB envelope** |
+
+Notable initial-download chunks (`main`):
+
+| Chunk                                       | Bytes (gz) |
+|---------------------------------------------|-----------:|
+| `main-BeyV-4WU.js`                          |    119,317 |
+| `style-D7kXWqtu.js` (preload)               |     60,341 |
+| `useToast-B6Hld0bt.js` (preload)            |        623 |
+| `client-D6Df93x1.js` (preload)              |     58,956 |
+| `InfoCircleFilled-Dxx2V9Ig.js` (preload)    |      1,671 |
+| `style-DSwNwJ-B.css` (shared)               |     25,281 |
+
+### Notes
+
+- 249 / 249 tests pass (236 baseline post-Phase 4 + 4 ForgotPasswordView + 5 ResetPasswordView + 3 OverviewView + cross-session onboarding cache spec).
+- `pnpm lint` clean.
+- `T030` surgical AntDV swap (lines 277 + 381 in `ResponseTimeChart.vue`) removes the last 2 AntDV bindings from that file. Custom SVG chart geometry unchanged.
+- `/` → `/overview` redirect lands authenticated users on the new home; legacy `/monitors` route preserved.
+- Net architectural growth (~+15 KB gz on `main`) attributable to the new auth/overview surfaces; well under the +40 KB envelope. Slice 6 / PRD 009 cleanup will reclaim ~40–60 KB gz when AntDV is dropped.

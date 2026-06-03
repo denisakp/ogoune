@@ -10,6 +10,7 @@ import { http, HttpResponse } from 'msw'
  */
 
 const API = '*/api/v1'
+const ROOT = '*/api'
 
 export const baselineHandlers = [
   // Auth
@@ -20,6 +21,22 @@ export const baselineHandlers = [
     HttpResponse.json({ email: 'test@example.com', id: '01H' }),
   ),
   http.post(`${API}/auth/logout`, () => new HttpResponse(null, { status: 204 })),
+  http.post(`${API}/auth/signup`, () =>
+    HttpResponse.json({ token: 'test-token', email: 'new@example.com' }),
+  ),
+  http.post(`${API}/auth/forgot-password`, () => new HttpResponse(null, { status: 204 })),
+  http.post(`${API}/auth/reset-password`, () =>
+    HttpResponse.json({ token: 'test-token', email: 'reset@example.com' }),
+  ),
+
+  // System (unversioned)
+  http.get(`${ROOT}/system/has-accounts`, () =>
+    HttpResponse.json({ has_accounts: false }),
+  ),
+
+  // Onboarding state (path under v1/me/...)
+  http.get(`${API}/me/onboarding-state`, () => HttpResponse.json({ status: 'pending' })),
+  http.patch(`${API}/me/onboarding-state`, () => HttpResponse.json({ status: 'done' })),
 
   // Resources
   http.get(`${API}/resources`, () => HttpResponse.json([])),
