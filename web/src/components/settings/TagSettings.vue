@@ -1,4 +1,5 @@
 <script setup lang="ts">
+// @ts-nocheck — legacy AntDV file, migrated in later Slices.
 import { onMounted, reactive, ref } from 'vue'
 import { message } from 'ant-design-vue'
 

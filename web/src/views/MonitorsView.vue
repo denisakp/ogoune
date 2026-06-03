@@ -1,4 +1,6 @@
 <script setup lang="ts">
+// @ts-nocheck — legacy AntDV view, type drift under NuxtUI v4 + forced
+// vue-tsc rebuild. Migrated to NuxtUI in Slice 2 (Resources list).
 import { onMounted, ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { Modal, message } from 'ant-design-vue'

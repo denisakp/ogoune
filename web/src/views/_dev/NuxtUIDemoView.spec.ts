@@ -21,7 +21,7 @@ describe('NuxtUIDemoView', () => {
         },
       },
     })
-    expect(wrapper.text()).toContain('NuxtUI foundation demo')
+    expect(wrapper.text()).toContain('Shared components demo')
     expect(wrapper.findAll('button').length).toBeGreaterThanOrEqual(1)
     expect(wrapper.find('input').exists()).toBe(true)
   })

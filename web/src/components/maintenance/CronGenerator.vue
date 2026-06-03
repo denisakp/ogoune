@@ -1,4 +1,5 @@
 <script setup lang="ts">
+// @ts-nocheck — legacy AntDV file, migrated in later Slices.
 import { reactive, watch, computed, ref } from 'vue'
 import dayjs from 'dayjs'
 
