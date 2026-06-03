@@ -4,13 +4,6 @@
 // vue-tsc rebuild. Migrated to NuxtUI in Slice 3 (Settings refactor).
 import { reactive, ref, onMounted, computed } from 'vue'
 import { message } from 'ant-design-vue'
-import {
-  UserOutlined,
-  MailOutlined,
-  LockOutlined,
-  SafetyOutlined,
-  LoadingOutlined,
-} from '@ant-design/icons-vue'
 import accountService from '@/services/accountService'
 import type { Rule } from 'ant-design-vue/es/form'
 
@@ -211,7 +204,7 @@ async function handleDisable2FA() {
               <a-form-item label="Name" name="name">
                 <a-input v-model:value="profileForm.name" placeholder="Your name" size="large">
                   <template #prefix>
-                    <UserOutlined />
+                    <UIcon name="i-lucide-user" />
                   </template>
                 </a-input>
               </a-form-item>
@@ -223,7 +216,7 @@ async function handleDisable2FA() {
                   size="large"
                 >
                   <template #prefix>
-                    <MailOutlined />
+                    <UIcon name="i-lucide-mail" />
                   </template>
                 </a-input>
               </a-form-item>
@@ -248,7 +241,7 @@ async function handleDisable2FA() {
                   size="large"
                 >
                   <template #prefix>
-                    <LockOutlined />
+                    <UIcon name="i-lucide-lock" />
                   </template>
                 </a-input-password>
               </a-form-item>
@@ -260,7 +253,7 @@ async function handleDisable2FA() {
                   size="large"
                 >
                   <template #prefix>
-                    <LockOutlined />
+                    <UIcon name="i-lucide-lock" />
                   </template>
                 </a-input-password>
               </a-form-item>
@@ -272,7 +265,7 @@ async function handleDisable2FA() {
                   size="large"
                 >
                   <template #prefix>
-                    <LockOutlined />
+                    <UIcon name="i-lucide-lock" />
                   </template>
                 </a-input-password>
               </a-form-item>
@@ -314,7 +307,7 @@ async function handleDisable2FA() {
                 :loading="enable2FALoading"
                 @click="handleEnable2FA"
               >
-                <SafetyOutlined />
+                <UIcon name="i-lucide-shield-check" />
                 Enable 2FA
               </a-button>
 
@@ -323,7 +316,7 @@ async function handleDisable2FA() {
                 <div class="qr-code-placeholder">
                   <img v-if="qrCode" :src="qrCode" alt="2FA QR Code" />
                   <div v-else class="qr-loading">
-                    <LoadingOutlined />
+                    <UIcon name="i-lucide-loader-2" />
                   </div>
                 </div>
 

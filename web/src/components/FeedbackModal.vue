@@ -1,7 +1,5 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { HeartOutlined } from '@ant-design/icons-vue'
-
 const showModal = ref(false)
 
 const FEEDBACK_PROMPT_SEEN_KEY = 'ogoune_feedback_prompt_seen'
@@ -43,7 +41,7 @@ const closeFeedback = () => {
     centered
   >
     <div style="text-align: center">
-      <HeartOutlined style="font-size: 48px; color: #ff4d4f; margin-bottom: 16px" />
+      <UIcon name="i-lucide-heart" style="font-size: 48px; color: #ff4d4f; margin-bottom: 16px" />
       <p style="font-size: 16px; margin: 16px 0">
         Your feedback is invaluable to us! Share your thoughts to help us improve Ogoune.
       </p>
@@ -53,7 +51,7 @@ const closeFeedback = () => {
       <div style="display: flex; gap: 12px; justify-content: center">
         <a-button @click="closeFeedback">Maybe Later</a-button>
         <a-button type="primary" @click="openForm">
-          <HeartOutlined />
+          <UIcon name="i-lucide-heart" />
           <span style="margin-left: 8px">Fill Feedback Form</span>
         </a-button>
       </div>

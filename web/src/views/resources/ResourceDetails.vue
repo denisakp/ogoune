@@ -1,9 +1,5 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import {
-  SafetyOutlined, GlobalOutlined, CalendarOutlined,
-  CheckCircleOutlined, WarningOutlined, ClockCircleOutlined,
-} from '@ant-design/icons-vue'
 import ExpiryBadge from '@/components/resources/ExpiryBadge.vue'
 import type { Resource } from '@/types'
 import { formatDate, formatExpirationDate, getExpirationStatus } from '@/utils/formatters'
@@ -80,7 +76,7 @@ const hasMetadata = computed(() =>
         <div v-if="resource.metadata?.ssl_expiration_date || resource.metadata?.ssl_issuer"
           style="padding: 16px; background: rgba(24,144,255,0.05); border-radius: 8px; border-left: 3px solid #1890ff">
           <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px; font-weight: 600; color: #1890ff">
-            <SafetyOutlined style="font-size: 18px" /><span>SSL Certificate</span>
+            <UIcon name="i-lucide-shield-check" style="font-size: 18px" /><span>SSL Certificate</span>
           </div>
           <div v-if="resource.metadata?.ssl_issuer" style="margin-bottom: 12px">
             <div style="font-size: 12px; color: rgba(0,0,0,0.45); margin-bottom: 4px">Issuer</div>
@@ -89,15 +85,15 @@ const hasMetadata = computed(() =>
           <div v-if="resource.metadata?.ssl_expiration_date">
             <div style="font-size: 12px; color: rgba(0,0,0,0.45); margin-bottom: 4px">Expiration Date</div>
             <div style="display: flex; align-items: center; gap: 8px">
-              <CalendarOutlined style="font-size: 14px; color: rgba(0,0,0,0.45)" />
+              <UIcon name="i-lucide-calendar" style="font-size: 14px; color: rgba(0,0,0,0.45)" />
               <span style="font-size: 14px; color: rgba(0,0,0,0.85)">{{ formatExpirationDate(resource.metadata.ssl_expiration_date) }}</span>
             </div>
             <div style="margin-top: 8px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap">
               <a-tag :color="getExpirationStatus(resource.metadata.ssl_expiration_date).color">
                 <template #icon>
-                  <CheckCircleOutlined v-if="getExpirationStatus(resource.metadata.ssl_expiration_date).type === 'success'" />
-                  <WarningOutlined v-else-if="getExpirationStatus(resource.metadata.ssl_expiration_date).type === 'warning'" />
-                  <ClockCircleOutlined v-else />
+                  <UIcon name="i-lucide-check-circle" v-if="getExpirationStatus(resource.metadata.ssl_expiration_date).type === 'success'" />
+                  <UIcon name="i-lucide-alert-triangle" v-else-if="getExpirationStatus(resource.metadata.ssl_expiration_date).type === 'warning'" />
+                  <UIcon name="i-lucide-clock" v-else />
                 </template>
                 {{ getExpirationStatus(resource.metadata.ssl_expiration_date).text }}
               </a-tag>
@@ -110,7 +106,7 @@ const hasMetadata = computed(() =>
         <div v-if="resource.metadata?.domain_expiration_date || resource.metadata?.domain_registrar"
           style="padding: 16px; background: rgba(82,196,26,0.05); border-radius: 8px; border-left: 3px solid #52c41a">
           <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px; font-weight: 600; color: #52c41a">
-            <GlobalOutlined style="font-size: 18px" /><span>Domain</span>
+            <UIcon name="i-lucide-globe" style="font-size: 18px" /><span>Domain</span>
           </div>
           <div v-if="resource.metadata?.domain_registrar" style="margin-bottom: 12px">
             <div style="font-size: 12px; color: rgba(0,0,0,0.45); margin-bottom: 4px">Registrar</div>
@@ -119,15 +115,15 @@ const hasMetadata = computed(() =>
           <div v-if="resource.metadata?.domain_expiration_date">
             <div style="font-size: 12px; color: rgba(0,0,0,0.45); margin-bottom: 4px">Expiration Date</div>
             <div style="display: flex; align-items: center; gap: 8px">
-              <CalendarOutlined style="font-size: 14px; color: rgba(0,0,0,0.45)" />
+              <UIcon name="i-lucide-calendar" style="font-size: 14px; color: rgba(0,0,0,0.45)" />
               <span style="font-size: 14px; color: rgba(0,0,0,0.85)">{{ formatExpirationDate(resource.metadata.domain_expiration_date) }}</span>
             </div>
             <div style="margin-top: 8px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap">
               <a-tag :color="getExpirationStatus(resource.metadata.domain_expiration_date).color">
                 <template #icon>
-                  <CheckCircleOutlined v-if="getExpirationStatus(resource.metadata.domain_expiration_date).type === 'success'" />
-                  <WarningOutlined v-else-if="getExpirationStatus(resource.metadata.domain_expiration_date).type === 'warning'" />
-                  <ClockCircleOutlined v-else />
+                  <UIcon name="i-lucide-check-circle" v-if="getExpirationStatus(resource.metadata.domain_expiration_date).type === 'success'" />
+                  <UIcon name="i-lucide-alert-triangle" v-else-if="getExpirationStatus(resource.metadata.domain_expiration_date).type === 'warning'" />
+                  <UIcon name="i-lucide-clock" v-else />
                 </template>
                 {{ getExpirationStatus(resource.metadata.domain_expiration_date).text }}
               </a-tag>

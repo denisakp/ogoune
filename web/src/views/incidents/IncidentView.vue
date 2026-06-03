@@ -2,8 +2,6 @@
 import { onMounted, ref, computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { message } from 'ant-design-vue'
-import { ArrowLeftOutlined } from '@ant-design/icons-vue'
-
 import { useIncidentStore } from '@/stores/incidentStore'
 import type { Incident, IncidentEventStep } from '@/types'
 import DiagnosticsErrorSummary from '@/components/DiagnosticsErrorSummary.vue'
@@ -229,7 +227,7 @@ const handleDownloadResponse = () => {
           <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 16px">
             <a-button type="text" @click="goBack">
               <template #icon>
-                <ArrowLeftOutlined />
+                <UIcon name="i-lucide-arrow-left" />
               </template>
               Incidents
             </a-button>

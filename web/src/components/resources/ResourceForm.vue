@@ -1,9 +1,7 @@
 <script setup lang="ts">
 import { ref, watch, onMounted, computed } from 'vue'
-import { FolderOutlined } from '@ant-design/icons-vue'
-
-import type { Resource, CreateResource, CredentialCreatePayload } from '@/types'
 import { storeToRefs } from 'pinia'
+import type { Resource, CreateResource, CredentialCreatePayload } from '@/types'
 import { useResourceStore } from '@/stores/resourceStore'
 import { useTagStore } from '@/stores/tagStore'
 import { useComponentStore } from '@/stores/componentStore'
@@ -572,7 +570,7 @@ const icmpWarning = computed(() => {
         :options="componentOptions"
       >
         <template #suffixIcon>
-          <FolderOutlined />
+          <UIcon name="i-lucide-folder" />
         </template>
       </a-select>
       <div style="margin-top: 8px; font-size: 12px; color: rgba(0, 0, 0, 0.45)">

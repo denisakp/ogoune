@@ -2,7 +2,6 @@
 import { reactive, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/authStore.ts'
-import { MailOutlined, LockOutlined } from '@ant-design/icons-vue'
 import type { Rule } from 'ant-design-vue/es/form'
 
 const router = useRouter()
@@ -65,7 +64,7 @@ const handleLogin = async () => {
             :disabled="isLoading"
           >
             <template #prefix>
-              <MailOutlined />
+              <UIcon name="i-lucide-mail" />
             </template>
           </a-input>
         </a-form-item>
@@ -78,7 +77,7 @@ const handleLogin = async () => {
             :disabled="isLoading"
           >
             <template #prefix>
-              <LockOutlined />
+              <UIcon name="i-lucide-lock" />
             </template>
           </a-input-password>
         </a-form-item>

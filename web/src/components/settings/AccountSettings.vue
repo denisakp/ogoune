@@ -5,13 +5,6 @@ import { reactive, ref, onMounted } from 'vue'
 import dayjs from 'dayjs'
 import { message } from 'ant-design-vue'
 import type { Rule } from 'ant-design-vue/es/form'
-import {
-  UserOutlined,
-  MailOutlined,
-  LockOutlined,
-  SafetyOutlined,
-  LoadingOutlined,
-} from '@ant-design/icons-vue'
 import QRCode from 'qrcode'
 import accountService from '@/services/accountService'
 import { useAPIKeys } from '@/composables/useAPIKeys'
@@ -303,7 +296,7 @@ function copyRevealedKey() {
                 <a-form-item label="Name" name="name">
                   <a-input v-model:value="profileForm.name" placeholder="Your name" size="large">
                     <template #prefix>
-                      <UserOutlined />
+                      <UIcon name="i-lucide-user" />
                     </template>
                   </a-input>
                 </a-form-item>
@@ -317,7 +310,7 @@ function copyRevealedKey() {
                     size="large"
                   >
                     <template #prefix>
-                      <MailOutlined />
+                      <UIcon name="i-lucide-mail" />
                     </template>
                   </a-input>
                 </a-form-item>
@@ -350,7 +343,7 @@ function copyRevealedKey() {
                     size="large"
                   >
                     <template #prefix>
-                      <LockOutlined />
+                      <UIcon name="i-lucide-lock" />
                     </template>
                   </a-input-password>
                 </a-form-item>
@@ -364,7 +357,7 @@ function copyRevealedKey() {
                     size="large"
                   >
                     <template #prefix>
-                      <LockOutlined />
+                      <UIcon name="i-lucide-lock" />
                     </template>
                   </a-input-password>
                 </a-form-item>
@@ -395,7 +388,7 @@ function copyRevealedKey() {
                   size="large"
                 >
                   <template #prefix>
-                    <LockOutlined />
+                    <UIcon name="i-lucide-lock" />
                   </template>
                 </a-input-password>
               </a-form-item>
@@ -438,7 +431,7 @@ function copyRevealedKey() {
               :loading="enable2FALoading"
               @click="handleEnable2FA"
             >
-              <SafetyOutlined />
+              <UIcon name="i-lucide-shield-check" />
               Enable 2FA
             </a-button>
 
@@ -447,7 +440,7 @@ function copyRevealedKey() {
               <div class="qr-code-placeholder">
                 <img v-if="qrCode" :src="qrCode" alt="2FA QR Code" />
                 <div v-else class="qr-loading">
-                  <LoadingOutlined />
+                  <UIcon name="i-lucide-loader-2" />
                 </div>
               </div>
 

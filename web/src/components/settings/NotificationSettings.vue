@@ -3,7 +3,6 @@
 // @ts-nocheck — legacy AntDV file, migrated in later Slices.
 import { onMounted, computed, reactive, ref, watch, nextTick } from 'vue'
 import { message } from 'ant-design-vue'
-import { PlusOutlined } from '@ant-design/icons-vue'
 import type {
   NotificationChannelType,
   NotificationConfig,
@@ -260,7 +259,7 @@ onMounted(() => {
     <div style="margin-bottom: 16px">
       <a-button type="primary" @click="openCreateModal">
         <template #icon>
-          <PlusOutlined />
+          <UIcon name="i-lucide-plus" />
         </template>
         Add Channel
       </a-button>

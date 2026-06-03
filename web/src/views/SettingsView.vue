@@ -1,7 +1,5 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import { EyeOutlined, SaveOutlined } from '@ant-design/icons-vue'
-
 import TagSettings from '@/components/settings/TagSettings.vue'
 import StatusPageSettings from '@/components/settings/StatusPageSettings.vue'
 import NotificationSettings from '@/components/settings/NotificationSettings.vue'
@@ -63,7 +61,7 @@ const handlePreviewStatusPage = () => {
           <div class="header-actions">
             <a-button size="large" @click="handlePreviewStatusPage">
               <template #icon>
-                <EyeOutlined />
+                <UIcon name="i-lucide-eye" />
               </template>
               Preview
             </a-button>
@@ -74,7 +72,7 @@ const handlePreviewStatusPage = () => {
               @click="handleSaveStatusPage"
             >
               <template #icon>
-                <SaveOutlined />
+                <UIcon name="i-lucide-save" />
               </template>
               Save Changes
             </a-button>

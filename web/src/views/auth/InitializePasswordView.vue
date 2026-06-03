@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { LockOutlined } from '@ant-design/icons-vue'
 import { message } from 'ant-design-vue'
 import type { Rule } from 'ant-design-vue/es/form'
 import { useAuthStore } from '@/stores/authStore'
@@ -89,7 +88,7 @@ const handleInitializePassword = async () => {
             :disabled="isLoading"
           >
             <template #prefix>
-              <LockOutlined />
+              <UIcon name="i-lucide-lock" />
             </template>
           </a-input-password>
         </a-form-item>
@@ -102,7 +101,7 @@ const handleInitializePassword = async () => {
             :disabled="isLoading"
           >
             <template #prefix>
-              <LockOutlined />
+              <UIcon name="i-lucide-lock" />
             </template>
           </a-input-password>
         </a-form-item>

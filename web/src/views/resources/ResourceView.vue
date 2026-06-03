@@ -2,7 +2,6 @@
 import { onMounted, onUnmounted, ref, computed, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { message } from 'ant-design-vue'
-import { PauseOutlined, ArrowLeftOutlined, EditOutlined, EllipsisOutlined } from '@ant-design/icons-vue'
 import { useResourceStore } from '@/stores/resourceStore'
 import { useMonitorLive } from '@/composables/useMonitorLive'
 import ResourceModal from '@/components/resources/ResourceModal.vue'
@@ -93,7 +92,7 @@ const goBack = () => { router.back() }
     <a-spin :spinning="store.fetchLoading">
       <template v-if="resource">
         <a-button type="text" style="margin-bottom: 16px" @click="goBack">
-          <template #icon><ArrowLeftOutlined /></template>
+          <template #icon><UIcon name="i-lucide-arrow-left" /></template>
           Monitoring
         </a-button>
 
@@ -119,8 +118,8 @@ const goBack = () => { router.back() }
             </div>
           </div>
           <div style="display: flex; gap: 8px">
-            <a-button @click="handlePauseResource"><template #icon><PauseOutlined /></template>Pause</a-button>
-            <a-button @click="openEditModal"><template #icon><EditOutlined /></template>Edit</a-button>
+            <a-button @click="handlePauseResource"><template #icon><UIcon name="i-lucide-pause" /></template>Pause</a-button>
+            <a-button @click="openEditModal"><template #icon><UIcon name="i-lucide-pencil" /></template>Edit</a-button>
             <a-dropdown>
               <template #overlay>
                 <a-menu>
@@ -130,7 +129,7 @@ const goBack = () => { router.back() }
                   <a-menu-item danger>Delete</a-menu-item>
                 </a-menu>
               </template>
-              <a-button><template #icon><EllipsisOutlined /></template></a-button>
+              <a-button><template #icon><UIcon name="i-lucide-ellipsis" /></template></a-button>
             </a-dropdown>
           </div>
         </div>

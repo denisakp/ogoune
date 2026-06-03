@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { DashboardOutlined, RiseOutlined, FallOutlined } from '@ant-design/icons-vue'
 import ResponseTimeChart from '@/components/ResponseTimeChart.vue'
 import type { Resource } from '@/types'
 import { getTimeRangeCutoff } from '@/libs/date-time.helper'
@@ -73,21 +72,21 @@ const currentStats = computed(() => ({
     <div v-if="resource.response_times && resource.response_times.length > 0"
       style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; padding: 16px; background: rgba(0,0,0,0.02); border-radius: 8px; margin-bottom: 16px">
       <div style="text-align: center">
-        <DashboardOutlined style="font-size: 24px; color: #1890ff; margin-bottom: 8px" />
+        <UIcon name="i-lucide-layout-dashboard" style="font-size: 24px; color: #1890ff; margin-bottom: 8px" />
         <div style="font-size: 20px; font-weight: 600; color: #1890ff; margin-bottom: 4px">
           {{ (resource.response_times.reduce((sum, r) => sum + r.response_time, 0) / resource.response_times.length).toFixed(0) }}ms
         </div>
         <div style="font-size: 12px; color: rgba(0,0,0,0.45)">Average</div>
       </div>
       <div style="text-align: center">
-        <RiseOutlined style="font-size: 24px; color: #52c41a; margin-bottom: 8px" />
+        <UIcon name="i-lucide-trending-up" style="font-size: 24px; color: #52c41a; margin-bottom: 8px" />
         <div style="font-size: 20px; font-weight: 600; color: #52c41a; margin-bottom: 4px">
           {{ Math.min(...resource.response_times.map((r) => r.response_time)) }}ms
         </div>
         <div style="font-size: 12px; color: rgba(0,0,0,0.45)">Min</div>
       </div>
       <div style="text-align: center">
-        <FallOutlined style="font-size: 24px; color: #ff4d4f; margin-bottom: 8px" />
+        <UIcon name="i-lucide-trending-down" style="font-size: 24px; color: #ff4d4f; margin-bottom: 8px" />
         <div style="font-size: 20px; font-weight: 600; color: #ff4d4f; margin-bottom: 4px">
           {{ Math.max(...resource.response_times.map((r) => r.response_time)) }}ms
         </div>

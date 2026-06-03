@@ -1,8 +1,6 @@
 <script setup lang="ts">
 import { onMounted, computed, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { ArrowLeftOutlined } from '@ant-design/icons-vue'
-
 import StatusPageDetail from '@/components/status-page/StatusPageDetail.vue'
 import { storeToRefs } from 'pinia'
 import { useStatusPageStore } from '@/stores/statusPageStore'
@@ -98,7 +96,7 @@ const goBack = () => {
         <div class="header-content">
           <a-button type="text" class="back-button" @click="goBack">
             <template #icon>
-              <ArrowLeftOutlined />
+              <UIcon name="i-lucide-arrow-left" />
             </template>
             Back to Status Page
           </a-button>

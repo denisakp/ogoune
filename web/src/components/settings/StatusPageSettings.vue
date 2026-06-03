@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { message } from 'ant-design-vue'
-import { EditOutlined, GlobalOutlined, SettingOutlined } from '@ant-design/icons-vue'
 import * as statusPageSettingsService from '@/services/statusPageSettingsService'
 
 // Form data
@@ -84,7 +83,7 @@ defineExpose({ handleSave, saving, formData })
     <a-card :bordered="false" class="settings-card">
       <template #title>
         <div class="card-title">
-          <EditOutlined style="margin-right: 8px" />
+          <UIcon name="i-lucide-pencil" style="margin-right: 8px" />
           Edit status page
         </div>
       </template>
@@ -93,7 +92,7 @@ defineExpose({ handleSave, saving, formData })
         <!-- Section 1: Name & homepage -->
         <div class="settings-section">
           <h3 class="section-title">
-            <GlobalOutlined style="margin-right: 8px" />
+            <UIcon name="i-lucide-globe" style="margin-right: 8px" />
             Name & homepage
           </h3>
 
@@ -119,7 +118,7 @@ defineExpose({ handleSave, saving, formData })
         <!-- Section 2: White-label -->
         <div class="settings-section">
           <h3 class="section-title">
-            <SettingOutlined style="margin-right: 8px" />
+            <UIcon name="i-lucide-settings" style="margin-right: 8px" />
             White-label
           </h3>
 
@@ -155,7 +154,7 @@ defineExpose({ handleSave, saving, formData })
         <!-- Section 3: Features -->
         <div class="settings-section">
           <h3 class="section-title">
-            <SettingOutlined style="margin-right: 8px" />
+            <UIcon name="i-lucide-settings" style="margin-right: 8px" />
             Features
           </h3>
 

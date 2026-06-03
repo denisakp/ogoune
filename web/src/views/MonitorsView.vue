@@ -5,15 +5,6 @@
 import { onMounted, ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { Modal, message } from 'ant-design-vue'
-import {
-  EditOutlined,
-  DeleteOutlined,
-  PauseOutlined,
-  PlayCircleOutlined,
-  EllipsisOutlined,
-  FolderOutlined,
-} from '@ant-design/icons-vue'
-
 import { storeToRefs } from 'pinia'
 import { useResourceStore } from '@/stores/resourceStore'
 import { useComponentStore } from '@/stores/componentStore'
@@ -254,7 +245,7 @@ const handleRowClick = (record: Resource) => {
       <a-space>
         <a-button type="default" @click="showGroupModal = true">
           <template #icon>
-            <FolderOutlined />
+            <UIcon name="i-lucide-folder" />
           </template>
           New Component
         </a-button>
@@ -288,7 +279,7 @@ const handleRowClick = (record: Resource) => {
           <div style="display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap">
             <a-button size="small" type="primary" @click="handleGroupSelected">
               <template #icon>
-                <FolderOutlined />
+                <UIcon name="i-lucide-folder" />
               </template>
               Group into Component
             </a-button>
@@ -364,7 +355,7 @@ const handleRowClick = (record: Resource) => {
               :key="component.id"
               :value="component.id"
             >
-              <FolderOutlined style="margin-right: 6px" />
+              <UIcon name="i-lucide-folder" style="margin-right: 6px" />
               {{ component.name }}
             </a-select-option>
           </a-select>
@@ -467,7 +458,7 @@ const handleRowClick = (record: Resource) => {
               <div v-if="record.component" style="display: flex; align-items: center; gap: 6px">
                 <a-tag color="purple" style="margin: 0">
                   <template #icon>
-                    <FolderOutlined />
+                    <UIcon name="i-lucide-folder" />
                   </template>
                   {{ record.component.name }}
                 </a-tag>
@@ -496,11 +487,11 @@ const handleRowClick = (record: Resource) => {
                   <a-menu>
                     <a-menu-item key="pause" @click="handleTogglePause(record)">
                       <template v-if="record.status === 'paused'">
-                        <PlayCircleOutlined style="margin-right: 8px" />
+                        <UIcon name="i-lucide-play-circle" style="margin-right: 8px" />
                         Resume
                       </template>
                       <template v-else>
-                        <PauseOutlined style="margin-right: 8px" />
+                        <UIcon name="i-lucide-pause" style="margin-right: 8px" />
                         Pause
                       </template>
                     </a-menu-item>
@@ -513,19 +504,19 @@ const handleRowClick = (record: Resource) => {
                         }
                       "
                     >
-                      <EditOutlined style="margin-right: 8px" />
+                      <UIcon name="i-lucide-pencil" style="margin-right: 8px" />
                       Edit
                     </a-menu-item>
                     <a-menu-divider />
                     <a-menu-item key="delete" danger @click="handleDelete(record.id)">
-                      <DeleteOutlined style="margin-right: 8px" />
+                      <UIcon name="i-lucide-trash-2" style="margin-right: 8px" />
                       Delete
                     </a-menu-item>
                   </a-menu>
                 </template>
                 <a-button size="small">
                   <template #icon>
-                    <EllipsisOutlined />
+                    <UIcon name="i-lucide-ellipsis" />
                   </template>
                 </a-button>
               </a-dropdown>
