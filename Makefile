@@ -1,7 +1,24 @@
+.DEFAULT_GOAL := help
 SHELL := /bin/sh
 
+# --- Variables ---
 BINARY := dist/ogoune
 SQLC_VERSION := v1.30.0
+
+# --- Versioning ---
+VERSION           := $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
+COMMIT            := $(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
+BUILD_DATE        := $(shell date -u +%Y-%m-%dT%H:%M:%SZ)
+LDFLAGS           := -s -w \
+                     -X main.version=$(VERSION) \
+                     -X main.commit=$(COMMIT) \
+                     -X main.buildDate=$(BUILD_DATE)
+
+# --- Go flags ---
+GO                := go
+GOFLAGS           := -trimpath
+GO_TEST_FLAGS     := -race -count=1
+GO_LINT_TIMEOUT   := 5m
 
 .PHONY: build build-be build-fe test test-be test-be-pg test-be-bench bench-api test-fe lint clean docker swag run-ci ci-local license-audit sqlc-bin sqlc-generate sqlc-check migrations-drift-check fuzz-dynquery
 
@@ -123,3 +140,18 @@ license-audit:
 fuzz-dynquery:
 	go test -run=^$$ -fuzz=FuzzBuildMonitorsQuery -fuzztime=30s ./internal/repository/sqlc/dynquery/...
 	go test -run=^$$ -fuzz=FuzzBuildIncidentsQuery -fuzztime=30s ./internal/repository/sqlc/dynquery/...
+
+.PHONY: lint-openapi
+lint-openapi: ## Lint OpenAPI specs with Spectral (requires: npm install -g @stoplight/spectral-cli @stoplight/spectral-owasp-rules)
+	@echo ">> Lint OpenAPI..."
+	spectral lint api/openapi/openapi-010-public-api-v1.yaml --ruleset .spectral.yaml
+
+.PHONY: openapi
+openapi: ## generate OpenAPI documentation
+	swag init -g cmd/meyebi-api/main.go -o api/openapi --parseDependency --parseInternal
+
+.PHONY: help
+help: ## Affiche cette aide
+	@echo "MEYEBI — Commandes disponibles :"
+	@echo ""
+	@awk 'BEGIN {FS = ":.*?## "} /^[a-zA-Z_-]+:.*?## / {printf "  \033[36m%-20s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST) | sort
