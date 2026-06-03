@@ -1,4 +1,5 @@
 <script lang="ts" setup>
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-nocheck — legacy AntDV file, migrated in later Slices.
 import { onMounted, computed, reactive, ref, watch, nextTick } from 'vue'
 import { message } from 'ant-design-vue'

@@ -16,10 +16,7 @@ const isLoading = ref(false)
 
 /**
  * Reports the running edition (`community` | `enterprise`) and version.
- *
- * Replaces the legacy `useEdition` composable. Old name re-exports here via
- * a JSDoc-`@deprecated` shim (see `useEdition.ts`) so existing call-sites
- * continue to resolve until PR-3 finalizes the rename across views.
+ * Source of truth for every EE-gating affordance in the UI.
  */
 export function useLicence() {
   const isEnterprise = computed(() => edition.value === 'enterprise')

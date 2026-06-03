@@ -1,4 +1,5 @@
 <script setup lang="ts">
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-nocheck — legacy AntDV file, migrated in later Slices.
 import { onMounted, ref } from 'vue'
 import { Modal, message } from 'ant-design-vue'

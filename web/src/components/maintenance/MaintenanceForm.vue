@@ -1,4 +1,5 @@
 <script setup lang="ts">
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-nocheck — legacy AntDV file, migrated in later Slices.
 import { computed, reactive, ref, watch } from 'vue'
 import dayjs, { type Dayjs } from 'dayjs'

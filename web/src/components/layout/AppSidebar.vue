@@ -46,7 +46,14 @@ function toMenuItems(items: NavItem[]) {
     class="hidden lg:flex w-60 shrink-0 flex-col bg-default border-r border-default h-screen sticky top-0"
   >
     <div class="p-4">
-      <div class="text-lg font-semibold text-primary-600">Ogoune</div>
+      <RouterLink to="/" class="flex items-center gap-2">
+        <span
+          class="inline-flex size-7 items-center justify-center rounded-lg bg-primary-500"
+        >
+          <UIcon name="i-lucide-activity" class="size-4 text-white" />
+        </span>
+        <span class="text-lg font-bold text-default">Ogoune</span>
+      </RouterLink>
     </div>
 
     <nav class="flex-1 overflow-y-auto px-3 pb-3 space-y-6">

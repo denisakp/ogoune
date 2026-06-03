@@ -2,8 +2,11 @@
 import { ref } from 'vue'
 import { useToast } from '@nuxt/ui/composables/useToast'
 import { useConfirm } from '@/composables/useConfirm'
+import { useLicence } from '@/composables/useLicence'
 
 const toast = useToast()
+const { isEnterprise: isEE } = useLicence()
+
 const inputValue = ref('')
 const dateValue = ref<Date | null>(null)
 const confirmResult = ref<string | null>(null)
@@ -96,6 +99,22 @@ const sampleSparkline = [10, 14, 12, 18, 22, 19, 25, 23, 28, 30, 27, 32]
               <UEditionBadge edition="ce" />
               <UEditionBadge edition="ee" />
             </div>
+          </UCard>
+
+          <UCard>
+            <p class="text-sm font-medium mb-2">EE-gating pattern (live)</p>
+            <UButton
+              :disabled="!isEE"
+              :ui="{ tooltip: !isEE ? 'Available on Enterprise — Upgrade' : undefined }"
+              data-test="ee-gated-action"
+            >
+              Add team member
+              <UEditionBadge v-if="!isEE" edition="ee" />
+            </UButton>
+            <p class="text-xs text-muted mt-2">
+              Edition: <code class="font-mono">{{ isEE ? 'enterprise' : 'community' }}</code>
+              · documented at docs/frontend/ee-gating.md
+            </p>
           </UCard>
 
           <UCard>

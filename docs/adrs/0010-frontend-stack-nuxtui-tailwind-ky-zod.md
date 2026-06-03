@@ -1,7 +1,8 @@
 # ADR 0010 — Frontend stack: Nuxt UI + Tailwind v4 + Iconify + Ky + Zod
 
-- **Status**: Proposed
+- **Status**: Accepted
 - **Date**: 2026-06-02
+- **Accepted**: 2026-06-03 — foundation proven by PR-1 (spec 053 NuxtUI foundation), PR-2 (spec 054 HTTP migration Axios → Ky v2), and PR-3 (spec 055 shared components + AppLayout + Zod form pattern).
 - **Deciders**: Denis AKPAGNONITE
 - **Scope**: Both (CE+EE, frontend `web/`)
 - **Tags**: frontend, design-system, build-tooling

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-nocheck — legacy AntDV view, type drift under NuxtUI v4 + forced
 // vue-tsc rebuild. Migrated to NuxtUI in Slice 3 (Settings refactor).
 import { reactive, ref, onMounted, computed } from 'vue'
