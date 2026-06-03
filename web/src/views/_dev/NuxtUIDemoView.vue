@@ -120,8 +120,16 @@ const sampleSparkline = [10, 14, 12, 18, 22, 19, 25, 23, 28, 30, 27, 32]
           <UCard>
             <p class="text-sm font-medium mb-2">UFilterChip</p>
             <div class="flex flex-wrap gap-2">
-              <UFilterChip kind="tag" value="production" @remove="removedFilter = 'tag:production'" />
-              <UFilterChip kind="component" value="api-cluster" @remove="removedFilter = 'component:api-cluster'" />
+              <UFilterChip
+                kind="tag"
+                value="production"
+                @remove="removedFilter = 'tag:production'"
+              />
+              <UFilterChip
+                kind="component"
+                value="api-cluster"
+                @remove="removedFilter = 'component:api-cluster'"
+              />
               <UFilterChip kind="status" value="down" @remove="removedFilter = 'status:down'" />
             </div>
             <p v-if="removedFilter" class="text-xs text-muted mt-2">
@@ -173,9 +181,7 @@ const sampleSparkline = [10, 14, 12, 18, 22, 19, 25, 23, 28, 30, 27, 32]
 
           <UCard>
             <p class="text-sm font-medium mb-2">UConfirmModal (via useConfirm)</p>
-            <UButton color="error" variant="soft" @click="tryConfirm">
-              Open confirm
-            </UButton>
+            <UButton color="error" variant="soft" @click="tryConfirm"> Open confirm </UButton>
             <p v-if="confirmResult" class="text-xs text-muted mt-2">
               Last result: <code>{{ confirmResult }}</code>
             </p>

@@ -9,7 +9,14 @@ interface Exposed {
   headerIcon: string
 }
 
-function mountModal(props: Partial<{ kind: 'default' | 'destructive'; title: string; body: string; ctaLabel: string }> = {}) {
+function mountModal(
+  props: Partial<{
+    kind: 'default' | 'destructive'
+    title: string
+    body: string
+    ctaLabel: string
+  }> = {},
+) {
   return mount(UConfirmModal, {
     props: {
       title: 'Delete?',

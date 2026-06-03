@@ -1,10 +1,6 @@
 import { getAuthenticatedClient, request } from '@/core/http/client'
 import { NotFoundError, type ApiError } from '@/core/errors'
-import type {
-  CredentialCreatePayload,
-  CredentialResponse,
-  TestConnectionResponse,
-} from '@/types'
+import type { CredentialCreatePayload, CredentialResponse, TestConnectionResponse } from '@/types'
 
 /**
  * Wrapper format used by all v1 endpoints: { data, meta }.
@@ -48,11 +44,9 @@ export const setCredential = async (
  * to the no-auth check behavior.
  */
 export const deleteCredential = async (resourceId: string): Promise<void> => {
-  await request<void>(
-    getAuthenticatedClient(),
-    `v1/resources/${resourceId}/credentials`,
-    { method: 'DELETE' },
-  )
+  await request<void>(getAuthenticatedClient(), `v1/resources/${resourceId}/credentials`, {
+    method: 'DELETE',
+  })
 }
 
 /**

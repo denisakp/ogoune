@@ -181,7 +181,8 @@ const handleResolveIncident = () => {
     )
   ) {
     isSubmitting.value = true
-    incidentStore.resolveIncident(incident.value.id)
+    incidentStore
+      .resolveIncident(incident.value.id)
       .then((resolved) => {
         incident.value = resolved
         message.success('Incident resolved successfully')
@@ -650,28 +651,55 @@ const handleDownloadResponse = () => {
 
               <div style="display: flex; flex-direction: column; gap: 12px">
                 <div>
-                  <div style="font-size: 12px; color: rgba(0,0,0,0.65); margin-bottom: 6px">KEYWORD</div>
-                  <code style="background: #f5f5f5; padding: 2px 6px; border-radius: 4px">{{ incident.diagnostics.keyword }}</code>
+                  <div style="font-size: 12px; color: rgba(0, 0, 0, 0.65); margin-bottom: 6px">
+                    KEYWORD
+                  </div>
+                  <code style="background: #f5f5f5; padding: 2px 6px; border-radius: 4px">{{
+                    incident.diagnostics.keyword
+                  }}</code>
                 </div>
                 <div>
-                  <div style="font-size: 12px; color: rgba(0,0,0,0.65); margin-bottom: 6px">MATCH MODE</div>
+                  <div style="font-size: 12px; color: rgba(0, 0, 0, 0.65); margin-bottom: 6px">
+                    MATCH MODE
+                  </div>
                   <a-tag>{{ incident.diagnostics.keyword_mode }}</a-tag>
                 </div>
                 <div>
-                  <div style="font-size: 12px; color: rgba(0,0,0,0.65); margin-bottom: 6px">KEYWORD FOUND</div>
+                  <div style="font-size: 12px; color: rgba(0, 0, 0, 0.65); margin-bottom: 6px">
+                    KEYWORD FOUND
+                  </div>
                   <a-tag :color="incident.diagnostics.keyword_found ? 'green' : 'red'">
                     {{ incident.diagnostics.keyword_found ? 'Yes' : 'No' }}
                   </a-tag>
                 </div>
                 <div v-if="incident.diagnostics.response_body">
-                  <div style="font-size: 12px; color: rgba(0,0,0,0.65); margin-bottom: 6px">
+                  <div style="font-size: 12px; color: rgba(0, 0, 0, 0.65); margin-bottom: 6px">
                     BODY EXCERPT
-                    <a-tag v-if="incident.diagnostics.body_truncated" color="warning" style="margin-left: 6px">Truncated</a-tag>
+                    <a-tag
+                      v-if="incident.diagnostics.body_truncated"
+                      color="warning"
+                      style="margin-left: 6px"
+                      >Truncated</a-tag
+                    >
                   </div>
-                  <pre style="background: #f5f5f5; padding: 8px; border-radius: 4px; font-size: 12px; white-space: pre-wrap; word-break: break-all; max-height: 200px; overflow-y: auto">{{ incident.diagnostics.response_body }}</pre>
+                  <pre
+                    style="
+                      background: #f5f5f5;
+                      padding: 8px;
+                      border-radius: 4px;
+                      font-size: 12px;
+                      white-space: pre-wrap;
+                      word-break: break-all;
+                      max-height: 200px;
+                      overflow-y: auto;
+                    "
+                    >{{ incident.diagnostics.response_body }}</pre
+                  >
                 </div>
                 <div v-if="incident.diagnostics.response_size">
-                  <div style="font-size: 12px; color: rgba(0,0,0,0.65); margin-bottom: 6px">BODY SIZE</div>
+                  <div style="font-size: 12px; color: rgba(0, 0, 0, 0.65); margin-bottom: 6px">
+                    BODY SIZE
+                  </div>
                   <div style="font-size: 14px">{{ incident.diagnostics.response_size }} bytes</div>
                 </div>
               </div>
@@ -679,19 +707,25 @@ const handleDownloadResponse = () => {
 
             <a-card v-if="hasICMPDiagnostics && incident.diagnostics" style="margin-top: 16px">
               <template #title>
-                <div style="font-size: 14px; font-weight: 600">🔍 Network Diagnostics (ICMP Ping)</div>
+                <div style="font-size: 14px; font-weight: 600">
+                  🔍 Network Diagnostics (ICMP Ping)
+                </div>
               </template>
 
               <div style="display: flex; flex-direction: column; gap: 12px">
                 <!-- Root cause hint badge -->
                 <div v-if="incident.diagnostics.root_cause_hint">
-                  <div style="font-size: 12px; color: rgba(0,0,0,0.65); margin-bottom: 6px">ROOT CAUSE HINT</div>
+                  <div style="font-size: 12px; color: rgba(0, 0, 0, 0.65); margin-bottom: 6px">
+                    ROOT CAUSE HINT
+                  </div>
                   <a-tag :color="rootCauseHintLabel.color">{{ rootCauseHintLabel.label }}</a-tag>
                 </div>
 
                 <!-- ICMP reachability -->
                 <div>
-                  <div style="font-size: 12px; color: rgba(0,0,0,0.65); margin-bottom: 6px">ICMP REACHABLE</div>
+                  <div style="font-size: 12px; color: rgba(0, 0, 0, 0.65); margin-bottom: 6px">
+                    ICMP REACHABLE
+                  </div>
                   <a-tag :color="incident.diagnostics.icmp_reachable ? 'green' : 'red'">
                     {{ incident.diagnostics.icmp_reachable ? 'Yes' : 'No' }}
                   </a-tag>
@@ -699,7 +733,9 @@ const handleDownloadResponse = () => {
 
                 <!-- RTT (only when host was reachable) -->
                 <div v-if="incident.diagnostics.icmp_rtt_ms != null">
-                  <div style="font-size: 12px; color: rgba(0,0,0,0.65); margin-bottom: 6px">RTT</div>
+                  <div style="font-size: 12px; color: rgba(0, 0, 0, 0.65); margin-bottom: 6px">
+                    RTT
+                  </div>
                   <div style="font-size: 16px; font-weight: 600">
                     {{ incident.diagnostics.icmp_rtt_ms }} ms
                   </div>

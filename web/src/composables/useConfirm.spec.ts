@@ -50,15 +50,11 @@ describe('useConfirm', () => {
   it('defaults kind to "default" when omitted', async () => {
     openMock.mockResolvedValueOnce(false)
     await useConfirm({ title: 't', body: 'b', ctaLabel: 'OK' })
-    expect(openMock).toHaveBeenCalledWith(
-      expect.objectContaining({ kind: 'default' }),
-    )
+    expect(openMock).toHaveBeenCalledWith(expect.objectContaining({ kind: 'default' }))
   })
 
   it('never rejects — resolves false on any non-true value', async () => {
     openMock.mockResolvedValueOnce(undefined)
-    await expect(
-      useConfirm({ title: 't', body: 'b', ctaLabel: 'OK' }),
-    ).resolves.toBe(false)
+    await expect(useConfirm({ title: 't', body: 'b', ctaLabel: 'OK' })).resolves.toBe(false)
   })
 })

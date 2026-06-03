@@ -61,12 +61,7 @@ onMounted(() => {
             <UIcon name="i-lucide-chevron-down" class="size-4 text-slate-500" />
           </UButton>
         </UDropdownMenu>
-        <UButton
-          color="primary"
-          size="sm"
-          icon="i-lucide-plus"
-          @click="router.push('/monitors')"
-        >
+        <UButton color="primary" size="sm" icon="i-lucide-plus" @click="router.push('/monitors')">
           Add Resource
         </UButton>
       </div>

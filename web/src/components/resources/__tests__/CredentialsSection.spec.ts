@@ -37,12 +37,16 @@ describe('CredentialsSection', () => {
       props: { protocolType: 'redis', modelValue: { password: '' } },
     })
     // a-input renders <input> directly under the [data-testid] wrapper.
-    const usernameInput = wrapper.find<HTMLInputElement>('input[data-testid="credentials-username"]')
+    const usernameInput = wrapper.find<HTMLInputElement>(
+      'input[data-testid="credentials-username"]',
+    )
     if (usernameInput.exists()) {
       await usernameInput.setValue('monitor')
     } else {
       // Fall back to the inner input (Ant Design may wrap with a span).
-      await wrapper.find<HTMLInputElement>('[data-testid="credentials-username"] input').setValue('monitor')
+      await wrapper
+        .find<HTMLInputElement>('[data-testid="credentials-username"] input')
+        .setValue('monitor')
     }
     const events = wrapper.emitted('update:modelValue')
     expect(events).toBeTruthy()
@@ -57,11 +61,15 @@ describe('CredentialsSection', () => {
     const wrapper = mount(CredentialsSection, {
       props: { protocolType: 'redis', modelValue: { password: '' } },
     })
-    const passwordInput = wrapper.find<HTMLInputElement>('input[data-testid="credentials-password"]')
+    const passwordInput = wrapper.find<HTMLInputElement>(
+      'input[data-testid="credentials-password"]',
+    )
     if (passwordInput.exists()) {
       await passwordInput.setValue('s3cret')
     } else {
-      await wrapper.find<HTMLInputElement>('[data-testid="credentials-password"] input').setValue('s3cret')
+      await wrapper
+        .find<HTMLInputElement>('[data-testid="credentials-password"] input')
+        .setValue('s3cret')
     }
     const events = wrapper.emitted('update:modelValue')
     expect(events).toBeTruthy()

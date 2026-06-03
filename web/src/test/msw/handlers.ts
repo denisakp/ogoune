@@ -17,9 +17,7 @@ export const baselineHandlers = [
   http.post(`${API}/auth/login`, () =>
     HttpResponse.json({ token: 'test-token', user: { email: 'test@example.com' } }),
   ),
-  http.get(`${API}/auth/me`, () =>
-    HttpResponse.json({ email: 'test@example.com', id: '01H' }),
-  ),
+  http.get(`${API}/auth/me`, () => HttpResponse.json({ email: 'test@example.com', id: '01H' })),
   http.post(`${API}/auth/logout`, () => new HttpResponse(null, { status: 204 })),
   http.post(`${API}/auth/signup`, () =>
     HttpResponse.json({ token: 'test-token', email: 'new@example.com' }),
@@ -30,9 +28,7 @@ export const baselineHandlers = [
   ),
 
   // System (unversioned)
-  http.get(`${ROOT}/system/has-accounts`, () =>
-    HttpResponse.json({ has_accounts: false }),
-  ),
+  http.get(`${ROOT}/system/has-accounts`, () => HttpResponse.json({ has_accounts: false })),
 
   // Onboarding state (path under v1/me/...)
   http.get(`${API}/me/onboarding-state`, () => HttpResponse.json({ status: 'pending' })),
@@ -46,9 +42,7 @@ export const baselineHandlers = [
   http.post(`${API}/resources`, () =>
     HttpResponse.json({ id: '01H', name: 'new' }, { status: 201 }),
   ),
-  http.put(`${API}/resources/:id`, ({ params }) =>
-    HttpResponse.json({ id: params.id }),
-  ),
+  http.put(`${API}/resources/:id`, ({ params }) => HttpResponse.json({ id: params.id })),
   http.delete(`${API}/resources/:id`, () => new HttpResponse(null, { status: 204 })),
 
   // Incidents

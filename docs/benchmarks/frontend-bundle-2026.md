@@ -219,3 +219,25 @@ Notable initial-download chunks (`main`):
 - `T030` surgical AntDV swap (lines 277 + 381 in `ResponseTimeChart.vue`) removes the last 2 AntDV bindings from that file. Custom SVG chart geometry unchanged.
 - `/` → `/overview` redirect lands authenticated users on the new home; legacy `/monitors` route preserved.
 - Net architectural growth (~+15 KB gz on `main`) attributable to the new auth/overview surfaces; well under the +40 KB envelope. Slice 6 / PRD 009 cleanup will reclaim ~40–60 KB gz when AntDV is dropped.
+
+## PR-5 (Slice 2 / PR-2 — Resources list + detail + form refit)
+
+- **Branch**: `057-prd-005-resources`.
+- **Build command**: `pnpm build` (no warnings).
+- **Stack added**: none — reuses existing NuxtUI v4 / Zod / Ky from Slice 1.
+- **Surfaces touched**: ResourcesView (NEW on `/resources`) · ResourceDetailView (NEW on `/resources/:id`) · ResourceForm (REWRITE, 668 → 370 LOC + sub-components) · GroupResourcesModal (REWRITE, 316 → 187 LOC) · HeadersEditor (NEW) · ComponentGroupHeader (NEW) · ResourceListItem (NEW) · useResourceFilters composable (NEW).
+
+| Build | `main` initial (gz) | Total (gz) | Δ main vs PR-4 | Δ total vs PR-4 | Gate (`main` ≤ PR-4 + 30 KB gz) |
+|-------|--------------------:|-----------:|---------------:|----------------:|--------------------------------|
+| PR-4 | 266,189 | 809,297 | — | — | — |
+| PR-5 | **266,709** | **797,960** | **+520 (+0.2%)** | **−11,337 (−1.4%)** | **PASS — +0.5 KB gz ≤ +30 KB envelope** |
+
+### Notes
+
+- Bundle total shrank ~11 KB gz vs PR-4. Causes:
+  - `MonitorsView.vue` no longer in the eager graph (legacy `/monitors` → redirect, not a route).
+  - `ResourceView.vue` (legacy detail) removed from imports.
+  - ResourceForm rewrite reduced LOC by ~45% (668 → 370) by replacing AntDV imperative bindings with declarative Zod + UForm.
+- 7 monitor types covered by `z.discriminatedUnion` — schema spec adds 16 cases (14 type × 2 + 2 base extras).
+- 300 / 300 tests pass (249 baseline post-PR-4 + 51 net new). SC-004 floor 280 met (≥ 280 = MUST).
+- ICMP capability-warning UX regression documented in PR description (deferred to a follow-up issue).

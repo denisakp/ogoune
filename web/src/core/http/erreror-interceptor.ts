@@ -130,10 +130,7 @@ async function maybeErrorToast(request: Request, response: Response): Promise<vo
   })
 }
 
-export async function errorInterceptor(
-  request: Request,
-  response: Response,
-): Promise<Response> {
+export async function errorInterceptor(request: Request, response: Response): Promise<Response> {
   if (response.ok) {
     await maybeSuccessToast(request)
     return response

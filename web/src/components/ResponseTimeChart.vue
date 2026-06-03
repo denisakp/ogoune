@@ -274,7 +274,9 @@ const getYPosition = (value: number): number => {
 
         <!-- Data points -->
         <g v-for="(point, index) in dataPoints" :key="index">
-          <UTooltip :text="`${formatTooltipTime(point.timestamp)} — ${formatResponseTime(point.value)}`">
+          <UTooltip
+            :text="`${formatTooltipTime(point.timestamp)} — ${formatResponseTime(point.value)}`"
+          >
             <circle
               :cx="point.x"
               :cy="point.y"

@@ -30,9 +30,7 @@ describe('authService', () => {
     })
 
     it('propagates errors from rejected requests', async () => {
-      server.use(
-        http.post('*/auth/login', () => HttpResponse.json({}, { status: 401 })),
-      )
+      server.use(http.post('*/auth/login', () => HttpResponse.json({}, { status: 401 })))
       await expect(authService.login('user@example.com', 'bad')).rejects.toBeInstanceOf(
         UnauthorizedError,
       )
@@ -64,9 +62,7 @@ describe('authService', () => {
     })
 
     it('propagates errors from rejected requests', async () => {
-      server.use(
-        http.get('*/auth/verify', () => HttpResponse.json({}, { status: 401 })),
-      )
+      server.use(http.get('*/auth/verify', () => HttpResponse.json({}, { status: 401 })))
       await expect(authService.verify()).rejects.toBeInstanceOf(UnauthorizedError)
     })
   })

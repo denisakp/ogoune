@@ -40,7 +40,11 @@ const strength = computed<Strength>(() => {
   if (/[^A-Za-z0-9]/.test(p)) s++
   const labels = ['Too weak', 'Weak', 'Fair', 'Good', 'Strong'] as const
   const colors = ['#94A3B8', '#EF4444', '#F59E0B', '#10B981', '#047857'] as const
-  return { score: s as 0 | 1 | 2 | 3 | 4, label: labels[s] ?? 'Too weak', color: colors[s] ?? '#94A3B8' }
+  return {
+    score: s as 0 | 1 | 2 | 3 | 4,
+    label: labels[s] ?? 'Too weak',
+    color: colors[s] ?? '#94A3B8',
+  }
 })
 
 async function onSubmit(p: { data: ResetPasswordInput }) {
@@ -141,7 +145,9 @@ defineExpose({ state, onSubmit, formRef, expiredOrUsed, strength })
         <div v-if="state.password" class="space-y-1.5">
           <div class="flex items-center justify-between text-[11px]">
             <span class="text-slate-600 font-medium">Password strength</span>
-            <span class="font-semibold" :style="{ color: strength.color }">{{ strength.label }}</span>
+            <span class="font-semibold" :style="{ color: strength.color }">{{
+              strength.label
+            }}</span>
           </div>
           <div class="flex gap-1">
             <div
@@ -183,14 +189,7 @@ defineExpose({ state, onSubmit, formRef, expiredOrUsed, strength })
           </UFormGroup>
         </div>
 
-        <UButton
-          type="submit"
-          color="primary"
-          block
-          size="lg"
-          :loading="isLoading"
-          class="h-11"
-        >
+        <UButton type="submit" color="primary" block size="lg" :loading="isLoading" class="h-11">
           Update password
         </UButton>
       </UForm>

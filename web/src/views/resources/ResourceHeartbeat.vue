@@ -11,7 +11,11 @@ const pingUrl = computed(() => {
   const apiBase = import.meta.env.VITE_API_BASE_URL as string | undefined
   let origin: string
   if (apiBase && apiBase.startsWith('http')) {
-    try { origin = new URL(apiBase).origin } catch { origin = window.location.origin }
+    try {
+      origin = new URL(apiBase).origin
+    } catch {
+      origin = window.location.origin
+    }
   } else {
     origin = window.location.origin
   }
@@ -42,8 +46,12 @@ const heartbeatSnippet = computed(() => {
 
 const copyPingUrl = async () => {
   if (!pingUrl.value) return
-  try { await navigator.clipboard.writeText(pingUrl.value); message.success('Ping URL copied!') }
-  catch { message.error('Failed to copy') }
+  try {
+    await navigator.clipboard.writeText(pingUrl.value)
+    message.success('Ping URL copied!')
+  } catch {
+    message.error('Failed to copy')
+  }
 }
 </script>
 
@@ -56,25 +64,56 @@ const copyPingUrl = async () => {
       <div>
         <div style="font-size: 12px; color: rgba(0, 0, 0, 0.45); margin-bottom: 4px">Ping URL</div>
         <div style="display: flex; align-items: center; gap: 8px">
-          <code data-testid="ping-url" style="flex: 1; font-size: 12px; background: rgba(0,0,0,0.04); padding: 6px 10px; border-radius: 4px; word-break: break-all;">{{ pingUrl }}</code>
+          <code
+            data-testid="ping-url"
+            style="
+              flex: 1;
+              font-size: 12px;
+              background: rgba(0, 0, 0, 0.04);
+              padding: 6px 10px;
+              border-radius: 4px;
+              word-break: break-all;
+            "
+            >{{ pingUrl }}</code
+          >
           <a-button size="small" @click="copyPingUrl">Copy</a-button>
         </div>
       </div>
       <div>
-        <div style="font-size: 12px; color: rgba(0, 0, 0, 0.45); margin-bottom: 4px">Last ping received</div>
-        <div style="font-size: 14px; font-weight: 500" data-testid="last-ping-at">{{ lastPingAtFormatted }}</div>
+        <div style="font-size: 12px; color: rgba(0, 0, 0, 0.45); margin-bottom: 4px">
+          Last ping received
+        </div>
+        <div style="font-size: 14px; font-weight: 500" data-testid="last-ping-at">
+          {{ lastPingAtFormatted }}
+        </div>
       </div>
       <div v-if="resource.last_ping_at">
-        <div style="font-size: 12px; color: rgba(0, 0, 0, 0.45); margin-bottom: 4px">Next deadline</div>
-        <div style="font-size: 14px; font-weight: 500" data-testid="next-ping-countdown"
-          :style="{ color: nextExpectedPingCountdown === 'Overdue' ? '#ff4d4f' : 'inherit' }">
+        <div style="font-size: 12px; color: rgba(0, 0, 0, 0.45); margin-bottom: 4px">
+          Next deadline
+        </div>
+        <div
+          style="font-size: 14px; font-weight: 500"
+          data-testid="next-ping-countdown"
+          :style="{ color: nextExpectedPingCountdown === 'Overdue' ? '#ff4d4f' : 'inherit' }"
+        >
           {{ nextExpectedPingCountdown }}
         </div>
       </div>
       <div>
-        <div style="font-size: 12px; color: rgba(0, 0, 0, 0.45); margin-bottom: 8px">Add to your script</div>
-        <div data-testid="heartbeat-snippet"
-          style="font-family: monospace; font-size: 12px; background: rgba(0,0,0,0.04); padding: 12px; border-radius: 4px; word-break: break-all;">
+        <div style="font-size: 12px; color: rgba(0, 0, 0, 0.45); margin-bottom: 8px">
+          Add to your script
+        </div>
+        <div
+          data-testid="heartbeat-snippet"
+          style="
+            font-family: monospace;
+            font-size: 12px;
+            background: rgba(0, 0, 0, 0.04);
+            padding: 12px;
+            border-radius: 4px;
+            word-break: break-all;
+          "
+        >
           {{ heartbeatSnippet }}
         </div>
       </div>

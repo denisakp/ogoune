@@ -81,18 +81,11 @@ const accountService = {
     })
   },
 
-  async changePassword(
-    currentPassword: string,
-    newPassword: string,
-  ): Promise<{ message: string }> {
-    return await request<{ message: string }>(
-      getAuthenticatedClient(),
-      'account/change-password',
-      {
-        method: 'POST',
-        json: { current_password: currentPassword, new_password: newPassword },
-      },
-    )
+  async changePassword(currentPassword: string, newPassword: string): Promise<{ message: string }> {
+    return await request<{ message: string }>(getAuthenticatedClient(), 'account/change-password', {
+      method: 'POST',
+      json: { current_password: currentPassword, new_password: newPassword },
+    })
   },
 
   async resetPassword(currentPassword: string): Promise<{ default_password: string }> {
@@ -104,35 +97,32 @@ const accountService = {
   },
 
   async enable2FA(): Promise<Enable2FAResponse> {
-    return await request<Enable2FAResponse>(
-      getAuthenticatedClient(),
-      'account/2fa/enable',
-      { method: 'POST', json: {}, ...SKIP_SUCCESS },
-    )
+    return await request<Enable2FAResponse>(getAuthenticatedClient(), 'account/2fa/enable', {
+      method: 'POST',
+      json: {},
+      ...SKIP_SUCCESS,
+    })
   },
 
   async confirm2FA({ otp, secret }: Confirm2FARequest): Promise<{ message: string }> {
-    return await request<{ message: string }>(
-      getAuthenticatedClient(),
-      'account/2fa/confirm',
-      { method: 'POST', json: { otp, secret } },
-    )
+    return await request<{ message: string }>(getAuthenticatedClient(), 'account/2fa/confirm', {
+      method: 'POST',
+      json: { otp, secret },
+    })
   },
 
   async disable2FA(otp: string): Promise<{ message: string }> {
-    return await request<{ message: string }>(
-      getAuthenticatedClient(),
-      'account/2fa/disable',
-      { method: 'POST', json: { otp } },
-    )
+    return await request<{ message: string }>(getAuthenticatedClient(), 'account/2fa/disable', {
+      method: 'POST',
+      json: { otp },
+    })
   },
 
   async createAPIKey(payload: CreateAPIKeyRequest): Promise<CreateAPIKeyResponse> {
-    return await request<CreateAPIKeyResponse>(
-      getAuthenticatedClient(),
-      'account/api-keys',
-      { method: 'POST', json: payload },
-    )
+    return await request<CreateAPIKeyResponse>(getAuthenticatedClient(), 'account/api-keys', {
+      method: 'POST',
+      json: payload,
+    })
   },
 
   async listAPIKeys(): Promise<APIKey[]> {
@@ -144,11 +134,9 @@ const accountService = {
    * (Pattern B — body is consumed by caller, not a 204).
    */
   async revokeAPIKey(id: string): Promise<{ message: string }> {
-    return await request<{ message: string }>(
-      getAuthenticatedClient(),
-      `account/api-keys/${id}`,
-      { method: 'DELETE' },
-    )
+    return await request<{ message: string }>(getAuthenticatedClient(), `account/api-keys/${id}`, {
+      method: 'DELETE',
+    })
   },
 
   async getOnboardingState(): Promise<{ status: 'pending' | 'done' }> {
@@ -160,11 +148,11 @@ const accountService = {
   },
 
   async markOnboardingDone(): Promise<{ status: 'done' }> {
-    return await request<{ status: 'done' }>(
-      getAuthenticatedClient(),
-      'v1/me/onboarding-state',
-      { method: 'PATCH', json: { status: 'done' }, ...SKIP_SUCCESS },
-    )
+    return await request<{ status: 'done' }>(getAuthenticatedClient(), 'v1/me/onboarding-state', {
+      method: 'PATCH',
+      json: { status: 'done' },
+      ...SKIP_SUCCESS,
+    })
   },
 }
 

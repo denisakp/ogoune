@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch, computed } from 'vue'
+import { computed } from 'vue'
 
 import type { Resource } from '@/types'
 import ResourceForm from './ResourceForm.vue'
@@ -20,50 +20,28 @@ const emit = defineEmits<{
   cancel: []
 }>()
 
-// Local state to manage modal visibility
-const isVisible = ref(props.open)
-
-// Watch for external changes to open prop
-watch(
-  () => props.open,
-  (newValue) => {
-    isVisible.value = newValue
-  },
-)
-
-// Watch local visibility and emit changes
-watch(isVisible, (newValue) => {
-  emit('update:open', newValue)
+const isOpen = computed({
+  get: () => props.open,
+  set: (v) => emit('update:open', v),
 })
 
-// Handle form submission
-const handleSubmit = () => {
-  isVisible.value = false
+const modalTitle = computed(() => (props.resource ? 'Edit monitor' : 'New monitor'))
+
+function onFormSubmit() {
   emit('submit')
+  isOpen.value = false
 }
 
-// Handle cancel
-const handleCancel = () => {
-  isVisible.value = false
+function onFormCancel() {
   emit('cancel')
+  isOpen.value = false
 }
-
-// Compute modal title
-const modalTitle = computed(() => {
-  return props.resource ? 'Edit Monitor' : 'New Monitor'
-})
 </script>
 
 <template>
-  <a-modal
-    v-model:open="isVisible"
-    :title="modalTitle"
-    :footer="null"
-    width="600px"
-    @cancel="handleCancel"
-  >
-    <ResourceForm :resource="resource || undefined" @submit="handleSubmit" />
-  </a-modal>
+  <UModal v-model:open="isOpen" :title="modalTitle" :ui="{ content: 'sm:max-w-xl' }">
+    <template #body>
+      <ResourceForm :resource="resource" @submit="onFormSubmit" @cancel="onFormCancel" />
+    </template>
+  </UModal>
 </template>
-
-<style scoped></style>

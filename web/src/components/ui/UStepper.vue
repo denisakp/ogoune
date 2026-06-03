@@ -21,9 +21,7 @@ withDefaults(defineProps<Props>(), {
       <span
         :class="[
           'inline-flex items-center justify-center rounded-full',
-          variant === 'dots'
-            ? 'size-2.5'
-            : 'size-6 text-xs font-medium border',
+          variant === 'dots' ? 'size-2.5' : 'size-6 text-xs font-medium border',
           i < activeStep
             ? 'bg-primary-500 text-white border-primary-500'
             : i === activeStep
@@ -33,17 +31,10 @@ withDefaults(defineProps<Props>(), {
       >
         <template v-if="variant === 'numbered'">{{ i + 1 }}</template>
       </span>
-      <span
-        :class="[
-          'text-sm',
-          i === activeStep ? 'font-medium text-default' : 'text-muted',
-        ]"
-      >{{ label }}</span>
-      <span
-        v-if="i < steps.length - 1"
-        class="w-6 h-px bg-default"
-        aria-hidden="true"
-      />
+      <span :class="['text-sm', i === activeStep ? 'font-medium text-default' : 'text-muted']">{{
+        label
+      }}</span>
+      <span v-if="i < steps.length - 1" class="w-6 h-px bg-default" aria-hidden="true" />
     </li>
   </ol>
 </template>

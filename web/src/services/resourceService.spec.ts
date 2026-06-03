@@ -98,10 +98,7 @@ describe('resourceService', () => {
     it('also normalizes 400 validation errors as ValidationError', async () => {
       server.use(
         http.post('*/resources', () =>
-          HttpResponse.json(
-            { message: 'Bad', fieldErrors: { url: ['invalid'] } },
-            { status: 400 },
-          ),
+          HttpResponse.json({ message: 'Bad', fieldErrors: { url: ['invalid'] } }, { status: 400 }),
         ),
       )
       try {
@@ -199,9 +196,7 @@ describe('resourceService', () => {
   describe('fetchUptimeStats', () => {
     it('sends GET to /resources/:id/uptime-stats', async () => {
       const stats = { resource_id: 'r1', stats: [] }
-      server.use(
-        http.get('*/resources/r1/uptime-stats', () => HttpResponse.json(stats)),
-      )
+      server.use(http.get('*/resources/r1/uptime-stats', () => HttpResponse.json(stats)))
       const result = await fetchUptimeStats('r1')
       expect(result).toEqual(stats)
     })

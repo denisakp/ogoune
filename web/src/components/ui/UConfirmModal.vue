@@ -22,8 +22,7 @@ const emit = defineEmits<{
 }>()
 
 const ctaColor = props.kind === 'destructive' ? 'error' : 'primary'
-const headerIcon =
-  props.kind === 'destructive' ? 'i-lucide-alert-triangle' : 'i-lucide-help-circle'
+const headerIcon = props.kind === 'destructive' ? 'i-lucide-alert-triangle' : 'i-lucide-help-circle'
 
 function confirm() {
   emit('close', true)

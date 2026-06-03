@@ -29,11 +29,14 @@ const value = computed({
   set: (v) => emit('update:modelValue', v),
 })
 
-const sizeClass = computed(() => ({
-  sm: 'text-xs',
-  md: 'text-sm',
-  lg: 'text-base',
-}[props.size]))
+const sizeClass = computed(
+  () =>
+    ({
+      sm: 'text-xs',
+      md: 'text-sm',
+      lg: 'text-base',
+    })[props.size],
+)
 </script>
 
 <template>

@@ -1,10 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import {
-  loginSchema,
-  signupSchema,
-  forgotPasswordSchema,
-  resetPasswordSchema,
-} from './auth.schema'
+import { loginSchema, signupSchema, forgotPasswordSchema, resetPasswordSchema } from './auth.schema'
 
 describe('loginSchema', () => {
   it('accepts valid email + non-empty password', () => {

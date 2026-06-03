@@ -33,17 +33,14 @@ export const baseResource = z.object({
     .min(30, 'At least 30 seconds')
     .max(86_400, 'At most 24 hours'),
   confirmation_interval: z.number().int().optional(),
+  tags: z.array(z.string()).optional(),
+  notification_channels: z.array(z.string()).optional(),
 })
 
 export const httpExtra = z.object({
   url: z.string().url('Must be a valid URL'),
   method: z.enum(httpMethods).default('GET'),
-  expected_status: z
-    .number()
-    .int()
-    .min(100)
-    .max(599)
-    .default(200),
+  expected_status: z.number().int().min(100).max(599).default(200),
   follow_redirects: z.boolean().default(true),
   headers: z.record(z.string(), z.string()).optional(),
 })

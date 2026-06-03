@@ -5,6 +5,7 @@
  */
 import { computed } from 'vue'
 import { useRoute } from 'vue-router'
+
 import { deriveCrumbs } from './breadcrumb-helpers'
 
 const route = useRoute()

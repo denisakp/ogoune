@@ -23,10 +23,7 @@ const dayClass: Record<DayState, string> = {
 
 <template>
   <div
-    :class="[
-      'flex w-full items-stretch',
-      compact ? 'h-1.5 gap-px' : 'h-3 gap-0.5',
-    ]"
+    :class="['flex w-full items-stretch', compact ? 'h-1.5 gap-px' : 'h-3 gap-0.5']"
     role="img"
     :aria-label="`Uptime over ${days.length} days`"
   >

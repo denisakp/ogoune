@@ -6,7 +6,11 @@ const replaceMock = vi.fn()
 const routeQuery = { value: {} as Record<string, string | undefined> }
 vi.mock('vue-router', () => ({
   useRouter: () => ({ push: pushMock, replace: replaceMock }),
-  useRoute: () => ({ get query() { return routeQuery.value } }),
+  useRoute: () => ({
+    get query() {
+      return routeQuery.value
+    },
+  }),
 }))
 
 const useConfirmMock = vi.fn()

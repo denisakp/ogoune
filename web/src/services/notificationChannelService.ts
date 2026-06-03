@@ -11,10 +11,7 @@ export const fetchChannels = async (): Promise<NotificationChannel[]> => {
 }
 
 export const fetchChannel = async (id: string): Promise<NotificationChannel> => {
-  return await request<NotificationChannel>(
-    getAuthenticatedClient(),
-    `notification-channels/${id}`,
-  )
+  return await request<NotificationChannel>(getAuthenticatedClient(), `notification-channels/${id}`)
 }
 
 export const createChannel = async (
@@ -50,9 +47,7 @@ export const testChannel = async (id: string): Promise<void> => {
   })
 }
 
-export const testChannelConfig = async (
-  payload: TestNotificationChannelConfig,
-): Promise<void> => {
+export const testChannelConfig = async (payload: TestNotificationChannelConfig): Promise<void> => {
   await request<void>(getAuthenticatedClient(), 'notification-channels/test-config', {
     method: 'POST',
     json: payload,

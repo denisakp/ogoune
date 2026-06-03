@@ -37,18 +37,21 @@ function statusBadge(success: boolean) {
         View all
       </RouterLink>
     </div>
-    <div class="border-t border-slate-200 bg-slate-50 px-6 py-2.5 grid grid-cols-[1fr_180px_120px_140px] gap-2">
+    <div
+      class="border-t border-slate-200 bg-slate-50 px-6 py-2.5 grid grid-cols-[1fr_180px_120px_140px] gap-2"
+    >
       <span class="text-xs font-medium text-slate-600">Resource</span>
       <span class="text-xs font-medium text-slate-600">Event</span>
       <span class="text-xs font-medium text-slate-600">Status</span>
       <span class="text-xs font-medium text-slate-600">Time</span>
     </div>
 
-    <div v-if="loading" class="px-6 py-12 text-center text-sm text-slate-500">
-      Loading…
+    <div v-if="loading" class="px-6 py-4 space-y-3">
+      <USkeleton v-for="i in 4" :key="i" class="h-6 w-full" />
     </div>
-    <UEmptyState
+    <UEmpty
       v-else-if="rows.length === 0"
+      variant="naked"
       icon="i-lucide-inbox"
       title="No activity yet"
       description="Your recent monitor checks will appear here."
@@ -60,14 +63,22 @@ function statusBadge(success: boolean) {
         class="px-6 py-3 grid grid-cols-[1fr_180px_120px_140px] gap-2 items-center border-t border-slate-200 first:border-t-0"
       >
         <div class="flex items-center gap-2 min-w-0">
-          <span class="size-2 rounded-full shrink-0" :style="{ backgroundColor: dotColor(a.success) }" />
+          <span
+            class="size-2 rounded-full shrink-0"
+            :style="{ backgroundColor: dotColor(a.success) }"
+          />
           <span class="text-sm text-slate-900 truncate">{{ a.resource_id }}</span>
         </div>
-        <span class="text-sm text-slate-600 truncate">{{ a.message || (a.success ? 'Check passed' : 'Check failed') }}</span>
+        <span class="text-sm text-slate-600 truncate">{{
+          a.message || (a.success ? 'Check passed' : 'Check failed')
+        }}</span>
         <div>
           <span
             class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium"
-            :style="{ backgroundColor: statusBadge(a.success).bg, color: statusBadge(a.success).color }"
+            :style="{
+              backgroundColor: statusBadge(a.success).bg,
+              color: statusBadge(a.success).color,
+            }"
           >
             {{ statusBadge(a.success).text }}
           </span>

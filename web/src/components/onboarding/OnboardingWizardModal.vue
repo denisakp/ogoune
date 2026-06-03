@@ -88,9 +88,7 @@ defineExpose({ activeStep, next, back, finish, skip })
 
         <div class="px-6 py-5">
           <div v-if="activeStep === 0" class="flex flex-col items-center text-center gap-3.5">
-            <div
-              class="size-16 rounded-full bg-primary-600 flex items-center justify-center"
-            >
+            <div class="size-16 rounded-full bg-primary-600 flex items-center justify-center">
               <UIcon name="i-lucide-sparkles" class="size-7 text-white" />
             </div>
             <h2 class="text-xl font-bold text-slate-900">Welcome to Ogoune</h2>
@@ -114,12 +112,7 @@ defineExpose({ activeStep, next, back, finish, skip })
             </div>
             <div class="space-y-1.5">
               <label class="text-xs font-medium text-slate-900">Name</label>
-              <UInput
-                v-model="monitorName"
-                placeholder="API Production"
-                size="md"
-                class="w-full"
-              />
+              <UInput v-model="monitorName" placeholder="API Production" size="md" class="w-full" />
             </div>
             <div class="space-y-1.5">
               <label class="text-xs font-medium text-slate-900">Type</label>
@@ -186,8 +179,7 @@ defineExpose({ activeStep, next, back, finish, skip })
             </div>
             <h2 class="text-lg font-bold text-slate-900">You're all set</h2>
             <p class="text-xs text-slate-600 leading-relaxed max-w-xs">
-              {{ monitorName || 'Your monitor' }} is being watched. First check
-              running now.
+              {{ monitorName || 'Your monitor' }} is being watched. First check running now.
             </p>
             <div class="w-full bg-slate-50 rounded-lg p-3.5 text-left text-xs space-y-1">
               <div class="font-semibold text-slate-900">Next steps</div>

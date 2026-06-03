@@ -21,8 +21,8 @@ const forceServerError = ref(false)
           <div class="text-sm">
             <p class="font-medium">Force server-side ValidationError</p>
             <p class="text-muted text-xs mt-1">
-              When on, the stubbed submit throws a `ValidationError({ name: ['…'] })`
-              so you can verify the field-error mapping lands under the right input.
+              When on, the stubbed submit throws a `ValidationError({ name: ['…'] })` so you can
+              verify the field-error mapping lands under the right input.
             </p>
           </div>
         </div>

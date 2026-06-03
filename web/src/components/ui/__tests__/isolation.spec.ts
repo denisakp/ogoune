@@ -17,16 +17,10 @@ const FORBIDDEN = /from ['"]@\/(stores|composables|router)\b/
 const ISOLATED = ['UStatusBadge.vue', 'UUptimeBar.vue', 'UUptimeCalendar.vue']
 
 describe('Shared component isolation (spec 055 Q2)', () => {
-  it.each(ISOLATED)(
-    '%s does not import from @/stores, @/composables, or @/router',
-    (file) => {
-      const path = resolve(__dirname, '..', file)
-      const src = readFileSync(path, 'utf8')
-      const match = src.match(FORBIDDEN)
-      expect(
-        match,
-        `${file} imports a forbidden contextual composable: ${match?.[0]}`,
-      ).toBeNull()
-    },
-  )
+  it.each(ISOLATED)('%s does not import from @/stores, @/composables, or @/router', (file) => {
+    const path = resolve(__dirname, '..', file)
+    const src = readFileSync(path, 'utf8')
+    const match = src.match(FORBIDDEN)
+    expect(match, `${file} imports a forbidden contextual composable: ${match?.[0]}`).toBeNull()
+  })
 })

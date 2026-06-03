@@ -34,7 +34,10 @@ describe('AppAvatarDropdown', () => {
     const exposed = wrapper.vm as unknown as {
       getItems: () => Array<Array<{ label: string }>>
     }
-    const labels = exposed.getItems().flat().map((i) => i.label)
+    const labels = exposed
+      .getItems()
+      .flat()
+      .map((i) => i.label)
     expect(labels).toEqual([
       'Profile',
       'Theme',

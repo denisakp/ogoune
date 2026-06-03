@@ -67,7 +67,11 @@ describe('useMonitorLive', () => {
     let exposed: ReturnType<typeof useMonitorLive> | null = null
     const TestComponent = defineComponent({
       setup() {
-        exposed = useMonitorLive('hb-waiting', () => 300, () => true)
+        exposed = useMonitorLive(
+          'hb-waiting',
+          () => 300,
+          () => true,
+        )
         return () => null
       },
     })
@@ -80,7 +84,11 @@ describe('useMonitorLive', () => {
     let exposed: ReturnType<typeof useMonitorLive> | null = null
     const TestComponent = defineComponent({
       setup() {
-        exposed = useMonitorLive('hb-up', () => 60, () => false)
+        exposed = useMonitorLive(
+          'hb-up',
+          () => 60,
+          () => false,
+        )
         return () => null
       },
     })
@@ -93,7 +101,11 @@ describe('useMonitorLive', () => {
     let exposed: ReturnType<typeof useMonitorLive> | null = null
     const TestComponent = defineComponent({
       setup() {
-        exposed = useMonitorLive('hb-short', () => 5, () => false)
+        exposed = useMonitorLive(
+          'hb-short',
+          () => 5,
+          () => false,
+        )
         return () => null
       },
     })

@@ -1,18 +1,15 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { useResourceStore } from '@/stores/resourceStore'
 import { useRouter } from 'vue-router'
+
+import { useResourceStore } from '@/stores/resourceStore'
 
 const resourceStore = useResourceStore()
 const router = useRouter()
 
 const totalResources = computed(() => resourceStore.resources.length)
-const downCount = computed(() =>
-  resourceStore.resources.filter((r) => r.status === 'down').length,
-)
-const upCount = computed(() =>
-  resourceStore.resources.filter((r) => r.status === 'up').length,
-)
+const downCount = computed(() => resourceStore.resources.filter((r) => r.status === 'down').length)
+const upCount = computed(() => resourceStore.resources.filter((r) => r.status === 'up').length)
 
 const uptimePct = computed(() => {
   if (totalResources.value === 0) return 100
@@ -28,8 +25,8 @@ const hasIncidents = computed(() => downCount.value > 0)
 
 const sparkBars = computed(() => {
   const heights = [
-    52, 48, 60, 55, 62, 58, 50, 45, 53, 48, 56, 65, 70, 62, 58, 50, 48, 55,
-    72, 60, 52, 45, 50, 58, 65, 55, 48, 42, 55, 60,
+    52, 48, 60, 55, 62, 58, 50, 45, 53, 48, 56, 65, 70, 62, 58, 50, 48, 55, 72, 60, 52, 45, 50, 58,
+    65, 55, 48, 42, 55, 60,
   ]
   return heights.map((h, i) => ({
     h,
@@ -85,7 +82,7 @@ const sparkBars = computed(() => {
 
         <div class="flex-1 min-w-0 flex justify-center">
           <div class="inline-flex flex-col">
-            <div class="flex items-end gap-[3px] h-10">
+            <div class="flex items-end gap-0.75 h-10">
               <span
                 v-for="(b, i) in sparkBars"
                 :key="i"

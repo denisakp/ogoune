@@ -13,7 +13,7 @@ interface NavItem {
 
 const monitor: NavItem[] = [
   { label: 'Overview', to: '/overview', icon: 'i-lucide-gauge' },
-  { label: 'Resources', to: '/monitors', icon: 'i-lucide-radar' },
+  { label: 'Resources', to: '/resources', icon: 'i-lucide-radar' },
   { label: 'Incidents', to: '/incidents', icon: 'i-lucide-zap' },
   { label: 'Maintenance', to: '/maintenance', icon: 'i-lucide-wrench' },
 ]
@@ -47,9 +47,7 @@ function toMenuItems(items: NavItem[]) {
   >
     <div class="p-4">
       <RouterLink to="/" class="flex items-center gap-2">
-        <span
-          class="inline-flex size-7 items-center justify-center rounded-lg bg-primary-500"
-        >
+        <span class="inline-flex size-7 items-center justify-center rounded-lg bg-primary-500">
           <UIcon name="i-lucide-activity" class="size-4 text-white" />
         </span>
         <span class="text-lg font-bold text-default">Ogoune</span>
@@ -58,27 +56,19 @@ function toMenuItems(items: NavItem[]) {
 
     <nav class="flex-1 overflow-y-auto px-3 pb-3 space-y-6">
       <section>
-        <div class="px-2 py-1 text-xs font-medium text-muted uppercase tracking-wide">
-          Monitor
-        </div>
+        <div class="px-2 py-1 text-xs font-medium text-muted uppercase tracking-wide">Monitor</div>
         <UNavigationMenu :items="toMenuItems(monitor)" orientation="vertical" />
       </section>
       <section>
-        <div class="px-2 py-1 text-xs font-medium text-muted uppercase tracking-wide">
-          Report
-        </div>
+        <div class="px-2 py-1 text-xs font-medium text-muted uppercase tracking-wide">Report</div>
         <UNavigationMenu :items="toMenuItems(report)" orientation="vertical" />
       </section>
       <section>
-        <div class="px-2 py-1 text-xs font-medium text-muted uppercase tracking-wide">
-          Tools
-        </div>
+        <div class="px-2 py-1 text-xs font-medium text-muted uppercase tracking-wide">Tools</div>
         <UNavigationMenu :items="toMenuItems(tools)" orientation="vertical" />
       </section>
       <section>
-        <div class="px-2 py-1 text-xs font-medium text-muted uppercase tracking-wide">
-          Settings
-        </div>
+        <div class="px-2 py-1 text-xs font-medium text-muted uppercase tracking-wide">Settings</div>
         <UNavigationMenu :items="toMenuItems(settings)" orientation="vertical" />
       </section>
     </nav>

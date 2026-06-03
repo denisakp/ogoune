@@ -21,13 +21,14 @@ async function normalizeError(error: unknown): Promise<never> {
     // run; the response stream is therefore already consumed. Use `error.data`.
     const body: unknown = (error as HTTPError).data ?? null
 
-    const message =
-      (body as { message?: string } | null)?.message ?? response.statusText
+    const message = (body as { message?: string } | null)?.message ?? response.statusText
     const code = (body as { code?: string } | null)?.code
 
     const retryAfterRaw = response.headers.get('retry-after')
     const retryAfterSec = retryAfterRaw
-      ? (Number.isFinite(Number(retryAfterRaw)) ? Number(retryAfterRaw) : undefined)
+      ? Number.isFinite(Number(retryAfterRaw))
+        ? Number(retryAfterRaw)
+        : undefined
       : undefined
 
     const attach = <E extends { code?: string; retryAfterSec?: number }>(err: E): E => {
@@ -40,8 +41,7 @@ async function normalizeError(error: unknown): Promise<never> {
       case 400:
       case 422: {
         const fieldErrors =
-          (body as { fieldErrors?: Record<string, string[]> } | null)
-            ?.fieldErrors ?? {}
+          (body as { fieldErrors?: Record<string, string[]> } | null)?.fieldErrors ?? {}
         throw attach(new ValidationError(message, fieldErrors, traceId))
       }
       case 401:
@@ -76,9 +76,7 @@ function buildHooks(getToken?: () => string | null) {
         return await errorInterceptor(request, response)
       },
     ],
-    beforeError: [
-      ({ error }: { error: Error }) => error,
-    ],
+    beforeError: [({ error }: { error: Error }) => error],
   }
 }
 
@@ -109,9 +107,7 @@ export const http: KyInstance = ky.create({
  * The callback is invoked per-request, so token rotation works without
  * re-instantiating the client.
  */
-export function createAuthenticatedClient(options: {
-  getToken: () => string | null
-}): KyInstance {
+export function createAuthenticatedClient(options: { getToken: () => string | null }): KyInstance {
   return ky.create({
     ...BASE_CONFIG,
     hooks: buildHooks(() => options.getToken()),

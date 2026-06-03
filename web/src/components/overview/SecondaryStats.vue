@@ -6,8 +6,11 @@ import { fetchStatsSummary } from '@/services/statsService'
 const resourceStore = useResourceStore()
 
 const totalResources = computed(() => resourceStore.resources.length)
-const downOrDegraded = computed(() =>
-  resourceStore.resources.filter((r) => r.status === 'down' || (r as { status: string }).status === 'warning').length,
+const downOrDegraded = computed(
+  () =>
+    resourceStore.resources.filter(
+      (r) => r.status === 'down' || (r as { status: string }).status === 'warning',
+    ).length,
 )
 
 const avgResponse = computed(() => {

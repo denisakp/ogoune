@@ -14,12 +14,7 @@ describe('UUptimeBar', () => {
       props: { days: ['up', 'warning', 'down', 'nodata'] },
     })
     const cells = wrapper.findAll('[data-day]')
-    expect(cells.map((c) => c.attributes('data-day'))).toEqual([
-      'up',
-      'warning',
-      'down',
-      'nodata',
-    ])
+    expect(cells.map((c) => c.attributes('data-day'))).toEqual(['up', 'warning', 'down', 'nodata'])
   })
 
   it('accepts compact mode', () => {

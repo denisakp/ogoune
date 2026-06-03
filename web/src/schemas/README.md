@@ -68,7 +68,7 @@ export const resourceSchema = baseResource.refine(
 ## URL / port / interval helpers
 
 ```ts
-z.string().url()                    // URL validation
+z.string().url() // URL validation
 z.number().int().min(1).max(65_535) // port
 z.number().int().min(30).max(86_400) // 30 s to 24 h interval
 ```

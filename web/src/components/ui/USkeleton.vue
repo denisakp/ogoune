@@ -11,13 +11,16 @@ interface Props {
 
 const props = defineProps<Props>()
 
-const variantClass = computed(() => ({
-  text: 'h-4 w-full rounded',
-  circle: 'rounded-full',
-  rect: 'rounded-md',
-  'table-row': 'h-10 w-full rounded',
-  card: 'h-32 w-full rounded-lg',
-}[props.variant]))
+const variantClass = computed(
+  () =>
+    ({
+      text: 'h-4 w-full rounded',
+      circle: 'rounded-full',
+      rect: 'rounded-md',
+      'table-row': 'h-10 w-full rounded',
+      card: 'h-32 w-full rounded-lg',
+    })[props.variant],
+)
 
 const sizeStyle = computed(() => {
   const out: Record<string, string> = {}

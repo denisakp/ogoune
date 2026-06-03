@@ -32,10 +32,13 @@ const effectiveEdition = computed<Edition | null>(() => {
 
 const label = computed(() => (effectiveEdition.value === 'ee' ? 'EE' : 'CE'))
 
-const sizeClass = computed(() => ({
-  sm: 'text-[10px] px-1.5 py-0.5',
-  md: 'text-xs px-2 py-0.5',
-}[props.size]))
+const sizeClass = computed(
+  () =>
+    ({
+      sm: 'text-[10px] px-1.5 py-0.5',
+      md: 'text-xs px-2 py-0.5',
+    })[props.size],
+)
 </script>
 
 <template>

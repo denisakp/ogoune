@@ -59,11 +59,7 @@ const authService = {
    * Errors are swallowed silently — the caller treats failure as "not authenticated".
    */
   async verify(): Promise<VerifyResponse> {
-    return await request<VerifyResponse>(
-      getAuthenticatedClient(),
-      'auth/verify',
-      SKIP_BOTH,
-    )
+    return await request<VerifyResponse>(getAuthenticatedClient(), 'auth/verify', SKIP_BOTH)
   },
 
   /**

@@ -73,10 +73,7 @@ export const addTagsToResource = async (resourceId: string, tagIds: string[]): P
   })
 }
 
-export const removeTagFromResource = async (
-  resourceId: string,
-  tagId: string,
-): Promise<void> => {
+export const removeTagFromResource = async (resourceId: string, tagId: string): Promise<void> => {
   await request<void>(getAuthenticatedClient(), `resources/${resourceId}/tags/${tagId}`, {
     method: 'DELETE',
   })

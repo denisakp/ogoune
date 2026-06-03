@@ -19,9 +19,15 @@ const storeRefs = {
 }
 vi.mock('@/stores/authStore', () => ({
   useAuthStore: () => ({
-    get isLoading() { return storeRefs.isLoading },
-    get requiresPasswordInit() { return storeRefs.requiresPasswordInit },
-    get requires2FA() { return storeRefs.requires2FA },
+    get isLoading() {
+      return storeRefs.isLoading
+    },
+    get requiresPasswordInit() {
+      return storeRefs.requiresPasswordInit
+    },
+    get requires2FA() {
+      return storeRefs.requires2FA
+    },
     login: loginMock,
   }),
 }))
@@ -33,7 +39,10 @@ const stubs = {
   UForm: { template: '<form><slot /></form>', props: ['schema', 'state'] },
   UFormGroup: { template: '<div><slot /></div>', props: ['label', 'name'] },
   UInput: { template: '<input />' },
-  UButton: { template: '<button :disabled="loading"><slot /></button>', props: ['loading', 'type', 'color', 'block'] },
+  UButton: {
+    template: '<button :disabled="loading"><slot /></button>',
+    props: ['loading', 'type', 'color', 'block'],
+  },
 }
 
 function build() {

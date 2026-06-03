@@ -78,9 +78,7 @@ defineExpose({ state, onSubmit, formRef, showAdminNote })
         <p v-if="showAdminNote" class="text-[13px] text-slate-600 leading-relaxed">
           Self-hosted, free forever. First account becomes the admin.
         </p>
-        <p v-else class="text-[13px] text-slate-600 leading-relaxed">
-          Join your team on Ogoune.
-        </p>
+        <p v-else class="text-[13px] text-slate-600 leading-relaxed">Join your team on Ogoune.</p>
       </div>
 
       <UForm
@@ -165,14 +163,7 @@ defineExpose({ state, onSubmit, formRef, showAdminNote })
           <span>Send me product updates (release notes, security)</span>
         </label>
 
-        <UButton
-          type="submit"
-          color="primary"
-          block
-          size="lg"
-          :loading="isLoading"
-          class="h-11"
-        >
+        <UButton type="submit" color="primary" block size="lg" :loading="isLoading" class="h-11">
           Create account
         </UButton>
       </UForm>

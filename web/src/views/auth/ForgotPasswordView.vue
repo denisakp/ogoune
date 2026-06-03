@@ -68,8 +68,10 @@ defineExpose({ state, onSubmit, formRef, submitted })
 
       <div v-if="submitted" class="space-y-4">
         <div class="flex items-center justify-center">
-          <div class="size-14 rounded-full flex items-center justify-center"
-               style="background-color: rgba(16, 185, 129, 0.1)">
+          <div
+            class="size-14 rounded-full flex items-center justify-center"
+            style="background-color: rgba(16, 185, 129, 0.1)"
+          >
             <UIcon name="i-lucide-mail-check" class="size-6 text-emerald-600" />
           </div>
         </div>
@@ -100,14 +102,7 @@ defineExpose({ state, onSubmit, formRef, submitted })
           </UFormGroup>
         </div>
 
-        <UButton
-          type="submit"
-          color="primary"
-          block
-          size="lg"
-          :loading="isLoading"
-          class="h-11"
-        >
+        <UButton type="submit" color="primary" block size="lg" :loading="isLoading" class="h-11">
           Send reset link
         </UButton>
       </UForm>

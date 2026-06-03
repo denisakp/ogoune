@@ -1,7 +1,15 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 
-type StatusType = 'up' | 'down' | 'paused' | 'pending' | 'error' | 'unknown' | 'flapping' | 'waiting'
+type StatusType =
+  | 'up'
+  | 'down'
+  | 'paused'
+  | 'pending'
+  | 'error'
+  | 'unknown'
+  | 'flapping'
+  | 'waiting'
 
 interface StatusConfig {
   color: string

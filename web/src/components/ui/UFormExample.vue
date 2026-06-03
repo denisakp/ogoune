@@ -26,7 +26,9 @@ withDefaults(defineProps<Props>(), {
   forceServerError: false,
 })
 
-const formRef = ref<{ setErrors: (errs: Array<{ path: string; message: string }>) => void } | null>(null)
+const formRef = ref<{ setErrors: (errs: Array<{ path: string; message: string }>) => void } | null>(
+  null,
+)
 
 const submitting = ref(false)
 const lastResult = ref<'idle' | 'success' | 'server-error'>('idle')
@@ -103,18 +105,12 @@ defineExpose({ state, lastResult, submitting, fakeSubmit })
       <UInput v-model.number="state.interval" type="number" :min="30" :max="86400" />
     </UFormGroup>
 
-    <UFormGroup
-      v-if="state.type === 'http'"
-      label="URL"
-      name="url"
-    >
+    <UFormGroup v-if="state.type === 'http'" label="URL" name="url">
       <UInput v-model="(state as { url: string }).url" placeholder="https://example.com" />
     </UFormGroup>
 
     <div class="flex items-center gap-3 pt-2">
-      <UButton type="submit" color="primary" :loading="submitting">
-        Save monitor
-      </UButton>
+      <UButton type="submit" color="primary" :loading="submitting"> Save monitor </UButton>
       <span v-if="lastResult === 'success'" class="text-xs text-success">Saved</span>
       <span v-if="lastResult === 'server-error'" class="text-xs text-error">
         Server rejected — check field errors

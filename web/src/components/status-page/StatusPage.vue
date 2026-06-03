@@ -193,7 +193,13 @@ const getOverallStatusColor = () => {
                   class="expand-btn"
                   @click="toggleComponentExpand(component.id)"
                 >
-                  <UIcon :name="isComponentExpanded(component.id) ? 'i-lucide-chevron-up' : 'i-lucide-chevron-down'" />
+                  <UIcon
+                    :name="
+                      isComponentExpanded(component.id)
+                        ? 'i-lucide-chevron-up'
+                        : 'i-lucide-chevron-down'
+                    "
+                  />
                 </a-button>
 
                 <a-badge :status="component.status.toLowerCase()" />

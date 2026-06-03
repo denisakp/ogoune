@@ -7,7 +7,14 @@ const pushMock = vi.fn()
 const routeQuery: { value: Record<string, string> } = { value: { token: 'abc' } }
 vi.mock('vue-router', () => ({
   useRouter: () => ({ push: pushMock, replace: vi.fn(), resolve: () => ({ href: '#' }) }),
-  useRoute: () => ({ get query() { return routeQuery.value }, params: {}, path: '/reset-password', name: 'reset' }),
+  useRoute: () => ({
+    get query() {
+      return routeQuery.value
+    },
+    params: {},
+    path: '/reset-password',
+    name: 'reset',
+  }),
   useLink: () => ({ href: { value: '#' }, navigate: vi.fn(), isActive: { value: false } }),
   RouterLink: { template: '<a><slot /></a>' },
 }))
@@ -16,7 +23,9 @@ const resetMock = vi.fn()
 const storeRefs = { isLoading: false }
 vi.mock('@/stores/authStore', () => ({
   useAuthStore: () => ({
-    get isLoading() { return storeRefs.isLoading },
+    get isLoading() {
+      return storeRefs.isLoading
+    },
     resetPasswordWithToken: (input: unknown) => resetMock(input),
   }),
 }))

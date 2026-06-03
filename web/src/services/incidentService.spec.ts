@@ -25,9 +25,7 @@ describe('incidentService', () => {
   describe('fetchIncidents', () => {
     it('sends GET to /incidents when no params provided', async () => {
       const incidents = [{ id: 'inc-1' }]
-      server.use(
-        http.get('*/incidents', () => HttpResponse.json(incidents)),
-      )
+      server.use(http.get('*/incidents', () => HttpResponse.json(incidents)))
 
       const result = await fetchIncidents()
       expect(result).toEqual(incidents)
@@ -62,9 +60,7 @@ describe('incidentService', () => {
     })
 
     it('propagates errors as typed ApiError', async () => {
-      server.use(
-        http.get('*/incidents', () => HttpResponse.json({}, { status: 500 })),
-      )
+      server.use(http.get('*/incidents', () => HttpResponse.json({}, { status: 500 })))
       await expect(fetchIncidents()).rejects.toBeInstanceOf(ServerError)
     })
   })
@@ -72,9 +68,7 @@ describe('incidentService', () => {
   describe('fetchIncidentById', () => {
     it('sends GET to /incidents/:id', async () => {
       const incident = { id: 'inc-1', cause: 'timeout' }
-      server.use(
-        http.get('*/incidents/inc-1', () => HttpResponse.json(incident)),
-      )
+      server.use(http.get('*/incidents/inc-1', () => HttpResponse.json(incident)))
 
       const result = await fetchIncidentById('inc-1')
       expect(result).toEqual(incident)
@@ -99,9 +93,7 @@ describe('incidentService', () => {
 
     it('propagates 404 as NotFoundError', async () => {
       server.use(
-        http.patch('*/incidents/inc-999/resolve', () =>
-          HttpResponse.json({}, { status: 404 }),
-        ),
+        http.patch('*/incidents/inc-999/resolve', () => HttpResponse.json({}, { status: 404 })),
       )
       await expect(resolveIncident('inc-999')).rejects.toBeInstanceOf(NotFoundError)
     })
@@ -125,9 +117,7 @@ describe('incidentService', () => {
     })
 
     it('propagates errors', async () => {
-      server.use(
-        http.get('*/incidents', () => HttpResponse.json({}, { status: 503 })),
-      )
+      server.use(http.get('*/incidents', () => HttpResponse.json({}, { status: 503 })))
       await expect(fetchUnresolvedIncidents()).rejects.toBeInstanceOf(ServerError)
     })
   })

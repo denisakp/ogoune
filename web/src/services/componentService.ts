@@ -47,15 +47,11 @@ export const bulkAssignToComponent = async (
   componentId: string,
   payload: BulkAssignPayload,
 ): Promise<void> => {
-  await request<void>(
-    getAuthenticatedClient(),
-    `components/${componentId}/resources/bulk-assign`,
-    {
-      method: 'POST',
-      json: payload,
-      ...successMsg('Resources assigned successfully'),
-    },
-  )
+  await request<void>(getAuthenticatedClient(), `components/${componentId}/resources/bulk-assign`, {
+    method: 'POST',
+    json: payload,
+    ...successMsg('Resources assigned successfully'),
+  })
 }
 
 export const bulkRemoveFromComponent = async (payload: BulkRemovePayload): Promise<void> => {

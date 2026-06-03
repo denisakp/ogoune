@@ -46,17 +46,17 @@ export interface Resource {
   last_status_transition?: string | null
   flap_started_at?: string | null
   // Heartbeat-specific fields (only present when type === 'heartbeat')
-  heartbeat_slug?: string        // UUID v4 — present only in detail response
-  heartbeat_interval?: number    // seconds (60–86400)
-  heartbeat_grace?: number       // seconds (60–3600)
-  last_ping_at?: string | null   // ISO 8601 or null
-  waiting?: boolean              // true when last_ping_at is null (never pinged)
+  heartbeat_slug?: string // UUID v4 — present only in detail response
+  heartbeat_interval?: number // seconds (60–86400)
+  heartbeat_grace?: number // seconds (60–3600)
+  last_ping_at?: string | null // ISO 8601 or null
+  waiting?: boolean // true when last_ping_at is null (never pinged)
   // Keyword-specific fields (only present when type === 'keyword')
-  keyword?: string               // literal string to search for (max 500 chars)
+  keyword?: string // literal string to search for (max 500 chars)
   keyword_mode?: 'contains' | 'not_contains'
   // Protocol-specific fields (only present when type === 'protocol')
   protocol_type?: 'redis' | 'mongodb' | 'ftp' | 'ssh' | 'mysql' | 'postgres' | 'rabbitmq' | 'kafka'
-  protocol_port?: number         // 1–65535; absent = use protocol default
+  protocol_port?: number // 1–65535; absent = use protocol default
 }
 
 /**
@@ -104,14 +104,14 @@ export interface CreateResource {
   flap_max_duration_minutes?: number
   reminder_interval_minutes?: number
   // Heartbeat-specific
-  heartbeat_interval?: number   // seconds (60–86400)
-  heartbeat_grace?: number      // seconds (60–3600)
+  heartbeat_interval?: number // seconds (60–86400)
+  heartbeat_grace?: number // seconds (60–3600)
   // Keyword-specific
   keyword?: string
   keyword_mode?: 'contains' | 'not_contains'
   // Protocol-specific
   protocol_type?: 'redis' | 'mongodb' | 'ftp' | 'ssh' | 'mysql' | 'postgres' | 'rabbitmq' | 'kafka'
-  protocol_port?: number         // 1–65535; absent = use protocol default
+  protocol_port?: number // 1–65535; absent = use protocol default
 }
 
 export type UpdateResource = Partial<CreateResource>

@@ -15,7 +15,9 @@ const signUpMock = vi.fn()
 const storeRefs = { isLoading: false }
 vi.mock('@/stores/authStore', () => ({
   useAuthStore: () => ({
-    get isLoading() { return storeRefs.isLoading },
+    get isLoading() {
+      return storeRefs.isLoading
+    },
     signUp: signUpMock,
   }),
 }))
@@ -76,7 +78,12 @@ describe('RegisterView', () => {
     const w = build()
     await flushPromises()
     await (w.vm as unknown as { onSubmit: (p: { data: unknown }) => Promise<void> }).onSubmit({
-      data: { email: 'a@b.co', password: 'longenough12chars', confirmPassword: 'longenough12chars', newsletter: true },
+      data: {
+        email: 'a@b.co',
+        password: 'longenough12chars',
+        confirmPassword: 'longenough12chars',
+        newsletter: true,
+      },
     })
     expect(signUpMock).toHaveBeenCalled()
     expect(pushMock).toHaveBeenCalledWith('/overview')
@@ -94,7 +101,12 @@ describe('RegisterView', () => {
       setErrors,
     }
     await (w.vm as unknown as { onSubmit: (p: { data: unknown }) => Promise<void> }).onSubmit({
-      data: { email: 'a@b.co', password: 'longenough12chars', confirmPassword: 'longenough12chars', newsletter: false },
+      data: {
+        email: 'a@b.co',
+        password: 'longenough12chars',
+        confirmPassword: 'longenough12chars',
+        newsletter: false,
+      },
     })
     expect(setErrors).toHaveBeenCalledWith([{ path: 'email', message: 'Already taken' }])
     expect(pushMock).not.toHaveBeenCalled()

@@ -8,9 +8,18 @@ import { timeAgo } from '@/libs/date-time.helper'
 import ResourceModal from '@/components/resources/ResourceModal.vue'
 import type { Resource } from '@/types'
 
-interface TableColumn { key: string; label: string }
-interface FilterChipDescriptor { kind: 'tag' | 'component' | 'type' | 'status'; value: string }
-interface RowAction { label: string; icon?: string }
+interface TableColumn {
+  key: string
+  label: string
+}
+interface FilterChipDescriptor {
+  kind: 'tag' | 'component' | 'type' | 'status'
+  value: string
+}
+interface RowAction {
+  label: string
+  icon?: string
+}
 
 const resourceStore = useResourceStore()
 const componentStore = useComponentStore()
@@ -91,10 +100,7 @@ const rowActions: RowAction[] = [viewAction, editAction, deleteAction]
 function targetOf(r: Resource): string {
   return (
     (r as unknown as { url?: string; host?: string; port?: number }).url ??
-    [
-      (r as unknown as { host?: string }).host,
-      (r as unknown as { port?: number }).port,
-    ]
+    [(r as unknown as { host?: string }).host, (r as unknown as { port?: number }).port]
       .filter(Boolean)
       .join(':') ??
     '—'
@@ -150,9 +156,7 @@ defineExpose({
         <h1 class="text-2xl font-semibold">Monitors</h1>
         <p class="text-sm text-muted mt-1">Track uptime and performance of your resources</p>
       </div>
-      <UButton color="primary" icon="i-lucide-plus" @click="openCreate">
-        New Monitor
-      </UButton>
+      <UButton color="primary" icon="i-lucide-plus" @click="openCreate"> New Monitor </UButton>
     </div>
 
     <UAlert v-if="resourceStore.error" color="error" :title="resourceStore.error" class="mb-4" />
@@ -182,10 +186,6 @@ defineExpose({
       </template>
     </UDataTable>
 
-    <ResourceModal
-      v-model:open="showModal"
-      :resource="editingResource"
-      @submit="onFormSubmit"
-    />
+    <ResourceModal v-model:open="showModal" :resource="editingResource" @submit="onFormSubmit" />
   </div>
 </template>

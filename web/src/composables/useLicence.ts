@@ -28,11 +28,9 @@ export function useLicence() {
 
     isLoading.value = true
     try {
-      const data = await request<EditionResponse>(
-        getAuthenticatedClient(),
-        'system/edition',
-        { headers: { 'x-skip-error-toast': '1' } },
-      )
+      const data = await request<EditionResponse>(getAuthenticatedClient(), 'system/edition', {
+        headers: { 'x-skip-error-toast': '1' },
+      })
       edition.value = data.edition
       version.value = data.version
       isLoaded.value = true

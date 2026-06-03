@@ -84,10 +84,7 @@ defineExpose({ state, onSubmit, formRef })
         <div class="space-y-1.5">
           <div class="flex items-center justify-between">
             <label class="text-sm font-medium text-slate-900">Password</label>
-            <RouterLink
-              to="/forgot-password"
-              class="text-sm text-primary-600 hover:underline"
-            >
+            <RouterLink to="/forgot-password" class="text-sm text-primary-600 hover:underline">
               Forgot password?
             </RouterLink>
           </div>
@@ -118,14 +115,7 @@ defineExpose({ state, onSubmit, formRef })
           </UFormGroup>
         </div>
 
-        <UButton
-          type="submit"
-          color="primary"
-          block
-          size="lg"
-          :loading="isLoading"
-          class="h-11"
-        >
+        <UButton type="submit" color="primary" block size="lg" :loading="isLoading" class="h-11">
           Sign In
         </UButton>
 

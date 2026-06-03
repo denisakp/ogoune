@@ -2,8 +2,8 @@ import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router'
 import { useAuthStore } from '@/stores/authStore'
 
 const OverviewView = () => import('@/views/overview/OverviewView.vue')
-const MonitorsView = () => import('@/views/MonitorsView.vue')
-const ResourceView = () => import('@/views/resources/ResourceView.vue')
+const ResourcesView = () => import('@/views/resources/ResourcesView.vue')
+const ResourceDetailView = () => import('@/views/resources/ResourceDetailView.vue')
 const ComponentsView = () => import('@/views/ComponentsView.vue')
 const SettingsView = () => import('@/views/SettingsView.vue')
 const Verify2FAView = () => import('@/views/auth/Verify2FAView.vue')
@@ -66,16 +66,26 @@ const routes: RouteRecordRaw[] = [
     meta: { public: true, requiresLayout: false },
   },
   {
+    path: '/resources',
+    name: 'Resources',
+    component: ResourcesView,
+    meta: { requiresAuth: true, requiresLayout: true, breadcrumbLabel: 'Resources' },
+  },
+  {
+    path: '/resources/:id',
+    name: 'ResourceDetail',
+    component: ResourceDetailView,
+    meta: { requiresAuth: true, requiresLayout: true, breadcrumbLabel: 'Resource' },
+  },
+  {
     path: '/monitors',
     name: 'Monitors',
-    component: MonitorsView,
-    meta: { requiresAuth: true, requiresLayout: true, breadcrumbLabel: 'Monitors' },
+    redirect: '/resources',
   },
   {
     path: '/monitors/:id',
-    name: 'ResourceDetail',
-    component: ResourceView,
-    meta: { requiresAuth: true, requiresLayout: true, breadcrumbLabel: 'Monitor' },
+    name: 'ResourceDetailLegacy',
+    redirect: (to) => ({ name: 'ResourceDetail', params: { id: to.params.id } }),
   },
   {
     path: '/components',

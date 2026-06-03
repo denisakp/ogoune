@@ -120,7 +120,9 @@ const getStatusColor = (status: string) => {
               class="expand-btn"
               @click="toggleExpand(component.id)"
             >
-              <UIcon :name="isExpanded(component.id) ? 'i-lucide-chevron-up' : 'i-lucide-chevron-down'" />
+              <UIcon
+                :name="isExpanded(component.id) ? 'i-lucide-chevron-up' : 'i-lucide-chevron-down'"
+              />
             </a-button>
 
             <div class="component-title-section">
