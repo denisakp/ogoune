@@ -241,3 +241,25 @@ Notable initial-download chunks (`main`):
 - 7 monitor types covered by `z.discriminatedUnion` — schema spec adds 16 cases (14 type × 2 + 2 base extras).
 - 300 / 300 tests pass (249 baseline post-PR-4 + 51 net new). SC-004 floor 280 met (≥ 280 = MUST).
 - ICMP capability-warning UX regression documented in PR description (deferred to a follow-up issue).
+
+## PR-6 (Slice 2 / PR-3 — Incidents list + detail + timeline)
+
+- **Branch**: `058-prd-006-incidents`.
+- **Build command**: `pnpm build` (no warnings).
+- **Stack added**: none in MVP scope. `marked` dep deferred with Phase 6 (postmortem editor) to a follow-up PR.
+- **Surfaces touched**: IncidentsView REWRITE (281 → 200 LOC NuxtUI) · IncidentView REWRITE (768 → 90 LOC composer) · IncidentTimeline / IncidentHeader / DiagnosticsPanel / NotificationsPanel / IncidentStatsRow / IncidentsListBody NEW · useIncidentFilters composable NEW · ResourceDetailView Incidents tab wired (FR-025).
+
+| Build | `main` initial (gz) | Total (gz) | Δ main vs PR-5 | Δ total vs PR-5 | Gate (`main` ≤ PR-5 + 35 KB gz) |
+|-------|--------------------:|-----------:|---------------:|----------------:|--------------------------------|
+| PR-5 | 266,709 | 797,960 | — | — | — |
+| PR-6 | **265,965** | **647,800** | **−744 (−0.3%)** | **−150,160 (−18.8%)** | **PASS — massively under +35 KB envelope** |
+
+### Notes
+
+- Bundle total SHRANK ~150 KB gz despite adding 6 new components + 1 composable + 1 list body. Causes:
+  - Legacy AntDV-bound IncidentView (768 LOC) + IncidentsView (281 LOC) rewrite eliminated significant runtime dead code.
+  - IncidentView monolith reduced ~85% (768 → 90 LOC composer).
+  - No new heavyweight deps (marked deferred with Phase 6).
+- 342 / 342 tests pass (300 baseline post-PR-5 + 42 net new across the 6 new specs + IncidentsView + IncidentView). SC-004 floor 320 PASSED (≥ 320 = MUST).
+- MVP scope: Phase 6 (Postmortem editor + publish) deferred to a follow-up PR. Phase 5 actions reduced to Resolve only (Acknowledge + Reopen absent from backend domain). Spec adaptations documented in PR description.
+- FR-025 closed: ResourceDetailView Incidents tab now renders per-resource incidents via `<IncidentsListBody :filter="{ resource_id }">`. spec 057's `UEmpty` placeholder ("Incidents coming with PRD 006") removed.

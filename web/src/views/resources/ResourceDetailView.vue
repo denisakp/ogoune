@@ -8,6 +8,7 @@ import { timeAgo } from '@/libs/date-time.helper'
 import { fetchActivities } from '@/services/activityService'
 import { fetchUptimeStats } from '@/services/resourceService'
 import ResourceModal from '@/components/resources/ResourceModal.vue'
+import IncidentsListBody from '@/components/incidents/IncidentsListBody.vue'
 import type { Resource, MonitoringActivity, HourlyUptimeStat } from '@/types'
 
 const route = useRoute()
@@ -117,13 +118,13 @@ const stripBuckets = computed<StripBucket[]>(() => {
 
 const selectedBucket = computed(() =>
   selectedBucketIndex.value != null
-    ? stripBuckets.value[selectedBucketIndex.value] ?? null
+    ? (stripBuckets.value[selectedBucketIndex.value] ?? null)
     : null,
 )
 
 const selectedActivity = computed(() =>
   selectedActivityId.value
-    ? activities.value.find((a) => a.id === selectedActivityId.value) ?? null
+    ? (activities.value.find((a) => a.id === selectedActivityId.value) ?? null)
     : null,
 )
 
@@ -152,8 +153,11 @@ const activityGroups = computed<ActivityGroup[]>(() => {
 
 const responseTimes = computed(
   () =>
-    (resource.value as unknown as { response_times?: { timestamp: string; response_time: number }[] } | null)
-      ?.response_times ?? [],
+    (
+      resource.value as unknown as {
+        response_times?: { timestamp: string; response_time: number }[]
+      } | null
+    )?.response_times ?? [],
 )
 
 const filteredResponseTimes = computed(() => {
@@ -456,10 +460,7 @@ defineExpose({ resource, activeTab, loadDetail, loadActivity, togglePause, onDel
           <div class="grid grid-cols-4 gap-3">
             <div class="bg-white rounded-lg border border-slate-200 p-4">
               <div class="text-xs text-slate-500 mb-1">Status</div>
-              <div
-                class="text-xl font-semibold capitalize"
-                :style="{ color: statusColor }"
-              >
+              <div class="text-xl font-semibold capitalize" :style="{ color: statusColor }">
                 {{ resource.status }}
               </div>
             </div>
@@ -510,7 +511,7 @@ defineExpose({ resource, activeTab, loadDetail, loadActivity, togglePause, onDel
               <h3 class="text-base font-semibold text-slate-900">Response Time</h3>
               <div class="flex p-0.5 rounded-md bg-slate-50">
                 <button
-                  v-for="r in (['24h', '7d', '30d'] as const)"
+                  v-for="r in ['24h', '7d', '30d'] as const"
                   :key="r"
                   type="button"
                   class="px-3 py-1 rounded text-xs font-medium transition-colors"
@@ -531,15 +532,18 @@ defineExpose({ resource, activeTab, loadDetail, loadActivity, togglePause, onDel
             >
               <span class="inline-flex items-center gap-1.5">
                 <span class="size-2 rounded-full" style="background-color: #4f46e5" />
-                Average <strong class="text-slate-900 font-semibold">{{ responseTimeStats.avg }}ms</strong>
+                Average
+                <strong class="text-slate-900 font-semibold">{{ responseTimeStats.avg }}ms</strong>
               </span>
               <span class="inline-flex items-center gap-1.5">
                 <span class="size-2 rounded-full" style="background-color: #10b981" />
-                Min <strong class="text-slate-900 font-semibold">{{ responseTimeStats.min }}ms</strong>
+                Min
+                <strong class="text-slate-900 font-semibold">{{ responseTimeStats.min }}ms</strong>
               </span>
               <span class="inline-flex items-center gap-1.5">
                 <span class="size-2 rounded-full" style="background-color: #ef4444" />
-                Max <strong class="text-slate-900 font-semibold">{{ responseTimeStats.max }}ms</strong>
+                Max
+                <strong class="text-slate-900 font-semibold">{{ responseTimeStats.max }}ms</strong>
               </span>
             </div>
             <div v-if="chartBars.length === 0" class="text-sm text-slate-500 text-center py-12">
@@ -569,7 +573,9 @@ defineExpose({ resource, activeTab, loadDetail, loadActivity, togglePause, onDel
             <dl class="space-y-3.5 text-sm">
               <div>
                 <dt class="text-[11px] text-slate-500 uppercase tracking-wide mb-0.5">Type</dt>
-                <dd class="text-slate-900 font-medium">{{ String(resource.type).toUpperCase() }}</dd>
+                <dd class="text-slate-900 font-medium">
+                  {{ String(resource.type).toUpperCase() }}
+                </dd>
               </div>
               <div>
                 <dt class="text-[11px] text-slate-500 uppercase tracking-wide mb-0.5">Target</dt>
@@ -602,7 +608,9 @@ defineExpose({ resource, activeTab, loadDetail, loadActivity, togglePause, onDel
                 </dd>
               </div>
               <div v-if="(resource as unknown as { updated_at?: string }).updated_at">
-                <dt class="text-[11px] text-slate-500 uppercase tracking-wide mb-0.5">Last Updated</dt>
+                <dt class="text-[11px] text-slate-500 uppercase tracking-wide mb-0.5">
+                  Last Updated
+                </dt>
                 <dd class="text-slate-900">
                   {{ formatDate((resource as unknown as { updated_at: string }).updated_at) }}
                 </dd>
@@ -628,15 +636,22 @@ defineExpose({ resource, activeTab, loadDetail, loadActivity, togglePause, onDel
             :style="{ backgroundColor: sslColor.bg, borderColor: sslColor.border }"
           >
             <div class="flex items-center gap-2 mb-3">
-              <UIcon name="i-lucide-shield-check" class="size-4" :style="{ color: sslColor.icon }" />
-              <h3 class="text-sm font-semibold" :style="{ color: sslColor.icon }">SSL Certificate</h3>
+              <UIcon
+                name="i-lucide-shield-check"
+                class="size-4"
+                :style="{ color: sslColor.icon }"
+              />
+              <h3 class="text-sm font-semibold" :style="{ color: sslColor.icon }">
+                SSL Certificate
+              </h3>
             </div>
             <div class="space-y-1.5 text-xs">
               <div v-if="metadata?.ssl_issuer" class="text-slate-700">
                 Issuer: <span class="font-medium">{{ metadata.ssl_issuer }}</span>
               </div>
               <div v-if="metadata?.ssl_expiration_date" class="text-slate-700">
-                Expires: <span class="font-medium">{{ formatDate(metadata.ssl_expiration_date) }}</span>
+                Expires:
+                <span class="font-medium">{{ formatDate(metadata.ssl_expiration_date) }}</span>
                 <span v-if="metadata.ssl_days_remaining != null" class="text-slate-500">
                   ({{ metadata.ssl_days_remaining }} days)
                 </span>
@@ -657,7 +672,8 @@ defineExpose({ resource, activeTab, loadDetail, loadActivity, togglePause, onDel
                 Registrar: <span class="font-medium">{{ metadata.domain_registrar }}</span>
               </div>
               <div v-if="metadata?.domain_expiration_date" class="text-slate-700">
-                Expires: <span class="font-medium">{{ formatDate(metadata.domain_expiration_date) }}</span>
+                Expires:
+                <span class="font-medium">{{ formatDate(metadata.domain_expiration_date) }}</span>
                 <span v-if="metadata.domain_days_remaining != null" class="text-slate-500">
                   ({{ metadata.domain_days_remaining }} days)
                 </span>
@@ -855,8 +871,10 @@ defineExpose({ resource, activeTab, loadDetail, loadActivity, togglePause, onDel
               </button>
             </div>
             <div class="text-xs text-slate-600">
-              From <span class="font-mono">{{ new Date(selectedBucket.startTs).toLocaleString() }}</span>
-              to <span class="font-mono">{{ new Date(selectedBucket.endTs).toLocaleString() }}</span>
+              From
+              <span class="font-mono">{{ new Date(selectedBucket.startTs).toLocaleString() }}</span>
+              to
+              <span class="font-mono">{{ new Date(selectedBucket.endTs).toLocaleString() }}</span>
             </div>
             <div v-if="selectedBucket.items.length > 0" class="space-y-1 max-h-60 overflow-auto">
               <button
@@ -883,7 +901,10 @@ defineExpose({ resource, activeTab, loadDetail, loadActivity, togglePause, onDel
               </button>
             </div>
             <div
-              v-if="selectedActivity && (selectedActivity as unknown as { response_data?: string }).response_data"
+              v-if="
+                selectedActivity &&
+                (selectedActivity as unknown as { response_data?: string }).response_data
+              "
               class="text-xs"
             >
               <div class="text-[10px] text-slate-500 uppercase tracking-wider mb-1">
@@ -917,23 +938,21 @@ defineExpose({ resource, activeTab, loadDetail, loadActivity, togglePause, onDel
         </div>
       </div>
 
-      <UEmpty
+      <div
         v-else-if="activeTab === 'incidents'"
-        class="bg-white rounded-lg border border-slate-200"
-        icon="i-lucide-alert-triangle"
-        title="Incidents coming with PRD 006"
-        description="Per-resource incident filtering will land alongside the IncidentsView migration."
-        :actions="[
-          {
-            label: 'See all incidents',
-            icon: 'i-lucide-arrow-right',
-            trailing: true,
-            color: 'primary',
-            variant: 'soft',
-            to: '/incidents',
-          },
-        ]"
-      />
+        class="bg-white rounded-lg border border-slate-200 overflow-hidden"
+      >
+        <div class="px-6 py-4 border-b border-slate-200 flex items-center justify-between">
+          <h3 class="text-base font-semibold text-slate-900">Per-resource incidents</h3>
+          <RouterLink to="/incidents" class="text-xs font-medium text-primary-600 hover:underline">
+            See all incidents →
+          </RouterLink>
+        </div>
+        <IncidentsListBody
+          :filter="{ resource_id: resource.id }"
+          @row-click="(i) => router.push({ name: 'IncidentDetail', params: { id: i.id } })"
+        />
+      </div>
 
       <div v-else class="bg-white rounded-lg border border-slate-200 p-6">
         <div class="flex items-center justify-between mb-4">

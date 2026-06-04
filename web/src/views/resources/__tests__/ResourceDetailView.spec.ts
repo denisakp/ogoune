@@ -55,6 +55,9 @@ vi.mock('@/services/resourceService', () => ({
   fetchUptimeStats: (id: string) => fetchUptimeStatsMock(id),
 }))
 
+vi.mock('@/components/incidents/IncidentsListBody.vue', () => ({
+  default: { name: 'IncidentsListBody', template: '<div />', props: ['filter'] },
+}))
 vi.mock('@/components/resources/ResourceModal.vue', () => ({
   default: { template: '<div />' },
 }))
@@ -106,12 +109,13 @@ describe('ResourceDetailView', () => {
     expect(w.text()).toContain('Activity log')
   })
 
-  it('incidents tab shows PRD 006 placeholder', async () => {
+  it('incidents tab renders per-resource incidents body (PRD 006 wired)', async () => {
     const w = build()
     await flushPromises()
     ;(w.vm as unknown as { activeTab: string }).activeTab = 'incidents'
     await w.vm.$nextTick()
-    expect(w.text()).toContain('Incidents coming with PRD 006')
+    expect(w.text()).toContain('Per-resource incidents')
+    expect(w.text()).toContain('See all incidents')
   })
 
   it('Delete action confirms via useConfirm then calls removeResource + navigates back', async () => {
