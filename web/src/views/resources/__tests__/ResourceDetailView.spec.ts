@@ -38,6 +38,7 @@ const resumeMock = vi.fn().mockResolvedValue(true)
 vi.mock('@/stores/resourceStore', () => ({
   useResourceStore: () => ({
     loadResource: loadResourceMock,
+    loadResourceWithResponseTimes: loadResourceMock,
     removeResource: removeMock,
     pauseMonitoring: pauseMock,
     resumeMonitoring: resumeMock,
@@ -47,6 +48,11 @@ vi.mock('@/stores/resourceStore', () => ({
 const fetchActivitiesMock = vi.fn().mockResolvedValue([])
 vi.mock('@/services/activityService', () => ({
   fetchActivities: () => fetchActivitiesMock(),
+}))
+
+const fetchUptimeStatsMock = vi.fn().mockResolvedValue({ resource_id: 'r1', stats: [] })
+vi.mock('@/services/resourceService', () => ({
+  fetchUptimeStats: (id: string) => fetchUptimeStatsMock(id),
 }))
 
 vi.mock('@/components/resources/ResourceModal.vue', () => ({

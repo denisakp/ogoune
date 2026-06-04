@@ -76,7 +76,9 @@ export const baselineHandlers = [
   http.get(`${API}/maintenances`, () => HttpResponse.json([])),
 
   // Activity
-  http.get(`${API}/activities`, () => HttpResponse.json([])),
+  http.get(`${API}/monitoring-activities`, () =>
+    HttpResponse.json({ activities: [], limit: 50, offset: 0 }),
+  ),
 
   // Stats
   http.get(`${API}/stats`, () => HttpResponse.json({})),
