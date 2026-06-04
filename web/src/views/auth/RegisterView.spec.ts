@@ -31,7 +31,7 @@ import RegisterView from './RegisterView.vue'
 
 const stubs = {
   UForm: { template: '<form><slot /></form>', props: ['schema', 'state'] },
-  UFormGroup: { template: '<div><slot /></div>', props: ['name', 'ui'] },
+  UFormField: { template: '<div><slot /></div>', props: ['name', 'ui'] },
   UInput: { template: '<input />' },
   UButton: { template: '<button><slot /></button>' },
   UCheckbox: { template: '<input type="checkbox" />' },

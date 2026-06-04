@@ -41,6 +41,7 @@ func TestNewRouter_PingIsPublicAndResourcesAreProtected(t *testing.T) {
 	maintenanceHandler := handler.NewMaintenanceHandler(nil)
 	statsHandler := handler.NewStatsHandler(nil)
 	systemHandler := handler.NewSystemHandler()
+	runtimeConfigHandler := handler.NewRuntimeConfigHandler(&config.Config{SSLProvider: "external"}, "test")
 	authHandler := handler.NewAuthHandler(nil, nil)
 	accountHandler := handler.NewAccountHandler(nil, nil)
 
@@ -57,8 +58,13 @@ func TestNewRouter_PingIsPublicAndResourcesAreProtected(t *testing.T) {
 		maintenanceHandler,
 		statsHandler,
 		systemHandler,
+		runtimeConfigHandler,
 		authHandler,
 		accountHandler,
+		nil,
+		nil,
+		nil,
+		nil,
 		nil,
 		nil,
 		nil,

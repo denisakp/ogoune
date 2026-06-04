@@ -40,11 +40,31 @@ export const deleteChannel = async (id: string): Promise<void> => {
   })
 }
 
-export const testChannel = async (id: string): Promise<void> => {
-  await request<void>(getAuthenticatedClient(), `notification-channels/${id}/test`, {
-    method: 'POST',
-    json: {},
-  })
+export interface ChannelTestResult {
+  delivered: boolean
+  error?: string
+  latency_ms: number
+}
+
+export const testChannel = async (id: string): Promise<ChannelTestResult> => {
+  const started = performance.now()
+  try {
+    await request<void>(getAuthenticatedClient(), `notification-channels/${id}/test`, {
+      method: 'POST',
+      json: {},
+    })
+    return { delivered: true, latency_ms: Math.round(performance.now() - started) }
+  } catch (e) {
+    return {
+      delivered: false,
+      error: e instanceof Error ? e.message : 'Test failed',
+      latency_ms: Math.round(performance.now() - started),
+    }
+  }
+}
+
+export const setDefault = async (id: string): Promise<void> => {
+  await updateChannel(id, { enabled_by_default: true })
 }
 
 export const testChannelConfig = async (payload: TestNotificationChannelConfig): Promise<void> => {

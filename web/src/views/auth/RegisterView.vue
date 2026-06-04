@@ -90,7 +90,7 @@ defineExpose({ state, onSubmit, formRef, showAdminNote })
       >
         <div class="space-y-1.5">
           <label class="text-xs font-medium text-slate-900">Email</label>
-          <UFormGroup name="email" :ui="{ label: 'hidden' }">
+          <UFormField name="email" :ui="{ label: 'hidden' }">
             <UInput
               v-model="state.email"
               placeholder="you@company.com"
@@ -99,12 +99,12 @@ defineExpose({ state, onSubmit, formRef, showAdminNote })
               size="md"
               class="w-full"
             />
-          </UFormGroup>
+          </UFormField>
         </div>
 
         <div class="space-y-1.5">
           <label class="text-xs font-medium text-slate-900">Password</label>
-          <UFormGroup name="password" :ui="{ label: 'hidden' }">
+          <UFormField name="password" :ui="{ label: 'hidden' }">
             <UInput
               v-model="state.password"
               :type="showPassword ? 'text' : 'password'"
@@ -127,12 +127,12 @@ defineExpose({ state, onSubmit, formRef, showAdminNote })
                 </button>
               </template>
             </UInput>
-          </UFormGroup>
+          </UFormField>
         </div>
 
         <div class="space-y-1.5">
           <label class="text-xs font-medium text-slate-900">Confirm password</label>
-          <UFormGroup name="confirmPassword" :ui="{ label: 'hidden' }">
+          <UFormField name="confirmPassword" :ui="{ label: 'hidden' }">
             <UInput
               v-model="state.confirmPassword"
               :type="showConfirm ? 'text' : 'password'"
@@ -155,7 +155,7 @@ defineExpose({ state, onSubmit, formRef, showAdminNote })
                 </button>
               </template>
             </UInput>
-          </UFormGroup>
+          </UFormField>
         </div>
 
         <label class="flex items-center gap-2.5 text-xs text-slate-600 cursor-pointer pt-1">

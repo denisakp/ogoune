@@ -14,23 +14,28 @@ const createStatusPageSettings = `-- name: CreateStatusPageSettings :exec
 INSERT INTO status_page_settings (
     id, name, homepage_url, custom_domain, google_analytics_id,
     enable_details_page, show_uptime_percentage, hide_paused_monitors,
-    show_incident_history, created_at, updated_at
+    show_incident_history,
+    custom_domain_status, custom_domain_ssl_status, custom_domain_dns_records,
+    created_at, updated_at
 )
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 `
 
 type CreateStatusPageSettingsParams struct {
-	ID                   string    `json:"id"`
-	Name                 string    `json:"name"`
-	HomepageUrl          string    `json:"homepage_url"`
-	CustomDomain         string    `json:"custom_domain"`
-	GoogleAnalyticsID    string    `json:"google_analytics_id"`
-	EnableDetailsPage    int64     `json:"enable_details_page"`
-	ShowUptimePercentage int64     `json:"show_uptime_percentage"`
-	HidePausedMonitors   int64     `json:"hide_paused_monitors"`
-	ShowIncidentHistory  int64     `json:"show_incident_history"`
-	CreatedAt            time.Time `json:"created_at"`
-	UpdatedAt            time.Time `json:"updated_at"`
+	ID                     string    `json:"id"`
+	Name                   string    `json:"name"`
+	HomepageUrl            string    `json:"homepage_url"`
+	CustomDomain           string    `json:"custom_domain"`
+	GoogleAnalyticsID      string    `json:"google_analytics_id"`
+	EnableDetailsPage      int64     `json:"enable_details_page"`
+	ShowUptimePercentage   int64     `json:"show_uptime_percentage"`
+	HidePausedMonitors     int64     `json:"hide_paused_monitors"`
+	ShowIncidentHistory    int64     `json:"show_incident_history"`
+	CustomDomainStatus     string    `json:"custom_domain_status"`
+	CustomDomainSslStatus  string    `json:"custom_domain_ssl_status"`
+	CustomDomainDnsRecords string    `json:"custom_domain_dns_records"`
+	CreatedAt              time.Time `json:"created_at"`
+	UpdatedAt              time.Time `json:"updated_at"`
 }
 
 func (q *Queries) CreateStatusPageSettings(ctx context.Context, arg CreateStatusPageSettingsParams) error {
@@ -44,6 +49,9 @@ func (q *Queries) CreateStatusPageSettings(ctx context.Context, arg CreateStatus
 		arg.ShowUptimePercentage,
 		arg.HidePausedMonitors,
 		arg.ShowIncidentHistory,
+		arg.CustomDomainStatus,
+		arg.CustomDomainSslStatus,
+		arg.CustomDomainDnsRecords,
 		arg.CreatedAt,
 		arg.UpdatedAt,
 	)
@@ -51,7 +59,7 @@ func (q *Queries) CreateStatusPageSettings(ctx context.Context, arg CreateStatus
 }
 
 const getStatusPageSettings = `-- name: GetStatusPageSettings :one
-SELECT id, created_at, updated_at, name, homepage_url, custom_domain, google_analytics_id, enable_details_page, show_uptime_percentage, hide_paused_monitors, show_incident_history FROM status_page_settings LIMIT 1
+SELECT id, created_at, updated_at, name, homepage_url, custom_domain, google_analytics_id, enable_details_page, show_uptime_percentage, hide_paused_monitors, show_incident_history, custom_domain_status, custom_domain_ssl_status, custom_domain_dns_records FROM status_page_settings LIMIT 1
 `
 
 func (q *Queries) GetStatusPageSettings(ctx context.Context) (StatusPageSetting, error) {
@@ -69,6 +77,9 @@ func (q *Queries) GetStatusPageSettings(ctx context.Context) (StatusPageSetting,
 		&i.ShowUptimePercentage,
 		&i.HidePausedMonitors,
 		&i.ShowIncidentHistory,
+		&i.CustomDomainStatus,
+		&i.CustomDomainSslStatus,
+		&i.CustomDomainDnsRecords,
 	)
 	return i, err
 }
@@ -83,21 +94,27 @@ SET name = ?,
     show_uptime_percentage = ?,
     hide_paused_monitors = ?,
     show_incident_history = ?,
+    custom_domain_status = ?,
+    custom_domain_ssl_status = ?,
+    custom_domain_dns_records = ?,
     updated_at = ?
 WHERE id = ?
 `
 
 type UpdateStatusPageSettingsParams struct {
-	Name                 string    `json:"name"`
-	HomepageUrl          string    `json:"homepage_url"`
-	CustomDomain         string    `json:"custom_domain"`
-	GoogleAnalyticsID    string    `json:"google_analytics_id"`
-	EnableDetailsPage    int64     `json:"enable_details_page"`
-	ShowUptimePercentage int64     `json:"show_uptime_percentage"`
-	HidePausedMonitors   int64     `json:"hide_paused_monitors"`
-	ShowIncidentHistory  int64     `json:"show_incident_history"`
-	UpdatedAt            time.Time `json:"updated_at"`
-	ID                   string    `json:"id"`
+	Name                   string    `json:"name"`
+	HomepageUrl            string    `json:"homepage_url"`
+	CustomDomain           string    `json:"custom_domain"`
+	GoogleAnalyticsID      string    `json:"google_analytics_id"`
+	EnableDetailsPage      int64     `json:"enable_details_page"`
+	ShowUptimePercentage   int64     `json:"show_uptime_percentage"`
+	HidePausedMonitors     int64     `json:"hide_paused_monitors"`
+	ShowIncidentHistory    int64     `json:"show_incident_history"`
+	CustomDomainStatus     string    `json:"custom_domain_status"`
+	CustomDomainSslStatus  string    `json:"custom_domain_ssl_status"`
+	CustomDomainDnsRecords string    `json:"custom_domain_dns_records"`
+	UpdatedAt              time.Time `json:"updated_at"`
+	ID                     string    `json:"id"`
 }
 
 func (q *Queries) UpdateStatusPageSettings(ctx context.Context, arg UpdateStatusPageSettingsParams) error {
@@ -110,6 +127,9 @@ func (q *Queries) UpdateStatusPageSettings(ctx context.Context, arg UpdateStatus
 		arg.ShowUptimePercentage,
 		arg.HidePausedMonitors,
 		arg.ShowIncidentHistory,
+		arg.CustomDomainStatus,
+		arg.CustomDomainSslStatus,
+		arg.CustomDomainDnsRecords,
 		arg.UpdatedAt,
 		arg.ID,
 	)

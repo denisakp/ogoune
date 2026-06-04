@@ -90,24 +90,24 @@ defineExpose({ state, lastResult, submitting, fakeSubmit })
     class="space-y-4 max-w-md"
     @submit="(p: { data: ResourceInput }) => onSubmit(p, forceServerError)"
   >
-    <UFormGroup label="Name" name="name">
+    <UFormField label="Name" name="name">
       <UInput v-model="state.name" placeholder="api.acme.com" />
-    </UFormGroup>
+    </UFormField>
 
-    <UFormGroup label="Type" name="type">
+    <UFormField label="Type" name="type">
       <USelect
         v-model="state.type"
         :items="['http', 'tcp', 'dns', 'icmp', 'heartbeat', 'keyword', 'protocol']"
       />
-    </UFormGroup>
+    </UFormField>
 
-    <UFormGroup label="Interval (seconds)" name="interval">
+    <UFormField label="Interval (seconds)" name="interval">
       <UInput v-model.number="state.interval" type="number" :min="30" :max="86400" />
-    </UFormGroup>
+    </UFormField>
 
-    <UFormGroup v-if="state.type === 'http'" label="URL" name="url">
+    <UFormField v-if="state.type === 'http'" label="URL" name="url">
       <UInput v-model="(state as { url: string }).url" placeholder="https://example.com" />
-    </UFormGroup>
+    </UFormField>
 
     <div class="flex items-center gap-3 pt-2">
       <UButton type="submit" color="primary" :loading="submitting"> Save monitor </UButton>

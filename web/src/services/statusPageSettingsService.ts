@@ -14,3 +14,11 @@ export const updateStatusPageSettings = async (
     { method: 'PUT', json: settings },
   )
 }
+
+export const verifyStatusPageDomain = async (): Promise<StatusPageSettingsResponse> => {
+  return await request<StatusPageSettingsResponse>(
+    getAuthenticatedClient(),
+    'settings/statuspage/verify-domain',
+    { method: 'POST', json: {} },
+  )
+}

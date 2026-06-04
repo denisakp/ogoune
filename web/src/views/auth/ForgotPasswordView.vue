@@ -90,7 +90,7 @@ defineExpose({ state, onSubmit, formRef, submitted })
       >
         <div class="space-y-1.5">
           <label class="text-xs font-medium text-slate-900">Email</label>
-          <UFormGroup name="email" :ui="{ label: 'hidden' }">
+          <UFormField name="email" :ui="{ label: 'hidden' }">
             <UInput
               v-model="state.email"
               placeholder="you@company.com"
@@ -99,7 +99,7 @@ defineExpose({ state, onSubmit, formRef, submitted })
               size="md"
               class="w-full"
             />
-          </UFormGroup>
+          </UFormField>
         </div>
 
         <UButton type="submit" color="primary" block size="lg" :loading="isLoading" class="h-11">

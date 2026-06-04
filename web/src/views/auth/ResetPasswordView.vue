@@ -116,7 +116,7 @@ defineExpose({ state, onSubmit, formRef, expiredOrUsed, strength })
       >
         <div class="space-y-1.5">
           <label class="text-xs font-medium text-slate-900">New password</label>
-          <UFormGroup name="password" :ui="{ label: 'hidden' }">
+          <UFormField name="password" :ui="{ label: 'hidden' }">
             <UInput
               v-model="state.password"
               :type="showPassword ? 'text' : 'password'"
@@ -139,7 +139,7 @@ defineExpose({ state, onSubmit, formRef, expiredOrUsed, strength })
                 </button>
               </template>
             </UInput>
-          </UFormGroup>
+          </UFormField>
         </div>
 
         <div v-if="state.password" class="space-y-1.5">
@@ -163,7 +163,7 @@ defineExpose({ state, onSubmit, formRef, expiredOrUsed, strength })
 
         <div class="space-y-1.5">
           <label class="text-xs font-medium text-slate-900">Confirm new password</label>
-          <UFormGroup name="confirmPassword" :ui="{ label: 'hidden' }">
+          <UFormField name="confirmPassword" :ui="{ label: 'hidden' }">
             <UInput
               v-model="state.confirmPassword"
               :type="showConfirm ? 'text' : 'password'"
@@ -186,7 +186,7 @@ defineExpose({ state, onSubmit, formRef, expiredOrUsed, strength })
                 </button>
               </template>
             </UInput>
-          </UFormGroup>
+          </UFormField>
         </div>
 
         <UButton type="submit" color="primary" block size="lg" :loading="isLoading" class="h-11">

@@ -5,7 +5,17 @@ const OverviewView = () => import('@/views/overview/OverviewView.vue')
 const ResourcesView = () => import('@/views/resources/ResourcesView.vue')
 const ResourceDetailView = () => import('@/views/resources/ResourceDetailView.vue')
 const ComponentsView = () => import('@/views/ComponentsView.vue')
-const SettingsView = () => import('@/views/SettingsView.vue')
+const SettingsLayoutView = () => import('@/views/settings/SettingsLayoutView.vue')
+const AccountSettingsView = () => import('@/views/settings/AccountView.vue')
+const SessionsSettingsView = () => import('@/views/settings/SessionsView.vue')
+const TwoFactorSetupView = () => import('@/views/settings/TwoFactorSetupView.vue')
+const NotificationsSettingsView = () => import('@/views/settings/NotificationsView.vue')
+const ApiKeysSettingsView = () => import('@/views/settings/ApiKeysView.vue')
+const EscalationSettingsView = () => import('@/views/settings/EscalationView.vue')
+const OrgGeneralSettingsView = () => import('@/views/settings/OrgGeneralView.vue')
+const StatusPageSettingsView = () => import('@/views/settings/StatusPageSettingsView.vue')
+const TwoFactorRecoverView = () => import('@/views/auth/TwoFactorRecoverView.vue')
+const TwoFactorResetView = () => import('@/views/auth/TwoFactorResetView.vue')
 const Verify2FAView = () => import('@/views/auth/Verify2FAView.vue')
 const IncidentsView = () => import('@/views/incidents/IncidentsView.vue')
 const IncidentView = () => import('@/views/incidents/IncidentView.vue')
@@ -16,7 +26,7 @@ const RegisterView = () => import('@/views/auth/RegisterView.vue')
 const ForgotPasswordView = () => import('@/views/auth/ForgotPasswordView.vue')
 const ResetPasswordView = () => import('@/views/auth/ResetPasswordView.vue')
 const InitializePasswordView = () => import('@/views/auth/InitializePasswordView.vue')
-const MaintenanceView = () => import('@/views/maintenance/MaintenanceView.vue')
+const MaintenanceView = () => import('@/views/maintenance/MaintenanceListView.vue')
 
 const routes: RouteRecordRaw[] = [
   {
@@ -66,6 +76,18 @@ const routes: RouteRecordRaw[] = [
     meta: { public: true, requiresLayout: false },
   },
   {
+    path: '/auth/2fa-recover',
+    name: 'TwoFactorRecover',
+    component: TwoFactorRecoverView,
+    meta: { public: true, requiresLayout: false },
+  },
+  {
+    path: '/2fa/reset',
+    name: 'TwoFactorReset',
+    component: TwoFactorResetView,
+    meta: { public: true, requiresLayout: false },
+  },
+  {
     path: '/resources',
     name: 'Resources',
     component: ResourcesView,
@@ -107,9 +129,41 @@ const routes: RouteRecordRaw[] = [
   },
   {
     path: '/settings',
-    name: 'Settings',
-    component: SettingsView,
+    component: SettingsLayoutView,
     meta: { requiresAuth: true, requiresLayout: true, breadcrumbLabel: 'Settings' },
+    children: [
+      { path: '', redirect: '/settings/account' },
+      {
+        path: 'account',
+        name: 'SettingsAccount',
+        component: AccountSettingsView,
+        meta: { breadcrumbLabel: 'Account' },
+      },
+      {
+        path: 'sessions',
+        name: 'SettingsSessions',
+        component: SessionsSettingsView,
+        meta: { breadcrumbLabel: 'Sessions' },
+      },
+      {
+        path: 'security/2fa',
+        name: 'SettingsSecurity2FA',
+        component: TwoFactorSetupView,
+        meta: { breadcrumbLabel: 'Two-factor auth' },
+      },
+      {
+        path: 'org/general',
+        name: 'SettingsOrgGeneral',
+        component: OrgGeneralSettingsView,
+        meta: { breadcrumbLabel: 'General' },
+      },
+      {
+        path: 'org/status-page',
+        name: 'SettingsStatusPage',
+        component: StatusPageSettingsView,
+        meta: { breadcrumbLabel: 'Status Page' },
+      },
+    ],
   },
   {
     path: '/maintenance',
@@ -117,6 +171,29 @@ const routes: RouteRecordRaw[] = [
     component: MaintenanceView,
     meta: { requiresAuth: true, requiresLayout: true, breadcrumbLabel: 'Maintenance' },
   },
+  // Top-level Settings entries (sidebar SETTINGS group).
+  {
+    path: '/notifications',
+    name: 'Notifications',
+    component: NotificationsSettingsView,
+    meta: { requiresAuth: true, requiresLayout: true, breadcrumbLabel: 'Notifications' },
+  },
+  {
+    path: '/escalation',
+    name: 'Escalation',
+    component: EscalationSettingsView,
+    meta: { requiresAuth: true, requiresLayout: true, breadcrumbLabel: 'Escalation' },
+  },
+  {
+    path: '/api-keys',
+    name: 'ApiKeys',
+    component: ApiKeysSettingsView,
+    meta: { requiresAuth: true, requiresLayout: true, breadcrumbLabel: 'API keys' },
+  },
+  // Legacy /settings/* redirects (sidebar split per design).
+  { path: '/settings/notifications', redirect: '/notifications' },
+  { path: '/settings/escalation', redirect: '/escalation' },
+  { path: '/settings/api-keys', redirect: '/api-keys' },
   // Public status page routes (no app layout)
   {
     path: '/status',

@@ -478,14 +478,17 @@ type Maintenance struct {
 
 type StatusPageSettings struct {
 	Base
-	Name                 string `json:"name"`
-	HomepageURL          string `json:"homepage_url"`
-	CustomDomain         string `json:"custom_domain"`
-	GoogleAnalyticsID    string `json:"google_analytics_id"`
-	EnableDetailsPage    bool   `json:"enable_details_page"`
-	ShowUptimePercentage bool   `json:"show_uptime_percentage"`
-	HidePausedMonitors   bool   `json:"hide_paused_monitors"`
-	ShowIncidentHistory  bool   `json:"show_incident_history"`
+	Name                 string          `json:"name"`
+	HomepageURL          string          `json:"homepage_url"`
+	CustomDomain         string          `json:"custom_domain"`
+	GoogleAnalyticsID    string          `json:"google_analytics_id"`
+	EnableDetailsPage    bool            `json:"enable_details_page"`
+	ShowUptimePercentage bool            `json:"show_uptime_percentage"`
+	HidePausedMonitors   bool            `json:"hide_paused_monitors"`
+	ShowIncidentHistory  bool            `json:"show_incident_history"`
+	CustomDomainStatus   DomainStatus    `json:"custom_domain_status"`
+	CustomDomainSSL      DomainSSLStatus `json:"custom_domain_ssl_status"`
+	CustomDomainDNS      []DNSRecord     `json:"custom_domain_dns_records"`
 }
 
 
@@ -538,3 +541,96 @@ func (u *User) IsPasswordInitialized() bool {
 func (u *User) HasTwoFactor() bool {
 	return u.TwoFactorEnabled && u.TwoFactorSecret != ""
 }
+
+// MUST consult RevokedAt on every authenticated request. Non-nil = invalid.
+type Session struct {
+	ID           string     `json:"id"`
+	UserID       string     `json:"user_id"`
+	Browser      string     `json:"browser"`
+	OS           string     `json:"os"`
+	IP           string     `json:"ip"`
+	Location     *string    `json:"location,omitempty"`
+	LastActiveAt time.Time  `json:"last_active_at"`
+	CreatedAt    time.Time  `json:"created_at"`
+	RevokedAt    *time.Time `json:"revoked_at,omitempty"`
+}
+
+func (s *Session) EnsureID() {
+	if s.ID == "" {
+		t := time.Now()
+		entropy := ulid.Monotonic(rand.New(rand.NewSource(t.UnixNano())), 0)
+		s.ID = ulid.MustNew(ulid.Timestamp(t), entropy).String()
+	}
+}
+
+// TokenHash is SHA-256(cleartext); cleartext never stored.
+type TwoFactorResetToken struct {
+	TokenHash string     `json:"-"`
+	UserID    string     `json:"user_id"`
+	ExpiresAt time.Time  `json:"expires_at"`
+	UsedAt    *time.Time `json:"used_at,omitempty"`
+	CreatedAt time.Time  `json:"created_at"`
+}
+
+// EscalationScopeKind
+type EscalationScopeKind string
+
+const (
+	EscalationScopeComponent EscalationScopeKind = "component"
+	EscalationScopeTag       EscalationScopeKind = "tag"
+)
+
+// EscalationScope binds a policy to a component or tag id.
+type EscalationScope struct {
+	Kind  EscalationScopeKind `json:"kind"`
+	Value string              `json:"value"`
+}
+
+// EscalationStep
+type EscalationStep struct {
+	ID           string   `json:"id"`
+	PolicyID     string   `json:"policy_id"`
+	StepOrder    int      `json:"step_order"`
+	DelayMinutes int      `json:"delay_minutes"`
+	ChannelIDs   []string `json:"channel_ids"`
+}
+
+// EscalationPolicy Lower Priority = higher
+// precedence among Active policies. Partial unique on (priority) where active.
+type EscalationPolicy struct {
+	Base
+	Name     string           `json:"name"`
+	Scope    EscalationScope  `json:"scope"`
+	IsActive bool             `json:"is_active"`
+	Priority int              `json:"priority"`
+	Steps    []EscalationStep `json:"steps"`
+}
+
+// DomainStatus
+type DomainStatus string
+
+const (
+	DomainStatusPending  DomainStatus = "pending"
+	DomainStatusVerified DomainStatus = "verified"
+	DomainStatusFailed   DomainStatus = "failed"
+)
+
+// DomainSSLStatus The `provisioning → active` transition
+// is deferred per FR-040 (ACME issuance callback out of scope this PR).
+type DomainSSLStatus string
+
+const (
+	DomainSSLStatusNone         DomainSSLStatus = "none"
+	DomainSSLStatusProvisioning DomainSSLStatus = "provisioning"
+	DomainSSLStatusActive       DomainSSLStatus = "active"
+)
+
+// DNSRecord — single CNAME or TXT entry seeded on custom-domain create.
+type DNSRecord struct {
+	Type      string  `json:"type"` // "CNAME" | "TXT"
+	Host      string  `json:"host"`
+	Value     string  `json:"value"`
+	Status    string  `json:"status"` // "pending" | "verified" | "failed"
+	LastError *string `json:"last_error,omitempty"`
+}
+

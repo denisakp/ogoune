@@ -130,6 +130,15 @@ export function getAuthenticatedClient(): KyInstance {
   return _authClient
 }
 
+let _publicClient: KyInstance | null = null
+/** Public ky instance — same base config, no Authorization header. */
+export function getPublicClient(): KyInstance {
+  if (!_publicClient) {
+    _publicClient = ky.create({ ...BASE_CONFIG, hooks: buildHooks(() => null) })
+  }
+  return _publicClient
+}
+
 /**
  * Orthogonal helper: takes any KyInstance + url + options, returns the
  * parsed JSON body typed as T. Handles 204/205 → undefined and routes

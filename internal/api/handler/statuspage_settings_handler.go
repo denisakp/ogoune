@@ -2,6 +2,7 @@ package handler
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 
 	"github.com/denisakp/ogoune/internal/api/response"
@@ -11,48 +12,67 @@ import (
 	"github.com/go-chi/chi/v5"
 )
 
-// StatusPageSettingsHandler handles HTTP requests for status page settings
+// StatusPageSettingsHandler handles HTTP requests for status page settings.
+// Spec 059 fold: now also owns the custom-domain DNS lifecycle.
 type StatusPageSettingsHandler struct {
 	service *service.StatusPageSettingsService
 }
 
-// NewStatusPageSettingsHandler creates a new handler instance
-func NewStatusPageSettingsHandler(service *service.StatusPageSettingsService) *StatusPageSettingsHandler {
-	return &StatusPageSettingsHandler{service: service}
+// NewStatusPageSettingsHandler creates a new handler instance.
+func NewStatusPageSettingsHandler(svc *service.StatusPageSettingsService) *StatusPageSettingsHandler {
+	return &StatusPageSettingsHandler{service: svc}
 }
 
-// RegisterRoutes registers the settings routes
+// RegisterRoutes registers the settings routes.
 func (h *StatusPageSettingsHandler) RegisterRoutes(r chi.Router) {
 	r.Get("/settings/statuspage", h.GetSettings)
 	r.Put("/settings/statuspage", h.UpdateSettings)
+	r.Post("/settings/statuspage/verify-domain", h.VerifyDomain)
 }
 
-// GetSettings retrieves the current status page settings
+func toSettingsResponse(s *domain.StatusPageSettings) dto.StatusPageSettingsResponse {
+	records := s.CustomDomainDNS
+	if records == nil {
+		records = []domain.DNSRecord{}
+	}
+	status := string(s.CustomDomainStatus)
+	if status == "" {
+		status = string(domain.DomainStatusPending)
+	}
+	ssl := string(s.CustomDomainSSL)
+	if ssl == "" {
+		ssl = string(domain.DomainSSLStatusNone)
+	}
+	return dto.StatusPageSettingsResponse{
+		ID:                     s.ID,
+		Name:                   s.Name,
+		HomepageURL:            s.HomepageURL,
+		CustomDomain:           s.CustomDomain,
+		GoogleAnalyticsID:      s.GoogleAnalyticsID,
+		EnableDetailsPage:      s.EnableDetailsPage,
+		ShowUptimePercentage:   s.ShowUptimePercentage,
+		HidePausedMonitors:     s.HidePausedMonitors,
+		ShowIncidentHistory:    s.ShowIncidentHistory,
+		CustomDomainStatus:     status,
+		CustomDomainSSLStatus:  ssl,
+		CustomDomainDNSRecords: records,
+		CreatedAt:              s.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
+		UpdatedAt:              s.UpdatedAt.Format("2006-01-02T15:04:05Z07:00"),
+	}
+}
+
+// GetSettings retrieves the current status page settings.
 func (h *StatusPageSettingsHandler) GetSettings(w http.ResponseWriter, r *http.Request) {
 	settings, err := h.service.GetSettings(r.Context())
 	if err != nil {
 		response.Error(w, http.StatusInternalServerError, "Failed to retrieve settings")
 		return
 	}
-
-	resp := dto.StatusPageSettingsResponse{
-		ID:                   settings.ID,
-		Name:                 settings.Name,
-		HomepageURL:          settings.HomepageURL,
-		CustomDomain:         settings.CustomDomain,
-		GoogleAnalyticsID:    settings.GoogleAnalyticsID,
-		EnableDetailsPage:    settings.EnableDetailsPage,
-		ShowUptimePercentage: settings.ShowUptimePercentage,
-		HidePausedMonitors:   settings.HidePausedMonitors,
-		ShowIncidentHistory:  settings.ShowIncidentHistory,
-		CreatedAt:            settings.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
-		UpdatedAt:            settings.UpdatedAt.Format("2006-01-02T15:04:05Z07:00"),
-	}
-
-	response.JSON(w, http.StatusOK, resp)
+	response.JSON(w, http.StatusOK, toSettingsResponse(settings))
 }
 
-// UpdateSettings updates the status page settings
+// UpdateSettings updates the status page settings (and seeds DNS records when
+// the custom domain changes).
 func (h *StatusPageSettingsHandler) UpdateSettings(w http.ResponseWriter, r *http.Request) {
 	var req dto.StatusPageSettingsRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -72,30 +92,28 @@ func (h *StatusPageSettingsHandler) UpdateSettings(w http.ResponseWriter, r *htt
 	}
 
 	if err := h.service.UpdateSettings(r.Context(), settings); err != nil {
+		if errors.Is(err, service.ErrCustomDomainInvalidHostname) {
+			response.Error(w, http.StatusUnprocessableEntity, "Invalid hostname")
+			return
+		}
 		response.Error(w, http.StatusInternalServerError, "Failed to update settings")
 		return
 	}
 
-	// Return updated settings
 	updated, err := h.service.GetSettings(r.Context())
 	if err != nil {
 		response.Error(w, http.StatusInternalServerError, "Failed to retrieve updated settings")
 		return
 	}
+	response.JSON(w, http.StatusOK, toSettingsResponse(updated))
+}
 
-	resp := dto.StatusPageSettingsResponse{
-		ID:                   updated.ID,
-		Name:                 updated.Name,
-		HomepageURL:          updated.HomepageURL,
-		CustomDomain:         updated.CustomDomain,
-		GoogleAnalyticsID:    updated.GoogleAnalyticsID,
-		EnableDetailsPage:    updated.EnableDetailsPage,
-		ShowUptimePercentage: updated.ShowUptimePercentage,
-		HidePausedMonitors:   updated.HidePausedMonitors,
-		ShowIncidentHistory:  updated.ShowIncidentHistory,
-		CreatedAt:            updated.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
-		UpdatedAt:            updated.UpdatedAt.Format("2006-01-02T15:04:05Z07:00"),
+// VerifyDomain re-checks the seeded DNS records.
+func (h *StatusPageSettingsHandler) VerifyDomain(w http.ResponseWriter, r *http.Request) {
+	updated, err := h.service.VerifyDomain(r.Context())
+	if err != nil {
+		response.Error(w, http.StatusInternalServerError, "Failed to verify domain")
+		return
 	}
-
-	response.JSON(w, http.StatusOK, resp)
+	response.JSON(w, http.StatusOK, toSettingsResponse(updated))
 }

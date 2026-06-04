@@ -20,4 +20,9 @@ var (
 	_ port.IncidentDiagnosticsRepository   = (*IncidentDiagnosticsRepositorySQLC)(nil)
 	_ port.ExpiryNotificationLogRepository = (*ExpiryNotificationLogRepositorySQLC)(nil)
 	_ port.ResourceCredentialRepository    = (*ResourceCredentialRepositorySQLC)(nil)
+
+	// Spec 059 — Settings slice
+	_ port.SessionRepository             = (*SessionRepositorySQLC)(nil)
+	_ port.TwoFactorResetTokenRepository = (*TwoFactorResetTokenRepositorySQLC)(nil)
+	_ port.EscalationRepository          = (*EscalationRepositorySQLC)(nil)
 )

@@ -27,7 +27,7 @@ func buildAuthMiddleware(t *testing.T) (http.Handler, *service.APIKeyService, *f
 		w.WriteHeader(http.StatusOK)
 	})
 
-	handler := AuthMiddleware(authSvc, apiKeySvc)(next)
+	handler := AuthMiddleware(authSvc, apiKeySvc, nil)(next)
 	return handler, apiKeySvc, userRepo, authSvc
 }
 
@@ -92,7 +92,7 @@ func TestAuthMiddleware_APIKey_SetsContextValues(t *testing.T) {
 		capturedCtx = r.Context()
 		w.WriteHeader(http.StatusOK)
 	})
-	handler := AuthMiddleware(authSvc, apiKeySvc)(next)
+	handler := AuthMiddleware(authSvc, apiKeySvc, nil)(next)
 
 	req := httptest.NewRequest(http.MethodGet, "/resources", nil)
 	req.Header.Set("X-API-Key", key.Key)
@@ -149,7 +149,7 @@ func TestAuthMiddleware_ExpiredKey_Returns401(t *testing.T) {
 	require.NoError(t, err)
 
 	apiKeySvc.SetNow(func() time.Time { return time.Now().Add(2 * time.Hour) })
-	mw := AuthMiddleware(authSvc, apiKeySvc)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	mw := AuthMiddleware(authSvc, apiKeySvc, nil)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	}))
 

@@ -30,9 +30,9 @@ const tools: NavItem[] = [
 ]
 
 const settings: NavItem[] = [
-  { label: 'Notifications', to: '/settings/notifications', icon: 'i-lucide-bell' },
-  { label: 'Escalation', to: '/settings/escalation', icon: 'i-lucide-siren' },
-  { label: 'API Keys', to: '/settings/api-keys', icon: 'i-lucide-key-round' },
+  { label: 'Notifications', to: '/notifications', icon: 'i-lucide-bell' },
+  { label: 'Escalation', to: '/escalation', icon: 'i-lucide-siren' },
+  { label: 'API Keys', to: '/api-keys', icon: 'i-lucide-key-round' },
   { label: 'Preferences', to: '/settings', icon: 'i-lucide-settings' },
 ]
 

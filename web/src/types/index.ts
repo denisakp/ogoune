@@ -397,7 +397,7 @@ export interface PublicMonitorDetail {
 /**
  * Notification Channel Types
  */
-export type NotificationChannelType = 'smtp' | 'slack' | 'sms'
+export type NotificationChannelType = 'smtp' | 'slack' | 'sms' | 'webhook'
 
 /**
  * SMTP Configuration for notification channel
@@ -525,6 +525,14 @@ export interface StatusPageSettingsRequest {
   show_incident_history: boolean
 }
 
+export interface StatusPageDNSRecord {
+  type: 'CNAME' | 'TXT'
+  host: string
+  value: string
+  status: 'pending' | 'verified' | 'failed'
+  last_error?: string | null
+}
+
 export interface StatusPageSettingsResponse {
   id: string
   name: string
@@ -535,6 +543,9 @@ export interface StatusPageSettingsResponse {
   show_uptime_percentage: boolean
   hide_paused_monitors: boolean
   show_incident_history: boolean
+  custom_domain_status: 'pending' | 'verified' | 'failed'
+  custom_domain_ssl_status: 'none' | 'provisioning' | 'active'
+  custom_domain_dns_records: StatusPageDNSRecord[]
   created_at: string
   updated_at: string
 }

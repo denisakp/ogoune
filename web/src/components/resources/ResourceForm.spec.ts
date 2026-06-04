@@ -19,7 +19,7 @@ import ResourceForm from './ResourceForm.vue'
 
 const stubs = {
   UForm: { template: '<form><slot /></form>', props: ['schema', 'state'] },
-  UFormGroup: { template: '<div><slot /></div>', props: ['name', 'ui'] },
+  UFormField: { template: '<div><slot /></div>', props: ['name', 'ui'] },
   UInput: { template: '<input />' },
   USelect: { template: '<select />' },
   UButton: { template: '<button><slot /></button>' },

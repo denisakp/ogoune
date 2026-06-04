@@ -3,6 +3,7 @@ package store
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"time"
@@ -15,6 +16,44 @@ import (
 	pgsqlc "github.com/denisakp/ogoune/internal/repository/sqlc/pg"
 	sqlitesqlc "github.com/denisakp/ogoune/internal/repository/sqlc/sqlite"
 )
+
+func encodeDNSRecords(records []domain.DNSRecord) []byte {
+	if records == nil {
+		records = []domain.DNSRecord{}
+	}
+	b, err := json.Marshal(records)
+	if err != nil {
+		return []byte("[]")
+	}
+	return b
+}
+
+func decodeDNSRecords(raw []byte) []domain.DNSRecord {
+	if len(raw) == 0 {
+		return nil
+	}
+	var out []domain.DNSRecord
+	_ = json.Unmarshal(raw, &out)
+	return out
+}
+
+func encodeDNSRecordsString(records []domain.DNSRecord) string {
+	return string(encodeDNSRecords(records))
+}
+
+func defaultDomainStatus(s string) domain.DomainStatus {
+	if s == "" {
+		return domain.DomainStatusPending
+	}
+	return domain.DomainStatus(s)
+}
+
+func defaultDomainSSL(s string) domain.DomainSSLStatus {
+	if s == "" {
+		return domain.DomainSSLStatusNone
+	}
+	return domain.DomainSSLStatus(s)
+}
 
 type StatusPageSettingsRepositorySQLC struct {
 	pgQ     *pgsqlc.Queries
@@ -84,17 +123,20 @@ func (r *StatusPageSettingsRepositorySQLC) Upsert(ctx context.Context, s *domain
 			}
 			s.UpdatedAt = now
 			return r.pgQ.CreateStatusPageSettings(ctx, pgsqlc.CreateStatusPageSettingsParams{
-				ID:                   s.ID,
-				Name:                 s.Name,
-				HomepageUrl:          s.HomepageURL,
-				CustomDomain:         s.CustomDomain,
-				GoogleAnalyticsID:    s.GoogleAnalyticsID,
-				EnableDetailsPage:    s.EnableDetailsPage,
-				ShowUptimePercentage: s.ShowUptimePercentage,
-				HidePausedMonitors:   s.HidePausedMonitors,
-				ShowIncidentHistory:  s.ShowIncidentHistory,
-				CreatedAt:            pgtype.Timestamptz{Time: s.CreatedAt, Valid: true},
-				UpdatedAt:            pgtype.Timestamptz{Time: s.UpdatedAt, Valid: true},
+				ID:                     s.ID,
+				Name:                   s.Name,
+				HomepageUrl:            s.HomepageURL,
+				CustomDomain:           s.CustomDomain,
+				GoogleAnalyticsID:      s.GoogleAnalyticsID,
+				EnableDetailsPage:      s.EnableDetailsPage,
+				ShowUptimePercentage:   s.ShowUptimePercentage,
+				HidePausedMonitors:     s.HidePausedMonitors,
+				ShowIncidentHistory:    s.ShowIncidentHistory,
+				CustomDomainStatus:     string(defaultDomainStatus(string(s.CustomDomainStatus))),
+				CustomDomainSslStatus:  string(defaultDomainSSL(string(s.CustomDomainSSL))),
+				CustomDomainDnsRecords: encodeDNSRecords(s.CustomDomainDNS),
+				CreatedAt:              pgtype.Timestamptz{Time: s.CreatedAt, Valid: true},
+				UpdatedAt:              pgtype.Timestamptz{Time: s.UpdatedAt, Valid: true},
 			})
 		}
 		if err != nil {
@@ -104,16 +146,19 @@ func (r *StatusPageSettingsRepositorySQLC) Upsert(ctx context.Context, s *domain
 		s.CreatedAt = existing.CreatedAt.Time
 		s.UpdatedAt = now
 		return r.pgQ.UpdateStatusPageSettings(ctx, pgsqlc.UpdateStatusPageSettingsParams{
-			ID:                   s.ID,
-			Name:                 s.Name,
-			HomepageUrl:          s.HomepageURL,
-			CustomDomain:         s.CustomDomain,
-			GoogleAnalyticsID:    s.GoogleAnalyticsID,
-			EnableDetailsPage:    s.EnableDetailsPage,
-			ShowUptimePercentage: s.ShowUptimePercentage,
-			HidePausedMonitors:   s.HidePausedMonitors,
-			ShowIncidentHistory:  s.ShowIncidentHistory,
-			UpdatedAt:            pgtype.Timestamptz{Time: s.UpdatedAt, Valid: true},
+			ID:                     s.ID,
+			Name:                   s.Name,
+			HomepageUrl:            s.HomepageURL,
+			CustomDomain:           s.CustomDomain,
+			GoogleAnalyticsID:      s.GoogleAnalyticsID,
+			EnableDetailsPage:      s.EnableDetailsPage,
+			ShowUptimePercentage:   s.ShowUptimePercentage,
+			HidePausedMonitors:     s.HidePausedMonitors,
+			ShowIncidentHistory:    s.ShowIncidentHistory,
+			CustomDomainStatus:     string(defaultDomainStatus(string(s.CustomDomainStatus))),
+			CustomDomainSslStatus:  string(defaultDomainSSL(string(s.CustomDomainSSL))),
+			CustomDomainDnsRecords: encodeDNSRecords(s.CustomDomainDNS),
+			UpdatedAt:              pgtype.Timestamptz{Time: s.UpdatedAt, Valid: true},
 		})
 	case r.sqliteQ != nil:
 		existing, err := r.sqliteQ.GetStatusPageSettings(ctx)
@@ -124,17 +169,20 @@ func (r *StatusPageSettingsRepositorySQLC) Upsert(ctx context.Context, s *domain
 			}
 			s.UpdatedAt = now
 			return r.sqliteQ.CreateStatusPageSettings(ctx, sqlitesqlc.CreateStatusPageSettingsParams{
-				ID:                   s.ID,
-				Name:                 s.Name,
-				HomepageUrl:          s.HomepageURL,
-				CustomDomain:         s.CustomDomain,
-				GoogleAnalyticsID:    s.GoogleAnalyticsID,
-				EnableDetailsPage:    boolToInt64(s.EnableDetailsPage),
-				ShowUptimePercentage: boolToInt64(s.ShowUptimePercentage),
-				HidePausedMonitors:   boolToInt64(s.HidePausedMonitors),
-				ShowIncidentHistory:  boolToInt64(s.ShowIncidentHistory),
-				CreatedAt:            s.CreatedAt,
-				UpdatedAt:            s.UpdatedAt,
+				ID:                     s.ID,
+				Name:                   s.Name,
+				HomepageUrl:            s.HomepageURL,
+				CustomDomain:           s.CustomDomain,
+				GoogleAnalyticsID:      s.GoogleAnalyticsID,
+				EnableDetailsPage:      boolToInt64(s.EnableDetailsPage),
+				ShowUptimePercentage:   boolToInt64(s.ShowUptimePercentage),
+				HidePausedMonitors:     boolToInt64(s.HidePausedMonitors),
+				ShowIncidentHistory:    boolToInt64(s.ShowIncidentHistory),
+				CustomDomainStatus:     string(defaultDomainStatus(string(s.CustomDomainStatus))),
+				CustomDomainSslStatus:  string(defaultDomainSSL(string(s.CustomDomainSSL))),
+				CustomDomainDnsRecords: encodeDNSRecordsString(s.CustomDomainDNS),
+				CreatedAt:              s.CreatedAt,
+				UpdatedAt:              s.UpdatedAt,
 			})
 		}
 		if err != nil {
@@ -144,16 +192,19 @@ func (r *StatusPageSettingsRepositorySQLC) Upsert(ctx context.Context, s *domain
 		s.CreatedAt = existing.CreatedAt
 		s.UpdatedAt = now
 		return r.sqliteQ.UpdateStatusPageSettings(ctx, sqlitesqlc.UpdateStatusPageSettingsParams{
-			ID:                   s.ID,
-			Name:                 s.Name,
-			HomepageUrl:          s.HomepageURL,
-			CustomDomain:         s.CustomDomain,
-			GoogleAnalyticsID:    s.GoogleAnalyticsID,
-			EnableDetailsPage:    boolToInt64(s.EnableDetailsPage),
-			ShowUptimePercentage: boolToInt64(s.ShowUptimePercentage),
-			HidePausedMonitors:   boolToInt64(s.HidePausedMonitors),
-			ShowIncidentHistory:  boolToInt64(s.ShowIncidentHistory),
-			UpdatedAt:            s.UpdatedAt,
+			ID:                     s.ID,
+			Name:                   s.Name,
+			HomepageUrl:            s.HomepageURL,
+			CustomDomain:           s.CustomDomain,
+			GoogleAnalyticsID:      s.GoogleAnalyticsID,
+			EnableDetailsPage:      boolToInt64(s.EnableDetailsPage),
+			ShowUptimePercentage:   boolToInt64(s.ShowUptimePercentage),
+			HidePausedMonitors:     boolToInt64(s.HidePausedMonitors),
+			ShowIncidentHistory:    boolToInt64(s.ShowIncidentHistory),
+			CustomDomainStatus:     string(defaultDomainStatus(string(s.CustomDomainStatus))),
+			CustomDomainSslStatus:  string(defaultDomainSSL(string(s.CustomDomainSSL))),
+			CustomDomainDnsRecords: encodeDNSRecordsString(s.CustomDomainDNS),
+			UpdatedAt:              s.UpdatedAt,
 		})
 	default:
 		return r.unconfigured()
@@ -175,6 +226,9 @@ func statusPageSettingsFromPG(row pgsqlc.StatusPageSetting) *domain.StatusPageSe
 		ShowUptimePercentage: row.ShowUptimePercentage,
 		HidePausedMonitors:   row.HidePausedMonitors,
 		ShowIncidentHistory:  row.ShowIncidentHistory,
+		CustomDomainStatus:   defaultDomainStatus(row.CustomDomainStatus),
+		CustomDomainSSL:      defaultDomainSSL(row.CustomDomainSslStatus),
+		CustomDomainDNS:      decodeDNSRecords(row.CustomDomainDnsRecords),
 	}
 }
 
@@ -193,5 +247,8 @@ func statusPageSettingsFromSQLite(row sqlitesqlc.StatusPageSetting) *domain.Stat
 		ShowUptimePercentage: row.ShowUptimePercentage != 0,
 		HidePausedMonitors:   row.HidePausedMonitors != 0,
 		ShowIncidentHistory:  row.ShowIncidentHistory != 0,
+		CustomDomainStatus:   defaultDomainStatus(row.CustomDomainStatus),
+		CustomDomainSSL:      defaultDomainSSL(row.CustomDomainSslStatus),
+		CustomDomainDNS:      decodeDNSRecords([]byte(row.CustomDomainDnsRecords)),
 	}
 }

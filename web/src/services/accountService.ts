@@ -147,6 +147,13 @@ const accountService = {
     )
   },
 
+  async deleteAccount(typedEmail: string): Promise<{ message: string }> {
+    return await request<{ message: string }>(getAuthenticatedClient(), 'account', {
+      method: 'DELETE',
+      json: { confirm_email: typedEmail },
+    })
+  },
+
   async markOnboardingDone(): Promise<{ status: 'done' }> {
     return await request<{ status: 'done' }>(getAuthenticatedClient(), 'v1/me/onboarding-state', {
       method: 'PATCH',

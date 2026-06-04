@@ -68,7 +68,7 @@ defineExpose({ state, onSubmit, formRef })
       >
         <div class="space-y-1.5">
           <label class="text-sm font-medium text-slate-900">Email</label>
-          <UFormGroup name="email" :ui="{ label: 'hidden' }">
+          <UFormField name="email" :ui="{ label: 'hidden' }">
             <UInput
               v-model="state.email"
               placeholder="you@company.com"
@@ -78,7 +78,7 @@ defineExpose({ state, onSubmit, formRef })
               size="lg"
               class="w-full"
             />
-          </UFormGroup>
+          </UFormField>
         </div>
 
         <div class="space-y-1.5">
@@ -88,7 +88,7 @@ defineExpose({ state, onSubmit, formRef })
               Forgot password?
             </RouterLink>
           </div>
-          <UFormGroup name="password" :ui="{ label: 'hidden' }">
+          <UFormField name="password" :ui="{ label: 'hidden' }">
             <UInput
               v-model="state.password"
               :type="showPassword ? 'text' : 'password'"
@@ -112,7 +112,7 @@ defineExpose({ state, onSubmit, formRef })
                 </button>
               </template>
             </UInput>
-          </UFormGroup>
+          </UFormField>
         </div>
 
         <UButton type="submit" color="primary" block size="lg" :loading="isLoading" class="h-11">

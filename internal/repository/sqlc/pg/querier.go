@@ -20,9 +20,12 @@ type Querier interface {
 	CountMonitoringActivityByResourceTotal(ctx context.Context, arg CountMonitoringActivityByResourceTotalParams) (int64, error)
 	CountMonitoringActivitySinceSuccess(ctx context.Context, createdAt pgtype.Timestamptz) (int64, error)
 	CountMonitoringActivitySinceTotal(ctx context.Context, createdAt pgtype.Timestamptz) (int64, error)
+	CountRecentTwoFactorResetTokensByUser(ctx context.Context, arg CountRecentTwoFactorResetTokensByUserParams) (int64, error)
 	CountResourcesByComponentID(ctx context.Context, componentID pgtype.Text) (int64, error)
 	CreateAPIKey(ctx context.Context, arg CreateAPIKeyParams) error
 	CreateComponent(ctx context.Context, arg CreateComponentParams) error
+	CreateEscalationPolicy(ctx context.Context, arg CreateEscalationPolicyParams) error
+	CreateEscalationStep(ctx context.Context, arg CreateEscalationStepParams) error
 	CreateExpiryNotificationLog(ctx context.Context, arg CreateExpiryNotificationLogParams) error
 	// US2 of spec 048: incident_repository sqlc migration. No M2M;
 	// controlled-N+1 preload for Resource and IncidentDiagnostics
@@ -38,10 +41,15 @@ type Querier interface {
 	// Deferred to later PRs: FindByTag (M2M JOIN), dynamic UpdateMonitoringState /
 	// UpdateMetadata, Tags / NotificationChannels / Component / Credential preloads.
 	CreateResource(ctx context.Context, arg CreateResourceParams) error
+	CreateSession(ctx context.Context, arg CreateSessionParams) (Session, error)
 	CreateStatusPageSettings(ctx context.Context, arg CreateStatusPageSettingsParams) error
 	CreateTag(ctx context.Context, arg CreateTagParams) (Tag, error)
+	CreateTwoFactorResetToken(ctx context.Context, arg CreateTwoFactorResetTokenParams) error
 	CreateUser(ctx context.Context, arg CreateUserParams) (User, error)
 	DeleteComponent(ctx context.Context, id string) (int64, error)
+	DeleteEscalationPolicy(ctx context.Context, id string) (int64, error)
+	DeleteEscalationStepsByPolicy(ctx context.Context, policyID string) error
+	DeleteExpiredTwoFactorResetTokens(ctx context.Context, expiresAt pgtype.Timestamptz) error
 	DeleteExpiryNotificationLogsByResourceIDAndType(ctx context.Context, arg DeleteExpiryNotificationLogsByResourceIDAndTypeParams) error
 	DeleteExpiryNotificationLogsOlderThan(ctx context.Context, sentAt pgtype.Timestamptz) error
 	DeleteIncident(ctx context.Context, id string) (int64, error)
@@ -57,8 +65,10 @@ type Querier interface {
 	FindAPIKeyByKeyHash(ctx context.Context, keyHash string) (ApiKey, error)
 	FindActiveIncidentByResourceID(ctx context.Context, resourceID string) (Incident, error)
 	FindActiveMaintenancesForResource(ctx context.Context, arg FindActiveMaintenancesForResourceParams) ([]Maintenance, error)
+	FindActiveTwoFactorResetToken(ctx context.Context, arg FindActiveTwoFactorResetTokenParams) (TwoFactorResetToken, error)
 	FindComponentByID(ctx context.Context, id string) (Component, error)
 	FindDefaultNotificationChannels(ctx context.Context) ([]NotificationChannel, error)
+	FindEscalationPolicyByID(ctx context.Context, id string) (EscalationPolicy, error)
 	FindIncidentByID(ctx context.Context, id string) (Incident, error)
 	FindIncidentDiagnosticsByIncidentID(ctx context.Context, incidentID string) (IncidentDiagnostic, error)
 	// Single JOIN preload (Clarification Q1) — incident embedded into event step.
@@ -81,6 +91,7 @@ type Querier interface {
 	FindResourceIDsByTagName(ctx context.Context, arg FindResourceIDsByTagNameParams) ([]string, error)
 	FindResourcesByComponentID(ctx context.Context, componentID pgtype.Text) ([]Resource, error)
 	FindResourcesByIDs(ctx context.Context, dollar_1 []string) ([]Resource, error)
+	FindSessionByID(ctx context.Context, id string) (Session, error)
 	FindTagByID(ctx context.Context, id string) (Tag, error)
 	FindTagByName(ctx context.Context, name string) (Tag, error)
 	FindTagsByIDs(ctx context.Context, dollar_1 []string) ([]Tag, error)
@@ -101,12 +112,15 @@ type Querier interface {
 	LinkResourceTag(ctx context.Context, arg LinkResourceTagParams) error
 	ListAPIKeysByUserID(ctx context.Context, userID string) ([]ApiKey, error)
 	ListActiveResources(ctx context.Context, arg ListActiveResourcesParams) ([]Resource, error)
+	ListActiveSessionsByUser(ctx context.Context, userID string) ([]Session, error)
 	ListChannelIDsByResourceID(ctx context.Context, resourceID string) ([]string, error)
 	ListChannelsByResourceIDs(ctx context.Context, dollar_1 []string) ([]ListChannelsByResourceIDsRow, error)
 	ListComponents(ctx context.Context, arg ListComponentsParams) ([]Component, error)
 	// 1-to-1 preloads ------------------------------------------------------------
 	ListComponentsByIDs(ctx context.Context, dollar_1 []string) ([]Component, error)
 	ListCredentialsByResourceIDs(ctx context.Context, dollar_1 []string) ([]ResourceCredential, error)
+	ListEscalationPolicies(ctx context.Context) ([]EscalationPolicy, error)
+	ListEscalationStepsByPolicy(ctx context.Context, policyID string) ([]EscalationStep, error)
 	ListIncidentDiagnosticsByIncidentIDs(ctx context.Context, dollar_1 []string) ([]IncidentDiagnostic, error)
 	ListIncidentEventSteps(ctx context.Context, arg ListIncidentEventStepsParams) ([]IncidentEventStep, error)
 	ListIncidents(ctx context.Context, arg ListIncidentsParams) ([]Incident, error)
@@ -123,11 +137,16 @@ type Querier interface {
 	ListTags(ctx context.Context, arg ListTagsParams) ([]Tag, error)
 	ListTagsByResourceIDs(ctx context.Context, dollar_1 []string) ([]ListTagsByResourceIDsRow, error)
 	MarkNotificationEventTerminal(ctx context.Context, arg MarkNotificationEventTerminalParams) (int64, error)
+	MarkTwoFactorResetTokenUsed(ctx context.Context, arg MarkTwoFactorResetTokenUsedParams) (int64, error)
+	NextEscalationPriority(ctx context.Context) (int32, error)
 	Ping(ctx context.Context) (int32, error)
 	ResourceCredentialExists(ctx context.Context, resourceID string) (int64, error)
 	RevokeAPIKey(ctx context.Context, arg RevokeAPIKeyParams) (int64, error)
+	RevokeAllSessionsExcept(ctx context.Context, arg RevokeAllSessionsExceptParams) (int64, error)
+	RevokeSession(ctx context.Context, arg RevokeSessionParams) (int64, error)
 	SelectMonitoringActivityHourlyAggregateInputs(ctx context.Context, arg SelectMonitoringActivityHourlyAggregateInputsParams) ([]SelectMonitoringActivityHourlyAggregateInputsRow, error)
 	SelectMonitoringActivitySuccessInWindow(ctx context.Context, arg SelectMonitoringActivitySuccessInWindowParams) ([]bool, error)
+	SetEscalationPolicyPriority(ctx context.Context, arg SetEscalationPolicyPriorityParams) (int64, error)
 	SoftDeleteResource(ctx context.Context, id string) (int64, error)
 	UnlinkMaintenanceResource(ctx context.Context, arg UnlinkMaintenanceResourceParams) error
 	UnlinkResourceChannel(ctx context.Context, arg UnlinkResourceChannelParams) error
@@ -135,6 +154,7 @@ type Querier interface {
 	UpdateAPIKeyLastUsed(ctx context.Context, arg UpdateAPIKeyLastUsedParams) (int64, error)
 	UpdateComponent(ctx context.Context, arg UpdateComponentParams) error
 	UpdateComponentLastNotificationStatus(ctx context.Context, arg UpdateComponentLastNotificationStatusParams) (int64, error)
+	UpdateEscalationPolicy(ctx context.Context, arg UpdateEscalationPolicyParams) (int64, error)
 	UpdateIncident(ctx context.Context, arg UpdateIncidentParams) (int64, error)
 	UpdateIncidentDiagnostics(ctx context.Context, arg UpdateIncidentDiagnosticsParams) (int64, error)
 	UpdateIncidentEventStep(ctx context.Context, arg UpdateIncidentEventStepParams) (int64, error)
@@ -145,6 +165,7 @@ type Querier interface {
 	UpdateResourceLastPingAt(ctx context.Context, arg UpdateResourceLastPingAtParams) (int64, error)
 	UpdateResourceMain(ctx context.Context, arg UpdateResourceMainParams) (int64, error)
 	UpdateResourceStatus(ctx context.Context, arg UpdateResourceStatusParams) (int64, error)
+	UpdateSessionLastActive(ctx context.Context, arg UpdateSessionLastActiveParams) error
 	UpdateStatusPageSettings(ctx context.Context, arg UpdateStatusPageSettingsParams) error
 	UpdateTag(ctx context.Context, arg UpdateTagParams) (int64, error)
 	UpdateUser(ctx context.Context, arg UpdateUserParams) error

@@ -37,7 +37,7 @@ import LoginView from './LoginView.vue'
 const stubs = {
   UCard: { template: '<div><slot /></div>' },
   UForm: { template: '<form><slot /></form>', props: ['schema', 'state'] },
-  UFormGroup: { template: '<div><slot /></div>', props: ['label', 'name'] },
+  UFormField: { template: '<div><slot /></div>', props: ['label', 'name'] },
   UInput: { template: '<input />' },
   UButton: {
     template: '<button :disabled="loading"><slot /></button>',

@@ -33,6 +33,8 @@
     "@vueuse/core": "^11.0.0",
     "ant-design-vue": "~4.2.6",
     "axios": "1.12.2",
+    "cron-parser": "^5.5.0",
+    "cronstrue": "^3.14.0",
     "dayjs": "^1.11.19",
     "install": "0.13.0",
     "ky": "^2.0.2",
