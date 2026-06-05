@@ -19,7 +19,7 @@ const monitor: NavItem[] = [
 ]
 
 const report: NavItem[] = [
-  { label: 'Status Pages', to: '/status', icon: 'i-lucide-globe' },
+  { label: 'Status Page', to: '/settings/org/status-page', icon: 'i-lucide-globe' },
   { label: 'Reports', to: '/reports', icon: 'i-lucide-file-text' },
   { label: 'Dashboards', to: '/dashboards', icon: 'i-lucide-layout-grid' },
 ]
@@ -75,7 +75,7 @@ function toMenuItems(items: NavItem[]) {
 
     <div class="p-3 border-t border-default">
       <a
-        href="/status"
+        href="/status.html"
         target="_blank"
         rel="noopener"
         class="flex items-center gap-2 px-2 py-1.5 rounded-md text-xs text-success hover:bg-elevated transition-colors"

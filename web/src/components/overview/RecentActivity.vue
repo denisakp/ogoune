@@ -2,13 +2,18 @@
 import { computed, onMounted, ref } from 'vue'
 import { fetchActivities } from '@/services/activityService'
 import { timeAgo } from '@/libs/date-time.helper'
+import { useResourceStore } from '@/stores/resourceStore'
 import type { MonitoringActivity } from '@/types'
 
 const activities = ref<MonitoringActivity[]>([])
 const loading = ref(true)
+const resourceStore = useResourceStore()
 
 onMounted(async () => {
   try {
+    if (resourceStore.resources.length === 0) {
+      await resourceStore.loadResources()
+    }
     activities.value = await fetchActivities()
   } catch {
     activities.value = []
@@ -16,6 +21,16 @@ onMounted(async () => {
     loading.value = false
   }
 })
+
+const resourceNameById = computed(() => {
+  const map = new Map<string, string>()
+  for (const r of resourceStore.resources) map.set(r.id, r.name)
+  return map
+})
+
+function resourceLabel(a: MonitoringActivity): string {
+  return resourceNameById.value.get(a.resource_id) ?? a.resource_id
+}
 
 const rows = computed(() => activities.value.slice(0, 10))
 
@@ -67,7 +82,7 @@ function statusBadge(success: boolean) {
             class="size-2 rounded-full shrink-0"
             :style="{ backgroundColor: dotColor(a.success) }"
           />
-          <span class="text-sm text-slate-900 truncate">{{ a.resource_id }}</span>
+          <span class="text-sm text-slate-900 truncate">{{ resourceLabel(a) }}</span>
         </div>
         <span class="text-sm text-slate-600 truncate">{{
           a.message || (a.success ? 'Check passed' : 'Check failed')

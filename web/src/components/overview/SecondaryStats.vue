@@ -1,9 +1,13 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, inject, onMounted, ref, watch, type Ref } from 'vue'
 import { useResourceStore } from '@/stores/resourceStore'
 import { fetchStatsSummary } from '@/services/statsService'
 
 const resourceStore = useResourceStore()
+
+type Range = '1h' | '6h' | '24h' | '7d' | '30d'
+const injected = inject<{ range: Ref<Range> } | null>('overview.range', null)
+const range = computed<Range>(() => injected?.range.value ?? '24h')
 
 const totalResources = computed(() => resourceStore.resources.length)
 const downOrDegraded = computed(
@@ -23,20 +27,38 @@ const avgResponse = computed(() => {
   return Math.round(sum / resources.length)
 })
 
-const checksToday = ref<number | null>(null)
+const checksCount = ref<number | null>(null)
 const checksDelta = ref<string>('')
-onMounted(async () => {
+
+async function refresh() {
   try {
-    const summary = await fetchStatsSummary('24h')
-    checksToday.value = (summary as unknown as { total_checks_24h?: number }).total_checks_24h ?? 0
+    const summary = await fetchStatsSummary(range.value)
+    // The API still uses the legacy `total_checks_24h` key. Treat it as
+    // "total over the selected range" and rename the card label
+    // dynamically below.
+    const count =
+      (summary as unknown as { total_checks_24h?: number; total_checks?: number }).total_checks ??
+      (summary as unknown as { total_checks_24h?: number }).total_checks_24h ??
+      0
+    checksCount.value = count
     const delta = (summary as unknown as { delta_pct?: number }).delta_pct
-    if (typeof delta === 'number') {
-      checksDelta.value = `${delta >= 0 ? '+' : ''}${delta}% vs yesterday`
-    }
+    checksDelta.value = typeof delta === 'number' ? `${delta >= 0 ? '+' : ''}${delta}% vs prev` : ''
   } catch {
-    checksToday.value = 0
+    checksCount.value = 0
+    checksDelta.value = ''
   }
-})
+}
+
+onMounted(refresh)
+watch(range, refresh)
+
+const RANGE_LABELS: Record<Range, string> = {
+  '1h': 'Checks (1h)',
+  '6h': 'Checks (6h)',
+  '24h': 'Checks today',
+  '7d': 'Checks (7d)',
+  '30d': 'Checks (30d)',
+}
 
 const cards = computed(() => [
   {
@@ -56,8 +78,8 @@ const cards = computed(() => [
     iconColor: '#0EA5E9',
   },
   {
-    label: 'Checks today',
-    value: checksToday.value === null ? '—' : checksToday.value.toLocaleString(),
+    label: RANGE_LABELS[range.value],
+    value: checksCount.value === null ? '—' : checksCount.value.toLocaleString(),
     sub: checksDelta.value,
     icon: 'i-lucide-activity',
     iconBg: '#10B98114',
