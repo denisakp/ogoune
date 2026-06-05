@@ -261,6 +261,113 @@ func (s *PublicStatusService) GetIncidents(ctx context.Context, from, to time.Ti
 	}, nil
 }
 
+// GetUptime returns per-day uptime ratios over [from, to], optionally
+// scoped to one component. When component_id is empty, the daily ratio
+// is the mean across all active resources; otherwise across the
+// component's resources only.
+//
+// The handler enforces the 1-year max-span guard (US3, FR-026).
+func (s *PublicStatusService) GetUptime(ctx context.Context, componentID string, from, to time.Time) (*dto.PublicUptimeResponse, error) {
+	now := s.clock().UTC()
+	if from.IsZero() {
+		from = now.AddDate(0, 0, -89)
+	}
+	if to.IsZero() {
+		to = now
+	}
+	if from.After(to) {
+		return nil, fmt.Errorf("public_status: from > to")
+	}
+	fromDay := truncDayUTC(from)
+	toDay := truncDayUTC(to)
+
+	// Resolve target resources.
+	var resourceIDs []string
+	if componentID != "" {
+		members, err := s.resources.FindByComponentID(ctx, componentID)
+		if err != nil {
+			return nil, fmt.Errorf("public_status: load component resources: %w", err)
+		}
+		for _, r := range members {
+			resourceIDs = append(resourceIDs, r.ID)
+		}
+	} else {
+		all, err := s.resources.FindActive(ctx, 5000, 0)
+		if err != nil {
+			return nil, fmt.Errorf("public_status: list resources: %w", err)
+		}
+		for _, r := range all {
+			resourceIDs = append(resourceIDs, r.ID)
+		}
+	}
+
+	aggs, err := s.uptimeAggs.FindRange(ctx, resourceIDs, fromDay, toDay)
+	if err != nil {
+		return nil, fmt.Errorf("public_status: load uptime aggs: %w", err)
+	}
+
+	// Group per day: accumulate ratio + samples across resources.
+	type dayBucket struct {
+		ratioSum   float64
+		samplesSum int
+		count      int
+	}
+	buckets := map[string]*dayBucket{}
+	for _, a := range aggs {
+		key := a.Day.UTC().Format("2006-01-02")
+		b := buckets[key]
+		if b == nil {
+			b = &dayBucket{}
+			buckets[key] = b
+		}
+		b.ratioSum += a.UptimeRatio
+		b.samplesSum += a.Samples
+		b.count++
+	}
+
+	// Pull current-month incidents to attach per-day incident counts.
+	incidents, err := s.incidents.List(ctx, 1000, 0)
+	if err != nil {
+		return nil, fmt.Errorf("public_status: list incidents: %w", err)
+	}
+	inComponent := map[string]struct{}{}
+	if componentID != "" {
+		for _, id := range resourceIDs {
+			inComponent[id] = struct{}{}
+		}
+	}
+	incidentsByDay := map[string]int{}
+	for _, inc := range incidents {
+		if inc.StartedAt.Before(fromDay) || inc.StartedAt.After(toDay.Add(24*time.Hour)) {
+			continue
+		}
+		if componentID != "" {
+			if _, ok := inComponent[inc.ResourceID]; !ok {
+				continue
+			}
+		}
+		key := inc.StartedAt.UTC().Format("2006-01-02")
+		incidentsByDay[key]++
+	}
+
+	// Materialize one entry per day in the window.
+	days := make([]dto.PublicUptimeDay, 0)
+	for d := fromDay; !d.After(toDay); d = d.AddDate(0, 0, 1) {
+		key := d.Format("2006-01-02")
+		entry := dto.PublicUptimeDay{Day: key, Incidents: incidentsByDay[key]}
+		if b, ok := buckets[key]; ok && b.count > 0 {
+			entry.UptimeRatio = b.ratioSum / float64(b.count)
+			entry.Samples = b.samplesSum
+		}
+		days = append(days, entry)
+	}
+
+	return &dto.PublicUptimeResponse{
+		GeneratedAt: now,
+		Days:        days,
+	}, nil
+}
+
 // loadMonthIncidents returns the public-shape incidents that started in the
 // current month and resolved (or are still open).
 func (s *PublicStatusService) loadMonthIncidents(ctx context.Context, now time.Time) ([]dto.PublicIncidentSummary, error) {

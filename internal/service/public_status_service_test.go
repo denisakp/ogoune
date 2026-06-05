@@ -231,3 +231,70 @@ func TestGetIncidents_FromAfterTo_Errors(t *testing.T) {
 	_, err := svc.GetIncidents(context.Background(), from, to, "")
 	require.Error(t, err)
 }
+
+// ---------- US3: GetUptime ----------
+
+func TestGetUptime_MultiMonthRange(t *testing.T) {
+	svc, resources, components, _, aggs, _ := setup(t)
+	c, _ := components.Create(context.Background(), &domain.Component{Name: "API"})
+	_, _ = resources.Create(context.Background(), mkResource(t, "r1", "api1", c.ID, domain.StatusUp))
+
+	for i := 0; i < 3; i++ {
+		day := time.Date(2026, 4, 1+i, 0, 0, 0, 0, time.UTC)
+		require.NoError(t, aggs.Upsert(context.Background(), &domain.UptimeDailyAgg{
+			ResourceID: "r1", Day: day, UptimeRatio: 0.99, Samples: 100, ComputedAt: day,
+		}))
+	}
+
+	from := time.Date(2026, 3, 1, 0, 0, 0, 0, time.UTC)
+	to := time.Date(2026, 5, 31, 0, 0, 0, 0, time.UTC)
+	out, err := svc.GetUptime(context.Background(), "", from, to)
+	require.NoError(t, err)
+	// 3 months × ~30 days = 92 entries in window.
+	require.GreaterOrEqual(t, len(out.Days), 90)
+	// First 3 known days should match.
+	knownCount := 0
+	for _, d := range out.Days {
+		if d.Samples > 0 {
+			knownCount++
+			assert.InDelta(t, 0.99, d.UptimeRatio, 0.0001)
+		}
+	}
+	assert.Equal(t, 3, knownCount)
+}
+
+func TestGetUptime_ComponentFilterScopesRatios(t *testing.T) {
+	svc, resources, components, _, aggs, _ := setup(t)
+	c1, _ := components.Create(context.Background(), &domain.Component{Name: "API"})
+	c2, _ := components.Create(context.Background(), &domain.Component{Name: "Web"})
+	_, _ = resources.Create(context.Background(), mkResource(t, "r-api", "api1", c1.ID, domain.StatusUp))
+	_, _ = resources.Create(context.Background(), mkResource(t, "r-web", "web1", c2.ID, domain.StatusUp))
+
+	day := time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC)
+	require.NoError(t, aggs.Upsert(context.Background(), &domain.UptimeDailyAgg{
+		ResourceID: "r-api", Day: day, UptimeRatio: 1.0, Samples: 100, ComputedAt: day,
+	}))
+	require.NoError(t, aggs.Upsert(context.Background(), &domain.UptimeDailyAgg{
+		ResourceID: "r-web", Day: day, UptimeRatio: 0.5, Samples: 100, ComputedAt: day,
+	}))
+
+	// Scoped to c1 (API) — only r-api counts → ratio 1.0.
+	out, err := svc.GetUptime(context.Background(), c1.ID, day, day)
+	require.NoError(t, err)
+	require.Len(t, out.Days, 1)
+	assert.InDelta(t, 1.0, out.Days[0].UptimeRatio, 0.0001)
+	assert.Equal(t, 100, out.Days[0].Samples)
+
+	// No filter — mean of both → 0.75.
+	out2, err := svc.GetUptime(context.Background(), "", day, day)
+	require.NoError(t, err)
+	assert.InDelta(t, 0.75, out2.Days[0].UptimeRatio, 0.0001)
+}
+
+func TestGetUptime_FromAfterTo_Errors(t *testing.T) {
+	svc, _, _, _, _, _ := setup(t)
+	from := time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC)
+	to := time.Date(2026, 5, 1, 0, 0, 0, 0, time.UTC)
+	_, err := svc.GetUptime(context.Background(), "", from, to)
+	require.Error(t, err)
+}

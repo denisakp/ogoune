@@ -28,6 +28,9 @@ func (s *stubPublicStatus) GetCurrent(context.Context) (*dto.PublicStatus, error
 func (s *stubPublicStatus) GetIncidents(context.Context, time.Time, time.Time, string) (*dto.PublicIncidentsResponse, error) {
 	return s.incidents, s.incErr
 }
+func (s *stubPublicStatus) GetUptime(context.Context, string, time.Time, time.Time) (*dto.PublicUptimeResponse, error) {
+	return &dto.PublicUptimeResponse{}, nil
+}
 
 func TestPublicStatusHandler_HappyPath(t *testing.T) {
 	stub := &stubPublicStatus{
@@ -91,4 +94,21 @@ func TestPublicStatusHandler_GetIncidents_InvalidFrom422(t *testing.T) {
 	rec := httptest.NewRecorder()
 	h.GetIncidents(rec, httptest.NewRequest(http.MethodGet, "/status/incidents?from=garbage", nil))
 	require.Equal(t, http.StatusUnprocessableEntity, rec.Code)
+}
+
+func TestPublicStatusHandler_GetUptime_HappyPath(t *testing.T) {
+	h := NewPublicStatusHandler(&stubPublicStatus{})
+	rec := httptest.NewRecorder()
+	h.GetUptime(rec, httptest.NewRequest(http.MethodGet, "/status/uptime?from=2026-05-01&to=2026-06-01", nil))
+	require.Equal(t, http.StatusOK, rec.Code)
+}
+
+func TestPublicStatusHandler_GetUptime_RangeTooLong422(t *testing.T) {
+	h := NewPublicStatusHandler(&stubPublicStatus{})
+	rec := httptest.NewRecorder()
+	h.GetUptime(rec, httptest.NewRequest(http.MethodGet, "/status/uptime?from=2024-01-01&to=2026-01-01", nil))
+	require.Equal(t, http.StatusUnprocessableEntity, rec.Code)
+	var body map[string]any
+	_ = json.Unmarshal(rec.Body.Bytes(), &body)
+	assert.Equal(t, "range_too_long", body["code"])
 }

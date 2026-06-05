@@ -11,6 +11,7 @@ import { defineComponent, h } from 'vue'
 
 const StatusPublicView = () => import('@/views/status/StatusPublicView.vue')
 const StatusHistoryView = () => import('@/views/status/StatusHistoryView.vue')
+const StatusUptimeView = () => import('@/views/status/StatusUptimeView.vue')
 const StatusPageDetailView = () => import('@/views/status-page/StatusPageDetailView.vue')
 
 const PlaceholderView = (label: string) =>
@@ -40,7 +41,7 @@ export const statusRoutes: RouteRecordRaw[] = [
   {
     path: '/uptime',
     name: 'PublicStatusUptime',
-    component: PlaceholderView('Uptime'),
+    component: StatusUptimeView,
   },
   {
     path: '/resource/:id',
