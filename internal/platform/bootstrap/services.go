@@ -38,5 +38,22 @@ func InitServices(app *App) {
 	if app.EscalationRepo != nil {
 		app.EscalationService = service.NewEscalationService(app.EscalationRepo, app.ResourceRepo)
 	}
+
+	// Spec 060 — public status snapshot + uptime aggregator.
+	if app.UptimeDailyAggRepo != nil {
+		app.PublicStatusService = service.NewPublicStatusService(
+			app.ResourceRepo,
+			app.ComponentRepo,
+			app.IncidentRepo,
+			app.MaintenanceRepo,
+			app.UptimeDailyAggRepo,
+		)
+		app.UptimeAggregator = service.NewUptimeAggregator(
+			app.ResourceRepo,
+			app.MonitoringActivityRepo,
+			app.UptimeDailyAggRepo,
+		)
+	}
+
 	_, _ = app.AuthService.CreateDefaultUser(context.Background(), cfg.AuthEmail, cfg.AuthPassword)
 }

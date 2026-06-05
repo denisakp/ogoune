@@ -45,6 +45,7 @@ type App struct {
 	SessionRepo               port.SessionRepository
 	TwoFactorResetTokenRepo   port.TwoFactorResetTokenRepository
 	EscalationRepo            port.EscalationRepository
+	UptimeDailyAggRepo        port.UptimeDailyAggRepository
 
 	// Metrics phase
 	MetricsRecorder domain.MetricsRecorder
@@ -74,6 +75,10 @@ type App struct {
 	SessionService   *service.SessionService
 	TwoFactorService *service.TwoFactorService
 	EscalationService *service.EscalationService
+
+	// Spec 060 — Public status page
+	PublicStatusService *service.PublicStatusService
+	UptimeAggregator    *service.UptimeAggregator
 
 	// Router phase
 	RootRouter *chi.Mux

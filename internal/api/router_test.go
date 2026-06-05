@@ -35,6 +35,7 @@ func TestNewRouter_PingIsPublicAndResourcesAreProtected(t *testing.T) {
 	tagHandler := handler.NewTagHandler(nil)
 	componentHandler := handler.NewComponentHandler(nil)
 	statusPageHandler := handler.NewStatusPageHandler(nil)
+	publicStatusHandler := handler.NewPublicStatusHandler(nil)
 	statusPageSettingsHandler := handler.NewStatusPageSettingsHandler(nil)
 	incidentHandler := handler.NewIncidentHandler(nil)
 	notificationHandler := handler.NewNotificationHandler(nil)
@@ -52,6 +53,7 @@ func TestNewRouter_PingIsPublicAndResourcesAreProtected(t *testing.T) {
 		tagHandler,
 		componentHandler,
 		statusPageHandler,
+		publicStatusHandler,
 		statusPageSettingsHandler,
 		incidentHandler,
 		notificationHandler,

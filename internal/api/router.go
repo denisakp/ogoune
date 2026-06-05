@@ -34,6 +34,7 @@ func NewRouter(
 	tagHandler *handler.TagHandler,
 	componentHandler *handler.ComponentHandler,
 	statusPageHandler *handler.StatusPageHandler,
+	publicStatusHandler *handler.PublicStatusHandler,
 	statusPageSettingsHandler *handler.StatusPageSettingsHandler,
 	incidentHandler *handler.IncidentHandler,
 	notificationHandler *handler.NotificationHandler,
@@ -122,9 +123,13 @@ func NewRouter(
 	r.Get("/ping/{slug}", pingHandler.Ping)
 	r.Post("/ping/{slug}", pingHandler.Ping)
 
-	// Public status page (returns JSON status data)
-	r.Get("/status", statusPageHandler.HandleStatusPage)
-	r.Get("/status/{resourceId}", statusPageHandler.HandleResourceDetailStatus) // GET /status/{resourceId} - get detailed status for a specific resource
+	// Public status page (spec 060) — short-cached JSON, no auth.
+	r.Group(func(r chi.Router) {
+		r.Use(middleware.PublicStatusCache(60, 30))
+		r.Get("/status", publicStatusHandler.GetCurrent)
+	})
+	// Legacy resource detail endpoint — replaced by /status/resource/:id/windows in US3.
+	r.Get("/status/{resourceId}", statusPageHandler.HandleResourceDetailStatus)
 	r.Get("/system/edition", systemHandler.GetEdition)
 	r.Get("/system/capabilities", systemHandler.GetCapabilities)
 	r.Get("/config/runtime", runtimeConfigHandler.Get)

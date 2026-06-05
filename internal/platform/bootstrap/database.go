@@ -61,4 +61,5 @@ func InitDatabase(app *App) {
 	app.SessionRepo = store.NewSessionRepositorySQLC(rt)
 	app.TwoFactorResetTokenRepo = store.NewTwoFactorResetTokenRepositorySQLC(rt)
 	app.EscalationRepo = store.NewEscalationRepositorySQLC(rt)
+	app.UptimeDailyAggRepo = store.NewUptimeDailyAggRepositorySQLC(rt)
 }
