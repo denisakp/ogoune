@@ -2,6 +2,7 @@ package fake
 
 import (
 	"context"
+	"time"
 
 	"github.com/denisakp/ogoune/internal/domain"
 	"github.com/denisakp/ogoune/internal/repository"
@@ -112,4 +113,30 @@ func (f *NotificationChannelFake) FindByComponentID(ctx context.Context, compone
 // AssociateChannelWithResource links a channel to a resource (test helper).
 func (f *NotificationChannelFake) AssociateChannelWithResource(resourceID, channelID string) {
 	f.resourceChannels[resourceID] = append(f.resourceChannels[resourceID], channelID)
+}
+
+func (f *NotificationChannelFake) MarkSent(_ context.Context, channelID string, at time.Time) error {
+if ch, ok := f.channels[channelID]; ok {
+		ts := at
+		ch.LastSentAt = &ts
+		ch.UpdatedAt = at
+	}
+	return nil
+}
+
+func (f *NotificationChannelFake) MarkFailure(_ context.Context, channelID string, at time.Time) error {
+ch, ok := f.channels[channelID]
+	if !ok {
+		return nil
+	}
+	cutoff := at.Add(-24 * time.Hour)
+	if ch.LastFailureAt == nil || ch.LastFailureAt.Before(cutoff) {
+		ch.Failures24h = 1
+	} else {
+		ch.Failures24h++
+	}
+	ts := at
+	ch.LastFailureAt = &ts
+	ch.UpdatedAt = at
+	return nil
 }

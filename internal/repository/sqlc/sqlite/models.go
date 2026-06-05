@@ -167,13 +167,16 @@ type MonitoringActivity struct {
 }
 
 type NotificationChannel struct {
-	ID               string    `json:"id"`
-	CreatedAt        time.Time `json:"created_at"`
-	UpdatedAt        time.Time `json:"updated_at"`
-	Name             string    `json:"name"`
-	Type             string    `json:"type"`
-	Config           []byte    `json:"config"`
-	EnabledByDefault int64     `json:"enabled_by_default"`
+	ID               string      `json:"id"`
+	CreatedAt        time.Time   `json:"created_at"`
+	UpdatedAt        time.Time   `json:"updated_at"`
+	Name             string      `json:"name"`
+	Type             string      `json:"type"`
+	Config           []byte      `json:"config"`
+	EnabledByDefault int64       `json:"enabled_by_default"`
+	LastSentAt       interface{} `json:"last_sent_at"`
+	LastFailureAt    interface{} `json:"last_failure_at"`
+	Failures24h      int64       `json:"failures_24h"`
 }
 
 type NotificationEvent struct {

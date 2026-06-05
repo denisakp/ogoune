@@ -589,6 +589,9 @@ export interface NotificationChannel {
   type: NotificationChannelType
   config: NotificationConfig
   enabled_by_default: boolean
+  last_sent_at?: string | null
+  last_failure_at?: string | null
+  failures_24h?: number
   created_at: string
   updated_at: string
 }

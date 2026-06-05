@@ -195,6 +195,43 @@ func (r *NotificationChannelRepositorySQLC) Update(ctx context.Context, ch *doma
 	}
 }
 
+func (r *NotificationChannelRepositorySQLC) MarkSent(ctx context.Context, channelID string, at time.Time) error {
+	switch {
+	case r.pgQ != nil:
+		return r.pgQ.MarkNotificationChannelSent(ctx, pgsqlc.MarkNotificationChannelSentParams{
+			At: pgtype.Timestamptz{Time: at, Valid: true},
+			ID: channelID,
+		})
+	case r.sqliteQ != nil:
+		return r.sqliteQ.MarkNotificationChannelSent(ctx, sqlitesqlc.MarkNotificationChannelSentParams{
+			At: at,
+			ID: channelID,
+		})
+	default:
+		return r.unconfigured()
+	}
+}
+
+func (r *NotificationChannelRepositorySQLC) MarkFailure(ctx context.Context, channelID string, at time.Time) error {
+	cutoff := at.Add(-24 * time.Hour)
+	switch {
+	case r.pgQ != nil:
+		return r.pgQ.MarkNotificationChannelFailure(ctx, pgsqlc.MarkNotificationChannelFailureParams{
+			CutoffAt: pgtype.Timestamptz{Time: cutoff, Valid: true},
+			At:       pgtype.Timestamptz{Time: at, Valid: true},
+			ID:       channelID,
+		})
+	case r.sqliteQ != nil:
+		return r.sqliteQ.MarkNotificationChannelFailure(ctx, sqlitesqlc.MarkNotificationChannelFailureParams{
+			CutoffAt: cutoff,
+			At:       at,
+			ID:       channelID,
+		})
+	default:
+		return r.unconfigured()
+	}
+}
+
 func (r *NotificationChannelRepositorySQLC) Delete(ctx context.Context, id string) error {
 	switch {
 	case r.pgQ != nil:
@@ -298,10 +335,48 @@ func (r *NotificationChannelRepositorySQLC) FindByComponentID(ctx context.Contex
 
 // ---------- mapping helpers ----------
 
+// timePtrFromAny narrows the various nullable time shapes sqlc returns
+// for SQLite (nil / time.Time / *time.Time / string).
+func timePtrFromAny(v any) *time.Time {
+	switch x := v.(type) {
+	case nil:
+		return nil
+	case time.Time:
+		t := x
+		return &t
+	case *time.Time:
+		return x
+	case string:
+		if x == "" {
+			return nil
+		}
+		t, err := time.Parse(time.RFC3339, x)
+		if err != nil {
+			// Try modernc.org/sqlite's "YYYY-MM-DD HH:MM:SS..." format.
+			if t2, err2 := time.Parse("2006-01-02 15:04:05.999999999-07:00", x); err2 == nil {
+				return &t2
+			}
+			return nil
+		}
+		return &t
+	default:
+		return nil
+	}
+}
+
 func channelFromPG(row pgsqlc.NotificationChannel) (*domain.NotificationChannel, error) {
 	pt, err := decryptChannelConfig(row.Config)
 	if err != nil {
 		return nil, err
+	}
+	var lastSent, lastFail *time.Time
+	if row.LastSentAt.Valid {
+		t := row.LastSentAt.Time
+		lastSent = &t
+	}
+	if row.LastFailureAt.Valid {
+		t := row.LastFailureAt.Time
+		lastFail = &t
 	}
 	return &domain.NotificationChannel{
 		Base: domain.Base{
@@ -313,6 +388,9 @@ func channelFromPG(row pgsqlc.NotificationChannel) (*domain.NotificationChannel,
 		Type:             domain.NotificationChannelType(row.Type),
 		Config:           pt,
 		EnabledByDefault: row.EnabledByDefault,
+		LastSentAt:       lastSent,
+		LastFailureAt:    lastFail,
+		Failures24h:      int(row.Failures24h),
 	}, nil
 }
 
@@ -333,6 +411,8 @@ func channelFromSQLite(row sqlitesqlc.NotificationChannel) (*domain.Notification
 	if err != nil {
 		return nil, err
 	}
+	lastSent := timePtrFromAny(row.LastSentAt)
+	lastFail := timePtrFromAny(row.LastFailureAt)
 	return &domain.NotificationChannel{
 		Base: domain.Base{
 			ID:        row.ID,
@@ -343,6 +423,9 @@ func channelFromSQLite(row sqlitesqlc.NotificationChannel) (*domain.Notification
 		Type:             domain.NotificationChannelType(row.Type),
 		Config:           pt,
 		EnabledByDefault: row.EnabledByDefault != 0,
+		LastSentAt:       lastSent,
+		LastFailureAt:    lastFail,
+		Failures24h:      int(row.Failures24h),
 	}, nil
 }
 

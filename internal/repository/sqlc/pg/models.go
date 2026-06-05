@@ -173,6 +173,9 @@ type NotificationChannel struct {
 	Type             string             `json:"type"`
 	Config           []byte             `json:"config"`
 	EnabledByDefault bool               `json:"enabled_by_default"`
+	LastSentAt       pgtype.Timestamptz `json:"last_sent_at"`
+	LastFailureAt    pgtype.Timestamptz `json:"last_failure_at"`
+	Failures24h      int32              `json:"failures_24h"`
 }
 
 type NotificationEvent struct {

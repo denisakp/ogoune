@@ -96,7 +96,7 @@ describe('NotificationsView', () => {
     const w = mount(NotificationsView)
     await flushPromises()
     const vm = w.vm as unknown as Vm
-    expect(vm.stats.length).toBe(5)
+    expect(vm.stats.length).toBe(4)
     expect(vm.stats[0].label).toBe('CHANNELS')
     expect(vm.stats[0].value).toBe('1')
     // When the stats endpoint hasn't returned (or fails), the KPI shows

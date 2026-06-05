@@ -6,6 +6,7 @@
  * Page-level h1 + tagline + info alert + 4 KPI cards + table with Default toggle.
  */
 import { computed, onMounted, ref } from 'vue'
+
 import {
   fetchChannels,
   createChannel,
@@ -90,12 +91,6 @@ const stats = computed(() => {
       value: fmt(notifStats.value?.failed_24h),
       meta: '',
     },
-    {
-      key: 'last_sent',
-      label: 'LAST SENT',
-      value: lastSentLabel(notifStats.value?.last_sent_at),
-      meta: lastSentExact(notifStats.value?.last_sent_at),
-    },
   ]
 })
 
@@ -128,11 +123,44 @@ function typeMeta(t: string) {
 
 function recipientPreview(c: NotificationChannel): string {
   const cfg = (c.config as unknown as Record<string, unknown>) ?? {}
-  if (c.type === 'smtp' && typeof cfg.recipient === 'string') return cfg.recipient
-  if (c.type === 'slack' && typeof cfg.channel === 'string')
-    return cfg.channel.startsWith('#') ? cfg.channel : `#${cfg.channel}`
-  if (c.type === 'webhook' && typeof cfg.url === 'string') return cfg.url
+  if (c.type === 'smtp') {
+    if (Array.isArray(cfg.recipients) && cfg.recipients.length > 0) {
+      const first = String(cfg.recipients[0])
+      const extra = cfg.recipients.length - 1
+      return extra > 0 ? `${first} +${extra}` : first
+    }
+    if (typeof cfg.recipient === 'string') return cfg.recipient
+    if (typeof cfg.sender === 'string') return cfg.sender
+  }
+  if (c.type === 'slack') {
+    if (typeof cfg.channel === 'string')
+      return cfg.channel.startsWith('#') ? cfg.channel : `#${cfg.channel}`
+    if (typeof cfg.webhook_url === 'string') return truncateUrl(cfg.webhook_url)
+  }
+  if (c.type === 'discord') {
+    if (typeof cfg.channel === 'string')
+      return cfg.channel.startsWith('#') ? cfg.channel : `#${cfg.channel}`
+    if (typeof cfg.webhook_url === 'string') return truncateUrl(cfg.webhook_url)
+  }
+  if (c.type === 'teams') {
+    if (typeof cfg.channel === 'string') return String(cfg.channel)
+    if (typeof cfg.webhook_url === 'string') return truncateUrl(cfg.webhook_url)
+  }
+  if (c.type === 'webhook' && typeof cfg.url === 'string') return truncateUrl(cfg.url)
   return ''
+}
+
+function truncateUrl(u: string): string {
+  if (u.length <= 32) return u
+  return u.slice(0, 30) + '…'
+}
+
+function lastSentForChannel(c: NotificationChannel): string {
+  return lastSentLabel(c.last_sent_at ?? null)
+}
+
+function failuresClass(n: number | undefined): string {
+  return n && n > 0 ? 'text-red-600 font-semibold' : 'text-muted'
 }
 
 async function reload() {
@@ -309,8 +337,10 @@ defineExpose({ channels, stats, openCreate, onSubmit, onToggleDefault, onDelete 
             <td class="px-4 py-3">
               <USwitch :model-value="c.enabled_by_default" @click="onToggleDefault(c)" />
             </td>
-            <td class="px-4 py-3 text-muted">—</td>
-            <td class="px-4 py-3 text-muted">0</td>
+            <td class="px-4 py-3 text-muted">{{ lastSentForChannel(c) }}</td>
+            <td class="px-4 py-3" :class="failuresClass(c.failures_24h)">
+              {{ c.failures_24h ?? 0 }}
+            </td>
             <td class="px-4 py-3 text-right">
               <UDropdownMenu
                 :items="[

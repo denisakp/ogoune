@@ -429,6 +429,9 @@ type NotificationChannel struct {
 	Type             NotificationChannelType `json:"type"`
 	Config           []byte                  `json:"config"` // JSON configuration specific to channel type
 	EnabledByDefault bool                    `json:"enabled_by_default"`
+	LastSentAt       *time.Time              `json:"last_sent_at,omitempty"`
+	LastFailureAt    *time.Time              `json:"last_failure_at,omitempty"`
+	Failures24h      int                     `json:"failures_24h"`
 }
 
 
