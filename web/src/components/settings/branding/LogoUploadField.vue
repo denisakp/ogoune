@@ -3,7 +3,7 @@ import { computed, ref } from 'vue'
 import type { StatusPageLogoSlot } from '@/types'
 
 const props = defineProps<{
-  slot: StatusPageLogoSlot
+  slotName: StatusPageLogoSlot
   label: string
   helper?: string
   currentUrl: string
@@ -51,12 +51,12 @@ function handle(file: File) {
     emit('error', `File too large (${Math.round(file.size / 1024)} KB). Max 500 KB.`)
     return
   }
-  emit('upload', { slot: props.slot, file })
+  emit('upload', { slot: props.slotName, file })
 }
 </script>
 
 <template>
-  <div class="space-y-2" :data-slot="slot">
+  <div class="space-y-2" :data-slot="slotName">
     <p class="text-sm font-medium text-slate-900">{{ label }}</p>
     <p v-if="helper" class="text-xs text-slate-500">{{ helper }}</p>
 
@@ -105,7 +105,7 @@ function handle(file: File) {
         class="self-center rounded-md px-2 py-1 text-xs text-red-600 hover:bg-red-50"
         data-testid="delete-logo"
         :disabled="uploading"
-        @click="emit('delete', slot)"
+        @click="emit('delete', slotName)"
       >
         Remove
       </button>

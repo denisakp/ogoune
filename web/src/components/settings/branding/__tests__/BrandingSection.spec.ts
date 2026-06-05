@@ -72,7 +72,6 @@ describe('BrandingSection — US5', () => {
     const w = render()
     const file = new File([new Uint8Array([1, 2, 3])], 'logo.png', { type: 'image/png' })
     const lightInput = w.findAll('[data-slot]')[0]?.find('[data-testid="file-input"]')
-    require // satisfy esbuild's unused check
     Object.defineProperty(lightInput!.element, 'files', { value: [file] })
     await lightInput!.trigger('change')
     await flushPromises()

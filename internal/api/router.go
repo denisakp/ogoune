@@ -35,6 +35,7 @@ func NewRouter(
 	componentHandler *handler.ComponentHandler,
 	statusPageHandler *handler.StatusPageHandler,
 	publicStatusHandler *handler.PublicStatusHandler,
+	publicCacheMetrics middleware.PublicStatusCacheRecorder,
 	statusPageSettingsHandler *handler.StatusPageSettingsHandler,
 	incidentHandler *handler.IncidentHandler,
 	incidentUpdateHandler *handler.IncidentUpdateHandler,
@@ -126,7 +127,7 @@ func NewRouter(
 
 	// Public status page (spec 060) — short-cached JSON, no auth.
 	r.Group(func(r chi.Router) {
-		r.Use(middleware.PublicStatusCache(60, 30))
+		r.Use(middleware.PublicStatusCache(60, 30, publicCacheMetrics))
 		r.Get("/status", publicStatusHandler.GetCurrent)
 		r.Get("/status/incidents", publicStatusHandler.GetIncidents)
 		r.Get("/status/incidents/{id}", publicStatusHandler.GetIncidentDetail)

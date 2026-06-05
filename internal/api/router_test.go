@@ -55,6 +55,7 @@ func TestNewRouter_PingIsPublicAndResourcesAreProtected(t *testing.T) {
 		componentHandler,
 		statusPageHandler,
 		publicStatusHandler,
+		nil, // publicCacheMetrics
 		statusPageSettingsHandler,
 		incidentHandler,
 		incidentUpdateHandler,

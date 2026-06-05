@@ -16,6 +16,19 @@ import (
 	"github.com/go-chi/chi/v5"
 )
 
+// asCacheRecorder lifts the nil-typed PublicStatusMetrics back to the
+// interface the middleware expects, returning nil when metrics are
+// disabled so the typed nil doesn't escape into the middleware chain.
+func asCacheRecorder(m *metricsModule) middleware.PublicStatusCacheRecorder {
+	if m == nil {
+		return nil
+	}
+	return m
+}
+
+// metricsModule is a type alias so we don't have to import `metrics` here.
+type metricsModule = metrics.PublicStatusMetrics
+
 // InitRouter creates handlers, builds the Chi router, and mounts static files.
 func InitRouter(app *App) {
 	cfg := app.Cfg
@@ -74,7 +87,7 @@ func InitRouter(app *App) {
 		return
 	}
 
-	apiHandler := api.NewRouter(resourceHandler, pingHandler, activityHandler, tagHandler, componentHandler, statusPageHandler, publicStatusHandler, statusPageSettingsHandler, incidentHandler, incidentUpdateHandler, notificationHandler, maintenanceHandler, statsHandler, systemHandler, runtimeConfigHandler, authHandler, accountHandler, app.AuthService, app.APIKeyService, app.SessionService, sessionHandler, twoFactorV1Handler, escalationV1Handler, monitorV1Handler, incidentV1Handler, channelV1Handler, componentV1Handler, tagV1Handler, statusPageV1Handler, heartbeatV1Handler, credentialV1Handler, cfg.EnableSwagger, cfg)
+	apiHandler := api.NewRouter(resourceHandler, pingHandler, activityHandler, tagHandler, componentHandler, statusPageHandler, publicStatusHandler, asCacheRecorder(app.PublicStatusCacheMetr), statusPageSettingsHandler, incidentHandler, incidentUpdateHandler, notificationHandler, maintenanceHandler, statsHandler, systemHandler, runtimeConfigHandler, authHandler, accountHandler, app.AuthService, app.APIKeyService, app.SessionService, sessionHandler, twoFactorV1Handler, escalationV1Handler, monitorV1Handler, incidentV1Handler, channelV1Handler, componentV1Handler, tagV1Handler, statusPageV1Handler, heartbeatV1Handler, credentialV1Handler, cfg.EnableSwagger, cfg)
 
 	// Root router
 	rootRouter := chi.NewRouter()

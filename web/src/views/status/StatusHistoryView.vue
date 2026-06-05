@@ -18,15 +18,6 @@ function isoDateAgo(days: number): string {
   return d.toISOString().slice(0, 10)
 }
 
-function fmtChip(iso: string): string {
-  if (!iso) return ''
-  try {
-    return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-  } catch {
-    return iso
-  }
-}
-
 onMounted(async () => {
   fromDate.value = isoDateAgo(90)
   toDate.value = isoDateAgo(0)
@@ -69,10 +60,6 @@ const counterLabel = computed(() => {
 const branding = computed(() => summary.value?.branding ?? null)
 const brandName = computed(() => branding.value?.name ?? 'Status Page')
 
-const selectedComponentLabel = computed(() => {
-  if (!componentID.value) return 'All Components'
-  return componentLabels.value[componentID.value] ?? 'All Components'
-})
 </script>
 
 <template>

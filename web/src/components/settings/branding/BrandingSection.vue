@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { message as antMessage } from 'ant-design-vue'
+import { useConfirm } from '@/composables/useConfirm'
 import LogoUploadField from './LogoUploadField.vue'
 import PrimaryColorPicker from './PrimaryColorPicker.vue'
 import ThemeOverridesEditor from './ThemeOverridesEditor.vue'
@@ -43,7 +44,13 @@ async function onUpload(payload: { slot: StatusPageLogoSlot; file: File }) {
 }
 
 async function onDelete(slot: StatusPageLogoSlot) {
-  if (!window.confirm(`Remove the ${slot} logo?`)) return
+  const ok = await useConfirm({
+    title: `Remove the ${slot} logo?`,
+    body: 'The slot will be cleared. You can upload a new file at any time.',
+    ctaLabel: 'Remove',
+    kind: 'destructive',
+  })
+  if (!ok) return
   try {
     await deleteStatusPageLogo(slot)
     // Reflect on the local settings copy.
@@ -87,7 +94,7 @@ function setOverrides(v: StatusPageThemeOverrides) { emit('update:themeOverrides
 
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
       <LogoUploadField
-        slot="light"
+        slot-name="light"
         label="Logo (light)"
         helper="Shown on the white-themed public page."
         :current-url="logoLight"
@@ -97,7 +104,7 @@ function setOverrides(v: StatusPageThemeOverrides) { emit('update:themeOverrides
         @error="onUploadError"
       />
       <LogoUploadField
-        slot="dark"
+        slot-name="dark"
         label="Logo (dark)"
         helper="Reserved for the dark-mode public page (future)."
         :current-url="logoDark"
@@ -107,7 +114,7 @@ function setOverrides(v: StatusPageThemeOverrides) { emit('update:themeOverrides
         @error="onUploadError"
       />
       <LogoUploadField
-        slot="favicon"
+        slot-name="favicon"
         label="Favicon"
         helper="Square 32×32 or 64×64."
         :current-url="favicon"

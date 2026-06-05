@@ -9,6 +9,7 @@ import (
 	"github.com/denisakp/ogoune/internal/config"
 	"github.com/denisakp/ogoune/internal/domain"
 	"github.com/denisakp/ogoune/internal/ee/license"
+	"github.com/denisakp/ogoune/internal/metrics"
 	"github.com/denisakp/ogoune/internal/port"
 	"github.com/denisakp/ogoune/internal/scheduler"
 	"github.com/denisakp/ogoune/internal/service"
@@ -49,8 +50,9 @@ type App struct {
 	IncidentUpdateRepo        port.IncidentUpdateRepository
 
 	// Metrics phase
-	MetricsRecorder domain.MetricsRecorder
-	MetricsRegistry *prometheus.Registry
+	MetricsRecorder       domain.MetricsRecorder
+	MetricsRegistry       *prometheus.Registry
+	PublicStatusCacheMetr *metrics.PublicStatusMetrics
 
 	// Scheduler phase
 	SchedulerCfg          *scheduler.Config

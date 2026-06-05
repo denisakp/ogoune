@@ -3,7 +3,7 @@ import { ref, onMounted, computed } from 'vue'
 import { loadRuntimeConfig } from '@/composables/useRuntimeConfig'
 import type { RuntimeConfig } from '@/services/runtimeConfigService'
 
-const props = defineProps<{
+defineProps<{
   brandName?: string
   backHref?: string
   backLabel?: string
