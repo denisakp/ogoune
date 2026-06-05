@@ -19,6 +19,7 @@ type PublicStatusService struct {
 	incidents    port.IncidentRepository
 	maintenances port.MaintenanceRepository
 	uptimeAggs   port.UptimeDailyAggRepository
+	settings     port.StatusPageSettingsRepository
 	clock        func() time.Time
 }
 
@@ -28,6 +29,7 @@ func NewPublicStatusService(
 	incidents port.IncidentRepository,
 	maintenances port.MaintenanceRepository,
 	uptimeAggs port.UptimeDailyAggRepository,
+	settings port.StatusPageSettingsRepository,
 ) *PublicStatusService {
 	return &PublicStatusService{
 		resources:    resources,
@@ -35,6 +37,7 @@ func NewPublicStatusService(
 		incidents:    incidents,
 		maintenances: maintenances,
 		uptimeAggs:   uptimeAggs,
+		settings:     settings,
 		clock:        time.Now,
 	}
 }
@@ -136,6 +139,7 @@ func (s *PublicStatusService) GetCurrent(ctx context.Context) (*dto.PublicStatus
 	}
 
 	out.Verdict = computeVerdict(out.Components, out.StandaloneResources)
+	out.Branding = s.loadBranding(ctx)
 
 	// Current month incidents.
 	monthIncidents, err := s.loadMonthIncidents(ctx, now)
@@ -366,6 +370,28 @@ func (s *PublicStatusService) GetUptime(ctx context.Context, componentID string,
 		GeneratedAt: now,
 		Days:        days,
 	}, nil
+}
+
+func (s *PublicStatusService) loadBranding(ctx context.Context) dto.PublicBranding {
+	if s.settings == nil {
+		return dto.PublicBranding{Name: "Status Page"}
+	}
+	cfg, err := s.settings.Get(ctx)
+	if err != nil || cfg == nil {
+		return dto.PublicBranding{Name: "Status Page"}
+	}
+	name := cfg.Name
+	if name == "" {
+		name = "Status Page"
+	}
+	return dto.PublicBranding{
+		Name:         name,
+		HomepageURL:  cfg.HomepageURL,
+		LogoURLLight: cfg.LogoURLLight,
+		LogoURLDark:  cfg.LogoURLDark,
+		FaviconURL:   cfg.FaviconURL,
+		PrimaryColor: cfg.PrimaryColor,
+	}
 }
 
 // loadMonthIncidents returns the public-shape incidents that started in the

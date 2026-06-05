@@ -11,41 +11,62 @@ function mkVerdict(status: 'operational' | 'partial_degradation' | 'major_outage
 }
 
 describe('PublicVerdictBanner', () => {
-  it('paints green for operational', () => {
+  it('sets data-status=operational and emerald palette', () => {
     const w = mount(PublicVerdictBanner, {
-      props: { verdict: mkVerdict('operational'), secondsAgo: 0 },
+      props: {
+        verdict: mkVerdict('operational'),
+        generatedAt: new Date('2026-06-04T12:00:00Z'),
+        secondsAgo: 0,
+      },
     })
-    expect(w.attributes('data-status')).toBe('operational')
-    expect(w.classes().some((c) => c.includes('emerald'))).toBe(true)
+    expect(w.find('[data-status="operational"]').exists()).toBe(true)
+    expect(w.html()).toContain('emerald')
   })
 
-  it('paints orange for partial degradation', () => {
+  it('sets data-status=partial_degradation and orange palette', () => {
     const w = mount(PublicVerdictBanner, {
-      props: { verdict: mkVerdict('partial_degradation'), secondsAgo: 12 },
+      props: {
+        verdict: mkVerdict('partial_degradation'),
+        generatedAt: new Date('2026-06-04T12:00:00Z'),
+        secondsAgo: 12,
+      },
     })
-    expect(w.attributes('data-status')).toBe('partial_degradation')
-    expect(w.classes().some((c) => c.includes('orange'))).toBe(true)
+    expect(w.find('[data-status="partial_degradation"]').exists()).toBe(true)
+    expect(w.html()).toContain('orange')
   })
 
-  it('paints red for major outage', () => {
+  it('sets data-status=major_outage and red palette', () => {
     const w = mount(PublicVerdictBanner, {
-      props: { verdict: mkVerdict('major_outage'), secondsAgo: 30 },
+      props: {
+        verdict: mkVerdict('major_outage'),
+        generatedAt: new Date('2026-06-04T12:00:00Z'),
+        secondsAgo: 30,
+      },
     })
-    expect(w.attributes('data-status')).toBe('major_outage')
-    expect(w.classes().some((c) => c.includes('red'))).toBe(true)
+    expect(w.find('[data-status="major_outage"]').exists()).toBe(true)
+    expect(w.html()).toContain('red')
   })
 
-  it('renders "Updated Xs ago" timestamp', () => {
+  it('formats "Last updated: …" timestamp from generatedAt', () => {
     const w = mount(PublicVerdictBanner, {
-      props: { verdict: mkVerdict('operational'), secondsAgo: 23 },
+      props: {
+        verdict: mkVerdict('operational'),
+        generatedAt: new Date('2026-06-04T12:38:00Z'),
+        secondsAgo: 1,
+      },
     })
-    expect(w.get('[data-testid="updated-label"]').text()).toBe('Updated 23s ago')
+    expect(w.get('[data-testid="updated-label"]').text()).toContain('Last updated')
+    expect(w.get('[data-testid="updated-label"]').text()).toContain('UTC')
   })
 
-  it('renders "Updated just now" when secondsAgo is null or tiny', () => {
+  it('falls back to "just now" when generatedAt is null', () => {
     const w = mount(PublicVerdictBanner, {
-      props: { verdict: mkVerdict('operational'), secondsAgo: null },
+      props: {
+        verdict: mkVerdict('operational'),
+        generatedAt: null,
+        secondsAgo: null,
+      },
     })
-    expect(w.get('[data-testid="updated-label"]').text()).toBe('Updated just now')
+    expect(w.get('[data-testid="updated-label"]').text()).toBe('Last updated: just now')
   })
 })

@@ -1,61 +1,58 @@
 <script setup lang="ts">
-import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-
-interface NavItem {
-  key: string
-  label: string
-  routeName: string
-}
-
-const items: NavItem[] = [
-  { key: 'current', label: 'Current', routeName: 'PublicStatusCurrent' },
-  { key: 'history', label: 'History', routeName: 'PublicStatusHistory' },
-  { key: 'uptime', label: 'Uptime', routeName: 'PublicStatusUptime' },
-]
 
 const route = useRoute()
 const router = useRouter()
 
-const activeKey = computed(() => {
-  const match = items.find((i) => i.routeName === route.name)
-  return match?.key ?? 'current'
-})
-
-function go(item: NavItem) {
-  if (item.routeName !== route.name) {
-    router.push({ name: item.routeName })
-  }
+function go(name: string) {
+  if (route.name !== name) router.push({ name })
 }
 </script>
 
 <template>
   <nav
-    class="flex items-center gap-2 rounded-lg border border-gray-200 bg-white p-1 dark:border-gray-700 dark:bg-gray-800"
+    class="flex items-center justify-between gap-3 py-4"
     aria-label="Public status navigation"
+    data-testid="public-quicknav"
   >
+    <div class="flex items-center gap-2">
+      <button
+        type="button"
+        class="inline-flex items-center gap-2 rounded-md border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-1.5 text-sm hover:bg-gray-50 dark:hover:bg-gray-800"
+        data-testid="nav-history"
+        @click="go('PublicStatusHistory')"
+      >
+        <svg class="size-4 text-gray-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3 12a9 9 0 1 0 3-6.7" />
+          <polyline points="3 4 3 10 9 10" />
+        </svg>
+        Incident history
+      </button>
+      <button
+        type="button"
+        class="inline-flex items-center gap-2 rounded-md border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-1.5 text-sm hover:bg-gray-50 dark:hover:bg-gray-800"
+        data-testid="nav-uptime"
+        @click="go('PublicStatusUptime')"
+      >
+        <svg class="size-4 text-gray-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="4" width="18" height="18" rx="2" />
+          <line x1="16" y1="2" x2="16" y2="6" />
+          <line x1="8" y1="2" x2="8" y2="6" />
+          <line x1="3" y1="10" x2="21" y2="10" />
+        </svg>
+        Uptime grid
+      </button>
+    </div>
     <button
-      v-for="item in items"
-      :key="item.key"
       type="button"
-      class="rounded-md px-3 py-1.5 text-sm font-medium transition-colors"
-      :class="
-        activeKey === item.key
-          ? 'bg-gray-900 text-white dark:bg-white dark:text-gray-900'
-          : 'text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700'
-      "
-      @click="go(item)"
+      class="inline-flex items-center gap-2 rounded-md bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-1.5 text-sm font-medium shadow-sm"
+      data-testid="nav-subscribe"
     >
-      {{ item.label }}
-    </button>
-    <span class="mx-1 h-5 w-px bg-gray-200 dark:bg-gray-700" />
-    <button
-      type="button"
-      disabled
-      title="Coming soon"
-      class="cursor-not-allowed rounded-md px-3 py-1.5 text-sm font-medium text-gray-400 dark:text-gray-500"
-    >
-      Subscribe
+      <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+        <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+      </svg>
+      Subscribe to updates
     </button>
   </nav>
 </template>

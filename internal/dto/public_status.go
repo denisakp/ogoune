@@ -69,12 +69,22 @@ type PublicIncidentSummary struct {
 	ResourceID  string                 `json:"resource_id,omitempty"`
 }
 
+type PublicBranding struct {
+	Name         string `json:"name"`
+	HomepageURL  string `json:"homepage_url,omitempty"`
+	LogoURLLight string `json:"logo_url_light,omitempty"`
+	LogoURLDark  string `json:"logo_url_dark,omitempty"`
+	FaviconURL   string `json:"favicon_url,omitempty"`
+	PrimaryColor string `json:"primary_color,omitempty"`
+}
+
 type PublicStatus struct {
-	GeneratedAt            time.Time               `json:"generated_at"`
-	Verdict                PublicVerdict           `json:"verdict"`
-	Components             []PublicComponent       `json:"components"`
-	StandaloneResources    []PublicResource        `json:"standalone_resources"`
-	CurrentMonthIncidents  []PublicIncidentSummary `json:"current_month_incidents"`
+	GeneratedAt           time.Time               `json:"generated_at"`
+	Branding              PublicBranding          `json:"branding"`
+	Verdict               PublicVerdict           `json:"verdict"`
+	Components            []PublicComponent       `json:"components"`
+	StandaloneResources   []PublicResource        `json:"standalone_resources"`
+	CurrentMonthIncidents []PublicIncidentSummary `json:"current_month_incidents"`
 }
 
 type PublicIncidentMonth struct {

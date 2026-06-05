@@ -3,15 +3,18 @@ import { ref, onMounted, computed } from 'vue'
 import { loadRuntimeConfig } from '@/composables/useRuntimeConfig'
 import type { RuntimeConfig } from '@/services/runtimeConfigService'
 
+const props = defineProps<{
+  brandName?: string
+  backHref?: string
+  backLabel?: string
+}>()
+
 const runtime = ref<RuntimeConfig | null>(null)
 
 onMounted(async () => {
   runtime.value = await loadRuntimeConfig()
 })
 
-// Server-injected meta tag — defense in depth. The runtime API can be
-// disabled on hardened deployments; if the meta tag asserts "true" we
-// still render the credit. Fall back to runtime API when meta is absent.
 const metaLicense = computed(() => {
   if (typeof document === 'undefined') return null
   const tag = document.querySelector('meta[name="x-ogoune-license"]')
@@ -22,25 +25,43 @@ const showCredit = computed(() => {
   const fromMeta = metaLicense.value
   if (fromMeta === 'community') return true
   if (fromMeta === 'enterprise-suppressed') return false
-  // Fall through to runtime config (defaults to required = true).
   return runtime.value?.powered_by_required ?? true
 })
+
+const year = new Date().getUTCFullYear()
 </script>
 
 <template>
   <footer
-    class="text-center py-6 text-sm text-gray-500"
+    class="border-t border-gray-200 dark:border-gray-800 mt-12"
     data-testid="public-footer"
   >
-    <a
-      v-if="showCredit"
-      href="https://ogoune.dev"
-      target="_blank"
-      rel="noopener noreferrer"
-      class="hover:text-gray-700 dark:hover:text-gray-300"
-      data-testid="powered-by"
+    <div
+      class="max-w-5xl mx-auto px-6 py-4 flex items-center justify-between text-xs text-gray-500"
     >
-      Powered by Ogoune
-    </a>
+      <div class="flex items-center gap-4">
+        <a
+          v-if="backHref"
+          :href="backHref"
+          class="hover:text-gray-700 dark:hover:text-gray-300 inline-flex items-center gap-1"
+          data-testid="back-link"
+        >
+          ← {{ backLabel || 'Current Status' }}
+        </a>
+        <a
+          v-if="showCredit"
+          href="https://ogoune.dev"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="hover:text-gray-700 dark:hover:text-gray-300"
+          data-testid="powered-by"
+        >
+          Powered by Ogoune
+        </a>
+      </div>
+      <span v-if="brandName" class="text-gray-400" data-testid="copyright">
+        © {{ year }} {{ brandName }}. All rights reserved.
+      </span>
+    </div>
   </footer>
 </template>

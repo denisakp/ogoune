@@ -442,8 +442,18 @@ export interface PublicIncidentSummary {
   resource_id?: string
 }
 
+export interface PublicBranding {
+  name: string
+  homepage_url?: string
+  logo_url_light?: string
+  logo_url_dark?: string
+  favicon_url?: string
+  primary_color?: string
+}
+
 export interface PublicStatusSummary {
   generated_at: string
+  branding: PublicBranding
   verdict: PublicVerdict
   components: PublicComponentSummary[]
   standalone_resources: PublicResourceSummary[]

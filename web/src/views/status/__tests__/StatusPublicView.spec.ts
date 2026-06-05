@@ -38,17 +38,13 @@ function mkResource(id: string, state: PublicResource['current_state'] = 'up'): 
 }
 
 function mkComponent(id: string, resources: PublicResource[]): PublicComponent {
-  return {
-    id,
-    name: id,
-    aggregated_state: 'up',
-    resources,
-  }
+  return { id, name: id, aggregated_state: 'up', resources }
 }
 
 function mkSummary(overrides: Partial<PublicStatusSummary> = {}): PublicStatusSummary {
   return {
     generated_at: '2026-06-04T12:00:00Z',
+    branding: { name: 'Acme Corp' },
     verdict: { status: 'operational', label: 'All Systems Operational', color: 'green' },
     components: [],
     standalone_resources: [],
@@ -82,9 +78,7 @@ describe('StatusPublicView — US1', () => {
 
   it('all up → banner shows operational', async () => {
     const w = await renderView(
-      mkSummary({
-        components: [mkComponent('API', [mkResource('api1')])],
-      }),
+      mkSummary({ components: [mkComponent('API', [mkResource('api1')])] }),
     )
     expect(w.find('[data-status="operational"]').exists()).toBe(true)
   })
@@ -108,8 +102,7 @@ describe('StatusPublicView — US1', () => {
         ],
       }),
     )
-    const groups = w.findAll('[data-component-id]')
-    expect(groups).toHaveLength(2)
+    expect(w.findAll('[data-component-id]')).toHaveLength(2)
     expect(w.findAll('[data-resource-id]')).toHaveLength(3)
   })
 
@@ -135,5 +128,11 @@ describe('StatusPublicView — US1', () => {
     })
     const ee = await renderView(mkSummary())
     expect(ee.find('[data-testid="powered-by"]').exists()).toBe(false)
+  })
+
+  it('renders brand name in header + copyright', async () => {
+    const w = await renderView(mkSummary())
+    expect(w.html()).toContain('Acme Corp')
+    expect(w.get('[data-testid="copyright"]').text()).toContain('Acme Corp')
   })
 })

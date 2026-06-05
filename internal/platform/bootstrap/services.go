@@ -47,6 +47,7 @@ func InitServices(app *App) {
 			app.IncidentRepo,
 			app.MaintenanceRepo,
 			app.UptimeDailyAggRepo,
+			app.StatusPageSettingsRepo,
 		)
 		app.UptimeAggregator = service.NewUptimeAggregator(
 			app.ResourceRepo,
