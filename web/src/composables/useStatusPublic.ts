@@ -1,4 +1,4 @@
-import { ref, shallowRef } from 'vue'
+import { ref, shallowRef, computed, onUnmounted, getCurrentInstance } from 'vue'
 import {
   fetchPublicStatusSummary,
   fetchPublicStatusIncidents,
@@ -23,6 +23,21 @@ export function useStatusPublic() {
   const loading = ref(false)
   const error = ref<Error | null>(null)
   const summary = shallowRef<PublicStatusSummary | null>(null)
+  const nowTick = ref(Date.now())
+  const tickHandle = setInterval(() => {
+    nowTick.value = Date.now()
+  }, 1000)
+  if (getCurrentInstance()) {
+    onUnmounted(() => clearInterval(tickHandle))
+  }
+
+  const generatedAt = computed(() =>
+    summary.value ? new Date(summary.value.generated_at) : null,
+  )
+  const secondsAgo = computed(() => {
+    if (!generatedAt.value) return null
+    return Math.max(0, Math.floor((nowTick.value - generatedAt.value.getTime()) / 1000))
+  })
   const incidents = shallowRef<PublicStatusIncidentsArchive | null>(null)
   const uptime = shallowRef<PublicStatusUptimeRange | null>(null)
   const resource = shallowRef<PublicStatusResourceWindows | null>(null)
@@ -68,6 +83,8 @@ export function useStatusPublic() {
     loading,
     error,
     summary,
+    generatedAt,
+    secondsAgo,
     incidents,
     uptime,
     resource,

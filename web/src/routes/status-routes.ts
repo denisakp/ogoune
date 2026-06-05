@@ -9,7 +9,7 @@ import { defineComponent, h } from 'vue'
 // Until each view ships, an inline placeholder defers gracefully so the
 // router stays mountable and feature-flag-safe.
 
-const StatusPageView = () => import('@/views/status-page/StatusPageView.vue')
+const StatusPublicView = () => import('@/views/status/StatusPublicView.vue')
 const StatusPageDetailView = () => import('@/views/status-page/StatusPageDetailView.vue')
 
 const PlaceholderView = (label: string) =>
@@ -29,7 +29,7 @@ export const statusRoutes: RouteRecordRaw[] = [
   {
     path: '/',
     name: 'PublicStatusCurrent',
-    component: StatusPageView,
+    component: StatusPublicView,
   },
   {
     path: '/history',

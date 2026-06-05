@@ -4,6 +4,7 @@ export interface RuntimeConfig {
   ssl_provider: 'letsencrypt' | 'external' | 'disabled'
   edition: 'community' | 'enterprise'
   version: string
+  powered_by_required?: boolean
 }
 
 const SKIP_TOASTS = { headers: { 'x-skip-success-toast': '1' } }
