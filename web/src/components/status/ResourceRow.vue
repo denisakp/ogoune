@@ -4,6 +4,7 @@ import UUptimeBar from '@/components/ui/UUptimeBar.vue'
 import type { PublicResource } from '@/types'
 
 const props = defineProps<{ resource: PublicResource }>()
+const emit = defineEmits<{ (e: 'open', resource: PublicResource): void }>()
 
 const statePillClass = computed(() => {
   switch (props.resource.current_state) {
@@ -54,8 +55,13 @@ const uptimePct = computed(() => (props.resource.uptime_90d_ratio * 100).toFixed
 
 <template>
   <article
-    class="px-4 py-3 border-t border-gray-100 first:border-t-0"
+    class="px-4 py-3 border-t border-gray-100 first:border-t-0 hover:bg-gray-50/60 cursor-pointer"
     :data-resource-id="resource.id"
+    role="button"
+    tabindex="0"
+    @click="emit('open', resource)"
+    @keydown.enter="emit('open', resource)"
+    @keydown.space.prevent="emit('open', resource)"
   >
     <div class="flex items-start justify-between gap-3 mb-2">
       <div class="min-w-0 flex-1">

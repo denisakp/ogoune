@@ -3,6 +3,7 @@ import ResourceRow from './ResourceRow.vue'
 import type { PublicResource } from '@/types'
 
 defineProps<{ resources: PublicResource[] }>()
+const emit = defineEmits<{ (e: 'open-resource', resource: PublicResource): void }>()
 </script>
 
 <template>
@@ -20,6 +21,7 @@ defineProps<{ resources: PublicResource[] }>()
       v-for="resource in resources"
       :key="resource.id"
       :resource="resource"
+      @open="emit('open-resource', $event)"
     />
   </section>
 </template>

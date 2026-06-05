@@ -3,7 +3,9 @@ import { computed, ref } from 'vue'
 import ResourceRow from './ResourceRow.vue'
 import type { PublicComponent } from '@/types'
 
+import type { PublicResource } from '@/types'
 const props = defineProps<{ component: PublicComponent }>()
+const emit = defineEmits<{ (e: 'open-resource', resource: PublicResource): void }>()
 
 const open = ref(true)
 function toggle() { open.value = !open.value }
@@ -92,6 +94,7 @@ const resourceCount = computed(() => props.component.resources.length)
         v-for="resource in component.resources"
         :key="resource.id"
         :resource="resource"
+        @open="emit('open-resource', $event)"
       />
       <p
         v-if="resourceCount === 0"

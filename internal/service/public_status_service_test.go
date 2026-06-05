@@ -302,3 +302,65 @@ func TestGetUptime_FromAfterTo_Errors(t *testing.T) {
 	_, err := svc.GetUptime(context.Background(), "", from, to)
 	require.Error(t, err)
 }
+
+// ---------- US4: GetResourceWindows ----------
+
+func TestGetResourceWindows_HappyPath(t *testing.T) {
+	svc, resources, components, _, aggs, _ := setup(t)
+	c, _ := components.Create(context.Background(), &domain.Component{Name: "API"})
+	_, _ = resources.Create(context.Background(), mkResource(t, "res-1", "api1", c.ID, domain.StatusUp))
+
+	today := time.Date(2026, 6, 4, 0, 0, 0, 0, time.UTC)
+	for i := 0; i < 30; i++ {
+		day := today.AddDate(0, 0, -i)
+		require.NoError(t, aggs.Upsert(context.Background(), &domain.UptimeDailyAgg{
+			ResourceID: "res-1", Day: day, UptimeRatio: 0.99, Samples: 100, ComputedAt: day,
+		}))
+	}
+
+	out, err := svc.GetResourceWindows(context.Background(), "res-1")
+	require.NoError(t, err)
+	assert.Equal(t, "res-1", out.ID)
+	assert.Equal(t, "api1", out.Name)
+	require.Len(t, out.Daily30d, 30)
+	assert.InDelta(t, 0.99, out.Windows["7d"].UptimeRatio, 0.0001)
+	assert.InDelta(t, 0.99, out.Windows["30d"].UptimeRatio, 0.0001)
+	// 90d window only has 30 known days → average is still 0.99 (averageRibbon ignores nil).
+	assert.InDelta(t, 0.99, out.Windows["90d"].UptimeRatio, 0.0001)
+}
+
+func TestGetResourceWindows_MissingResource404(t *testing.T) {
+	svc, _, _, _, _, _ := setup(t)
+	_, err := svc.GetResourceWindows(context.Background(), "no-such-id")
+	require.Error(t, err)
+}
+
+func TestGetResourceWindows_NoIncidents(t *testing.T) {
+	svc, resources, _, _, _, _ := setup(t)
+	_, _ = resources.Create(context.Background(), mkResource(t, "res-1", "api1", "", domain.StatusUp))
+
+	out, err := svc.GetResourceWindows(context.Background(), "res-1")
+	require.NoError(t, err)
+	assert.Empty(t, out.RecentIncidents)
+	for _, w := range []string{"24h", "7d", "30d", "90d"} {
+		assert.Equal(t, 0, out.Windows[w].Incidents, w)
+	}
+}
+
+func TestGetResourceWindows_MixedRibbonStates(t *testing.T) {
+	svc, resources, _, _, aggs, _ := setup(t)
+	_, _ = resources.Create(context.Background(), mkResource(t, "res-1", "api1", "", domain.StatusUp))
+	today := time.Date(2026, 6, 4, 0, 0, 0, 0, time.UTC)
+	// Yesterday 0.92, today 1.0 → 7d mean ≈ 0.96
+	require.NoError(t, aggs.Upsert(context.Background(), &domain.UptimeDailyAgg{
+		ResourceID: "res-1", Day: today.AddDate(0, 0, -1), UptimeRatio: 0.92, Samples: 100, ComputedAt: today,
+	}))
+	require.NoError(t, aggs.Upsert(context.Background(), &domain.UptimeDailyAgg{
+		ResourceID: "res-1", Day: today, UptimeRatio: 1.0, Samples: 100, ComputedAt: today,
+	}))
+
+	out, err := svc.GetResourceWindows(context.Background(), "res-1")
+	require.NoError(t, err)
+	assert.InDelta(t, 1.0, out.Windows["24h"].UptimeRatio, 0.0001)
+	assert.InDelta(t, 0.96, out.Windows["7d"].UptimeRatio, 0.0001)
+}

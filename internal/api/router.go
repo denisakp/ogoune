@@ -131,6 +131,7 @@ func NewRouter(
 		r.Get("/status/incidents", publicStatusHandler.GetIncidents)
 		r.Get("/status/incidents/{id}", publicStatusHandler.GetIncidentDetail)
 		r.Get("/status/uptime", publicStatusHandler.GetUptime)
+		r.Get("/status/resource/{id}/windows", publicStatusHandler.GetResourceWindows)
 	})
 	// Legacy resource detail endpoint — replaced by /status/resource/:id/windows in US3.
 	r.Get("/status/{resourceId}", statusPageHandler.HandleResourceDetailStatus)

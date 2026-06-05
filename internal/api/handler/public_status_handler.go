@@ -21,6 +21,7 @@ type PublicStatusProvider interface {
 	GetIncidents(ctx context.Context, from, to time.Time, componentID string) (*dto.PublicIncidentsResponse, error)
 	GetUptime(ctx context.Context, componentID string, from, to time.Time) (*dto.PublicUptimeResponse, error)
 	GetIncidentDetail(ctx context.Context, incidentID string) (*dto.PublicIncidentDetail, error)
+	GetResourceWindows(ctx context.Context, resourceID string) (*dto.PublicResourceWindowsResponse, error)
 }
 
 type PublicStatusHandler struct {
@@ -163,6 +164,35 @@ func (h *PublicStatusHandler) GetIncidentDetail(w http.ResponseWriter, r *http.R
 	if err != nil {
 		if errors.Is(err, repository.ErrNotFound) {
 			writeProblem(w, http.StatusNotFound, "not_found", "incident not found")
+			return
+		}
+		writeProblem(w, http.StatusInternalServerError, "internal_error", err.Error())
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(data)
+}
+
+// GetResourceWindows — GET /status/resource/{id}/windows.
+//
+//	@Summary	Per-resource 24h / 7d / 30d / 90d windows + 30-day daily + recent incidents
+//	@Tags		public-status
+//	@Produce	json
+//	@Param		id	path		string	true	"Resource ID"
+//	@Success	200	{object}	dto.PublicResourceWindowsResponse
+//	@Failure	404	{object}	dto.ProblemDetails
+//	@Failure	500	{object}	dto.ProblemDetails
+//	@Router		/status/resource/{id}/windows [get]
+func (h *PublicStatusHandler) GetResourceWindows(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+	if id == "" {
+		writeProblem(w, http.StatusBadRequest, "missing_id", "resource id is required")
+		return
+	}
+	data, err := h.svc.GetResourceWindows(r.Context(), id)
+	if err != nil {
+		if errors.Is(err, repository.ErrNotFound) {
+			writeProblem(w, http.StatusNotFound, "not_found", "resource not found")
 			return
 		}
 		writeProblem(w, http.StatusInternalServerError, "internal_error", err.Error())

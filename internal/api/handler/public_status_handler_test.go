@@ -34,6 +34,9 @@ func (s *stubPublicStatus) GetUptime(context.Context, string, time.Time, time.Ti
 func (s *stubPublicStatus) GetIncidentDetail(context.Context, string) (*dto.PublicIncidentDetail, error) {
 	return &dto.PublicIncidentDetail{}, nil
 }
+func (s *stubPublicStatus) GetResourceWindows(context.Context, string) (*dto.PublicResourceWindowsResponse, error) {
+	return &dto.PublicResourceWindowsResponse{}, nil
+}
 
 func TestPublicStatusHandler_HappyPath(t *testing.T) {
 	stub := &stubPublicStatus{

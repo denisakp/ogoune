@@ -45,6 +45,91 @@ func NewPublicStatusService(
 	}
 }
 
+// GetResourceWindows returns the per-resource detail panel payload —
+// 24h / 7d / 30d / 90d windowed uptime + 30-day daily series + last 5
+// incidents on that resource. Backs the OverallUptimePanel (US4).
+func (s *PublicStatusService) GetResourceWindows(ctx context.Context, resourceID string) (*dto.PublicResourceWindowsResponse, error) {
+	r, err := s.resources.FindByID(ctx, resourceID)
+	if err != nil {
+		return nil, err
+	}
+	now := s.clock().UTC()
+	today := truncDayUTC(now)
+
+	out := &dto.PublicResourceWindowsResponse{
+		ID:              r.ID,
+		Name:            r.Name,
+		Windows:         map[string]dto.PublicWindowStats{},
+		Daily30d:        []dto.PublicRibbonEntry{},
+		RecentIncidents: []dto.PublicIncidentSummary{},
+	}
+
+	// Load 90 days of aggregates once; reuse the slice for every window.
+	aggs90, err := s.uptimeAggs.FindForResource(ctx, r.ID, today.AddDate(0, 0, -89), today)
+	if err != nil {
+		return nil, fmt.Errorf("public_status: load resource aggs: %w", err)
+	}
+	byDay := map[string]float64{}
+	for _, a := range aggs90 {
+		byDay[a.Day.UTC().Format("2006-01-02")] = a.UptimeRatio
+	}
+
+	// Recent incidents on this resource (max 5, newest-first).
+	recent, err := s.incidents.FindByResource(ctx, r.ID, 5, 0)
+	if err != nil {
+		return nil, fmt.Errorf("public_status: load recent incidents: %w", err)
+	}
+	sort.SliceStable(recent, func(i, j int) bool { return recent[i].StartedAt.After(recent[j].StartedAt) })
+	for _, inc := range recent {
+		sev := dto.PublicSeverityMinor
+		if inc.ResolvedAt == nil {
+			sev = dto.PublicSeverityMajor
+		}
+		out.RecentIncidents = append(out.RecentIncidents, dto.PublicIncidentSummary{
+			ID:         inc.ID,
+			Title:      incidentTitle(inc),
+			StartedAt:  inc.StartedAt,
+			ResolvedAt: inc.ResolvedAt,
+			Severity:   sev,
+			ResourceID: inc.ResourceID,
+		})
+	}
+
+	// 30-day series for the chart.
+	from30 := today.AddDate(0, 0, -29)
+	out.Daily30d = buildRibbon(from30, today, byDay)
+
+	// 4 windowed cards: incidents-per-window are counted by start time.
+	type win struct {
+		key  string
+		days int
+	}
+	for _, w := range []win{
+		{"24h", 1}, {"7d", 7}, {"30d", 30}, {"90d", 90},
+	} {
+		fromW := today.AddDate(0, 0, -(w.days - 1))
+		windowRibbon := buildRibbon(fromW, today, byDay)
+		ratio := averageRibbon(windowRibbon)
+		// 24h is special-cased: use the latest single day's value if known.
+		if w.key == "24h" {
+			if v, ok := byDay[today.Format("2006-01-02")]; ok {
+				ratio = v
+			}
+		}
+		incCount := 0
+		for _, inc := range recent {
+			if !inc.StartedAt.Before(fromW) && !inc.StartedAt.After(today.Add(24*time.Hour)) {
+				incCount++
+			}
+		}
+		out.Windows[w.key] = dto.PublicWindowStats{
+			UptimeRatio: ratio,
+			Incidents:   incCount,
+		}
+	}
+	return out, nil
+}
+
 // GetIncidentDetail returns the incident plus its lifecycle update timeline
 // for the public detail page (US7).
 func (s *PublicStatusService) GetIncidentDetail(ctx context.Context, incidentID string) (*dto.PublicIncidentDetail, error) {
