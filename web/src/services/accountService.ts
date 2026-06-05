@@ -1,6 +1,9 @@
 import { getAuthenticatedClient, request } from '@/core/http/client'
 
 const SKIP_SUCCESS = { headers: { 'x-skip-success-toast': '1' } }
+const SKIP_BOTH = {
+  headers: { 'x-skip-success-toast': '1', 'x-skip-error-toast': '1' },
+}
 
 export interface UserProfile {
   email: string
@@ -140,10 +143,13 @@ const accountService = {
   },
 
   async getOnboardingState(): Promise<{ status: 'pending' | 'done' }> {
+    // Onboarding endpoint is best-effort: it may legitimately return 404 on
+    // a fresh install (no row yet) — the composable defaults silently to
+    // "no wizard". Silence the toast so reloads don't flash error modals.
     return await request<{ status: 'pending' | 'done' }>(
       getAuthenticatedClient(),
       'v1/me/onboarding-state',
-      SKIP_SUCCESS,
+      SKIP_BOTH,
     )
   },
 
