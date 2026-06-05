@@ -109,10 +109,12 @@ type PublicIncidentsResponse struct {
 }
 
 type PublicUptimeDay struct {
-	Day         string  `json:"day"`
-	UptimeRatio float64 `json:"uptime_ratio"`
-	Samples     int     `json:"samples"`
-	Incidents   int     `json:"incidents"`
+	Day              string                  `json:"day"`
+	UptimeRatio      float64                 `json:"uptime_ratio"`
+	Samples          int                     `json:"samples"`
+	Incidents        int                     `json:"incidents"`
+	DowntimeSeconds  int                     `json:"downtime_seconds"`
+	RelatedIncidents []PublicIncidentSummary `json:"related_incidents"`
 }
 
 type PublicUptimeResponse struct {

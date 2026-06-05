@@ -485,6 +485,8 @@ export interface PublicUptimeDay {
   uptime_ratio: number
   samples: number
   incidents: number
+  downtime_seconds: number
+  related_incidents: PublicIncidentSummary[]
 }
 
 export interface PublicStatusUptimeRange {

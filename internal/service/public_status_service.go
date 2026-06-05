@@ -467,7 +467,7 @@ func (s *PublicStatusService) GetUptime(ctx context.Context, componentID string,
 			inComponent[id] = struct{}{}
 		}
 	}
-	incidentsByDay := map[string]int{}
+	incidentsByDay := map[string][]dto.PublicIncidentSummary{}
 	for _, inc := range incidents {
 		if inc.StartedAt.Before(fromDay) || inc.StartedAt.After(toDay.Add(24*time.Hour)) {
 			continue
@@ -478,17 +478,40 @@ func (s *PublicStatusService) GetUptime(ctx context.Context, componentID string,
 			}
 		}
 		key := inc.StartedAt.UTC().Format("2006-01-02")
-		incidentsByDay[key]++
+		sev := dto.PublicSeverityMinor
+		if inc.ResolvedAt == nil {
+			sev = dto.PublicSeverityMajor
+		}
+		incidentsByDay[key] = append(incidentsByDay[key], dto.PublicIncidentSummary{
+			ID:         inc.ID,
+			Title:      incidentTitle(inc),
+			StartedAt:  inc.StartedAt,
+			ResolvedAt: inc.ResolvedAt,
+			Severity:   sev,
+			ResourceID: inc.ResourceID,
+		})
 	}
 
 	// Materialize one entry per day in the window.
 	days := make([]dto.PublicUptimeDay, 0)
 	for d := fromDay; !d.After(toDay); d = d.AddDate(0, 0, 1) {
 		key := d.Format("2006-01-02")
-		entry := dto.PublicUptimeDay{Day: key, Incidents: incidentsByDay[key]}
+		related := incidentsByDay[key]
+		entry := dto.PublicUptimeDay{
+			Day:              key,
+			Incidents:        len(related),
+			RelatedIncidents: related,
+		}
+		if entry.RelatedIncidents == nil {
+			entry.RelatedIncidents = []dto.PublicIncidentSummary{}
+		}
 		if b, ok := buckets[key]; ok && b.count > 0 {
 			entry.UptimeRatio = b.ratioSum / float64(b.count)
 			entry.Samples = b.samplesSum
+			// Approximation: convert the day-level ratio into an equivalent
+			// downtime span over 24h. Surfaces a human-friendly figure for
+			// the tooltip without needing per-incident duration aggregation.
+			entry.DowntimeSeconds = int((1.0 - entry.UptimeRatio) * 86400.0)
 		}
 		days = append(days, entry)
 	}

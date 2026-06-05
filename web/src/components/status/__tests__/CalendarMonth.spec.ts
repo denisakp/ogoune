@@ -3,7 +3,14 @@ import { mount } from '@vue/test-utils'
 import CalendarMonth from '../CalendarMonth.vue'
 
 function mkDay(day: string, ratio: number, samples = 100) {
-  return { day, uptime_ratio: ratio, samples, incidents: 0 }
+  return {
+    day,
+    uptime_ratio: ratio,
+    samples,
+    incidents: 0,
+    downtime_seconds: Math.round((1 - ratio) * 86400),
+    related_incidents: [],
+  }
 }
 
 describe('CalendarMonth — FR-008 threshold colors', () => {
