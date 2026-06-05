@@ -1,25 +1,12 @@
 <script setup lang="ts">
-import { computed, reactive, onMounted } from 'vue'
+import { computed, ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/authStore.ts'
 
 const router = useRouter()
 const authStore = useAuthStore()
 
-const formState = reactive({
-  otp: '',
-})
-
-const displayOtp = computed({
-  get: () => {
-    const value = formState.otp.replace(/\D/g, '')
-    if (value.length <= 3) return value
-    return `${value.slice(0, 3)}-${value.slice(3, 6)}`
-  },
-  set: (value: string) => {
-    formState.otp = value.replace(/\D/g, '').slice(0, 6)
-  },
-})
+const otpDigits = ref<string[]>([])
 
 const isLoading = computed(() => authStore.isLoading)
 const pendingEmail = computed(() => authStore.pending2FAEmail)
@@ -31,10 +18,17 @@ onMounted(() => {
 })
 
 const handleVerify = async () => {
-  const success = await authStore.verifyTwoFactor(formState.otp)
+  const otp = otpDigits.value.join('')
+  if (otp.length !== 6) return
+  const success = await authStore.verifyTwoFactor(otp)
   if (success) {
     router.push('/monitors')
   }
+}
+
+const onComplete = (value: string[]) => {
+  otpDigits.value = value
+  handleVerify()
 }
 </script>
 
@@ -50,18 +44,22 @@ const handleVerify = async () => {
 
       <form class="verify-form space-y-4" @submit.prevent="handleVerify">
         <div>
-          <label class="block text-sm font-medium mb-1">Verification Code</label>
-          <UInput
-            v-model="displayOtp"
-            placeholder="000-000"
-            size="lg"
-            :maxlength="7"
-            :disabled="isLoading"
-            class="w-full"
-          />
+          <label class="block text-sm font-medium mb-2 text-center">Verification Code</label>
+          <div class="flex justify-center">
+            <UPinInput
+              v-model="otpDigits"
+              :length="6"
+              type="number"
+              otp
+              autofocus
+              size="lg"
+              :disabled="isLoading"
+              @complete="onComplete"
+            />
+          </div>
         </div>
 
-        <UButton type="submit" color="primary" size="lg" block :loading="isLoading">
+        <UButton type="submit" color="primary" size="lg" block :loading="isLoading" :disabled="otpDigits.length !== 6">
           Verify &amp; Continue
         </UButton>
       </form>
