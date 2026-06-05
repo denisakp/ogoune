@@ -1,13 +1,18 @@
 <script setup lang="ts">
-import { computed, inject, onMounted, ref, watch, type Ref } from 'vue'
+import { computed, inject, type ComputedRef, type Ref } from 'vue'
 import { useResourceStore } from '@/stores/resourceStore'
-import { fetchStatsSummary } from '@/services/statsService'
+import type { OverviewRange } from '@/composables/useOverviewMetrics'
 
 const resourceStore = useResourceStore()
 
-type Range = '1h' | '6h' | '24h' | '7d' | '30d'
-const injected = inject<{ range: Ref<Range> } | null>('overview.range', null)
-const range = computed<Range>(() => injected?.range.value ?? '24h')
+const rangeInj = inject<{ range: Ref<OverviewRange> } | null>('overview.range', null)
+const range = computed<OverviewRange>(() => rangeInj?.range.value ?? '24h')
+
+interface MetricsShape {
+  totalChecks: ComputedRef<number>
+  avgResponseTime: ComputedRef<number>
+}
+const metrics = inject<MetricsShape | null>('overview.metrics', null)
 
 const totalResources = computed(() => resourceStore.resources.length)
 const downOrDegraded = computed(
@@ -17,42 +22,10 @@ const downOrDegraded = computed(
     ).length,
 )
 
-const avgResponse = computed(() => {
-  const resources = resourceStore.resources
-  if (resources.length === 0) return 0
-  const sum = resources.reduce((acc, r) => {
-    const rt = (r as { response_time?: number }).response_time ?? 0
-    return acc + rt
-  }, 0)
-  return Math.round(sum / resources.length)
-})
+const avgResponse = computed(() => metrics?.avgResponseTime.value ?? 0)
+const checksCount = computed(() => metrics?.totalChecks.value ?? 0)
 
-const checksCount = ref<number | null>(null)
-const checksDelta = ref<string>('')
-
-async function refresh() {
-  try {
-    const summary = await fetchStatsSummary(range.value)
-    // The API still uses the legacy `total_checks_24h` key. Treat it as
-    // "total over the selected range" and rename the card label
-    // dynamically below.
-    const count =
-      (summary as unknown as { total_checks_24h?: number; total_checks?: number }).total_checks ??
-      (summary as unknown as { total_checks_24h?: number }).total_checks_24h ??
-      0
-    checksCount.value = count
-    const delta = (summary as unknown as { delta_pct?: number }).delta_pct
-    checksDelta.value = typeof delta === 'number' ? `${delta >= 0 ? '+' : ''}${delta}% vs prev` : ''
-  } catch {
-    checksCount.value = 0
-    checksDelta.value = ''
-  }
-}
-
-onMounted(refresh)
-watch(range, refresh)
-
-const RANGE_LABELS: Record<Range, string> = {
+const RANGE_LABELS: Record<OverviewRange, string> = {
   '1h': 'Checks (1h)',
   '6h': 'Checks (6h)',
   '24h': 'Checks today',
@@ -79,8 +52,8 @@ const cards = computed(() => [
   },
   {
     label: RANGE_LABELS[range.value],
-    value: checksCount.value === null ? '—' : checksCount.value.toLocaleString(),
-    sub: checksDelta.value,
+    value: checksCount.value.toLocaleString(),
+    sub: '',
     icon: 'i-lucide-activity',
     iconBg: '#10B98114',
     iconColor: '#10B981',

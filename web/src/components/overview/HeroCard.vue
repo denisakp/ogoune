@@ -1,13 +1,28 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, inject, onMounted, ref, type ComputedRef, type Ref } from 'vue'
 import { useRouter } from 'vue-router'
 
 import { useResourceStore } from '@/stores/resourceStore'
 import { fetchPublicStatusSummary } from '@/services/statusPublicService'
+import type { OverviewRange } from '@/composables/useOverviewMetrics'
 import type { PublicStatusSummary } from '@/types'
 
 const resourceStore = useResourceStore()
 const router = useRouter()
+
+const rangeInj = inject<{ range: Ref<OverviewRange> } | null>('overview.range', null)
+const range = computed<OverviewRange>(() => rangeInj?.range.value ?? '24h')
+
+interface MetricsShape { uptimePct: ComputedRef<number | null> }
+const metrics = inject<MetricsShape | null>('overview.metrics', null)
+
+const RANGE_LABEL: Record<OverviewRange, string> = {
+  '1h': '1-hour uptime',
+  '6h': '6-hour uptime',
+  '24h': '24-hour uptime',
+  '7d': '7-day uptime',
+  '30d': '30-day uptime',
+}
 
 const downCount = computed(() => resourceStore.resources.filter((r) => r.status === 'down').length)
 const hasIncidents = computed(() => downCount.value > 0)
@@ -54,6 +69,11 @@ const dailyRatios = computed<(number | null)[]>(() => {
 const knownRatios = computed(() => dailyRatios.value.filter((v): v is number => v !== null))
 
 const uptimePct = computed(() => {
+  // Prefer the windowed value from useOverviewMetrics (activity-based, real
+  // time-aware). Fall back to the 90-day ribbon mean when no activities
+  // landed in the window yet.
+  const windowed = metrics?.uptimePct.value
+  if (typeof windowed === 'number') return Math.round(windowed * 100) / 100
   if (knownRatios.value.length === 0) {
     if (resourceStore.resources.length === 0) return 100
     const up = resourceStore.resources.filter((r) => r.status === 'up').length
@@ -157,7 +177,7 @@ function openStatusPage() {
             <span class="text-xl font-semibold text-slate-500 leading-none pb-1">%</span>
           </div>
           <div class="text-[10px] font-medium text-slate-400 uppercase tracking-wider mt-1">
-            30-day uptime
+            {{ RANGE_LABEL[range] }}
           </div>
         </div>
 
