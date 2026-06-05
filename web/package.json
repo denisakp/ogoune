@@ -38,8 +38,6 @@
     "@tiptap/vue-3": "^3.26.0",
     "@vuepic/vue-datepicker": "^11.0.0",
     "@vueuse/core": "^11.0.0",
-    "ant-design-vue": "~4.2.6",
-    "axios": "1.12.2",
     "cron-parser": "^5.5.0",
     "cronstrue": "^3.14.0",
     "dayjs": "^1.11.19",

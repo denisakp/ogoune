@@ -17,11 +17,9 @@ const props = withDefaults(defineProps<Props>(), {
   loading: false,
 })
 
-// Events pagination
 const INITIAL_EVENTS_COUNT = 5
 const visibleEventsCount = ref(INITIAL_EVENTS_COUNT)
 
-// Map status to display color
 const getStatusColor = (status: ResourceCurrentStatus) => {
   switch (status) {
     case 'up':
@@ -35,7 +33,6 @@ const getStatusColor = (status: ResourceCurrentStatus) => {
   }
 }
 
-// Map status to display text
 const getStatusText = (status: ResourceCurrentStatus) => {
   switch (status) {
     case 'up':
@@ -49,23 +46,21 @@ const getStatusText = (status: ResourceCurrentStatus) => {
   }
 }
 
-// Map daily status to bar color
 const getBarColor = (status: DailyStatus): string => {
   switch (status) {
     case 'up':
-      return '#52c41a' // green
+      return '#52c41a'
     case 'down':
-      return '#ff4d4f' // red
+      return '#ff4d4f'
     case 'degraded':
-      return '#faad14' // orange
+      return '#faad14'
     case 'no_data':
-      return '#d9d9d9' // gray
+      return '#d9d9d9'
     default:
       return '#d9d9d9'
   }
 }
 
-// Map daily status to tooltip text
 const getBarTooltipText = (status: DailyStatus): string => {
   switch (status) {
     case 'up':
@@ -81,12 +76,9 @@ const getBarTooltipText = (status: DailyStatus): string => {
   }
 }
 
-// Format event timestamp - e.g., "May 25, 2025 at 08:10 (+00:00)"
 const formatTimestamp = (timestamp: string): string => {
   try {
     const date = new Date(timestamp)
-
-    // Get month name
     const monthNames = [
       'January',
       'February',
@@ -101,29 +93,22 @@ const formatTimestamp = (timestamp: string): string => {
       'November',
       'December',
     ]
-
     const month = monthNames[date.getMonth()]
     const day = date.getDate()
     const year = date.getFullYear()
-
-    // Get time with leading zeros
     const hours = String(date.getHours()).padStart(2, '0')
     const minutes = String(date.getMinutes()).padStart(2, '0')
-
-    // Get timezone offset
     const timezoneOffset = -date.getTimezoneOffset()
     const offsetHours = String(Math.floor(Math.abs(timezoneOffset) / 60)).padStart(2, '0')
     const offsetMinutes = String(Math.abs(timezoneOffset) % 60).padStart(2, '0')
     const offsetSign = timezoneOffset >= 0 ? '+' : '-'
     const timezone = `${offsetSign}${offsetHours}:${offsetMinutes}`
-
     return `${month} ${day}, ${year} at ${hours}:${minutes} (${timezone})`
   } catch {
     return timestamp
   }
 }
 
-// Get event title
 const getEventTitle = (event: MonitorRecentEvent): string => {
   if (event.type === 'up') {
     return event.reason || 'Running again'
@@ -134,7 +119,6 @@ const getEventTitle = (event: MonitorRecentEvent): string => {
   return event.reason || 'Service down'
 }
 
-// Maintenance banner helpers
 const maintenanceBanner = computed<MaintenanceBanner | null>(() => {
   return props.monitorData?.maintenance ?? null
 })
@@ -170,25 +154,21 @@ const formatTimestampWithTimezone = (timestamp: string, tz?: string | null): str
   return formatTimestamp(timestamp)
 }
 
-// Uptime bars computed
 const uptimeBars = computed(() => {
   if (!props.monitorData?.uptime_history_90_days) return []
   return props.monitorData.uptime_history_90_days
 })
 
-// Visible events computed
 const visibleEvents = computed(() => {
   if (!props.monitorData?.recent_events) return []
   return props.monitorData.recent_events.slice(0, visibleEventsCount.value)
 })
 
-// Check if there are more events to load
 const hasMoreEvents = computed(() => {
   if (!props.monitorData?.recent_events) return false
   return visibleEventsCount.value < props.monitorData.recent_events.length
 })
 
-// Check if all events are shown
 const allEventsShown = computed(() => {
   if (!props.monitorData?.recent_events) return false
   return (
@@ -197,14 +177,12 @@ const allEventsShown = computed(() => {
   )
 })
 
-// Load more events
 const loadMoreEvents = () => {
   if (!props.monitorData?.recent_events) return
   const remaining = props.monitorData.recent_events.length - visibleEventsCount.value
-  visibleEventsCount.value += Math.min(remaining, 5) // Load 5 more at a time
+  visibleEventsCount.value += Math.min(remaining, 5)
 }
 
-// Watch for monitor data changes to reset events count
 watch(
   () => props.monitorData?.id,
   () => {
@@ -218,21 +196,23 @@ watch(
     <div class="detail-container">
       <!-- Loading State -->
       <div v-if="loading" class="loading-container">
-        <a-spin size="large" />
+        <UIcon name="i-lucide-loader-circle" class="size-8 animate-spin text-primary-500" />
       </div>
 
       <!-- Error State -->
       <div v-else-if="!monitorData" class="error-container">
-        <a-empty description="Failed to load monitor details. Please try again later." />
+        <UEmptyState icon="i-lucide-circle-alert" title="Failed to load monitor details. Please try again later." />
       </div>
 
       <!-- Content -->
       <div v-else>
         <!-- Maintenance Banner -->
         <div v-if="maintenanceBanner" class="maintenance-banner">
-          <a-alert
-            :type="maintenanceBanner.status === 'active' ? 'info' : 'warning'"
-            :message="
+          <UAlert
+            :color="maintenanceBanner.status === 'active' ? 'info' : 'warning'"
+            variant="subtle"
+            :icon="maintenanceBanner.status === 'active' ? 'i-lucide-wrench' : 'i-lucide-clock'"
+            :title="
               maintenanceBanner.status === 'active'
                 ? 'Maintenance in progress'
                 : 'Scheduled maintenance'
@@ -246,12 +226,10 @@ watch(
                   ? `Planned for ${formatTimestampWithTimezone(maintenanceBanner.start_at, maintenanceBanner.timezone || undefined)}`
                   : ''
             "
-            show-icon
-            banner
           />
         </div>
         <!-- Header Card -->
-        <a-card class="header-card" :bordered="false">
+        <div class="header-card">
           <div class="header-content">
             <div class="monitor-info">
               <h1 class="monitor-name">{{ monitorData.name }}</h1>
@@ -266,7 +244,7 @@ watch(
               </div>
             </div>
           </div>
-        </a-card>
+        </div>
 
         <!-- Uptime Section -->
         <div class="uptime-section">
@@ -278,79 +256,61 @@ watch(
             <span class="section-subtitle">Last 90 days</span>
           </div>
 
-          <a-card :bordered="false" class="uptime-card">
+          <div class="uptime-card">
             <div class="uptime-display">
               <div class="uptime-percentage-large">
                 {{ monitorData.uptime_summary.last_90_days.toFixed(3) }}%
               </div>
               <div class="uptime-bar-container">
-                <a-tooltip v-for="(bar, index) in uptimeBars" :key="index" placement="top">
-                  <template #title>
-                    <div style="text-align: center">
-                      <div>Day {{ index + 1 }}</div>
-                      <div>{{ getBarTooltipText(bar) }}</div>
-                    </div>
-                  </template>
-                  <div
-                    class="uptime-bar"
-                    :style="{
-                      backgroundColor: getBarColor(bar),
-                    }"
-                  ></div>
-                </a-tooltip>
+                <div
+                  v-for="(bar, index) in uptimeBars"
+                  :key="index"
+                  class="uptime-bar"
+                  :title="`Day ${index + 1} — ${getBarTooltipText(bar)}`"
+                  :style="{ backgroundColor: getBarColor(bar) }"
+                ></div>
               </div>
             </div>
-          </a-card>
+          </div>
         </div>
 
         <!-- Overall Uptime Card -->
-        <a-card class="overall-uptime-card" :bordered="false">
-          <template #title>
+        <div class="overall-uptime-card">
+          <div class="card-header">
             <span class="card-title">Overall Uptime</span>
-          </template>
+          </div>
 
-          <a-row :gutter="16">
-            <a-col :xs="24" :sm="12" :md="6">
-              <div class="stat-item">
-                <div class="stat-value">
-                  {{ monitorData.uptime_summary.last_24_hours.toFixed(3) }}%
-                </div>
-                <div class="stat-label">Last 24 hours</div>
+          <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div class="stat-item">
+              <div class="stat-value">
+                {{ monitorData.uptime_summary.last_24_hours.toFixed(3) }}%
               </div>
-            </a-col>
-
-            <a-col :xs="24" :sm="12" :md="6">
-              <div class="stat-item">
-                <div class="stat-value">
-                  {{ monitorData.uptime_summary.last_7_days.toFixed(3) }}%
-                </div>
-                <div class="stat-label">Last 7 days</div>
+              <div class="stat-label">Last 24 hours</div>
+            </div>
+            <div class="stat-item">
+              <div class="stat-value">
+                {{ monitorData.uptime_summary.last_7_days.toFixed(3) }}%
               </div>
-            </a-col>
-
-            <a-col :xs="24" :sm="12" :md="6">
-              <div class="stat-item">
-                <div class="stat-value">
-                  {{ monitorData.uptime_summary.last_30_days.toFixed(3) }}%
-                </div>
-                <div class="stat-label">Last 30 days</div>
+              <div class="stat-label">Last 7 days</div>
+            </div>
+            <div class="stat-item">
+              <div class="stat-value">
+                {{ monitorData.uptime_summary.last_30_days.toFixed(3) }}%
               </div>
-            </a-col>
-
-            <a-col :xs="24" :sm="12" :md="6">
-              <div class="stat-item">
-                <div class="stat-value">
-                  {{ monitorData.uptime_summary.last_90_days.toFixed(3) }}%
-                </div>
-                <div class="stat-label">Last 90 days</div>
+              <div class="stat-label">Last 30 days</div>
+            </div>
+            <div class="stat-item">
+              <div class="stat-value">
+                {{ monitorData.uptime_summary.last_90_days.toFixed(3) }}%
               </div>
-            </a-col>
-          </a-row>
-        </a-card>
+              <div class="stat-label">Last 90 days</div>
+            </div>
+          </div>
+        </div>
 
         <!-- Response Time Card -->
-        <a-card class="response-time-card" :bordered="false">
-          <template #title>
+        <div class="response-time-card">
+          <div class="card-header">
             <div class="card-title-with-subtitle">
               <span class="card-title">
                 <UIcon name="i-lucide-clock" style="margin-right: 8px" />
@@ -358,37 +318,23 @@ watch(
               </span>
               <span class="card-subtitle">Last 7 days</span>
             </div>
-          </template>
+          </div>
 
-          <a-row :gutter="16">
-            <a-col :xs="24" :sm="8">
-              <div class="stat-item">
-                <div class="stat-value">
-                  {{ monitorData.response_time_summary_7_days.avg_ms }}ms
-                </div>
-                <div class="stat-label">avg. response time</div>
-              </div>
-            </a-col>
-
-            <a-col :xs="24" :sm="8">
-              <div class="stat-item">
-                <div class="stat-value">
-                  {{ monitorData.response_time_summary_7_days.max_ms }}ms
-                </div>
-                <div class="stat-label">max. response time</div>
-              </div>
-            </a-col>
-
-            <a-col :xs="24" :sm="8">
-              <div class="stat-item">
-                <div class="stat-value">
-                  {{ monitorData.response_time_summary_7_days.min_ms }}ms
-                </div>
-                <div class="stat-label">min. response time</div>
-              </div>
-            </a-col>
-          </a-row>
-        </a-card>
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div class="stat-item">
+              <div class="stat-value">{{ monitorData.response_time_summary_7_days.avg_ms }}ms</div>
+              <div class="stat-label">avg. response time</div>
+            </div>
+            <div class="stat-item">
+              <div class="stat-value">{{ monitorData.response_time_summary_7_days.max_ms }}ms</div>
+              <div class="stat-label">max. response time</div>
+            </div>
+            <div class="stat-item">
+              <div class="stat-value">{{ monitorData.response_time_summary_7_days.min_ms }}ms</div>
+              <div class="stat-label">min. response time</div>
+            </div>
+          </div>
+        </div>
 
         <!-- Recent Events List -->
         <div v-if="monitorData.recent_events.length > 0" class="recent-events-section">
@@ -406,8 +352,8 @@ watch(
                     'event-icon-up': event.type === 'up',
                   }"
                 >
-                  <UIcon name="i-lucide-arrow-down" v-if="event.type === 'down'" />
-                  <UIcon name="i-lucide-arrow-up" v-if="event.type === 'up'" />
+                  <UIcon v-if="event.type === 'down'" name="i-lucide-arrow-down" />
+                  <UIcon v-if="event.type === 'up'" name="i-lucide-arrow-up" />
                 </div>
                 <div v-if="index !== visibleEvents.length - 1" class="event-line"></div>
               </div>
@@ -422,14 +368,15 @@ watch(
 
           <!-- Load More / All Events Shown -->
           <div class="events-footer">
-            <a-button
+            <UButton
               v-if="hasMoreEvents"
-              type="link"
+              color="primary"
+              variant="link"
               class="load-more-button"
               @click="loadMoreEvents"
             >
               Load More Events
-            </a-button>
+            </UButton>
             <div v-else-if="allEventsShown" class="all-events-message">That's all mate! 🎉</div>
           </div>
         </div>
@@ -458,10 +405,15 @@ watch(
   min-height: 400px;
 }
 
-.header-card {
-  margin-bottom: 24px;
+.header-card,
+.uptime-card,
+.overall-uptime-card,
+.response-time-card {
+  background: #ffffff;
   border-radius: 8px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  padding: 24px;
+  margin-bottom: 24px;
 }
 
 .maintenance-banner {
@@ -519,11 +471,6 @@ watch(
   color: rgba(0, 0, 0, 0.45);
 }
 
-.uptime-card {
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-}
-
 .uptime-display {
   display: flex;
   flex-direction: column;
@@ -550,17 +497,15 @@ watch(
   border-radius: 2px;
   transition: opacity 0.2s ease;
   min-width: 4px;
+  cursor: default;
 }
 
 .uptime-bar:hover {
   opacity: 0.8;
 }
 
-.overall-uptime-card,
-.response-time-card {
-  margin-bottom: 24px;
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+.card-header {
+  margin-bottom: 16px;
 }
 
 .card-title {
@@ -687,12 +632,6 @@ watch(
 .load-more-button {
   font-size: 14px;
   font-weight: 500;
-  padding: 0;
-  height: auto;
-}
-
-.load-more-button:hover {
-  color: #40a9ff;
 }
 
 .all-events-message {
@@ -732,13 +671,5 @@ watch(
     align-items: flex-start;
     gap: 8px;
   }
-}
-
-:deep(.ant-card-head) {
-  border-bottom: 1px solid #f0f0f0;
-}
-
-:deep(.ant-card-body) {
-  padding: 24px;
 }
 </style>

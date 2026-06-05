@@ -4,8 +4,7 @@
  * Concerns owned here (side-effects + toasts), kept out of `normalizeError`
  * (which stays a pure unknown→typed transform):
  *  - Success toast on 2xx mutating methods (POST/PUT/PATCH/DELETE)
- *  - Error toast on 4xx/5xx with status-specific wording (matches legacy
- *    axios.helper.ts mapping for cohabitation continuity)
+ *  - Error toast on 4xx/5xx with status-specific wording
  *  - 401 single-flight: clear stored credentials + redirect to /login,
  *    exactly once per concurrent burst (spec 054 FR-006, clarification Q1)
  *

@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { computed, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import type { Rule } from 'ant-design-vue/es/form'
 import { useAuthStore } from '@/stores/authStore.ts'
 
 const router = useRouter()
@@ -24,13 +23,6 @@ const displayOtp = computed({
 
 const isLoading = computed(() => authStore.isLoading)
 const pendingEmail = computed(() => authStore.pending2FAEmail)
-
-const rules: Record<string, Rule[]> = {
-  otp: [
-    { required: true, message: 'Please enter your 6-digit code', trigger: 'blur' },
-    { len: 6, message: 'Code must be 6 digits', trigger: 'blur' },
-  ],
-}
 
 onMounted(() => {
   if (!pendingEmail.value && !authStore.requires2FA) {
@@ -56,29 +48,23 @@ const handleVerify = async () => {
         <p v-if="pendingEmail" class="email">Account: {{ pendingEmail }}</p>
       </div>
 
-      <a-form
-        :model="formState"
-        :rules="rules"
-        @finish="handleVerify"
-        layout="vertical"
-        class="verify-form"
-      >
-        <a-form-item label="Verification Code" name="otp">
-          <a-input
-            v-model:value="displayOtp"
+      <form class="verify-form space-y-4" @submit.prevent="handleVerify">
+        <div>
+          <label class="block text-sm font-medium mb-1">Verification Code</label>
+          <UInput
+            v-model="displayOtp"
             placeholder="000-000"
-            size="large"
+            size="lg"
             :maxlength="7"
             :disabled="isLoading"
+            class="w-full"
           />
-        </a-form-item>
+        </div>
 
-        <a-form-item>
-          <a-button type="primary" html-type="submit" size="large" block :loading="isLoading">
-            Verify & Continue
-          </a-button>
-        </a-form-item>
-      </a-form>
+        <UButton type="submit" color="primary" size="lg" block :loading="isLoading">
+          Verify &amp; Continue
+        </UButton>
+      </form>
     </div>
   </div>
 </template>

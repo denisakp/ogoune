@@ -230,8 +230,8 @@ describe('FR-036 destructive flows route through useConfirm', () => {
       uploadStatusPageLogo: vi.fn(),
       deleteStatusPageLogo: vi.fn(),
     }))
-    vi.doMock('ant-design-vue', () => ({
-      message: { success: vi.fn(), error: vi.fn() },
+    vi.doMock('@nuxt/ui/composables/useToast', () => ({
+      useToast: () => ({ add: vi.fn() }),
     }))
     const { default: BrandingSection } = await import(
       '@/components/settings/branding/BrandingSection.vue'

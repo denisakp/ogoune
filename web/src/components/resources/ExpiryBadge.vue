@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { computed } from 'vue'
+
 /**
  * ExpiryBadge — Shows SSL or domain expiry status inline.
  * Renders nothing when status is 'ok'.
@@ -14,11 +16,11 @@ interface Props {
 
 const props = defineProps<Props>()
 
-const COLOR: Record<string, string> = {
-  warning: '#faad14',
-  critical: '#ff4d4f',
-  expired: '#8c8c8c',
-}
+const color = computed<'warning' | 'error' | 'neutral'>(() => {
+  if (props.status === 'warning') return 'warning'
+  if (props.status === 'critical') return 'error'
+  return 'neutral'
+})
 
 const icon = props.type === 'ssl' ? '🔒' : '🌐'
 
@@ -31,11 +33,7 @@ const label = (() => {
 </script>
 
 <template>
-  <a-tag
-    v-if="status !== 'ok'"
-    :color="COLOR[status]"
-    style="margin: 0; font-size: 11px; line-height: 18px; padding: 0 6px; cursor: default"
-  >
+  <UBadge v-if="status !== 'ok'" :color="color" variant="subtle" size="xs" class="cursor-default">
     {{ icon }} {{ label }}
-  </a-tag>
+  </UBadge>
 </template>

@@ -2,7 +2,7 @@
 @import '@nuxt/ui';
 
 @theme {
-  /* Brand — Indigo (per .prds/frontend/000-design-identity.md) */
+  /* Brand — Indigo */
   --color-primary-50: #eef2ff;
   --color-primary-100: #e0e7ff;
   --color-primary-500: #4f46e5;

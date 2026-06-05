@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import { message } from 'ant-design-vue'
+import { useToast } from '@nuxt/ui/composables/useToast'
 
 import authService, { type SignupRequest, type ResetPasswordRequest } from '@/services/authService'
 import { ValidationError } from '@/core/errors'
@@ -11,6 +11,7 @@ const TK = 'ogoune_auth_token',
   UK = 'ogoune_user_id'
 
 export const useAuthStore = defineStore('auth', () => {
+  const toast = useToast()
   const token = ref<string | null>(localStorage.getItem(TK))
   const email = ref<string | null>(localStorage.getItem(EK))
   const userId = ref<string | null>(localStorage.getItem(UK))
@@ -39,7 +40,7 @@ export const useAuthStore = defineStore('auth', () => {
       localStorage.setItem(EK, r.email)
       if (r.force_password_change) {
         requiresPasswordInit.value = true
-        message.warning('You must set up your password before continuing')
+        toast.add({ title: 'You must set up your password before continuing', color: 'warning' })
         return false
       }
       if (r.requires_2fa) {
@@ -47,11 +48,11 @@ export const useAuthStore = defineStore('auth', () => {
         pending2FAEmail.value = r.email
         token.value = null
         localStorage.removeItem(TK)
-        message.info('Please verify with 2FA')
+        toast.add({ title: 'Please verify with 2FA', color: 'info' })
         return false
       }
       setAuth(r.token, r.email)
-      message.success('Successfully logged in!')
+      toast.add({ title: 'Successfully logged in!', color: 'success' })
       return true
     } catch (e) {
       if (e instanceof ValidationError) throw e
@@ -63,7 +64,7 @@ export const useAuthStore = defineStore('auth', () => {
 
   async function verifyTwoFactor(otp: string): Promise<boolean> {
     if (!pending2FAEmail.value) {
-      message.error('Session expired. Please log in again.')
+      toast.add({ title: 'Session expired. Please log in again.', color: 'error' })
       return false
     }
     isLoading.value = true
@@ -73,7 +74,7 @@ export const useAuthStore = defineStore('auth', () => {
       requires2FA.value = false
       pending2FAEmail.value = null
       await verify()
-      message.success('2FA verified successfully!')
+      toast.add({ title: '2FA verified successfully!', color: 'success' })
       return true
     } catch {
       return false
@@ -103,7 +104,7 @@ export const useAuthStore = defineStore('auth', () => {
     try {
       const r = await authService.signUp(input)
       setAuth(r.token, r.email)
-      message.success('Account created')
+      toast.add({ title: 'Account created', color: 'success' })
       return true
     } catch (e) {
       if (e instanceof ValidationError) throw e
@@ -138,7 +139,7 @@ export const useAuthStore = defineStore('auth', () => {
     localStorage.removeItem(TK)
     localStorage.removeItem(EK)
     localStorage.removeItem(UK)
-    message.info('You have been logged out')
+    toast.add({ title: 'You have been logged out', color: 'info' })
   }
 
   return {

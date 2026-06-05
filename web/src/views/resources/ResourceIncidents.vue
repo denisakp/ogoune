@@ -14,11 +14,16 @@ const sortedIncidents = computed(() =>
 )
 const visibleIncidents = computed(() => sortedIncidents.value.slice(0, incidentsToShow.value))
 const hasMoreIncidents = computed(() => sortedIncidents.value.length > incidentsToShow.value)
+const expandedDetails = ref<Set<string>>(new Set())
 const loadMoreIncidents = () => {
   incidentsToShow.value += 3
 }
+const toggleDetails = (id: string) => {
+  if (expandedDetails.value.has(id)) expandedDetails.value.delete(id)
+  else expandedDetails.value.add(id)
+}
 
-const getIncidentStatus = (incident: Incident) =>
+const getIncidentStatus = (incident: Incident): { text: string; color: 'success' | 'error' } =>
   incident.resolved_at ? { text: 'Resolved', color: 'success' } : { text: 'Active', color: 'error' }
 
 const decodeDetails = (details?: string): string => {
@@ -32,102 +37,81 @@ const decodeDetails = (details?: string): string => {
 </script>
 
 <template>
-  <a-card>
-    <template #title>
-      <div style="display: flex; justify-content: space-between; align-items: center">
-        <span style="font-size: 14px; font-weight: 600">Recent incidents</span>
-        <a-badge :count="sortedIncidents.length" :number-style="{ backgroundColor: '#52c41a' }" />
+  <UCard>
+    <template #header>
+      <div class="flex justify-between items-center">
+        <span class="text-sm font-semibold">Recent incidents</span>
+        <UBadge color="success" variant="subtle">{{ sortedIncidents.length }}</UBadge>
       </div>
     </template>
     <template v-if="sortedIncidents.length > 0">
-      <a-timeline>
-        <a-timeline-item
+      <ul class="space-y-4">
+        <li
           v-for="incident in visibleIncidents"
           :key="incident.id"
-          :color="incident.resolved_at ? 'green' : 'red'"
+          class="relative pl-6"
         >
-          <template #dot>
-            <a-icon-clock-circle
-              v-if="!incident.resolved_at"
-              style="font-size: 16px; color: #f5222d"
-            />
-            <a-icon-check-circle v-else style="font-size: 16px; color: #52c41a" />
-          </template>
-          <div style="padding-bottom: 16px">
-            <div
-              style="
-                display: flex;
-                justify-content: space-between;
-                align-items: start;
-                margin-bottom: 8px;
-              "
-            >
-              <div style="flex: 1">
-                <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px">
-                  <a-tag :color="getIncidentStatus(incident).color">{{
-                    getIncidentStatus(incident).text
-                  }}</a-tag>
-                  <span style="font-size: 12px; color: rgba(0, 0, 0, 0.45)">
+          <span
+            class="absolute left-0 top-1 size-3 rounded-full"
+            :style="{ backgroundColor: incident.resolved_at ? '#52c41a' : '#f5222d' }"
+          ></span>
+          <div class="pb-4">
+            <div class="flex justify-between items-start mb-2">
+              <div class="flex-1">
+                <div class="flex items-center gap-2 mb-1">
+                  <UBadge :color="getIncidentStatus(incident).color" variant="subtle">
+                    {{ getIncidentStatus(incident).text }}
+                  </UBadge>
+                  <span class="text-xs text-muted">
                     {{ formatDuration(incident.started_at, incident.resolved_at) }}
                   </span>
                 </div>
-                <div style="font-weight: 500; margin-bottom: 4px">{{ incident.reason }}</div>
-                <div style="font-size: 12px; color: rgba(0, 0, 0, 0.65); margin-bottom: 4px">
+                <div class="font-medium mb-1">{{ incident.reason }}</div>
+                <div class="text-xs text-muted mb-1">
                   <strong>Cause:</strong> {{ incident.cause }}
                 </div>
               </div>
             </div>
-            <div style="font-size: 12px; color: rgba(0, 0, 0, 0.45); margin-bottom: 8px">
-              <div>
-                <a-icon-calendar style="margin-right: 4px" />Started:
-                {{ formatDate(incident.started_at) }}
+            <div class="text-xs text-muted mb-2">
+              <div class="flex items-center gap-1">
+                <UIcon name="i-lucide-calendar" class="size-3" />
+                <span>Started: {{ formatDate(incident.started_at) }}</span>
               </div>
-              <div v-if="incident.resolved_at" style="margin-top: 4px">
-                <a-icon-check style="margin-right: 4px" />Resolved:
-                {{ formatDate(incident.resolved_at) }}
+              <div v-if="incident.resolved_at" class="mt-1 flex items-center gap-1">
+                <UIcon name="i-lucide-check" class="size-3" />
+                <span>Resolved: {{ formatDate(incident.resolved_at) }}</span>
               </div>
-              <div v-else style="margin-top: 4px; color: #f5222d">
-                <a-icon-exclamation-circle style="margin-right: 4px" />Still ongoing
+              <div v-else class="mt-1 flex items-center gap-1 text-red-500">
+                <UIcon name="i-lucide-circle-alert" class="size-3" />
+                <span>Still ongoing</span>
               </div>
             </div>
-            <a-collapse v-if="incident.details" ghost size="small">
-              <a-collapse-panel key="1" header="Technical details">
-                <div
-                  style="
-                    font-size: 12px;
-                    font-family: monospace;
-                    background: rgba(0, 0, 0, 0.02);
-                    padding: 12px;
-                    border-radius: 4px;
-                    word-break: break-word;
-                  "
-                >
-                  {{ decodeDetails(incident.details) }}
-                </div>
-              </a-collapse-panel>
-            </a-collapse>
+            <div v-if="incident.details">
+              <UButton size="xs" color="neutral" variant="ghost" @click="toggleDetails(incident.id)">
+                <UIcon :name="expandedDetails.has(incident.id) ? 'i-lucide-chevron-up' : 'i-lucide-chevron-down'" class="size-3" />
+                Technical details
+              </UButton>
+              <div
+                v-if="expandedDetails.has(incident.id)"
+                class="mt-2 text-xs font-mono p-3 rounded bg-slate-50 dark:bg-slate-900 break-words"
+              >
+                {{ decodeDetails(incident.details) }}
+              </div>
+            </div>
           </div>
-        </a-timeline-item>
-      </a-timeline>
+        </li>
+      </ul>
       <div
         v-if="hasMoreIncidents"
-        style="
-          text-align: center;
-          margin-top: 16px;
-          padding-top: 16px;
-          border-top: 1px solid rgba(0, 0, 0, 0.06);
-        "
+        class="text-center mt-4 pt-4 border-t border-slate-100 dark:border-slate-800"
       >
-        <a-button @click="loadMoreIncidents">
-          <template #icon><a-icon-down /></template>
+        <UButton color="neutral" variant="soft" icon="i-lucide-chevron-down" @click="loadMoreIncidents">
           Load more incidents ({{ sortedIncidents.length - incidentsToShow }} remaining)
-        </a-button>
+        </UButton>
       </div>
     </template>
     <template v-else>
-      <a-empty description="No incidents recorded">
-        <template #image><a-icon-smile style="font-size: 48px; color: #52c41a" /></template>
-      </a-empty>
+      <UEmptyState icon="i-lucide-smile" title="No incidents recorded" />
     </template>
-  </a-card>
+  </UCard>
 </template>

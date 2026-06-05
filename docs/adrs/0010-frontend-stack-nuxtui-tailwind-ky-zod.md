@@ -118,8 +118,8 @@ Ogoune adopts **Nuxt UI v3 + Tailwind v4 + Iconify (lucide + heroicons) + Ky + Z
 - [x] Dev-only `/_dev/nuxtui-demo` route guarded by `import.meta.env.DEV`
 - [x] Icon mapping at `docs/frontend/icons-mapping.md`
 - [x] Bundle baseline + delta at `docs/benchmarks/frontend-bundle-2026.md`
-- [ ] Flip ADR-0010 to `Accepted` at end of Slice 1 (after PR-2 and PR-3 land)
-- [ ] Drop AntDV + Axios + dev-only demo route in Slice 6 (PRD 009)
+- [x] Flip ADR-0010 to `Accepted` at end of Slice 1 (after PR-2 and PR-3 land)
+- [x] Drop AntDV + Axios + dev-only demo route in Slice 6 (PRD 009) — landed on branch `061-prd-009-cleanup-antdv-axios-adrs`. AntDV (4.2.6) and axios (1.12.2) fully removed from `web/package.json`; `unplugin-vue-components` `AntDesignVueResolver` removed from `vite.config.ts`; `web/src/antdv-timepicker-style-shim.ts` deleted; `web/src/libs/axios.helper.ts` deleted. Production JS bundle shrank ~22% (2,235,949 → 1,733,726 bytes, ~490 KB saved). All 522 frontend tests pass.
 
 ## References
 

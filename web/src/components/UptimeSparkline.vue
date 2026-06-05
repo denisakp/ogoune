@@ -19,7 +19,6 @@ const props = withDefaults(defineProps<Props>(), {
   gap: 2,
 })
 
-// Calculate bar heights based on uptime percentages
 const bars = computed(() => {
   if (!props.data || props.data.length === 0) return []
 
@@ -28,7 +27,7 @@ const bars = computed(() => {
     const color = getBarColor(stat.uptime_percent)
 
     return {
-      height: Math.max(heightPercent, 2), // Minimum height of 2px
+      height: Math.max(heightPercent, 2),
       color,
       uptime: stat.uptime_percent,
       successful: stat.successful_count,
@@ -38,20 +37,17 @@ const bars = computed(() => {
   })
 })
 
-// Get color based on uptime percentage
 const getBarColor = (uptime: number): string => {
-  if (uptime >= 95) return '#52c41a' // Green
-  if (uptime >= 80) return '#faad14' // Orange
-  return '#ff4d4f' // Red
+  if (uptime >= 95) return '#52c41a'
+  if (uptime >= 80) return '#faad14'
+  return '#ff4d4f'
 }
 
-// Calculate total width
 const totalWidth = computed(() => {
   const barCount = bars.value.length
   return barCount * props.barWidth + (barCount - 1) * props.gap
 })
 
-// Calculate overall uptime percentage
 const overallUptime = computed(() => {
   if (!props.data || props.data.length === 0) return 0
 
@@ -59,7 +55,6 @@ const overallUptime = computed(() => {
   return (total / props.data.length).toFixed(1)
 })
 
-// Format hour for tooltip
 const formatHour = (hour: string): string => {
   const date = new Date(hour)
   return date.toLocaleString('en-US', {
@@ -69,6 +64,9 @@ const formatHour = (hour: string): string => {
     minute: '2-digit',
   })
 }
+
+const barTitle = (bar: { hour: string; uptime: number; successful: number; total: number }) =>
+  `${formatHour(bar.hour)}\nUptime: ${bar.uptime.toFixed(1)}%\n${bar.successful}/${bar.total} checks`
 </script>
 
 <template>
@@ -81,31 +79,23 @@ const formatHour = (hour: string): string => {
           width: `${totalWidth}px`,
         }"
       >
-        <a-tooltip v-for="(bar, index) in bars" :key="index" placement="top">
-          <template #title>
-            <div style="text-align: left">
-              <div style="font-weight: 600; margin-bottom: 4px">
-                {{ formatHour(bar.hour) }}
-              </div>
-              <div>Uptime: {{ bar.uptime.toFixed(1) }}%</div>
-              <div>{{ bar.successful }}/{{ bar.total }} checks</div>
-            </div>
-          </template>
-          <div
-            class="sparkline-bar"
-            :style="{
-              height: `${bar.height}px`,
-              width: `${barWidth}px`,
-              backgroundColor: bar.color,
-              marginRight: index < bars.length - 1 ? `${gap}px` : '0',
-            }"
-          ></div>
-        </a-tooltip>
+        <div
+          v-for="(bar, index) in bars"
+          :key="index"
+          class="sparkline-bar"
+          :title="barTitle(bar)"
+          :style="{
+            height: `${bar.height}px`,
+            width: `${barWidth}px`,
+            backgroundColor: bar.color,
+            marginRight: index < bars.length - 1 ? `${gap}px` : '0',
+          }"
+        ></div>
       </div>
       <div class="sparkline-percentage">{{ overallUptime }}%</div>
     </div>
     <div v-else class="sparkline-empty">
-      <span style="font-size: 12px; color: rgba(0, 0, 0, 0.45)">No data</span>
+      <span class="text-xs text-muted">No data</span>
     </div>
   </div>
 </template>
@@ -146,7 +136,6 @@ const formatHour = (hour: string): string => {
 .sparkline-percentage {
   font-size: 13px;
   font-weight: 600;
-  color: rgba(0, 0, 0, 0.85);
   white-space: nowrap;
   flex-shrink: 0;
   padding: 0 2px;

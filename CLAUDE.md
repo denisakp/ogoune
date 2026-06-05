@@ -196,5 +196,5 @@ Dashboard: http://localhost:9009 (project `ogoune`). Block on CRITICAL/BLOCKER i
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan:
-`specs/060-prd-008-status-pages/plan.md`
+`specs/061-prd-009-cleanup-antdv-axios-adrs/plan.md`
 <!-- SPECKIT END -->

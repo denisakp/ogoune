@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { message } from 'ant-design-vue'
+import { useToast } from '@nuxt/ui/composables/useToast'
 import type { Resource } from '@/types'
 import { formatDate } from '@/utils/formatters'
 
 const props = defineProps<{ resource: Resource; nowTs: number }>()
+const toast = useToast()
 
 const pingUrl = computed(() => {
   if (!props.resource.heartbeat_slug) return ''
@@ -48,51 +49,40 @@ const copyPingUrl = async () => {
   if (!pingUrl.value) return
   try {
     await navigator.clipboard.writeText(pingUrl.value)
-    message.success('Ping URL copied!')
+    toast.add({ title: 'Ping URL copied!', color: 'success' })
   } catch {
-    message.error('Failed to copy')
+    toast.add({ title: 'Failed to copy', color: 'error' })
   }
 }
 </script>
 
 <template>
-  <a-card style="margin-bottom: 16px" data-testid="heartbeat-integration-card">
-    <template #title>
-      <div style="font-size: 14px; font-weight: 600">Heartbeat integration</div>
+  <UCard class="mb-4" data-testid="heartbeat-integration-card">
+    <template #header>
+      <div class="text-sm font-semibold">Heartbeat integration</div>
     </template>
-    <div style="display: flex; flex-direction: column; gap: 16px">
+    <div class="flex flex-col gap-4">
       <div>
-        <div style="font-size: 12px; color: rgba(0, 0, 0, 0.45); margin-bottom: 4px">Ping URL</div>
-        <div style="display: flex; align-items: center; gap: 8px">
+        <div class="text-xs text-muted mb-1">Ping URL</div>
+        <div class="flex items-center gap-2">
           <code
             data-testid="ping-url"
-            style="
-              flex: 1;
-              font-size: 12px;
-              background: rgba(0, 0, 0, 0.04);
-              padding: 6px 10px;
-              border-radius: 4px;
-              word-break: break-all;
-            "
+            class="flex-1 text-xs bg-slate-50 dark:bg-slate-900 px-2.5 py-1.5 rounded break-all"
             >{{ pingUrl }}</code
           >
-          <a-button size="small" @click="copyPingUrl">Copy</a-button>
+          <UButton size="xs" color="neutral" variant="soft" @click="copyPingUrl">Copy</UButton>
         </div>
       </div>
       <div>
-        <div style="font-size: 12px; color: rgba(0, 0, 0, 0.45); margin-bottom: 4px">
-          Last ping received
-        </div>
-        <div style="font-size: 14px; font-weight: 500" data-testid="last-ping-at">
+        <div class="text-xs text-muted mb-1">Last ping received</div>
+        <div class="text-sm font-medium" data-testid="last-ping-at">
           {{ lastPingAtFormatted }}
         </div>
       </div>
       <div v-if="resource.last_ping_at">
-        <div style="font-size: 12px; color: rgba(0, 0, 0, 0.45); margin-bottom: 4px">
-          Next deadline
-        </div>
+        <div class="text-xs text-muted mb-1">Next deadline</div>
         <div
-          style="font-size: 14px; font-weight: 500"
+          class="text-sm font-medium"
           data-testid="next-ping-countdown"
           :style="{ color: nextExpectedPingCountdown === 'Overdue' ? '#ff4d4f' : 'inherit' }"
         >
@@ -100,23 +90,14 @@ const copyPingUrl = async () => {
         </div>
       </div>
       <div>
-        <div style="font-size: 12px; color: rgba(0, 0, 0, 0.45); margin-bottom: 8px">
-          Add to your script
-        </div>
+        <div class="text-xs text-muted mb-2">Add to your script</div>
         <div
           data-testid="heartbeat-snippet"
-          style="
-            font-family: monospace;
-            font-size: 12px;
-            background: rgba(0, 0, 0, 0.04);
-            padding: 12px;
-            border-radius: 4px;
-            word-break: break-all;
-          "
+          class="font-mono text-xs bg-slate-50 dark:bg-slate-900 p-3 rounded break-all"
         >
           {{ heartbeatSnippet }}
         </div>
       </div>
     </div>
-  </a-card>
+  </UCard>
 </template>

@@ -18,11 +18,7 @@ const props = withDefaults(defineProps<Props>(), {
   showUptimePercentage: true,
 })
 
-// Generate default uptime data if not provided (90 bars representing 90 days)
-const uptimeBars = computed(() => {
-  // Always use provided data, or return empty array
-  return props.uptimeData
-})
+const uptimeBars = computed(() => props.uptimeData)
 
 const statusColor = computed(() => {
   switch (props.status) {
@@ -40,13 +36,13 @@ const statusColor = computed(() => {
 const getBarColor = (bar: UptimeBar): string => {
   switch (bar.status) {
     case 'up':
-      return '#52c41a' // green
+      return '#52c41a'
     case 'down':
-      return '#ff4d4f' // red
+      return '#ff4d4f'
     case 'degraded':
-      return '#faad14' // orange
+      return '#faad14'
     case 'no_data':
-      return '#d9d9d9' // gray
+      return '#d9d9d9'
     default:
       return '#d9d9d9'
   }
@@ -65,6 +61,11 @@ const getBarTooltipText = (bar: UptimeBar): string => {
     default:
       return 'Unknown'
   }
+}
+
+const barTitle = (bar: UptimeBar): string => {
+  const base = getBarTooltipText(bar)
+  return bar.tooltip ? `${base}\n${bar.tooltip}` : base
 }
 </script>
 
@@ -89,22 +90,13 @@ const getBarTooltipText = (bar: UptimeBar): string => {
     </div>
 
     <div class="uptime-bar-container">
-      <a-tooltip v-for="(bar, index) in uptimeBars" :key="index" placement="top">
-        <template #title>
-          <div style="text-align: center">
-            <div>{{ getBarTooltipText(bar) }}</div>
-            <div v-if="bar.tooltip" style="font-size: 11px; margin-top: 2px">
-              {{ bar.tooltip }}
-            </div>
-          </div>
-        </template>
-        <div
-          class="uptime-bar"
-          :style="{
-            backgroundColor: getBarColor(bar),
-          }"
-        ></div>
-      </a-tooltip>
+      <div
+        v-for="(bar, index) in uptimeBars"
+        :key="index"
+        class="uptime-bar"
+        :title="barTitle(bar)"
+        :style="{ backgroundColor: getBarColor(bar) }"
+      ></div>
     </div>
   </div>
 </template>
@@ -197,6 +189,7 @@ const getBarTooltipText = (bar: UptimeBar): string => {
   border-radius: 2px;
   transition: opacity 0.2s ease;
   min-width: 3px;
+  cursor: default;
 }
 
 .uptime-bar:hover {

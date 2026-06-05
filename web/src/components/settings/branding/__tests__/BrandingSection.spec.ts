@@ -7,8 +7,8 @@ vi.mock('@/services/statusPageSettingsService', () => ({
   uploadStatusPageLogo: vi.fn(),
   deleteStatusPageLogo: vi.fn(),
 }))
-vi.mock('ant-design-vue', () => ({
-  message: { success: vi.fn(), error: vi.fn() },
+vi.mock('@nuxt/ui/composables/useToast', () => ({
+  useToast: () => ({ add: vi.fn() }),
 }))
 
 import * as svc from '@/services/statusPageSettingsService'

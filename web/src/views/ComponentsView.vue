@@ -1,10 +1,9 @@
 <script setup lang="ts">
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-nocheck — legacy AntDV file, migrated in later Slices.
 import { onMounted, ref } from 'vue'
-import { Modal, message } from 'ant-design-vue'
+import { useToast } from '@nuxt/ui/composables/useToast'
 import { storeToRefs } from 'pinia'
 import { useComponentStore } from '@/stores/componentStore'
+import { useConfirm } from '@/composables/useConfirm'
 import { timeAgo } from '@/libs/date-time.helper'
 import ComponentModal from '@/components/modals/ComponentModal.vue'
 import type { Component, BulkRemovePayload } from '@/types'
@@ -12,6 +11,7 @@ import { bulkRemoveFromComponent } from '@/services/componentService'
 
 const componentStore = useComponentStore()
 const { components, loading } = storeToRefs(componentStore)
+const toast = useToast()
 
 const showModal = ref(false)
 const editingComponent = ref<Component | null>(null)
@@ -39,53 +39,46 @@ const toggleExpand = (componentId: string) => {
   }
 }
 
-const isExpanded = (componentId: string) => {
-  return expandedComponents.value.has(componentId)
-}
+const isExpanded = (componentId: string) => expandedComponents.value.has(componentId)
 
 const handleDelete = async (id: string) => {
-  Modal.confirm({
+  const ok = await useConfirm({
+    kind: 'destructive',
     title: 'Delete Component',
-    content: 'Are you sure you want to delete this component? It must have no resources assigned.',
-    okText: 'Delete',
-    okType: 'danger',
-    cancelText: 'Cancel',
-    async onOk() {
-      await componentStore.removeComponent(id)
-      await componentStore.loadComponents()
-    },
+    body: 'Are you sure you want to delete this component? It must have no resources assigned.',
+    ctaLabel: 'Delete',
   })
+  if (!ok) return
+  await componentStore.removeComponent(id)
+  await componentStore.loadComponents()
 }
 
 const handleRemoveResource = async (componentId: string, resourceId: string) => {
-  Modal.confirm({
+  const ok = await useConfirm({
     title: 'Remove Resource',
-    content: 'Remove this resource from the component?',
-    okText: 'Remove',
-    okType: 'primary',
-    cancelText: 'Cancel',
-    async onOk() {
-      try {
-        const payload: BulkRemovePayload = {
-          resource_ids: [resourceId],
-        }
-        await bulkRemoveFromComponent(payload)
-        message.success('Resource removed from component')
-        await componentStore.loadComponents()
-      } catch {
-        message.error('Failed to remove resource')
-      }
-    },
+    body: 'Remove this resource from the component?',
+    ctaLabel: 'Remove',
   })
+  if (!ok) return
+  try {
+    const payload: BulkRemovePayload = { resource_ids: [resourceId] }
+    await bulkRemoveFromComponent(payload)
+    toast.add({ title: 'Resource removed from component', color: 'success' })
+    await componentStore.loadComponents()
+  } catch {
+    toast.add({ title: 'Failed to remove resource', color: 'error' })
+  }
 }
 
-const getStatusColor = (status: string) => {
-  const colors: Record<string, string> = {
-    up: 'green',
-    degraded: 'orange',
-    down: 'red',
+const getStatusColor = (
+  status: string,
+): 'success' | 'warning' | 'error' | 'neutral' => {
+  const colors: Record<string, 'success' | 'warning' | 'error' | 'neutral'> = {
+    up: 'success',
+    degraded: 'warning',
+    down: 'error',
   }
-  return colors[status] || 'default'
+  return colors[status] || 'neutral'
 }
 </script>
 
@@ -98,111 +91,101 @@ const getStatusColor = (status: string) => {
       </p>
     </div>
 
-    <a-spin :spinning="loading">
-      <div v-if="components.length === 0" class="empty-state">
-        <a-empty
-          description="No components yet. Create one by grouping resources in Monitors view."
-        />
-      </div>
+    <div v-if="loading" class="text-center py-12">
+      <UIcon name="i-lucide-loader-circle" class="size-8 animate-spin text-primary-500" />
+    </div>
 
-      <div v-else class="components-list">
-        <a-card
-          v-for="component in components"
-          :key="component.id"
-          class="component-card"
-          :bordered="false"
-        >
-          <!-- Component Header -->
-          <div class="component-header">
-            <a-button
-              type="text"
-              size="small"
-              class="expand-btn"
-              @click="toggleExpand(component.id)"
-            >
-              <UIcon
-                :name="isExpanded(component.id) ? 'i-lucide-chevron-up' : 'i-lucide-chevron-down'"
-              />
-            </a-button>
+    <div v-else-if="components.length === 0" class="empty-state">
+      <UEmptyState
+        icon="i-lucide-layers"
+        title="No components yet"
+        description="Create one by grouping resources in Monitors view."
+      />
+    </div>
 
-            <div class="component-title-section">
-              <a-badge :status="getStatusColor(component.status)" />
-              <h3 class="component-name">{{ component.name }}</h3>
-              <span class="component-status" :class="component.status.toLowerCase()">
-                {{ component.status.toUpperCase() }}
-              </span>
-              <span class="resource-count">
-                {{ component.resources?.length || 0 }} resource(s)
-              </span>
-            </div>
+    <div v-else class="components-list">
+      <UCard
+        v-for="component in components"
+        :key="component.id"
+        class="component-card"
+      >
+        <div class="component-header">
+          <UButton
+            color="neutral"
+            variant="ghost"
+            size="sm"
+            class="expand-btn"
+            :icon="isExpanded(component.id) ? 'i-lucide-chevron-up' : 'i-lucide-chevron-down'"
+            @click="toggleExpand(component.id)"
+          />
 
-            <div class="component-actions">
-              <a-button
-                type="text"
-                size="small"
-                @click="openEditModal(component)"
-                title="Edit component name/description"
-              >
-                <template #icon>
-                  <UIcon name="i-lucide-pencil" />
-                </template>
-              </a-button>
-              <a-button
-                type="text"
-                danger
-                size="small"
-                @click="handleDelete(component.id)"
-                title="Delete component (must be empty)"
-              >
-                <template #icon>
-                  <UIcon name="i-lucide-trash-2" />
-                </template>
-              </a-button>
-            </div>
+          <div class="component-title-section">
+            <UBadge :color="getStatusColor(component.status)" variant="subtle" />
+            <h3 class="component-name">{{ component.name }}</h3>
+            <span class="component-status" :class="component.status.toLowerCase()">
+              {{ component.status.toUpperCase() }}
+            </span>
+            <span class="resource-count">
+              {{ component.resources?.length || 0 }} resource(s)
+            </span>
           </div>
 
-          <!-- Component Description -->
-          <div v-if="component.description" class="component-description">
-            {{ component.description }}
+          <div class="component-actions">
+            <UButton
+              color="neutral"
+              variant="ghost"
+              size="sm"
+              icon="i-lucide-pencil"
+              title="Edit component name/description"
+              @click="openEditModal(component)"
+            />
+            <UButton
+              color="error"
+              variant="ghost"
+              size="sm"
+              icon="i-lucide-trash-2"
+              title="Delete component (must be empty)"
+              @click="handleDelete(component.id)"
+            />
+          </div>
+        </div>
+
+        <div v-if="component.description" class="component-description">
+          {{ component.description }}
+        </div>
+
+        <div v-if="isExpanded(component.id)" class="component-resources">
+          <div v-if="component.resources?.length === 0" class="no-resources">
+            <p>No resources in this component</p>
           </div>
 
-          <!-- Expanded Resources List -->
-          <div v-if="isExpanded(component.id)" class="component-resources">
-            <div v-if="component.resources?.length === 0" class="no-resources">
-              <p>No resources in this component</p>
-            </div>
-
-            <div v-else class="resources-list">
-              <div v-for="resource in component.resources" :key="resource.id" class="resource-row">
-                <div class="resource-info">
-                  <span class="resource-name">{{ resource.name }}</span>
-                  <a-tag :color="getStatusColor(resource.status)" class="resource-status-tag">
-                    {{ resource.status.toUpperCase() }}
-                  </a-tag>
-                </div>
-                <a-button
-                  type="text"
-                  danger
-                  size="small"
-                  @click="handleRemoveResource(component.id, resource.id)"
-                  title="Remove from component"
-                >
-                  <template #icon>
-                    <DeleteFilled />
-                  </template>
-                  Remove
-                </a-button>
+          <div v-else class="resources-list">
+            <div v-for="resource in component.resources" :key="resource.id" class="resource-row">
+              <div class="resource-info">
+                <span class="resource-name">{{ resource.name }}</span>
+                <UBadge :color="getStatusColor(resource.status)" variant="subtle" class="resource-status-tag">
+                  {{ resource.status.toUpperCase() }}
+                </UBadge>
               </div>
+              <UButton
+                color="error"
+                variant="ghost"
+                size="xs"
+                icon="i-lucide-trash-2"
+                title="Remove from component"
+                @click="handleRemoveResource(component.id, resource.id)"
+              >
+                Remove
+              </UButton>
             </div>
           </div>
+        </div>
 
-          <!-- Metadata -->
-          <div v-if="isExpanded(component.id)" class="component-metadata">
-            <span class="metadata-item"> Created {{ timeAgo(component.created_at) }} </span>
-          </div>
-        </a-card>
-      </div>
-    </a-spin>
+        <div v-if="isExpanded(component.id)" class="component-metadata">
+          <span class="metadata-item"> Created {{ timeAgo(component.created_at) }} </span>
+        </div>
+      </UCard>
+    </div>
 
     <ComponentModal
       v-if="showModal"
@@ -263,7 +246,6 @@ const getStatusColor = (status: string) => {
 
 .expand-btn {
   flex-shrink: 0;
-  font-size: 16px;
 }
 
 .component-title-section {

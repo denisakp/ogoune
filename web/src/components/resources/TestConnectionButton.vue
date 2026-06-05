@@ -1,17 +1,9 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 
 import { retryAfterSeconds, testCredential } from '@/services/credentialService'
 import type { CredentialCreatePayload, TestConnectionResponse } from '@/types'
 
-/**
- * "Test connection" button used inside the credentials section of the
- * monitor edit form. Calls the rate-limited live-test endpoint
- * (10 req/min/user) and surfaces the outcome inline.
- *
- * The endpoint does NOT persist the supplied credential; this lets operators
- * verify they typed the right thing before clicking Save.
- */
 const props = defineProps<{
   resourceId?: string
   payload: CredentialCreatePayload | null
@@ -21,7 +13,7 @@ const loading = ref(false)
 const result = ref<TestConnectionResponse | null>(null)
 const errorMessage = ref<string | null>(null)
 
-const disabledReason = (): string | null => {
+const disabledReason = computed<string | null>(() => {
   if (!props.resourceId) {
     return 'Save the monitor first to enable live testing.'
   }
@@ -29,7 +21,7 @@ const disabledReason = (): string | null => {
     return 'Enter a password to enable testing.'
   }
   return null
-}
+})
 
 async function runTest() {
   if (!props.resourceId || !props.payload || !props.payload.password) return
@@ -52,23 +44,26 @@ async function runTest() {
 </script>
 
 <template>
-  <div data-testid="test-connection" class="test-connection">
-    <a-button
+  <div data-testid="test-connection" class="mt-2">
+    <UButton
       :loading="loading"
-      :disabled="!!disabledReason()"
-      :title="disabledReason() ?? ''"
+      :disabled="!!disabledReason"
+      :title="disabledReason ?? ''"
       data-testid="test-connection-button"
+      color="neutral"
+      variant="soft"
       @click="runTest"
     >
       Test connection
-    </a-button>
+    </UButton>
 
-    <a-alert
+    <UAlert
       v-if="result"
-      :type="result.status === 'ok' ? 'success' : 'error'"
-      show-icon
-      style="margin-top: 8px"
-      :message="
+      :color="result.status === 'ok' ? 'success' : 'error'"
+      variant="soft"
+      :icon="result.status === 'ok' ? 'i-lucide-check-circle-2' : 'i-lucide-circle-alert'"
+      class="mt-2"
+      :title="
         result.status === 'ok'
           ? `Connection successful (${result.latency_ms} ms)`
           : `Connection failed: ${result.cause ?? 'unknown reason'}`
@@ -76,19 +71,14 @@ async function runTest() {
       data-testid="test-connection-result"
     />
 
-    <a-alert
+    <UAlert
       v-if="errorMessage"
-      type="warning"
-      show-icon
-      style="margin-top: 8px"
-      :message="errorMessage"
+      color="warning"
+      variant="soft"
+      icon="i-lucide-triangle-alert"
+      class="mt-2"
+      :title="errorMessage"
       data-testid="test-connection-error"
     />
   </div>
 </template>
-
-<style scoped>
-.test-connection {
-  margin-top: 8px;
-}
-</style>

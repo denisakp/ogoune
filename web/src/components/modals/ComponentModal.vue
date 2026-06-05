@@ -50,10 +50,7 @@ watch(
 )
 
 const handleSubmit = async () => {
-  if (!form.value.name.trim()) {
-    return
-  }
-
+  if (!form.value.name.trim()) return
   loading.value = true
   try {
     if (props.editing) {
@@ -66,10 +63,10 @@ const handleSubmit = async () => {
       emit('submit')
       emit('close')
     } else {
-      // Create is not supported directly - components must be created via bulk grouping in MonitorsView
       emit('close')
     }
   } catch {
+    /* errors surfaced by HTTP interceptor */
   } finally {
     loading.value = false
   }
@@ -81,40 +78,43 @@ const handleCancel = () => {
 </script>
 
 <template>
-  <a-modal
-    :visible="visibleModel"
+  <UModal
+    v-model:open="visibleModel"
     :title="editing ? 'Edit Component' : 'Create Component'"
-    :confirm-loading="loading"
-    @ok="handleSubmit"
-    @cancel="handleCancel"
-    @update:visible="visibleModel = $event"
+    @update:open="(v: boolean) => !v && handleCancel()"
   >
-    <a-form :model="form" layout="vertical">
-      <a-form-item label="Component Name" required>
-        <a-input
-          v-model:value="form.name"
-          placeholder="e.g., Frontend Services"
-          @keyup.enter="handleSubmit"
-        />
-      </a-form-item>
-
-      <a-form-item label="Description">
-        <a-textarea v-model:value="form.description" placeholder="Optional description" :rows="3" />
-      </a-form-item>
-
-      <a-form-item label="Alert Grouping Window (seconds, 0 = disabled)">
-        <a-input-number
-          v-model:value="form.groupingWindowSeconds"
-          :min="0"
-          :max="300"
-          style="width: 100%"
-          placeholder="0"
-        />
-        <div style="margin-top: 4px; font-size: 12px; color: rgba(0, 0, 0, 0.45)">
-          Group multiple resource alerts into a single component notification within this window
-          (10–300s). Set 0 to disable.
+    <template #body>
+      <div class="space-y-4">
+        <div>
+          <label class="block text-sm font-medium mb-1">Component Name <span class="text-red-500">*</span></label>
+          <UInput
+            v-model="form.name"
+            placeholder="e.g., Frontend Services"
+            class="w-full"
+            @keyup.enter="handleSubmit"
+          />
         </div>
-      </a-form-item>
-    </a-form>
-  </a-modal>
+
+        <div>
+          <label class="block text-sm font-medium mb-1">Description</label>
+          <UTextarea v-model="form.description" placeholder="Optional description" :rows="3" class="w-full" />
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium mb-1">Alert Grouping Window (seconds, 0 = disabled)</label>
+          <UInputNumber v-model="form.groupingWindowSeconds" :min="0" :max="300" placeholder="0" class="w-full" />
+          <p class="mt-1 text-xs text-muted">
+            Group multiple resource alerts into a single component notification within this window
+            (10–300s). Set 0 to disable.
+          </p>
+        </div>
+      </div>
+    </template>
+    <template #footer>
+      <div class="flex justify-end gap-2 w-full">
+        <UButton color="neutral" variant="soft" :disabled="loading" @click="handleCancel">Cancel</UButton>
+        <UButton color="primary" :loading="loading" @click="handleSubmit">OK</UButton>
+      </div>
+    </template>
+  </UModal>
 </template>

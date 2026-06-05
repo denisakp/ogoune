@@ -1,6 +1,4 @@
 <script setup lang="ts">
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-nocheck — legacy AntDV file, migrated in later Slices.
 import { computed, ref } from 'vue'
 import ServiceStatusItem from './ServiceStatusItem.vue'
 import type { GlobalStatus, ResourceStatusInfo, ComponentStatusInfo, DailyStatus } from '@/types'
@@ -29,10 +27,8 @@ const props = withDefaults(defineProps<Props>(), {
   enableDetailsPage: true,
 })
 
-// Track expanded component groups
 const expandedComponents = ref<Set<string>>(new Set())
 
-// Define emits
 const emit = defineEmits<{
   'service-click': [serviceId: string]
 }>()
@@ -54,7 +50,7 @@ const handleServiceClick = (serviceId: string) => {
     emit('service-click', serviceId)
   }
 }
-// Map global status to display text
+
 const overallStatus = computed<'Operational' | 'Some systems down' | 'All systems down'>(() => {
   if (props.globalStatus === 'all_systems_operational') {
     return 'Operational'
@@ -62,7 +58,6 @@ const overallStatus = computed<'Operational' | 'Some systems down' | 'All system
   return 'Some systems down'
 })
 
-// Map API status to display status
 const mapStatusToDisplay = (status: string): 'Operational' | 'Down' | 'Partial Outage' => {
   switch (status) {
     case 'up':
@@ -76,14 +71,12 @@ const mapStatusToDisplay = (status: string): 'Operational' | 'Down' | 'Partial O
   }
 }
 
-// Map daily status to uptime bar format
 const mapDailyStatusToBar = (
   dailyStatus: DailyStatus[],
 ): { status: 'up' | 'down' | 'degraded' | 'no_data' }[] => {
   return dailyStatus.map((status) => ({ status }))
 }
 
-// Convert resources to services format
 const services = computed<Service[]>(() => {
   return props.resources.map((resource) => ({
     id: resource.id,
@@ -94,7 +87,6 @@ const services = computed<Service[]>(() => {
   }))
 })
 
-// Convert components with nested resources to component view
 const componentGroups = computed(() => {
   if (!props.components || props.components.length === 0) {
     return []
@@ -151,7 +143,7 @@ const getOverallStatusColor = () => {
       </div>
 
       <!-- Overall Status Card -->
-      <a-card class="overall-status-card" :bordered="false">
+      <div class="overall-status-card">
         <div class="overall-status-content">
           <UIcon
             :name="getOverallStatusIcon()"
@@ -169,7 +161,7 @@ const getOverallStatusColor = () => {
             </p>
           </div>
         </div>
-      </a-card>
+      </div>
 
       <!-- Components Section (if available) -->
       <div v-if="componentGroups.length > 0" class="components-section">
@@ -178,63 +170,63 @@ const getOverallStatusColor = () => {
           <p class="section-subtitle">Service groups and their status</p>
         </div>
 
-        <a-spin :spinning="loading">
-          <div class="components-list">
-            <a-card
-              v-for="component in componentGroups"
-              :key="component.id"
-              class="component-card"
-              :bordered="false"
-            >
-              <div class="component-header">
-                <a-button
-                  type="text"
-                  size="small"
-                  class="expand-btn"
-                  @click="toggleComponentExpand(component.id)"
-                >
-                  <UIcon
-                    :name="
-                      isComponentExpanded(component.id)
-                        ? 'i-lucide-chevron-up'
-                        : 'i-lucide-chevron-down'
-                    "
-                  />
-                </a-button>
+        <div class="components-list">
+          <div
+            v-for="component in componentGroups"
+            :key="component.id"
+            class="component-card"
+          >
+            <div class="component-header" @click="toggleComponentExpand(component.id)">
+              <UButton
+                color="neutral"
+                variant="ghost"
+                size="xs"
+                class="expand-btn"
+                :icon="isComponentExpanded(component.id) ? 'i-lucide-chevron-up' : 'i-lucide-chevron-down'"
+                @click.stop="toggleComponentExpand(component.id)"
+              />
+              <span
+                class="status-dot"
+                :style="{
+                  backgroundColor:
+                    component.status === 'Operational'
+                      ? '#52c41a'
+                      : component.status === 'Down'
+                        ? '#ff4d4f'
+                        : '#faad14',
+                }"
+              ></span>
+              <h3 class="component-name">{{ component.name }}</h3>
+              <span class="component-status" :class="component.status.toLowerCase().replace(' ', '-')">
+                {{ component.status }}
+              </span>
+              <span class="component-resource-count">
+                {{ component.resources.length }} service(s)
+              </span>
+            </div>
 
-                <a-badge :status="component.status.toLowerCase()" />
-                <h3 class="component-name">{{ component.name }}</h3>
-                <span class="component-status" :class="component.status.toLowerCase()">
-                  {{ component.status }}
-                </span>
-                <span class="component-resource-count">
-                  {{ component.resources.length }} service(s)
-                </span>
+            <div v-if="isComponentExpanded(component.id)" class="component-resources">
+              <div v-if="component.resources.length === 0" class="no-resources">
+                <p>No services in this component</p>
               </div>
-
-              <div v-if="isComponentExpanded(component.id)" class="component-resources">
-                <div v-if="component.resources.length === 0" class="no-resources">
-                  <p>No services in this component</p>
-                </div>
-                <div
-                  v-for="resource in component.resources"
-                  :key="resource.id"
-                  class="resource-item-wrapper"
-                  :class="{ clickable: enableDetailsPage }"
-                  @click="handleServiceClick(resource.id)"
-                >
-                  <ServiceStatusItem
-                    :name="resource.name"
-                    :uptime-percentage="resource.uptimePercentage"
-                    :status="resource.status"
-                    :uptime-data="resource.uptimeData"
-                    :show-uptime-percentage="showUptimePercentage"
-                  />
-                </div>
+              <div
+                v-for="resource in component.resources"
+                :key="resource.id"
+                class="resource-item-wrapper"
+                :class="{ clickable: enableDetailsPage }"
+                @click="handleServiceClick(resource.id)"
+              >
+                <ServiceStatusItem
+                  :name="resource.name"
+                  :uptime-percentage="resource.uptimePercentage"
+                  :status="resource.status"
+                  :uptime-data="resource.uptimeData"
+                  :show-uptime-percentage="showUptimePercentage"
+                />
               </div>
-            </a-card>
+            </div>
           </div>
-        </a-spin>
+        </div>
       </div>
 
       <!-- Services Section -->
@@ -252,35 +244,33 @@ const getOverallStatusColor = () => {
           </p>
         </div>
 
-        <a-spin :spinning="loading">
-          <div v-if="!loading && services.length === 0" class="empty-state">
-            <a-empty description="No services to monitor" />
+        <div v-if="!loading && services.length === 0" class="empty-state">
+          <UEmptyState icon="i-lucide-radar" title="No services to monitor" />
+        </div>
+        <div v-else class="services-list">
+          <div
+            v-for="service in services"
+            :key="service.id"
+            class="service-item-wrapper"
+            :class="{ clickable: enableDetailsPage }"
+            @click="handleServiceClick(service.id)"
+          >
+            <ServiceStatusItem
+              :name="service.name"
+              :uptime-percentage="service.uptimePercentage"
+              :status="service.status"
+              :uptime-data="service.uptimeData"
+              :show-uptime-percentage="showUptimePercentage"
+            />
           </div>
-          <div v-else class="services-list">
-            <div
-              v-for="service in services"
-              :key="service.id"
-              class="service-item-wrapper"
-              :class="{ clickable: enableDetailsPage }"
-              @click="handleServiceClick(service.id)"
-            >
-              <ServiceStatusItem
-                :name="service.name"
-                :uptime-percentage="service.uptimePercentage"
-                :status="service.status"
-                :uptime-data="service.uptimeData"
-                :show-uptime-percentage="showUptimePercentage"
-              />
-            </div>
-          </div>
-        </a-spin>
+        </div>
       </div>
 
       <!-- Footer -->
       <div class="status-page-footer">
-        <a-typography-text type="secondary">
+        <span class="text-sm text-muted">
           Last updated: {{ new Date().toLocaleString() }}
-        </a-typography-text>
+        </span>
       </div>
     </div>
   </div>
@@ -319,6 +309,7 @@ const getOverallStatusColor = () => {
 .overall-status-card {
   margin-bottom: 32px;
   border-radius: 12px;
+  background: #ffffff;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 }
 
@@ -330,7 +321,8 @@ const getOverallStatusColor = () => {
 }
 
 .status-icon {
-  font-size: 64px;
+  width: 64px;
+  height: 64px;
   flex-shrink: 0;
 }
 
@@ -351,10 +343,7 @@ const getOverallStatusColor = () => {
   margin: 0;
 }
 
-.services-section {
-  margin-bottom: 32px;
-}
-
+.services-section,
 .components-section {
   margin-bottom: 32px;
 }
@@ -367,6 +356,8 @@ const getOverallStatusColor = () => {
 
 .component-card {
   border-radius: 12px;
+  background: #ffffff;
+  padding: 16px 20px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 }
 
@@ -374,24 +365,25 @@ const getOverallStatusColor = () => {
   display: flex;
   align-items: center;
   gap: 12px;
-  margin-bottom: 0;
   padding: 12px 0;
-  border-bottom: none;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: background-color 0.2s ease;
 }
 
 .component-header:hover {
   background-color: #fafafa;
-  border-radius: 4px;
-  padding: 12px 8px;
-  margin: -12px 0 0 -8px;
-  padding-bottom: 12px;
 }
 
 .expand-btn {
   flex-shrink: 0;
-  font-size: 14px;
+}
+
+.status-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  display: inline-block;
+  flex-shrink: 0;
 }
 
 .component-name {
@@ -459,6 +451,10 @@ const getOverallStatusColor = () => {
   border-left: 3px solid #f0f0f0;
 }
 
+.resource-item-wrapper.clickable {
+  cursor: pointer;
+}
+
 .resource-item-wrapper.clickable:hover {
   transform: translateX(4px);
   background-color: #f5f5f5;
@@ -511,10 +507,6 @@ const getOverallStatusColor = () => {
   margin-top: 32px;
 }
 
-:deep(.ant-card-body) {
-  padding: 0;
-}
-
 @media (max-width: 768px) {
   .status-page {
     padding: 16px;
@@ -535,7 +527,8 @@ const getOverallStatusColor = () => {
   }
 
   .status-icon {
-    font-size: 48px;
+    width: 48px;
+    height: 48px;
   }
 
   .status-title {
