@@ -24,7 +24,40 @@ const loading = ref(true)
 const modalOpen = ref(false)
 const editing = ref<NotificationChannel | null>(null)
 
-const notifStats = ref<{ sent_30d: number; pending: number; failed_24h: number } | null>(null)
+const notifStats = ref<{
+  sent_30d: number
+  pending: number
+  failed_24h: number
+  last_sent_at: string | null
+} | null>(null)
+
+function lastSentLabel(iso: string | null | undefined): string {
+  if (!iso) return '—'
+  try {
+    const ms = Date.now() - new Date(iso).getTime()
+    if (ms < 60_000) return 'just now'
+    if (ms < 3_600_000) return `${Math.round(ms / 60_000)}m ago`
+    if (ms < 86_400_000) return `${Math.round(ms / 3_600_000)}h ago`
+    return `${Math.round(ms / 86_400_000)}d ago`
+  } catch {
+    return '—'
+  }
+}
+
+function lastSentExact(iso: string | null | undefined): string {
+  if (!iso) return ''
+  try {
+    const d = new Date(iso)
+    return d.toLocaleString('en-US', {
+      month: 'short',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+    })
+  } catch {
+    return ''
+  }
+}
 
 const stats = computed(() => {
   const total = channels.value.length
@@ -56,6 +89,12 @@ const stats = computed(() => {
       label: 'FAILED (24h)',
       value: fmt(notifStats.value?.failed_24h),
       meta: '',
+    },
+    {
+      key: 'last_sent',
+      label: 'LAST SENT',
+      value: lastSentLabel(notifStats.value?.last_sent_at),
+      meta: lastSentExact(notifStats.value?.last_sent_at),
     },
   ]
 })

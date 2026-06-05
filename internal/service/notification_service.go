@@ -42,9 +42,10 @@ func (s *NotificationService) SetEventsRepo(events port.NotificationRepository) 
 // NotificationStats aggregates the counts surfaced in the admin dashboard
 // notification header.
 type NotificationStats struct {
-	Sent30d    int `json:"sent_30d"`
-	Pending    int `json:"pending"`
-	Failed24h  int `json:"failed_24h"`
+	Sent30d    int        `json:"sent_30d"`
+	Pending    int        `json:"pending"`
+	Failed24h  int        `json:"failed_24h"`
+	LastSentAt *time.Time `json:"last_sent_at"`
 }
 
 // Stats returns aggregated counters over the most recent notification
@@ -71,6 +72,10 @@ func (s *NotificationService) Stats(ctx context.Context) (*NotificationStats, er
 			}
 			if ts.After(cutoff30d) {
 				out.Sent30d++
+			}
+			if out.LastSentAt == nil || ts.After(*out.LastSentAt) {
+				tsCopy := ts
+				out.LastSentAt = &tsCopy
 			}
 		case domain.NotificationEventStatusPending:
 			out.Pending++
