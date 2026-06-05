@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/denisakp/ogoune/internal/domain"
 	"github.com/denisakp/ogoune/internal/dto"
@@ -17,6 +18,7 @@ import (
 type NotificationService struct {
 	resources port.ResourceRepository
 	channels  port.NotificationChannelRepository
+	events    port.NotificationRepository
 }
 
 // NewNotificationService creates a new NotificationService.
@@ -28,6 +30,61 @@ func NewNotificationService(
 		resources: resources,
 		channels:  channels,
 	}
+}
+
+// SetEventsRepo wires the optional notification events repository used
+// for the /notifications/stats counters. Kept as an optional setter so
+// existing callers don't need to be updated.
+func (s *NotificationService) SetEventsRepo(events port.NotificationRepository) {
+	s.events = events
+}
+
+// NotificationStats aggregates the counts surfaced in the admin dashboard
+// notification header.
+type NotificationStats struct {
+	Sent30d    int `json:"sent_30d"`
+	Pending    int `json:"pending"`
+	Failed24h  int `json:"failed_24h"`
+}
+
+// Stats returns aggregated counters over the most recent notification
+// events. Uses a generous client-side cap (1000 events) — enough for any
+// reasonable single-instance deployment.
+func (s *NotificationService) Stats(ctx context.Context) (*NotificationStats, error) {
+	out := &NotificationStats{}
+	if s.events == nil {
+		return out, nil
+	}
+	events, err := s.events.List(ctx, 1000, 0)
+	if err != nil {
+		return nil, err
+	}
+	now := time.Now().UTC()
+	cutoff30d := now.Add(-30 * 24 * time.Hour)
+	cutoff24h := now.Add(-24 * time.Hour)
+	for _, e := range events {
+		switch e.Status {
+		case domain.NotificationEventStatusSent, domain.NotificationEventStatusDelivered:
+			ts := e.CreatedAt
+			if e.ProcessedAt != nil {
+				ts = *e.ProcessedAt
+			}
+			if ts.After(cutoff30d) {
+				out.Sent30d++
+			}
+		case domain.NotificationEventStatusPending:
+			out.Pending++
+		case domain.NotificationEventStatusFailed:
+			ts := e.CreatedAt
+			if e.ProcessedAt != nil {
+				ts = *e.ProcessedAt
+			}
+			if ts.After(cutoff24h) {
+				out.Failed24h++
+			}
+		}
+	}
+	return out, nil
 }
 
 // CreateNotificationChannel creates a new notification channel

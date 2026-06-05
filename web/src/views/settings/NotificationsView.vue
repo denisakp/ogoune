@@ -13,6 +13,7 @@ import {
   deleteChannel,
   setDefault,
 } from '@/services/notificationChannelService'
+import { fetchNotificationStats } from '@/services/notificationStatsService'
 import type { NotificationChannel, CreateNotificationChannel } from '@/types'
 import type { NotificationChannelInput } from '@/schemas/notification-channel.schema'
 import { useConfirm } from '@/composables/useConfirm'
@@ -23,10 +24,14 @@ const loading = ref(true)
 const modalOpen = ref(false)
 const editing = ref<NotificationChannel | null>(null)
 
+const notifStats = ref<{ sent_30d: number; pending: number; failed_24h: number } | null>(null)
+
 const stats = computed(() => {
   const total = channels.value.length
   const defaultCount = channels.value.filter((c) => c.enabled_by_default).length
   const scopedCount = total - defaultCount
+  const fmt = (v: number | undefined | null) =>
+    typeof v === 'number' ? v.toLocaleString() : '—'
   return [
     {
       key: 'channels',
@@ -34,9 +39,24 @@ const stats = computed(() => {
       value: String(total),
       meta: total > 0 ? `${defaultCount} default, ${scopedCount} scoped` : 'no channels yet',
     },
-    { key: 'sent', label: 'ALERTS SENT (30d)', value: '—', meta: 'Backend metric pending' },
-    { key: 'pending', label: 'PENDING RETRY', value: '—', meta: 'Backend metric pending' },
-    { key: 'failed', label: 'FAILED (24h)', value: '—', meta: 'Backend metric pending' },
+    {
+      key: 'sent',
+      label: 'ALERTS SENT (30d)',
+      value: fmt(notifStats.value?.sent_30d),
+      meta: '',
+    },
+    {
+      key: 'pending',
+      label: 'PENDING RETRY',
+      value: fmt(notifStats.value?.pending),
+      meta: '',
+    },
+    {
+      key: 'failed',
+      label: 'FAILED (24h)',
+      value: fmt(notifStats.value?.failed_24h),
+      meta: '',
+    },
   ]
 })
 
@@ -79,7 +99,12 @@ function recipientPreview(c: NotificationChannel): string {
 async function reload() {
   loading.value = true
   try {
-    channels.value = await fetchChannels()
+    const [list, s] = await Promise.all([
+      fetchChannels(),
+      fetchNotificationStats().catch(() => null),
+    ])
+    channels.value = list
+    notifStats.value = s
   } finally {
     loading.value = false
   }

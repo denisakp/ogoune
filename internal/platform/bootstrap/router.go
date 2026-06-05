@@ -43,6 +43,7 @@ func InitRouter(app *App) {
 	incidentAPIService := service.NewIncidentService(app.IncidentRepo, app.IncidentEventStepRepo)
 	liveSnapshotService := service.NewLiveSnapshotService(app.ResourceService, activityService, incidentAPIService)
 	notificationService := service.NewNotificationService(app.ResourceRepo, app.NotificationChannelRepo)
+	notificationService.SetEventsRepo(app.NotificationRepo)
 	maintenanceAPIService := service.NewMaintenanceService(app.MaintenanceRepo, app.MaintenanceScheduler)
 	statsService := service.NewStatsService(app.MonitoringActivityRepo, app.IncidentRepo)
 
