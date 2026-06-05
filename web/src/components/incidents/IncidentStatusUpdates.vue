@@ -13,7 +13,7 @@ function isEmptyHtml(html: string): boolean {
 
 function sanitize(html: string): string {
   return DOMPurify.sanitize(html, {
-    ALLOWED_TAGS: ['p', 'br', 'strong', 'em', 'code', 'a', 'ul', 'ol', 'li', 'h2', 'h3', 'blockquote'],
+    ALLOWED_TAGS: ['p', 'br', 'strong', 'em', 'code', 'a', 'ul', 'ol', 'li', 'h1', 'h2'],
     ALLOWED_ATTR: ['href', 'rel', 'target'],
   })
 }
