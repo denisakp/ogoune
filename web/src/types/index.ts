@@ -655,6 +655,18 @@ export interface MaintenanceBanner {
 }
 
 // Status Page Settings Management
+export type StatusPageLogoSlot = 'light' | 'dark' | 'favicon'
+
+export type StatusPageThemeKey =
+  | '--status-bg'
+  | '--status-text'
+  | '--status-up'
+  | '--status-degraded'
+  | '--status-down'
+  | '--status-radius'
+
+export type StatusPageThemeOverrides = Partial<Record<StatusPageThemeKey, string>>
+
 export interface StatusPageSettingsRequest {
   name: string
   homepage_url: string
@@ -664,6 +676,11 @@ export interface StatusPageSettingsRequest {
   show_uptime_percentage: boolean
   hide_paused_monitors: boolean
   show_incident_history: boolean
+  logo_url_light?: string
+  logo_url_dark?: string
+  favicon_url?: string
+  primary_color?: string
+  theme_overrides?: StatusPageThemeOverrides
 }
 
 export interface StatusPageDNSRecord {
@@ -687,6 +704,11 @@ export interface StatusPageSettingsResponse {
   custom_domain_status: 'pending' | 'verified' | 'failed'
   custom_domain_ssl_status: 'none' | 'provisioning' | 'active'
   custom_domain_dns_records: StatusPageDNSRecord[]
+  logo_url_light: string
+  logo_url_dark: string
+  favicon_url: string
+  primary_color: string
+  theme_overrides: StatusPageThemeOverrides
   created_at: string
   updated_at: string
 }

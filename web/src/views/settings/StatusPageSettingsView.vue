@@ -9,9 +9,10 @@ import {
   updateStatusPageSettings,
   verifyStatusPageDomain,
 } from '@/services/statusPageSettingsService'
-import type { StatusPageSettingsResponse } from '@/types'
+import type { StatusPageSettingsResponse, StatusPageThemeOverrides } from '@/types'
 import { useRuntimeConfig } from '@/composables/useRuntimeConfig'
 import DnsRecordsTable from '@/components/settings/domain/DnsRecordsTable.vue'
+import BrandingSection from '@/components/settings/branding/BrandingSection.vue'
 
 const loading = ref(true)
 const saving = ref(false)
@@ -30,6 +31,11 @@ const state = ref<StatusPageSettingsResponse>({
   custom_domain_status: 'pending',
   custom_domain_ssl_status: 'none',
   custom_domain_dns_records: [],
+  logo_url_light: '',
+  logo_url_dark: '',
+  favicon_url: '',
+  primary_color: '',
+  theme_overrides: {},
   created_at: '',
   updated_at: '',
 })
@@ -48,7 +54,9 @@ const dirty = computed(() => {
     a.enable_details_page !== b.enable_details_page ||
     a.show_uptime_percentage !== b.show_uptime_percentage ||
     a.hide_paused_monitors !== b.hide_paused_monitors ||
-    a.show_incident_history !== b.show_incident_history
+    a.show_incident_history !== b.show_incident_history ||
+    a.primary_color !== b.primary_color ||
+    JSON.stringify(a.theme_overrides ?? {}) !== JSON.stringify(b.theme_overrides ?? {})
   )
 })
 
@@ -94,6 +102,8 @@ async function save() {
       show_uptime_percentage: state.value.show_uptime_percentage,
       hide_paused_monitors: state.value.hide_paused_monitors,
       show_incident_history: state.value.show_incident_history,
+      primary_color: state.value.primary_color,
+      theme_overrides: state.value.theme_overrides,
     })
     initial.value = next
     state.value = { ...next, custom_domain_dns_records: [...next.custom_domain_dns_records] }
@@ -127,6 +137,16 @@ function statusBadgeColor(status: string) {
   return 'neutral'
 }
 
+function onBrandingRefreshed(next: StatusPageSettingsResponse) {
+  // Logo upload/delete responses already include all fields. We update
+  // both initial (so dirty flag stays accurate) and state.
+  initial.value = next
+  state.value = { ...next, custom_domain_dns_records: [...next.custom_domain_dns_records] }
+}
+
+function setPrimaryColor(value: string) { state.value.primary_color = value }
+function setThemeOverrides(value: StatusPageThemeOverrides) { state.value.theme_overrides = value }
+
 onMounted(load)
 
 defineExpose({ state, initial, dirty, load, save, reset, verify, sslPanelLabel })
@@ -156,6 +176,15 @@ defineExpose({ state, initial, dirty, load, save, reset, verify, sslPanelLabel }
           <UInput v-model="state.google_analytics_id" placeholder="G-XXXXXXXX" />
         </UFormField>
       </section>
+
+      <BrandingSection
+        :settings="initial"
+        :primary-color="state.primary_color"
+        :theme-overrides="state.theme_overrides ?? {}"
+        @update:primary-color="setPrimaryColor"
+        @update:theme-overrides="setThemeOverrides"
+        @settings-refreshed="onBrandingRefreshed"
+      />
 
       <section class="rounded-xl border border-default/40 bg-default p-5 space-y-4">
         <header>
