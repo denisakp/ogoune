@@ -13,11 +13,15 @@ export interface UptimeCalendarEntry {
   ratio: number | null
 }
 
-const props = defineProps<{
-  year: number
-  month: number // 1-12
-  entries: UptimeCalendarEntry[]
-}>()
+const props = withDefaults(
+  defineProps<{
+    year: number
+    month: number // 1-12
+    entries: UptimeCalendarEntry[]
+    hideHeader?: boolean
+  }>(),
+  { hideHeader: false },
+)
 
 type Band = 'operational' | 'minor' | 'major' | 'outage' | 'unknown'
 
@@ -103,15 +107,15 @@ const monthlyPctLabel = computed(() =>
 
 <template>
   <div class="space-y-2">
-    <div class="flex items-baseline justify-between">
+    <div v-if="!hideHeader" class="flex items-baseline justify-between">
       <h4 class="text-sm font-medium">{{ monthLabel }}</h4>
       <span class="text-xs text-muted font-mono">{{ monthlyPctLabel }}</span>
     </div>
-    <div class="grid grid-cols-7 gap-1">
+    <div class="grid grid-cols-7 gap-1.5">
       <span
         v-for="cell in cells"
         :key="cell.key"
-        :class="['size-6 rounded-sm', cell.blank ? 'bg-transparent' : cell.colorClass]"
+        :class="['h-6 w-full rounded-md', cell.blank ? 'bg-transparent' : cell.colorClass]"
         :data-blank="cell.blank ? '1' : undefined"
         :data-band="cell.band"
         :data-day-num="cell.dayNum"

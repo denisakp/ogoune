@@ -1,19 +1,21 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
 import { useStatusPublic } from '@/composables/useStatusPublic'
-import PublicQuickNav from '@/components/status/PublicQuickNav.vue'
+import PublicHeader from '@/components/status/PublicHeader.vue'
+import PublicHistoryUptimeTabs from '@/components/status/PublicHistoryUptimeTabs.vue'
 import CalendarMonth from '@/components/status/CalendarMonth.vue'
 import CalendarRangeNavigator from '@/components/status/CalendarRangeNavigator.vue'
 import PublicPageFooter from '@/components/status/PublicPageFooter.vue'
 
 const { uptime, summary, error, loadSummary, loadUptime } = useStatusPublic()
 
+const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December']
+
 const componentID = ref('')
-// Default: 3-month window ending on the current month.
 const today = new Date()
 const startYear = ref(today.getUTCFullYear())
-const startMonth = ref(today.getUTCMonth() - 1) // start = month - 2 (1-indexed below)
-
+const startMonth = ref(today.getUTCMonth() - 1)
 if (startMonth.value <= 0) {
   startMonth.value += 12
   startYear.value -= 1
@@ -31,18 +33,14 @@ const visibleMonths = computed(() => {
   return out
 })
 
-function fmtDate(y: number, m: number, d: number): string {
-  return `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`
-}
-
 const rangeBounds = computed(() => {
   const first = visibleMonths.value[0]
   const last = visibleMonths.value[2]
   if (!first || !last) return { from: '', to: '' }
   const lastDay = new Date(Date.UTC(last.year, last.month, 0)).getUTCDate()
   return {
-    from: fmtDate(first.year, first.month, 1),
-    to: fmtDate(last.year, last.month, lastDay),
+    from: `${first.year}-${String(first.month).padStart(2, '0')}-01`,
+    to: `${last.year}-${String(last.month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`,
   }
 })
 
@@ -57,9 +55,7 @@ onMounted(async () => {
   await refresh()
 })
 
-watch([startYear, startMonth, componentID], () => {
-  refresh()
-})
+watch([startYear, startMonth, componentID], () => { refresh() })
 
 function shift(delta: number) {
   const idx = (startMonth.value - 1) + delta
@@ -71,70 +67,83 @@ function shift(delta: number) {
 
 const componentOptions = computed(() => summary.value?.components ?? [])
 const daysInWindow = computed(() => uptime.value?.days ?? [])
+
+function monthUptimePct(year: number, month: number): string {
+  const prefix = `${year}-${String(month).padStart(2, '0')}`
+  const subset = daysInWindow.value.filter((d) => d.day.startsWith(prefix) && d.samples > 0)
+  if (subset.length === 0) return '—'
+  const mean = subset.reduce((acc, d) => acc + d.uptime_ratio, 0) / subset.length
+  return `${(mean * 100).toFixed(2)}%`
+}
+
+const branding = computed(() => summary.value?.branding ?? null)
+const brandName = computed(() => branding.value?.name ?? 'Status Page')
 </script>
 
 <template>
-  <main class="max-w-4xl mx-auto px-4 py-8 space-y-6" data-testid="status-uptime-view">
-    <div class="flex justify-end">
-      <PublicQuickNav />
-    </div>
+  <div class="min-h-screen bg-white dark:bg-gray-950">
+    <PublicHeader :branding="branding" />
+    <PublicHistoryUptimeTabs />
 
-    <header class="space-y-3">
-      <h1 class="text-2xl font-semibold">Uptime</h1>
-      <div class="flex flex-wrap items-end gap-3">
-        <label class="text-sm">
-          <span class="block text-xs text-gray-500 mb-1">Component</span>
-          <select
-            v-model="componentID"
-            class="rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-2 py-1 text-sm"
-            data-testid="filter-component"
-          >
-            <option value="">All</option>
+    <main class="max-w-5xl mx-auto px-6 py-6 space-y-6" data-testid="status-uptime-view">
+      <header class="flex flex-wrap items-center gap-3">
+        <div class="relative inline-flex items-center gap-2 rounded-md border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-1.5 text-sm">
+          <svg class="size-4 text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
+          </svg>
+          <select v-model="componentID" class="bg-transparent outline-none pr-6" data-testid="filter-component">
+            <option value="">All Components</option>
             <option v-for="c in componentOptions" :key="c.id" :value="c.id">{{ c.name }}</option>
           </select>
-        </label>
+        </div>
         <CalendarRangeNavigator
           class="ml-auto"
           :start-year="startYear"
           :start-month="startMonth"
           @shift="shift"
         />
-      </div>
-    </header>
+      </header>
 
-    <div
-      v-if="error && !uptime"
-      class="rounded-xl border border-red-300 bg-red-50 dark:bg-red-950/40 p-6 text-red-700 dark:text-red-300"
-    >
-      <p class="font-semibold mb-1">Could not load uptime</p>
-      <p class="text-sm opacity-80">{{ error.message }}</p>
-    </div>
-
-    <section
-      class="grid gap-6 sm:grid-cols-2 lg:grid-cols-3"
-      data-testid="calendars"
-    >
       <div
-        v-for="m in visibleMonths"
-        :key="`${m.year}-${m.month}`"
-        class="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4"
-        :data-month="`${m.year}-${m.month}`"
+        v-if="error && !uptime"
+        class="rounded-xl border border-red-200 bg-red-50 dark:bg-red-950/40 p-6 text-red-700 dark:text-red-300"
       >
-        <CalendarMonth :year="m.year" :month="m.month" :days="daysInWindow" />
+        <p class="font-semibold mb-1">Could not load uptime</p>
+        <p class="text-sm opacity-80">{{ error.message }}</p>
       </div>
-    </section>
 
-    <footer
-      class="text-xs text-gray-500 flex flex-wrap items-center gap-4"
-      data-testid="legend"
-    >
-      <span class="flex items-center gap-1"><span class="size-3 rounded-sm bg-emerald-500" /> Operational</span>
-      <span class="flex items-center gap-1"><span class="size-3 rounded-sm bg-yellow-400" /> Minor</span>
-      <span class="flex items-center gap-1"><span class="size-3 rounded-sm bg-orange-500" /> Major</span>
-      <span class="flex items-center gap-1"><span class="size-3 rounded-sm bg-red-500" /> Outage</span>
-      <span class="flex items-center gap-1"><span class="size-3 rounded-sm bg-slate-200 dark:bg-slate-700" /> No data</span>
-    </footer>
+      <section
+        class="grid gap-8 sm:grid-cols-2 lg:grid-cols-3"
+        data-testid="calendars"
+      >
+        <div
+          v-for="m in visibleMonths"
+          :key="`${m.year}-${m.month}`"
+          :data-month="`${m.year}-${m.month}`"
+          class="space-y-2"
+        >
+          <div class="flex items-baseline justify-between">
+            <h3 class="text-sm font-semibold text-gray-900 dark:text-gray-100">
+              {{ MONTHS[m.month - 1] }} {{ m.year }}
+            </h3>
+            <span class="text-xs font-mono text-gray-500" :data-month-pct="`${m.year}-${m.month}`">
+              {{ monthUptimePct(m.year, m.month) }}
+            </span>
+          </div>
+          <CalendarMonth :year="m.year" :month="m.month" :days="daysInWindow" />
+        </div>
+      </section>
+    </main>
 
-    <PublicPageFooter />
-  </main>
+    <PublicPageFooter :brand-name="brandName" back-href="#/" back-label="Current Status">
+      <template #right>
+        <div class="flex items-center gap-3 text-xs">
+          <span class="inline-flex items-center gap-1"><span class="size-2 rounded-sm bg-emerald-500" /> Operational</span>
+          <span class="inline-flex items-center gap-1"><span class="size-2 rounded-sm bg-yellow-400" /> Minor</span>
+          <span class="inline-flex items-center gap-1"><span class="size-2 rounded-sm bg-orange-500" /> Major</span>
+          <span class="inline-flex items-center gap-1"><span class="size-2 rounded-sm bg-red-500" /> Outage</span>
+        </div>
+      </template>
+    </PublicPageFooter>
+  </div>
 </template>

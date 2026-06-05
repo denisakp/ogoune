@@ -59,9 +59,11 @@ const year = new Date().getUTCFullYear()
           Powered by Ogoune
         </a>
       </div>
-      <span v-if="brandName" class="text-gray-400" data-testid="copyright">
-        © {{ year }} {{ brandName }}. All rights reserved.
-      </span>
+      <slot name="right">
+        <span v-if="brandName" class="text-gray-400" data-testid="copyright">
+          © {{ year }} {{ brandName }}. All rights reserved.
+        </span>
+      </slot>
     </div>
   </footer>
 </template>

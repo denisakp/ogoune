@@ -71,11 +71,11 @@ describe('StatusUptimeView — US3', () => {
     expect(lastCall?.[0].component_id).toBe('c-api')
   })
 
-  it('renders the legend with 5 bands', async () => {
+  it('renders the legend in the footer slot', async () => {
     const w = await render()
-    const legend = w.get('[data-testid="legend"]')
-    expect(legend.text()).toContain('Operational')
-    expect(legend.text()).toContain('No data')
+    const footer = w.get('[data-testid="public-footer"]')
+    expect(footer.text()).toContain('Operational')
+    expect(footer.text()).toContain('Outage')
   })
 
   it('future-month cells render as unknown when no data', async () => {

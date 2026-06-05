@@ -17,5 +17,5 @@ function toEntries() {
 </script>
 
 <template>
-  <UUptimeCalendar :year="year" :month="month" :entries="toEntries()" />
+  <UUptimeCalendar :year="year" :month="month" :entries="toEntries()" hide-header />
 </template>
