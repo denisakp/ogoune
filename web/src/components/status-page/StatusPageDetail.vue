@@ -1,11 +1,5 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import {
-  ArrowUpOutlined,
-  ArrowDownOutlined,
-  ClockCircleOutlined,
-  DashboardOutlined,
-} from '@ant-design/icons-vue'
 import type {
   PublicMonitorDetail,
   MonitorRecentEvent,
@@ -278,7 +272,7 @@ watch(
         <div class="uptime-section">
           <div class="section-header">
             <h2 class="section-title">
-              <DashboardOutlined style="margin-right: 8px" />
+              <UIcon name="i-lucide-layout-dashboard" style="margin-right: 8px" />
               Uptime
             </h2>
             <span class="section-subtitle">Last 90 days</span>
@@ -359,7 +353,7 @@ watch(
           <template #title>
             <div class="card-title-with-subtitle">
               <span class="card-title">
-                <ClockCircleOutlined style="margin-right: 8px" />
+                <UIcon name="i-lucide-clock" style="margin-right: 8px" />
                 Response Time
               </span>
               <span class="card-subtitle">Last 7 days</span>
@@ -412,8 +406,8 @@ watch(
                     'event-icon-up': event.type === 'up',
                   }"
                 >
-                  <ArrowDownOutlined v-if="event.type === 'down'" />
-                  <ArrowUpOutlined v-if="event.type === 'up'" />
+                  <UIcon name="i-lucide-arrow-down" v-if="event.type === 'down'" />
+                  <UIcon name="i-lucide-arrow-up" v-if="event.type === 'up'" />
                 </div>
                 <div v-if="index !== visibleEvents.length - 1" class="event-line"></div>
               </div>

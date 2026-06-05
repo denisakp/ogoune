@@ -40,10 +40,15 @@ func NewRouter(
 	maintenanceHandler *handler.MaintenanceHandler,
 	statsHandler *handler.StatsHandler,
 	systemHandler *handler.SystemHandler,
+	runtimeConfigHandler *handler.RuntimeConfigHandler,
 	authHandler *handler.AuthHandler,
 	accountHandler *handler.AccountHandler,
 	authService *service.AuthService,
 	apiKeyService *service.APIKeyService,
+	sessionService *service.SessionService,
+	sessionHandler *handler.SessionHandler,
+	twoFactorV1Handler *v1handler.TwoFactorHandler,
+	escalationV1Handler *v1handler.EscalationHandler,
 	monitorV1Handler *v1handler.MonitorHandler,
 	incidentV1Handler *v1handler.IncidentHandler,
 	channelV1Handler *v1handler.NotificationChannelHandler,
@@ -108,6 +113,9 @@ func NewRouter(
 		r.Post("/initialize-password", authHandler.InitializePassword) // POST /auth/initialize-password
 		r.Post("/verify-2fa", authHandler.Verify2FA)                   // POST /auth/verify-2fa
 		r.Get("/verify", authHandler.Verify)                           // GET /auth/verify - verify JWT token
+		// Public 2FA reset flow (no auth — user lost their authenticator).
+		r.Post("/2fa/reset-request", twoFactorV1Handler.RequestReset)
+		r.Post("/2fa/reset", twoFactorV1Handler.ConfirmReset)
 	})
 
 	// Public heartbeat ping endpoint (unauthenticated by design)
@@ -119,6 +127,7 @@ func NewRouter(
 	r.Get("/status/{resourceId}", statusPageHandler.HandleResourceDetailStatus) // GET /status/{resourceId} - get detailed status for a specific resource
 	r.Get("/system/edition", systemHandler.GetEdition)
 	r.Get("/system/capabilities", systemHandler.GetCapabilities)
+	r.Get("/config/runtime", runtimeConfigHandler.Get)
 
 	// ========================================
 	// Protected Routes (authentication required)
@@ -126,7 +135,7 @@ func NewRouter(
 	// ========================================
 	r.Group(func(r chi.Router) {
 		// Apply auth middleware to all routes in this group
-		r.Use(middleware.AuthMiddleware(authService, apiKeyService))
+		r.Use(middleware.AuthMiddleware(authService, apiKeyService, sessionService))
 		// Global rate limiting for authenticated endpoints
 		r.Use(httprate.LimitByIP(cfg.RateLimitGlobal, cfg.RateLimitGlobalWindow))
 		r.Use(rateLimitLogger("global"))
@@ -143,6 +152,32 @@ func NewRouter(
 			r.With(middleware.RequireJWTOnly).Post("/api-keys", accountHandler.CreateAPIKey)
 			r.With(middleware.RequireJWTOnly).Get("/api-keys", accountHandler.ListAPIKeys)
 			r.With(middleware.RequireJWTOnly).Delete("/api-keys/{id}", accountHandler.RevokeAPIKey)
+		})
+
+		// Sessions API — spec 059 FR-008/009.
+		r.Route("/me/sessions", func(r chi.Router) {
+			r.Use(middleware.RequireJWTOnly)
+			r.Get("/", sessionHandler.List)
+			r.Delete("/others", sessionHandler.RevokeOthers)
+			r.Delete("/{id}", sessionHandler.Revoke)
+		})
+
+		// 2FA setup / verify / disable — spec 059 FR-010..FR-012.
+		r.Route("/me/2fa", func(r chi.Router) {
+			r.Use(middleware.RequireJWTOnly)
+			r.Post("/setup", twoFactorV1Handler.Setup)
+			r.Post("/verify", twoFactorV1Handler.Verify)
+			r.Post("/disable", twoFactorV1Handler.Disable)
+		})
+
+		// Escalation policies — spec 059 FR-023..FR-026a.
+		r.Route("/escalation-policies", func(r chi.Router) {
+			r.Use(middleware.RequireJWTOnly)
+			r.Get("/", escalationV1Handler.List)
+			r.Post("/", escalationV1Handler.Create)
+			r.Patch("/reorder", escalationV1Handler.Reorder)
+			r.Patch("/{id}", escalationV1Handler.Update)
+			r.Delete("/{id}", escalationV1Handler.Delete)
 		})
 
 		// Resources (Monitors) API
@@ -244,7 +279,7 @@ func NewRouter(
 
 		// Authenticated v1 sub-group
 		r.Group(func(r chi.Router) {
-			r.Use(middleware.AuthMiddleware(authService, apiKeyService))
+			r.Use(middleware.AuthMiddleware(authService, apiKeyService, sessionService))
 			// Monitors
 			r.Route("/monitors", func(r chi.Router) {
 				r.Get("/", monitorV1Handler.List)

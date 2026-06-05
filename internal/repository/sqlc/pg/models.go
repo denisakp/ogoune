@@ -38,6 +38,25 @@ type ComponentNotificationChannel struct {
 	NotificationChannelID string `json:"notification_channel_id"`
 }
 
+type EscalationPolicy struct {
+	ID         string             `json:"id"`
+	Name       string             `json:"name"`
+	ScopeKind  string             `json:"scope_kind"`
+	ScopeValue string             `json:"scope_value"`
+	IsActive   bool               `json:"is_active"`
+	Priority   int32              `json:"priority"`
+	CreatedAt  pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt  pgtype.Timestamptz `json:"updated_at"`
+}
+
+type EscalationStep struct {
+	ID           string `json:"id"`
+	PolicyID     string `json:"policy_id"`
+	StepOrder    int32  `json:"step_order"`
+	DelayMinutes int32  `json:"delay_minutes"`
+	ChannelIds   []byte `json:"channel_ids"`
+}
+
 type ExpiryNotificationLog struct {
 	ID         string             `json:"id"`
 	ResourceID string             `json:"resource_id"`
@@ -222,18 +241,33 @@ type SchemaMigration struct {
 	AppliedAt pgtype.Timestamptz `json:"applied_at"`
 }
 
+type Session struct {
+	ID           string             `json:"id"`
+	UserID       string             `json:"user_id"`
+	Browser      string             `json:"browser"`
+	Os           string             `json:"os"`
+	Ip           string             `json:"ip"`
+	Location     pgtype.Text        `json:"location"`
+	LastActiveAt pgtype.Timestamptz `json:"last_active_at"`
+	CreatedAt    pgtype.Timestamptz `json:"created_at"`
+	RevokedAt    pgtype.Timestamptz `json:"revoked_at"`
+}
+
 type StatusPageSetting struct {
-	ID                   string             `json:"id"`
-	CreatedAt            pgtype.Timestamptz `json:"created_at"`
-	UpdatedAt            pgtype.Timestamptz `json:"updated_at"`
-	Name                 string             `json:"name"`
-	HomepageUrl          string             `json:"homepage_url"`
-	CustomDomain         string             `json:"custom_domain"`
-	GoogleAnalyticsID    string             `json:"google_analytics_id"`
-	EnableDetailsPage    bool               `json:"enable_details_page"`
-	ShowUptimePercentage bool               `json:"show_uptime_percentage"`
-	HidePausedMonitors   bool               `json:"hide_paused_monitors"`
-	ShowIncidentHistory  bool               `json:"show_incident_history"`
+	ID                     string             `json:"id"`
+	CreatedAt              pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt              pgtype.Timestamptz `json:"updated_at"`
+	Name                   string             `json:"name"`
+	HomepageUrl            string             `json:"homepage_url"`
+	CustomDomain           string             `json:"custom_domain"`
+	GoogleAnalyticsID      string             `json:"google_analytics_id"`
+	EnableDetailsPage      bool               `json:"enable_details_page"`
+	ShowUptimePercentage   bool               `json:"show_uptime_percentage"`
+	HidePausedMonitors     bool               `json:"hide_paused_monitors"`
+	ShowIncidentHistory    bool               `json:"show_incident_history"`
+	CustomDomainStatus     string             `json:"custom_domain_status"`
+	CustomDomainSslStatus  string             `json:"custom_domain_ssl_status"`
+	CustomDomainDnsRecords []byte             `json:"custom_domain_dns_records"`
 }
 
 type Tag struct {
@@ -243,6 +277,14 @@ type Tag struct {
 	Name        string             `json:"name"`
 	Color       pgtype.Text        `json:"color"`
 	Description pgtype.Text        `json:"description"`
+}
+
+type TwoFactorResetToken struct {
+	TokenHash string             `json:"token_hash"`
+	UserID    string             `json:"user_id"`
+	ExpiresAt pgtype.Timestamptz `json:"expires_at"`
+	UsedAt    pgtype.Timestamptz `json:"used_at"`
+	CreatedAt pgtype.Timestamptz `json:"created_at"`
 }
 
 type User struct {

@@ -1,173 +1,160 @@
 <script setup lang="ts">
-import { reactive, computed } from 'vue'
+import { reactive, ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
-import { useAuthStore } from '@/stores/authStore.ts'
-import { MailOutlined, LockOutlined } from '@ant-design/icons-vue'
-import type { Rule } from 'ant-design-vue/es/form'
+
+import { useAuthStore } from '@/stores/authStore'
+import { ValidationError } from '@/core/errors'
+import { loginSchema, type LoginInput } from '@/schemas/auth.schema'
 
 const router = useRouter()
 const authStore = useAuthStore()
 
+const formRef = ref<{
+  setErrors: (errs: Array<{ path: string; message: string }>) => void
+} | null>(null)
+
+const state = reactive<LoginInput>({ email: '', password: '' })
 const isLoading = computed(() => authStore.isLoading)
+const showPassword = ref(false)
 
-const formState = reactive({
-  email: '',
-  password: '',
-})
-
-const rules: Record<string, Rule[]> = {
-  email: [
-    { required: true, message: 'Please input your email!', trigger: 'blur' },
-    { type: 'email', message: 'Please enter a valid email!', trigger: 'blur' },
-  ],
-  password: [
-    { required: true, message: 'Please input your password!', trigger: 'blur' },
-    { min: 6, message: 'Password must be at least 6 characters!', trigger: 'blur' },
-  ],
-}
-
-const handleLogin = async () => {
-  const success = await authStore.login(formState.email, formState.password)
-
-  if (success) {
-    // Redirect to monitors page after successful login
-    router.push('/monitors')
-  } else if (authStore.requiresPasswordInit) {
-    // Redirect to password initialization
-    router.push('/auth/initialize-password')
-  } else if (authStore.requires2FA) {
-    // Redirect to 2FA verification
-    router.push('/auth/verify-2fa')
+async function onSubmit(p: { data: LoginInput }) {
+  try {
+    const success = await authStore.login(p.data.email, p.data.password)
+    if (success) {
+      router.push('/overview')
+    } else if (authStore.requiresPasswordInit) {
+      router.push('/auth/initialize-password')
+    } else if (authStore.requires2FA) {
+      router.push('/auth/verify-2fa')
+    }
+  } catch (e) {
+    if (e instanceof ValidationError) {
+      formRef.value?.setErrors(
+        Object.entries(e.fieldErrors).map(([path, msgs]) => ({
+          path,
+          message: msgs[0] ?? 'Invalid',
+        })),
+      )
+    } else {
+      throw e
+    }
   }
 }
+
+defineExpose({ state, onSubmit, formRef })
 </script>
 
 <template>
-  <div class="login-container">
-    <div class="login-card">
-      <div class="login-header">
-        <h1>Ogoune</h1>
-        <p>Monitor your infrastructure with confidence</p>
+  <div
+    class="min-h-screen flex items-center justify-center p-5"
+    style="background: linear-gradient(135deg, #eef2ff 0%, #f8fafc 50%, #e0e7ff 100%)"
+  >
+    <div
+      class="w-full max-w-105 bg-white rounded-xl border border-slate-200 p-12"
+      style="box-shadow: 0 4px 24px -4px rgba(15, 23, 42, 0.04)"
+    >
+      <div class="flex flex-col items-center text-center gap-2 mb-8">
+        <UIcon name="i-lucide-activity" class="size-10 text-primary-600" />
+        <h1 class="text-[28px] font-bold text-slate-900 leading-none">Ogoune</h1>
+        <p class="text-sm text-slate-600">Monitor your infrastructure with confidence</p>
       </div>
 
-      <a-form
-        :model="formState"
-        :rules="rules"
-        @finish="handleLogin"
-        layout="vertical"
-        class="login-form"
+      <UForm
+        ref="formRef"
+        :schema="loginSchema"
+        :state="state"
+        class="space-y-5"
+        @submit="onSubmit"
       >
-        <a-form-item label="Email" name="email">
-          <a-input
-            v-model:value="formState.email"
-            placeholder="admin@ogoune.test"
-            size="large"
-            :disabled="isLoading"
+        <div class="space-y-1.5">
+          <label class="text-sm font-medium text-slate-900">Email</label>
+          <UFormField name="email" :ui="{ label: 'hidden' }">
+            <UInput
+              v-model="state.email"
+              placeholder="you@company.com"
+              icon="i-lucide-mail"
+              :disabled="isLoading"
+              autocomplete="email"
+              size="lg"
+              class="w-full"
+            />
+          </UFormField>
+        </div>
+
+        <div class="space-y-1.5">
+          <div class="flex items-center justify-between">
+            <label class="text-sm font-medium text-slate-900">Password</label>
+            <RouterLink to="/forgot-password" class="text-sm text-primary-600 hover:underline">
+              Forgot password?
+            </RouterLink>
+          </div>
+          <UFormField name="password" :ui="{ label: 'hidden' }">
+            <UInput
+              v-model="state.password"
+              :type="showPassword ? 'text' : 'password'"
+              placeholder="Enter your password"
+              icon="i-lucide-lock"
+              :disabled="isLoading"
+              autocomplete="current-password"
+              size="lg"
+              class="w-full"
+            >
+              <template #trailing>
+                <button
+                  type="button"
+                  class="text-slate-400 hover:text-slate-600"
+                  @click="showPassword = !showPassword"
+                >
+                  <UIcon
+                    :name="showPassword ? 'i-lucide-eye' : 'i-lucide-eye-off'"
+                    class="size-4.5"
+                  />
+                </button>
+              </template>
+            </UInput>
+          </UFormField>
+        </div>
+
+        <UButton type="submit" color="primary" block size="lg" :loading="isLoading" class="h-11">
+          Sign In
+        </UButton>
+
+        <div class="flex items-center gap-3 text-xs text-slate-400">
+          <div class="flex-1 h-px bg-slate-200" />
+          <span>or continue with</span>
+          <div class="flex-1 h-px bg-slate-200" />
+        </div>
+
+        <div class="flex gap-3">
+          <UButton
+            color="neutral"
+            variant="outline"
+            block
+            size="lg"
+            icon="i-logos-google-icon"
+            class="h-11"
           >
-            <template #prefix>
-              <MailOutlined />
-            </template>
-          </a-input>
-        </a-form-item>
-
-        <a-form-item label="Password" name="password">
-          <a-input-password
-            v-model:value="formState.password"
-            placeholder="Enter your password"
-            size="large"
-            :disabled="isLoading"
+            Google
+          </UButton>
+          <UButton
+            color="neutral"
+            variant="outline"
+            block
+            size="lg"
+            icon="i-logos-github-icon"
+            class="h-11"
           >
-            <template #prefix>
-              <LockOutlined />
-            </template>
-          </a-input-password>
-        </a-form-item>
+            GitHub
+          </UButton>
+        </div>
+      </UForm>
 
-        <a-form-item>
-          <a-button type="primary" html-type="submit" size="large" block :loading="isLoading">
-            Sign In
-          </a-button>
-        </a-form-item>
-      </a-form>
-
-      <div class="login-footer">
-        <p class="hint">
-          Default credentials: <code>admin@ogoune.test</code> / <code>ogu3n3@rd</code>
-        </p>
+      <div class="flex items-center justify-center gap-1 mt-8 text-sm">
+        <span class="text-slate-600">Don't have an account?</span>
+        <RouterLink to="/register" class="text-primary-600 font-medium hover:underline">
+          Register
+        </RouterLink>
       </div>
     </div>
   </div>
 </template>
-
-<style scoped>
-.login-container {
-  min-height: 100vh;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: white;
-  padding: 20px;
-}
-
-.login-card {
-  background: white;
-  border-radius: 12px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  padding: 40px;
-  width: 100%;
-  max-width: 420px;
-  border: 1px solid #e5e5e5;
-}
-
-.login-header {
-  text-align: center;
-  margin-bottom: 32px;
-}
-
-.login-header h1 {
-  font-size: 32px;
-  font-weight: 700;
-  color: #000000;
-  margin: 0 0 8px 0;
-}
-
-.login-header p {
-  font-size: 14px;
-  color: #000000;
-  margin: 0;
-}
-
-.login-form {
-  margin-top: 24px;
-}
-
-.login-footer {
-  margin-top: 24px;
-  text-align: center;
-}
-
-.hint {
-  font-size: 20px;
-  color: #000000;
-  margin: 0;
-}
-
-.hint code {
-  background: #f5f5f5;
-  padding: 2px 6px;
-  border-radius: 4px;
-  font-family: 'Courier New', monospace;
-  color: #000000;
-}
-
-/* Responsive */
-@media (max-width: 480px) {
-  .login-card {
-    padding: 24px;
-  }
-
-  .login-header h1 {
-    font-size: 24px;
-  }
-}
-</style>

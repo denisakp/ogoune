@@ -274,15 +274,9 @@ const getYPosition = (value: number): number => {
 
         <!-- Data points -->
         <g v-for="(point, index) in dataPoints" :key="index">
-          <a-tooltip placement="top">
-            <template #title>
-              <div style="text-align: left">
-                <div style="font-weight: 600; margin-bottom: 4px">
-                  {{ formatTooltipTime(point.timestamp) }}
-                </div>
-                <div>Response Time: {{ formatResponseTime(point.value) }}</div>
-              </div>
-            </template>
+          <UTooltip
+            :text="`${formatTooltipTime(point.timestamp)} — ${formatResponseTime(point.value)}`"
+          >
             <circle
               :cx="point.x"
               :cy="point.y"
@@ -292,7 +286,7 @@ const getYPosition = (value: number): number => {
               stroke="#fff"
               stroke-width="2"
             />
-          </a-tooltip>
+          </UTooltip>
         </g>
 
         <!-- Y-axis -->
@@ -378,11 +372,7 @@ const getYPosition = (value: number): number => {
     </div>
 
     <div v-else class="chart-empty">
-      <a-empty description="No response time data available">
-        <template #image>
-          <a-icon-line-chart style="font-size: 48px; color: rgba(0, 0, 0, 0.25)" />
-        </template>
-      </a-empty>
+      <UEmptyState icon="i-lucide-line-chart" title="No response time data" />
     </div>
   </div>
 </template>

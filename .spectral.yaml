@@ -1,0 +1,13 @@
+extends:
+  - spectral:oas
+  - "@stoplight/spectral-owasp-rules"
+
+rules:
+  # Enforce operationId on all operations.
+  operation-operationId: error
+
+  # Require tags on all operations.
+  operation-tags: error
+
+  # Descriptions on schemas are encouraged but not enforced at error level.
+  oas3-schema: error

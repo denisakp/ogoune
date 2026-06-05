@@ -58,4 +58,7 @@ func InitDatabase(app *App) {
 	app.APIKeyRepo = store.NewAPIKeyRepositorySQLC(rt)
 	app.ResourceCredentialRepo = store.NewResourceCredentialRepositorySQLC(rt)
 	app.ExpiryNotificationLogRepo = store.NewExpiryNotificationLogRepositorySQLC(rt)
+	app.SessionRepo = store.NewSessionRepositorySQLC(rt)
+	app.TwoFactorResetTokenRepo = store.NewTwoFactorResetTokenRepositorySQLC(rt)
+	app.EscalationRepo = store.NewEscalationRepositorySQLC(rt)
 }

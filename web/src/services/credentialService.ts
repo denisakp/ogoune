@@ -1,11 +1,6 @@
-import type { AxiosError } from 'axios'
-
-import axiosHelper from '../libs/axios.helper'
-import type {
-  CredentialCreatePayload,
-  CredentialResponse,
-  TestConnectionResponse,
-} from '@/types'
+import { getAuthenticatedClient, request } from '@/core/http/client'
+import { NotFoundError, type ApiError } from '@/core/errors'
+import type { CredentialCreatePayload, CredentialResponse, TestConnectionResponse } from '@/types'
 
 /**
  * Wrapper format used by all v1 endpoints: { data, meta }.
@@ -17,14 +12,15 @@ interface V1Envelope<T> {
 /**
  * Fetch credential metadata for a resource. Password in the response is always
  * the mask string `••••••••` — the plaintext value never leaves the server.
- * Throws an axios error with status 404 when no credential is configured.
+ * Throws a `NotFoundError` when no credential is configured.
  */
 export const fetchCredential = async (resourceId: string): Promise<CredentialResponse> => {
-  const { data } = await axiosHelper.get<V1Envelope<CredentialResponse>>(
-    `/v1/resources/${resourceId}/credentials`,
-    { skipErrorToast: true } as never,
+  const envelope = await request<V1Envelope<CredentialResponse>>(
+    getAuthenticatedClient(),
+    `v1/resources/${resourceId}/credentials`,
+    { headers: { 'x-skip-error-toast': '1' } },
   )
-  return data.data
+  return envelope.data
 }
 
 /**
@@ -35,11 +31,12 @@ export const setCredential = async (
   resourceId: string,
   payload: CredentialCreatePayload,
 ): Promise<CredentialResponse> => {
-  const { data } = await axiosHelper.post<V1Envelope<CredentialResponse>>(
-    `/v1/resources/${resourceId}/credentials`,
-    payload,
+  const envelope = await request<V1Envelope<CredentialResponse>>(
+    getAuthenticatedClient(),
+    `v1/resources/${resourceId}/credentials`,
+    { method: 'POST', json: payload },
   )
-  return data.data
+  return envelope.data
 }
 
 /**
@@ -47,7 +44,9 @@ export const setCredential = async (
  * to the no-auth check behavior.
  */
 export const deleteCredential = async (resourceId: string): Promise<void> => {
-  await axiosHelper.delete(`/v1/resources/${resourceId}/credentials`)
+  await request<void>(getAuthenticatedClient(), `v1/resources/${resourceId}/credentials`, {
+    method: 'DELETE',
+  })
 }
 
 /**
@@ -58,31 +57,26 @@ export const testCredential = async (
   resourceId: string,
   payload: CredentialCreatePayload,
 ): Promise<TestConnectionResponse> => {
-  const { data } = await axiosHelper.post<V1Envelope<TestConnectionResponse>>(
-    `/v1/resources/${resourceId}/credentials/test`,
-    payload,
+  const envelope = await request<V1Envelope<TestConnectionResponse>>(
+    getAuthenticatedClient(),
+    `v1/resources/${resourceId}/credentials/test`,
+    { method: 'POST', json: payload },
   )
-  return data.data
+  return envelope.data
 }
 
 /**
- * Helper: true when an axios error is a "no credential configured" 404 from
- * the credentials GET endpoint. Lets callers treat the absence as a normal
- * empty state rather than a hard failure.
+ * True when the thrown error is a "no credential configured" 404.
  */
 export const isCredentialNotFound = (err: unknown): boolean => {
-  const axiosErr = err as AxiosError | undefined
-  return axiosErr?.response?.status === 404
+  return err instanceof NotFoundError
 }
 
 /**
- * Helper: extract Retry-After header (seconds) from a 429 response.
+ * Extract `Retry-After` seconds from a 429 typed error. Returns null otherwise.
  */
 export const retryAfterSeconds = (err: unknown): number | null => {
-  const axiosErr = err as AxiosError | undefined
-  if (axiosErr?.response?.status !== 429) return null
-  const raw = axiosErr.response.headers['retry-after']
-  if (!raw) return null
-  const n = Number.parseInt(String(raw), 10)
-  return Number.isFinite(n) ? n : null
+  const apiErr = err as ApiError | undefined
+  if (apiErr?.status !== 429) return null
+  return apiErr.retryAfterSec ?? null
 }

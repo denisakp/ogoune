@@ -14,7 +14,10 @@ const props = withDefaults(defineProps<Props>(), {
 })
 
 // Get icon and color based on failure type or ICMP root cause hint
-const getFailureIcon = (failureType: string | null | undefined, hint: string | null | undefined) => {
+const getFailureIcon = (
+  failureType: string | null | undefined,
+  hint: string | null | undefined,
+) => {
   // ICMP root-cause hints take priority
   if (hint === 'host_unreachable') return { icon: 'disconnect', color: 'red' }
   if (hint === 'service_down') return { icon: 'alert', color: 'orange' }

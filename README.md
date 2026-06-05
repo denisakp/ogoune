@@ -180,7 +180,15 @@ APP_SECRET_KEY=change-me    # openssl rand -hex 32
 
 # Open Core
 ENTERPRISE_LICENSE_KEY=     # leave empty for Community Edition
+
+# Settings (spec 059)
+APP_BASE_URL=https://status.example.com  # used in 2FA reset magic-link emails
+SSL_PROVIDER=external                    # letsencrypt | external | disabled
 ```
+
+See [`docs/runbooks/settings-env.md`](./docs/runbooks/settings-env.md) for the
+`SSL_PROVIDER` UI matrix, the magic-link reset flow, and session-revocation
+semantics.
 
 ### Generate `APP_SECRET_KEY`
 

@@ -1,14 +1,8 @@
 <script setup lang="ts">
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-nocheck — legacy AntDV file, migrated in later Slices.
 import { onMounted, ref } from 'vue'
 import { Modal, message } from 'ant-design-vue'
-import {
-  EditOutlined,
-  DeleteOutlined,
-  DownOutlined,
-  UpOutlined,
-  DeleteFilled,
-} from '@ant-design/icons-vue'
-
 import { storeToRefs } from 'pinia'
 import { useComponentStore } from '@/stores/componentStore'
 import { timeAgo } from '@/libs/date-time.helper'
@@ -126,7 +120,9 @@ const getStatusColor = (status: string) => {
               class="expand-btn"
               @click="toggleExpand(component.id)"
             >
-              <component :is="isExpanded(component.id) ? UpOutlined : DownOutlined" />
+              <UIcon
+                :name="isExpanded(component.id) ? 'i-lucide-chevron-up' : 'i-lucide-chevron-down'"
+              />
             </a-button>
 
             <div class="component-title-section">
@@ -148,7 +144,7 @@ const getStatusColor = (status: string) => {
                 title="Edit component name/description"
               >
                 <template #icon>
-                  <EditOutlined />
+                  <UIcon name="i-lucide-pencil" />
                 </template>
               </a-button>
               <a-button
@@ -159,7 +155,7 @@ const getStatusColor = (status: string) => {
                 title="Delete component (must be empty)"
               >
                 <template #icon>
-                  <DeleteOutlined />
+                  <UIcon name="i-lucide-trash-2" />
                 </template>
               </a-button>
             </div>

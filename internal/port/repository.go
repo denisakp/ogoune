@@ -210,3 +210,35 @@ type ExpiryNotificationLogRepository interface {
 	DeleteByResourceIDAndType(ctx context.Context, resourceID, expiryType string) error
 	DeleteOlderThan(ctx context.Context, cutoff time.Time) error
 }
+
+// SessionRepository — spec 059 FR-008/009/009a.
+type SessionRepository interface {
+	Create(ctx context.Context, s *domain.Session) error
+	FindByID(ctx context.Context, id string) (*domain.Session, error)
+	ListActiveByUser(ctx context.Context, userID string) ([]*domain.Session, error)
+	UpdateLastActive(ctx context.Context, id string, at time.Time) error
+	Revoke(ctx context.Context, id string, at time.Time) error
+	RevokeAllExcept(ctx context.Context, userID, currentSessionID string, at time.Time) (int64, error)
+}
+
+// TwoFactorResetTokenRepository — spec 059 FR-012a magic-link recovery.
+type TwoFactorResetTokenRepository interface {
+	Create(ctx context.Context, t *domain.TwoFactorResetToken) error
+	ConsumeByHash(ctx context.Context, tokenHash string, at time.Time) (*domain.TwoFactorResetToken, error)
+	CountRecentByUser(ctx context.Context, userID string, since time.Time) (int64, error)
+	DeleteExpired(ctx context.Context, cutoff time.Time) error
+}
+
+// EscalationRepository — spec 059 FR-023..FR-026a.
+type EscalationRepository interface {
+	Create(ctx context.Context, p *domain.EscalationPolicy) error
+	FindByID(ctx context.Context, id string) (*domain.EscalationPolicy, error)
+	List(ctx context.Context) ([]*domain.EscalationPolicy, error)
+	Update(ctx context.Context, p *domain.EscalationPolicy) error
+	Delete(ctx context.Context, id string) error
+	Reorder(ctx context.Context, order []string) error
+	NextPriority(ctx context.Context) (int, error)
+}
+
+// Custom-domain DNS state has been folded into StatusPageSettings — see
+// migration 0018. The standalone CustomDomainRepository has been removed.

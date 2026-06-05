@@ -39,6 +39,25 @@ type ComponentNotificationChannel struct {
 	NotificationChannelID string `json:"notification_channel_id"`
 }
 
+type EscalationPolicy struct {
+	ID         string    `json:"id"`
+	Name       string    `json:"name"`
+	ScopeKind  string    `json:"scope_kind"`
+	ScopeValue string    `json:"scope_value"`
+	IsActive   int64     `json:"is_active"`
+	Priority   int64     `json:"priority"`
+	CreatedAt  time.Time `json:"created_at"`
+	UpdatedAt  time.Time `json:"updated_at"`
+}
+
+type EscalationStep struct {
+	ID           string `json:"id"`
+	PolicyID     string `json:"policy_id"`
+	StepOrder    int64  `json:"step_order"`
+	DelayMinutes int64  `json:"delay_minutes"`
+	ChannelIds   string `json:"channel_ids"`
+}
+
 type ExpiryNotificationLog struct {
 	ID         string    `json:"id"`
 	ResourceID string    `json:"resource_id"`
@@ -223,18 +242,33 @@ type SchemaMigration struct {
 	AppliedAt time.Time `json:"applied_at"`
 }
 
+type Session struct {
+	ID           string         `json:"id"`
+	UserID       string         `json:"user_id"`
+	Browser      string         `json:"browser"`
+	Os           string         `json:"os"`
+	Ip           string         `json:"ip"`
+	Location     sql.NullString `json:"location"`
+	LastActiveAt time.Time      `json:"last_active_at"`
+	CreatedAt    time.Time      `json:"created_at"`
+	RevokedAt    sql.NullTime   `json:"revoked_at"`
+}
+
 type StatusPageSetting struct {
-	ID                   string    `json:"id"`
-	CreatedAt            time.Time `json:"created_at"`
-	UpdatedAt            time.Time `json:"updated_at"`
-	Name                 string    `json:"name"`
-	HomepageUrl          string    `json:"homepage_url"`
-	CustomDomain         string    `json:"custom_domain"`
-	GoogleAnalyticsID    string    `json:"google_analytics_id"`
-	EnableDetailsPage    int64     `json:"enable_details_page"`
-	ShowUptimePercentage int64     `json:"show_uptime_percentage"`
-	HidePausedMonitors   int64     `json:"hide_paused_monitors"`
-	ShowIncidentHistory  int64     `json:"show_incident_history"`
+	ID                     string    `json:"id"`
+	CreatedAt              time.Time `json:"created_at"`
+	UpdatedAt              time.Time `json:"updated_at"`
+	Name                   string    `json:"name"`
+	HomepageUrl            string    `json:"homepage_url"`
+	CustomDomain           string    `json:"custom_domain"`
+	GoogleAnalyticsID      string    `json:"google_analytics_id"`
+	EnableDetailsPage      int64     `json:"enable_details_page"`
+	ShowUptimePercentage   int64     `json:"show_uptime_percentage"`
+	HidePausedMonitors     int64     `json:"hide_paused_monitors"`
+	ShowIncidentHistory    int64     `json:"show_incident_history"`
+	CustomDomainStatus     string    `json:"custom_domain_status"`
+	CustomDomainSslStatus  string    `json:"custom_domain_ssl_status"`
+	CustomDomainDnsRecords string    `json:"custom_domain_dns_records"`
 }
 
 type Tag struct {
@@ -244,6 +278,14 @@ type Tag struct {
 	Name        string         `json:"name"`
 	Color       sql.NullString `json:"color"`
 	Description sql.NullString `json:"description"`
+}
+
+type TwoFactorResetToken struct {
+	TokenHash string       `json:"token_hash"`
+	UserID    string       `json:"user_id"`
+	ExpiresAt time.Time    `json:"expires_at"`
+	UsedAt    sql.NullTime `json:"used_at"`
+	CreatedAt time.Time    `json:"created_at"`
 }
 
 type User struct {

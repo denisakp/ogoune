@@ -64,6 +64,13 @@ type Config struct {
 	// Environment
 	AppEnv string
 
+	// SSL provider for custom domains (spec 059 FR-030 / FR-040).
+	// One of: "letsencrypt" | "external" | "disabled". Default "external".
+	SSLProvider string
+
+	// Public base URL of the app, used for magic-link emails (FR-012a).
+	AppBaseURL string
+
 	// Security configuration
 	CORSAllowedOrigins    []string
 	RateLimitAuth         int
@@ -98,6 +105,8 @@ func Load() Config {
 	logFormat := GetEnv("LOG_FORMAT", "json")
 	logLevel := GetEnv("LOG_LEVEL", "info")
 	appEnv := GetEnv("APP_ENV", "development")
+	sslProvider := GetEnv("SSL_PROVIDER", "external")
+	appBaseURL := GetEnv("APP_BASE_URL", "http://localhost:5173")
 
 	// Security configuration
 	corsOrigins := parseCORSOrigins(GetEnv("CORS_ALLOWED_ORIGINS", ""))
@@ -141,6 +150,8 @@ func Load() Config {
 		MetricsToken:                   metricsToken,
 		EnableSwagger:                  enableSwagger,
 		AppEnv:                         appEnv,
+		SSLProvider:                    sslProvider,
+		AppBaseURL:                     appBaseURL,
 
 		CORSAllowedOrigins:    corsOrigins,
 		RateLimitAuth:         rateLimitAuthCount,
@@ -267,6 +278,15 @@ func MustInit() Config {
 	// Validate critical configuration for the selected driver.
 	if cfg.DBDriver != "sqlite" && cfg.DatabaseUrl == "" {
 		slog.Error("DATABASE_URL environment variable is required when DB_DRIVER is postgres")
+		os.Exit(1)
+	}
+
+	// Validate SSL_PROVIDER (spec 059 FR-030). Allowed: letsencrypt|external|disabled.
+	switch cfg.SSLProvider {
+	case "letsencrypt", "external", "disabled":
+		// ok
+	default:
+		slog.Error("SSL_PROVIDER invalid", "got", cfg.SSLProvider, "want", "letsencrypt|external|disabled")
 		os.Exit(1)
 	}
 

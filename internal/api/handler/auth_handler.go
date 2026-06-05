@@ -4,11 +4,32 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"strings"
 
 	"github.com/denisakp/ogoune/internal/api/response"
 	"github.com/denisakp/ogoune/internal/dto"
 	"github.com/denisakp/ogoune/internal/service"
 )
+
+func loginCtxFrom(r *http.Request) service.LoginContext {
+	return service.LoginContext{
+		UserAgent: r.Header.Get("User-Agent"),
+		IP:        clientIPFromRequest(r),
+	}
+}
+
+func clientIPFromRequest(r *http.Request) string {
+	if forwarded := strings.TrimSpace(r.Header.Get("X-Forwarded-For")); forwarded != "" {
+		parts := strings.Split(forwarded, ",")
+		if len(parts) > 0 {
+			return strings.TrimSpace(parts[0])
+		}
+	}
+	if realIP := strings.TrimSpace(r.Header.Get("X-Real-IP")); realIP != "" {
+		return realIP
+	}
+	return strings.TrimSpace(r.RemoteAddr)
+}
 
 // AuthHandler handles authentication endpoints
 type AuthHandler struct {
@@ -33,7 +54,8 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Validate and log in
-	loginResp, err := h.authService.Login(r.Context(), req.Email, req.Password)
+	ctx := service.WithLoginContext(r.Context(), loginCtxFrom(r))
+	loginResp, err := h.authService.Login(ctx, req.Email, req.Password)
 	if err != nil {
 		if errors.Is(err, service.ErrInvalidCredentials) {
 			response.Error(w, http.StatusUnauthorized, "Invalid email or password")
@@ -60,7 +82,8 @@ func (h *AuthHandler) Verify2FA(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	token, err := h.authService.Verify2FA(r.Context(), req.Email, req.OTP)
+	ctx := service.WithLoginContext(r.Context(), loginCtxFrom(r))
+	token, err := h.authService.Verify2FA(ctx, req.Email, req.OTP)
 	if err != nil {
 		response.Error(w, http.StatusUnauthorized, "Invalid OTP or failed to verify 2FA")
 		return
@@ -103,8 +126,10 @@ func (h *AuthHandler) InitializePassword(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	// Generate token for auto-login after first password setup
-	token, err := h.jwtManager.Generate(r.Context(), user.Email, user.ID)
+	// Generate token for auto-login after first password setup.
+	// Route through AuthService so the session row is created (sid claim).
+	ctx := service.WithLoginContext(r.Context(), loginCtxFrom(r))
+	token, err := h.authService.IssueTokenForUser(ctx, user.Email, user.ID)
 	if err != nil {
 		response.Error(w, http.StatusInternalServerError, "Failed to generate token")
 		return

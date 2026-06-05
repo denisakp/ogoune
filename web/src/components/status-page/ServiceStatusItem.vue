@@ -1,7 +1,5 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { ArrowRightOutlined } from '@ant-design/icons-vue'
-
 interface UptimeBar {
   status: 'up' | 'down' | 'degraded' | 'no_data'
   tooltip?: string
@@ -75,7 +73,7 @@ const getBarTooltipText = (bar: UptimeBar): string => {
     <div class="service-header">
       <div class="service-name">
         <span>{{ name }}</span>
-        <ArrowRightOutlined class="arrow-icon" />
+        <UIcon name="i-lucide-arrow-right" class="arrow-icon" />
       </div>
 
       <div class="service-stats">

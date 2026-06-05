@@ -1,670 +1,425 @@
 <script setup lang="ts">
-import { ref, watch, onMounted, computed } from 'vue'
-import { FolderOutlined } from '@ant-design/icons-vue'
+import { computed, reactive, ref, watch } from 'vue'
 
-import type { Resource, CreateResource, CredentialCreatePayload } from '@/types'
-import { storeToRefs } from 'pinia'
-import { useResourceStore } from '@/stores/resourceStore'
-import { useTagStore } from '@/stores/tagStore'
-import { useComponentStore } from '@/stores/componentStore'
 import {
-  deleteCredential,
-  fetchCredential,
-  isCredentialNotFound,
-  setCredential,
-} from '@/services/credentialService'
-import CredentialsSection from './CredentialsSection.vue'
-import TestConnectionButton from './TestConnectionButton.vue'
+  resourceSchema,
+  type ResourceInput,
+  monitorTypes,
+  httpMethods,
+} from '@/schemas/resource.schema'
+import { ValidationError } from '@/core/errors'
+import * as resourceService from '@/services/resourceService'
+import * as tagService from '@/services/tagService'
+import HeadersEditor from './HeadersEditor.vue'
+import type { Resource, Tag } from '@/types'
 
 interface Props {
-  resource?: Resource
+  resource?: Resource | null
 }
 
-const props = defineProps<Props>()
-const emit = defineEmits<{ submit: [] }>()
+const props = withDefaults(defineProps<Props>(), { resource: null })
+const emit = defineEmits<{ submit: []; cancel: [] }>()
 
-const resourceStore = useResourceStore()
-const { capabilities } = storeToRefs(resourceStore)
+const formRef = ref<{
+  setErrors: (errs: Array<{ path: string; message: string }>) => void
+} | null>(null)
 
-const form = ref<CreateResource & { component_id?: string }>({
-  name: '',
-  type: 'http',
-  target: '',
-  interval: 300,
-  timeout: 10,
-  confirmation_checks: 2,
-  confirmation_interval: 30,
-  tags: [],
-  component_id: undefined,
-  expiry_alert_thresholds: undefined,
-  flap_detection_enabled: undefined,
-  flap_threshold: undefined,
-  flap_window_seconds: undefined,
-  flap_max_duration_minutes: undefined,
-  reminder_interval_minutes: undefined,
-  heartbeat_interval: 300,
-  heartbeat_grace: 60,
-  keyword: undefined,
-  keyword_mode: 'contains' as 'contains' | 'not_contains',
-  protocol_type: undefined,
-  protocol_port: undefined,
-})
+const submitting = ref(false)
+const showAdvanced = ref(false)
+const showTags = ref(false)
+const tagInput = ref('')
+const availableTags = ref<Tag[]>([])
 
-const isHeartbeat = computed(() => form.value.type === 'heartbeat')
-const isKeyword = computed(() => form.value.type === 'keyword')
-const isProtocol = computed(() => form.value.type === 'protocol')
-
-const protocolDefaultPorts: Record<string, number> = {
-  redis: 6379,
-  mongodb: 27017,
-  ftp: 21,
-  ssh: 22,
-  mysql: 3306,
-  postgres: 5432,
-  rabbitmq: 5672,
-  kafka: 9092,
+function toggleTags() {
+  showTags.value = !showTags.value
+  if (showTags.value) void loadTags()
 }
 
-// Feature 028: credential state lives in the form. It is only persisted in
-// Edit mode (we need the resource id). In Create mode the section is hidden.
-const credentialPayload = ref<CredentialCreatePayload | null>(null)
-const credentialMarkedForDeletion = ref(false)
-const hasExistingCredential = ref(false)
-const credentialSupported = computed(() => {
-  return ['redis', 'mysql', 'postgres'].includes(form.value.protocol_type ?? '')
-})
-const showCredentialsSection = computed(() => !!props.resource && credentialSupported.value)
+async function loadTags() {
+  if (availableTags.value.length > 0) return
+  try {
+    availableTags.value = await tagService.fetchTags()
+  } catch {
+    availableTags.value = []
+  }
+}
 
-const loading = ref(false)
+function tagName(id: string): string {
+  return availableTags.value.find((t) => t.id === id)?.name ?? id
+}
+
+async function addTagFromInput() {
+  const name = tagInput.value.trim()
+  if (!name) return
+  const existing = availableTags.value.find((t) => t.name.toLowerCase() === name.toLowerCase())
+  let tagId: string
+  if (existing) {
+    tagId = existing.id
+  } else {
+    const created = await tagService.createTag({ name })
+    availableTags.value.push(created)
+    tagId = created.id
+  }
+  const tags = ((state as unknown as { tags?: string[] }).tags ??= [])
+  if (!tags.includes(tagId)) tags.push(tagId)
+  tagInput.value = ''
+}
+
+function removeTag(id: string) {
+  const tags = (state as unknown as { tags?: string[] }).tags
+  if (tags) (state as unknown as { tags: string[] }).tags = tags.filter((t) => t !== id)
+}
+
+type FormState = Record<string, unknown> & { type: ResourceInput['type'] }
+
+function targetToPerType(type: string, target: string | undefined): Record<string, unknown> {
+  const t = target ?? ''
+  switch (type) {
+    case 'http':
+    case 'keyword':
+      return { url: t }
+    case 'tcp':
+    case 'protocol': {
+      const idx = t.lastIndexOf(':')
+      if (idx === -1) return { host: t }
+      const port = Number(t.slice(idx + 1))
+      return { host: t.slice(0, idx), port: Number.isFinite(port) ? port : undefined }
+    }
+    case 'dns':
+    case 'icmp':
+      return { host: t }
+    default:
+      return {}
+  }
+}
+
+function perTypeToTarget(s: FormState): string {
+  const r = s as unknown as { url?: string; host?: string; port?: number }
+  switch (s.type) {
+    case 'http':
+    case 'keyword':
+      return r.url ?? ''
+    case 'tcp':
+    case 'protocol':
+      return r.port ? `${r.host ?? ''}:${r.port}` : (r.host ?? '')
+    case 'dns':
+    case 'icmp':
+      return r.host ?? ''
+    default:
+      return ''
+  }
+}
+
+function initialState(): FormState {
+  if (props.resource) {
+    const r = props.resource as unknown as Record<string, unknown>
+    return {
+      ...r,
+      ...targetToPerType(String(r.type), r.target as string | undefined),
+    } as FormState
+  }
+  return {
+    type: 'http',
+    name: '',
+    interval: 60,
+    url: '',
+    method: 'GET',
+    expected_status: 200,
+    follow_redirects: true,
+    headers: {},
+    tags: [],
+    notification_channels: [],
+  }
+}
+
+const state = reactive<FormState>(initialState())
 
 watch(
   () => props.resource,
-  (resource) => {
-    if (resource) {
-      form.value = {
-        name: resource.name,
-        type: resource.type,
-        target: resource.target,
-        interval: resource.interval,
-        timeout: resource.timeout,
-        confirmation_checks: resource.confirmation_checks,
-        confirmation_interval: resource.confirmation_interval,
-        tags: (resource.tags ?? []).map((t) => t.name),
-        component_id: resource.component_id || undefined,
-        expiry_alert_thresholds: resource.expiry_alert_thresholds ?? undefined,
-        flap_detection_enabled: resource.flap_detection_enabled,
-        flap_threshold: resource.flap_threshold,
-        flap_window_seconds: resource.flap_window_seconds,
-        flap_max_duration_minutes: resource.flap_max_duration_minutes,
-        reminder_interval_minutes: resource.reminder_interval_minutes,
-        heartbeat_interval: resource.heartbeat_interval ?? 300,
-        heartbeat_grace: resource.heartbeat_grace ?? 60,
-        keyword: resource.keyword ?? undefined,
-        keyword_mode: (resource.keyword_mode as 'contains' | 'not_contains') ?? 'contains',
-        protocol_type: resource.protocol_type ?? undefined,
-        protocol_port: resource.protocol_port ?? undefined,
-      }
-    } else {
-      form.value = {
-        name: '',
-        type: 'http',
-        target: '',
-        interval: 300,
-        timeout: 10,
-        confirmation_checks: 2,
-        confirmation_interval: 30,
-        tags: [],
-        component_id: undefined,
-        expiry_alert_thresholds: undefined,
-        flap_detection_enabled: undefined,
-        flap_threshold: undefined,
-        flap_window_seconds: undefined,
-        flap_max_duration_minutes: undefined,
-        reminder_interval_minutes: undefined,
-        heartbeat_interval: 300,
-        heartbeat_grace: 60,
-        keyword: undefined,
-        keyword_mode: 'contains',
-        protocol_type: undefined,
-        protocol_port: undefined,
-      }
-    }
-  },
-  { immediate: true },
-)
-
-// Auto-fill protocol_port when protocol_type changes and port hasn't been manually set.
-let protocolPortManuallySet = false
-watch(
-  () => form.value.protocol_port,
-  () => { protocolPortManuallySet = true },
-)
-watch(
-  () => form.value.protocol_type,
-  (newType) => {
-    if (newType && !protocolPortManuallySet) {
-      form.value.protocol_port = protocolDefaultPorts[newType]
-    }
-    protocolPortManuallySet = false
+  () => {
+    Object.assign(state, initialState())
   },
 )
 
-const handleSubmit = async () => {
-  if (!form.value.name.trim()) {
+const typeOptions = monitorTypes.map((t) => ({ label: t.toUpperCase(), value: t }))
+const methodOptions = httpMethods.map((m) => ({ label: m, value: m }))
+const dnsRecordTypes = ['A', 'AAAA', 'CNAME', 'MX', 'TXT', 'NS']
+const protocols = ['imap', 'smtp', 'pop3', 'ssh', 'mysql', 'postgres']
+
+const allowedByType: Record<string, string[]> = {
+  http: ['url', 'method', 'expected_status', 'follow_redirects', 'headers'],
+  tcp: ['host', 'port'],
+  dns: ['host', 'record_type'],
+  icmp: ['host'],
+  keyword: ['url', 'keyword', 'case_sensitive'],
+  heartbeat: ['grace_seconds'],
+  protocol: ['protocol', 'host', 'port'],
+}
+const baseKeys = [
+  'type',
+  'name',
+  'interval',
+  'confirmation_interval',
+  'tags',
+  'notification_channels',
+]
+
+function stripExtras() {
+  const keep = new Set([...baseKeys, ...(allowedByType[state.type] ?? [])])
+  for (const k of Object.keys(state)) {
+    if (!keep.has(k)) delete state[k]
+  }
+}
+
+watch(() => state.type, stripExtras)
+
+const isEdit = computed(() => !!props.resource)
+
+async function onSubmit() {
+  stripExtras()
+  const parsed = resourceSchema.safeParse(state as unknown as ResourceInput)
+  if (!parsed.success) {
+    const errors = parsed.error.issues.map((i) => ({
+      path: i.path.join('.'),
+      message: i.message,
+    }))
+    formRef.value?.setErrors(errors)
     return
   }
-  if (isHeartbeat.value) {
-    const hbInterval = form.value.heartbeat_interval ?? 0
-    const hbGrace = form.value.heartbeat_grace ?? 0
-    if (hbInterval < 60 || hbInterval > 86400) return
-    if (hbGrace < 60 || hbGrace > 3600) return
-  } else {
-    if (!form.value.target?.trim()) {
-      return
-    }
-    if ((form.value.interval ?? 0) < 10) {
-      return
-    }
-    if ((form.value.timeout ?? 0) < 1) {
-      return
-    }
-    if ((form.value.confirmation_checks ?? 0) <= 0) {
-      return
-    }
-    if ((form.value.confirmation_interval ?? 0) <= 0) {
-      return
-    }
-    if ((form.value.confirmation_interval ?? 0) >= (form.value.interval ?? 0)) {
-      return
-    }
-  }
-  if (isKeyword.value) {
-    if (!form.value.keyword?.trim()) return
-    if ((form.value.keyword?.length ?? 0) > 500) return
-  }
-  if (isProtocol.value) {
-    if (!form.value.protocol_type) return
-    const port = form.value.protocol_port
-    if (port !== undefined && (port < 1 || port > 65535)) return
-    if (form.value.protocol_type === 'kafka') {
-      const entries = (form.value.target ?? '')
-        .split(',')
-        .map((s) => s.trim())
-        .filter(Boolean)
-      if (entries.length === 0) return
-      const hostPortRe = /^[A-Za-z0-9._-]+:\d{1,5}$/
-      if (entries.some((e) => !hostPortRe.test(e))) return
-    }
-    if (form.value.protocol_type === 'rabbitmq') {
-      if ((form.value.target ?? '').includes(',')) return
-    }
-  }
-  const thresholds = form.value.expiry_alert_thresholds?.trim()
-  if (thresholds) {
-    const parts = thresholds.split(',').map((s) => s.trim())
-    const invalid = parts.some((p) => !/^\d+$/.test(p) || +p < 1 || +p > 365)
-    if (invalid) {
-      return
-    }
+
+  // Backend uses a single canonical `target` field — serialize per-type fields into it.
+  const payload = {
+    ...(parsed.data as unknown as Record<string, unknown>),
+    target: perTypeToTarget(state),
   }
 
-  loading.value = true
-
+  submitting.value = true
   try {
-    if (props.resource) {
-      const updateData = {
-        name: form.value.name,
-        type: form.value.type,
-        target: form.value.target,
-        interval: form.value.interval,
-        timeout: form.value.timeout,
-        confirmation_checks: form.value.confirmation_checks,
-        confirmation_interval: form.value.confirmation_interval,
-        tags: form.value.tags,
-        component_id: form.value.component_id,
-        expiry_alert_thresholds: form.value.expiry_alert_thresholds || undefined,
-        flap_detection_enabled: form.value.flap_detection_enabled,
-        flap_threshold: form.value.flap_threshold,
-        flap_window_seconds: form.value.flap_window_seconds,
-        flap_max_duration_minutes: form.value.flap_max_duration_minutes,
-        reminder_interval_minutes: form.value.reminder_interval_minutes,
-        heartbeat_interval: isHeartbeat.value ? form.value.heartbeat_interval : undefined,
-        heartbeat_grace: isHeartbeat.value ? form.value.heartbeat_grace : undefined,
-        keyword: isKeyword.value ? form.value.keyword : undefined,
-        keyword_mode: isKeyword.value ? form.value.keyword_mode : undefined,
-        protocol_type: isProtocol.value ? form.value.protocol_type : undefined,
-        protocol_port: isProtocol.value ? form.value.protocol_port : undefined,
-      }
-      await resourceStore.updateResourceData(props.resource.id, updateData)
-      await persistCredentialIfNeeded(props.resource.id)
+    if (isEdit.value && props.resource) {
+      await resourceService.updateResource(
+        props.resource.id,
+        payload as unknown as Parameters<typeof resourceService.updateResource>[1],
+      )
     } else {
-      await resourceStore.addResource(form.value)
+      await resourceService.createResource(
+        payload as unknown as Parameters<typeof resourceService.createResource>[0],
+      )
     }
     emit('submit')
-  } catch {
+  } catch (e) {
+    if (e instanceof ValidationError) {
+      formRef.value?.setErrors(
+        Object.entries(e.fieldErrors).map(([path, msgs]) => ({
+          path,
+          message: msgs[0] ?? 'Invalid',
+        })),
+      )
+    } else {
+      throw e
+    }
   } finally {
-    loading.value = false
+    submitting.value = false
   }
 }
 
-const tagStore = useTagStore()
-const { tags } = storeToRefs(tagStore)
-const componentStore = useComponentStore()
-const { components } = storeToRefs(componentStore)
-
-onMounted(async () => {
-  tagStore.fetchTags()
-  componentStore.loadComponents()
-  resourceStore.loadCapabilities()
-
-  // Feature 028: detect whether an existing credential is configured so the
-  // section can render the right hint ("replace" vs "create").
-  if (props.resource && credentialSupported.value) {
-    try {
-      await fetchCredential(props.resource.id)
-      hasExistingCredential.value = true
-    } catch (err) {
-      if (!isCredentialNotFound(err)) {
-        // Network / other errors: silently treat as "no credential" — the
-        // operator can still set one and the server will surface real failures
-        // at save time.
-      }
-      hasExistingCredential.value = false
-    }
-  }
-})
-
-function onClearCredential() {
-  credentialMarkedForDeletion.value = true
-  credentialPayload.value = null
-}
-
-async function persistCredentialIfNeeded(resourceId: string) {
-  if (!credentialSupported.value) return
-  if (credentialMarkedForDeletion.value && hasExistingCredential.value) {
-    await deleteCredential(resourceId)
-    return
-  }
-  if (credentialPayload.value && credentialPayload.value.password) {
-    await setCredential(resourceId, credentialPayload.value)
-  }
-}
-
-const tagsOptions = computed(() => tags.value.map((tag) => ({ value: tag.name, label: tag.name })))
-
-const componentOptions = computed(() => [
-  { value: undefined, label: '⊘ No component (standalone resource)' },
-  ...components.value.map((c) => ({ value: c.id, label: c.name })),
-])
-
-const targetPlaceholder = computed(() => {
-  switch (form.value.type) {
-    case 'dns':
-      return 'e.g., example.com or 8.8.8.8'
-    case 'icmp':
-      return 'e.g., hostname or IP address (e.g., 8.8.8.8)'
-    default:
-      return 'e.g., https://example.com or example.com:8080'
-  }
-})
-
-const icmpWarning = computed(() => {
-  if (form.value.type !== 'icmp') return null
-  if (!capabilities.value) return null
-  const icmp = capabilities.value.icmp
-  if (!icmp.enabled) {
-    return {
-      type: 'error' as const,
-      message: 'ICMP monitoring is disabled (set ENABLE_ICMP=true to enable)',
-    }
-  }
-  if (!icmp.capability_available) {
-    return {
-      type: 'warning' as const,
-      message: `ICMP capability unavailable: ${icmp.reason || 'requires elevated privileges (root or CAP_NET_RAW)'}`,
-    }
-  }
-  return null
-})
+defineExpose({ state, onSubmit, formRef, stripExtras })
 </script>
 
 <template>
-  <a-form layout="vertical">
-    <!-- Name -->
-    <a-form-item label="Monitor Name" required>
-      <a-input
-        v-model:value="form.name"
-        placeholder="e.g., My Website"
-        @keyup.enter="handleSubmit"
-      />
-    </a-form-item>
+  <UForm ref="formRef" :schema="resourceSchema" :state="state" class="space-y-4" @submit="onSubmit">
+    <div class="space-y-1.5">
+      <label class="text-xs font-medium text-slate-900">Type</label>
+      <UFormField name="type" :ui="{ label: 'hidden' }">
+        <USelect v-model="state.type" :items="typeOptions" class="w-full" />
+      </UFormField>
+    </div>
 
-    <!-- Type & Target Row -->
-    <a-row :gutter="16">
-      <a-col :xs="24" :sm="12">
-        <a-form-item label="Type" required>
-          <a-select v-model:value="form.type">
-            <a-select-option value="http">HTTP/HTTPS</a-select-option>
-            <a-select-option value="tcp">TCP</a-select-option>
-            <a-select-option value="dns">DNS</a-select-option>
-            <a-select-option value="icmp">ICMP (Ping)</a-select-option>
-            <a-select-option value="heartbeat">Heartbeat / Push</a-select-option>
-            <a-select-option value="keyword">Keyword / Content Check</a-select-option>
-            <a-select-option value="protocol">Protocol Check</a-select-option>
-          </a-select>
-        </a-form-item>
-      </a-col>
-
-      <a-col v-if="!isHeartbeat" :xs="24" :sm="12">
-        <a-form-item label="Target" required>
-          <a-input
-            v-model:value="form.target"
-            :placeholder="targetPlaceholder"
-          />
-        </a-form-item>
-      </a-col>
-    </a-row>
-
-    <!-- Heartbeat fields -->
-    <template v-if="isHeartbeat">
-      <a-row :gutter="16">
-        <a-col :xs="24" :sm="12">
-          <a-form-item label="Ping Interval (seconds)" required>
-            <a-input-number
-              v-model:value="form.heartbeat_interval"
-              :min="60"
-              :max="86400"
-              style="width: 100%"
-              placeholder="e.g. 300 (5 min)"
-              data-testid="heartbeat-interval"
-            />
-          </a-form-item>
-        </a-col>
-        <a-col :xs="24" :sm="12">
-          <a-form-item label="Grace Period (seconds)" required>
-            <a-input-number
-              v-model:value="form.heartbeat_grace"
-              :min="60"
-              :max="3600"
-              style="width: 100%"
-              placeholder="e.g. 60 (1 min)"
-              data-testid="heartbeat-grace"
-            />
-          </a-form-item>
-        </a-col>
-      </a-row>
-    </template>
-
-    <!-- Protocol fields -->
-    <template v-if="isProtocol">
-      <a-row :gutter="16">
-        <a-col :xs="24" :sm="12">
-          <a-form-item label="Protocol" required>
-            <a-select
-              v-model:value="form.protocol_type"
-              placeholder="Select protocol"
-              data-testid="protocol-type-select"
-            >
-              <a-select-option value="redis">Redis</a-select-option>
-              <a-select-option value="mongodb">MongoDB</a-select-option>
-              <a-select-option value="ftp">FTP</a-select-option>
-              <a-select-option value="ssh">SSH</a-select-option>
-              <a-select-option value="mysql">MySQL</a-select-option>
-              <a-select-option value="postgres">PostgreSQL</a-select-option>
-              <a-select-option value="rabbitmq">RabbitMQ</a-select-option>
-              <a-select-option value="kafka">Kafka (bootstrap brokers)</a-select-option>
-            </a-select>
-          </a-form-item>
-        </a-col>
-        <a-col :xs="24" :sm="12">
-          <a-form-item label="Port (optional — leave blank for default)">
-            <a-input-number
-              v-model:value="form.protocol_port"
-              :min="1"
-              :max="65535"
-              style="width: 100%"
-              placeholder="e.g. 6379"
-              data-testid="protocol-port-input"
-            />
-          </a-form-item>
-        </a-col>
-      </a-row>
-
-      <!-- Feature 028: credentials section. Edit mode only — Create mode does
-           not have a resource id yet, so we hide the section to avoid the
-           extra UX of "save then re-edit". The operator can add credentials
-           after the first save. -->
-      <CredentialsSection
-        v-if="showCredentialsSection"
-        :protocol-type="form.protocol_type"
-        :model-value="credentialPayload"
-        :has-existing-credential="hasExistingCredential"
-        @update:model-value="(v) => { credentialPayload = v; credentialMarkedForDeletion = false }"
-        @clear="onClearCredential"
-      />
-
-      <TestConnectionButton
-        v-if="showCredentialsSection"
-        :resource-id="props.resource?.id"
-        :payload="credentialPayload"
-      />
-    </template>
-
-    <!-- Keyword fields -->
-    <template v-if="isKeyword">
-      <a-row :gutter="16">
-        <a-col :xs="24" :sm="16">
-          <a-form-item label="Keyword" required>
-            <a-input
-              v-model:value="form.keyword"
-              placeholder="e.g., operational"
-              :maxlength="500"
-              data-testid="keyword-input"
-            />
-          </a-form-item>
-        </a-col>
-        <a-col :xs="24" :sm="8">
-          <a-form-item label="Match Mode">
-            <a-select v-model:value="form.keyword_mode" data-testid="keyword-mode-select">
-              <a-select-option value="contains">Contains</a-select-option>
-              <a-select-option value="not_contains">Does Not Contain</a-select-option>
-            </a-select>
-          </a-form-item>
-        </a-col>
-      </a-row>
-    </template>
-
-    <!-- ICMP availability warning -->
-    <a-alert
-      v-if="icmpWarning"
-      style="margin-bottom: 16px"
-      :type="icmpWarning.type"
-      show-icon
-      :message="icmpWarning.message"
-    />
-
-    <!-- Interval (non-heartbeat only) -->
-    <a-form-item v-if="!isHeartbeat" label="Check Interval (seconds)">
-      <div style="display: flex; align-items: center; gap: 16px">
-        <a-slider
-          v-model:value="form.interval"
-          :min="10"
-          :max="3600"
-          :step="10"
-          style="flex: 1"
-          :marks="{ 10: '10s', 300: '5m', 600: '10m', 3600: '1h' }"
+    <div class="space-y-1.5">
+      <label class="text-xs font-medium text-slate-900">Name</label>
+      <UFormField name="name" :ui="{ label: 'hidden' }">
+        <UInput
+          v-model="(state as unknown as { name: string }).name"
+          placeholder="api.acme.com"
+          class="w-full"
         />
-        <div style="min-width: 60px; text-align: right; font-weight: bold">
-          {{ form.interval }}s
-        </div>
-      </div>
-    </a-form-item>
+      </UFormField>
+    </div>
 
-    <!-- Timeout (non-heartbeat only) -->
-    <a-form-item v-if="!isHeartbeat" label="Timeout (seconds)">
-      <div style="display: flex; align-items: center; gap: 16px">
-        <a-slider
-          v-model:value="form.timeout"
+    <div v-if="state.type === 'http' || state.type === 'keyword'" class="space-y-1.5">
+      <label class="text-xs font-medium text-slate-900">URL</label>
+      <UFormField name="url" :ui="{ label: 'hidden' }">
+        <UInput
+          v-model="(state as unknown as { url: string }).url"
+          placeholder="https://api.acme.com/health"
+          class="w-full"
+        />
+      </UFormField>
+    </div>
+
+    <div v-if="state.type === 'keyword'" class="space-y-1.5">
+      <label class="text-xs font-medium text-slate-900">Keyword</label>
+      <UFormField name="keyword" :ui="{ label: 'hidden' }">
+        <UInput v-model="(state as unknown as { keyword: string }).keyword" class="w-full" />
+      </UFormField>
+    </div>
+
+    <div
+      v-if="['tcp', 'protocol', 'dns', 'icmp'].includes(state.type as string)"
+      class="space-y-1.5"
+    >
+      <label class="text-xs font-medium text-slate-900">Host</label>
+      <UFormField name="host" :ui="{ label: 'hidden' }">
+        <UInput
+          v-model="(state as unknown as { host: string }).host"
+          placeholder="db.acme.com"
+          class="w-full"
+        />
+      </UFormField>
+    </div>
+
+    <div v-if="state.type === 'tcp' || state.type === 'protocol'" class="space-y-1.5">
+      <label class="text-xs font-medium text-slate-900">Port</label>
+      <UFormField name="port" :ui="{ label: 'hidden' }">
+        <UInput
+          v-model.number="(state as unknown as { port: number }).port"
+          type="number"
           :min="1"
-          :max="60"
-          :step="1"
-          style="flex: 1"
-          :marks="{ 1: '1s', 10: '10s', 30: '30s', 60: '60s' }"
+          :max="65535"
+          class="w-full"
         />
-        <div style="min-width: 60px; text-align: right; font-weight: bold">{{ form.timeout }}s</div>
-      </div>
-    </a-form-item>
+      </UFormField>
+    </div>
 
-    <a-row v-if="!isHeartbeat" :gutter="16">
-      <a-col :xs="24" :sm="12">
-        <a-form-item label="Confirmation Checks">
-          <a-input-number
-            v-model:value="form.confirmation_checks"
-            :min="1"
-            :max="20"
-            style="width: 100%"
-          />
-        </a-form-item>
-      </a-col>
-      <a-col :xs="24" :sm="12">
-        <a-form-item label="Confirmation Interval (seconds)">
-          <a-input-number
-            v-model:value="form.confirmation_interval"
-            :min="1"
-            :max="3600"
-            style="width: 100%"
-          />
-        </a-form-item>
-      </a-col>
-    </a-row>
-    <a-alert
-      v-if="!isHeartbeat"
-      style="margin-bottom: 16px"
-      type="info"
-      show-icon
-      :message="
-        form.confirmation_checks === 1
-          ? 'Immediate mode enabled: incident is created on first failure.'
-          : 'Confirmation mode: incidents trigger only after consecutive failures reach the threshold.'
-      "
-      description="confirmation_interval must be lower than the regular check interval."
-    />
+    <div v-if="state.type === 'dns'" class="space-y-1.5">
+      <label class="text-xs font-medium text-slate-900">Record type</label>
+      <UFormField name="record_type" :ui="{ label: 'hidden' }">
+        <USelect
+          v-model="(state as unknown as { record_type: string }).record_type"
+          :items="dnsRecordTypes"
+          class="w-full"
+        />
+      </UFormField>
+    </div>
 
-    <!-- Tags selection -->
-    <a-form-item label="Tags">
-      <a-select
-        v-model:value="form.tags"
-        mode="tags"
-        style="width: 100%"
-        placeholder="Tags"
-        :options="tagsOptions"
-      >
-      </a-select>
-    </a-form-item>
+    <div v-if="state.type === 'protocol'" class="space-y-1.5">
+      <label class="text-xs font-medium text-slate-900">Protocol</label>
+      <UFormField name="protocol" :ui="{ label: 'hidden' }">
+        <USelect
+          v-model="(state as unknown as { protocol: string }).protocol"
+          :items="protocols"
+          class="w-full"
+        />
+      </UFormField>
+    </div>
 
-    <!-- Component Assignment -->
-    <a-form-item label="Component (Optional)">
-      <a-select
-        v-model:value="form.component_id"
-        allow-clear
-        style="width: 100%"
-        placeholder="Assign to a component group"
-        :options="componentOptions"
-      >
-        <template #suffixIcon>
-          <FolderOutlined />
-        </template>
-      </a-select>
-      <div style="margin-top: 8px; font-size: 12px; color: rgba(0, 0, 0, 0.45)">
-        💡 Group related resources together (e.g., "Frontend Services", "API Servers"). A resource
-        can belong to only one component.
-      </div>
-    </a-form-item>
+    <div v-if="state.type === 'heartbeat'" class="space-y-1.5">
+      <label class="text-xs font-medium text-slate-900">Grace period (seconds)</label>
+      <UFormField name="grace_seconds" :ui="{ label: 'hidden' }">
+        <UInput
+          v-model.number="(state as unknown as { grace_seconds: number }).grace_seconds"
+          type="number"
+          :min="30"
+          :max="86400"
+          class="w-full"
+        />
+      </UFormField>
+    </div>
 
-    <!-- Expiry Alert Thresholds (HTTP only) -->
-    <a-form-item v-if="form.type === 'http'" label="Custom Expiry Alert Thresholds (days)">
-      <a-input
-        v-model:value="form.expiry_alert_thresholds"
-        placeholder="e.g. 30,14,7,1"
-        allow-clear
+    <button
+      type="button"
+      class="text-xs font-medium text-slate-700 hover:text-slate-900 flex items-center gap-1"
+      @click="showAdvanced = !showAdvanced"
+    >
+      <UIcon
+        :name="showAdvanced ? 'i-lucide-chevron-down' : 'i-lucide-chevron-right'"
+        class="size-3.5"
       />
-      <div style="margin-top: 8px; font-size: 12px; color: rgba(0, 0, 0, 0.45)">
-        🔒 Comma-separated days before SSL/domain expiry to send alerts (each value 1–365). Leave
-        blank to use global defaults.
-      </div>
-    </a-form-item>
-
-    <!-- Submit Buttons -->
-    <!-- Smart Alerting -->
-    <a-collapse style="margin-bottom: 24px" :bordered="false">
-      <a-collapse-panel key="smart-alerting" header="⚡ Smart Alerting (Optional)">
-        <a-form-item label="Flap Detection">
-          <a-switch v-model:checked="form.flap_detection_enabled" />
-          <span style="margin-left: 8px; font-size: 13px; color: rgba(0, 0, 0, 0.45)">
-            Suppress repeated alerts when the service oscillates between UP and DOWN
-          </span>
-        </a-form-item>
-
-        <template v-if="form.flap_detection_enabled">
-          <a-row :gutter="16">
-            <a-col :xs="24" :sm="8">
-              <a-form-item label="Flap Threshold (transitions)">
-                <a-input-number
-                  v-model:value="form.flap_threshold"
-                  :min="2"
-                  :max="20"
-                  style="width: 100%"
-                  placeholder="e.g. 3"
-                />
-              </a-form-item>
-            </a-col>
-            <a-col :xs="24" :sm="8">
-              <a-form-item label="Flap Window (seconds)">
-                <a-input-number
-                  v-model:value="form.flap_window_seconds"
-                  :min="60"
-                  :max="3600"
-                  style="width: 100%"
-                  placeholder="e.g. 300"
-                />
-              </a-form-item>
-            </a-col>
-            <a-col :xs="24" :sm="8">
-              <a-form-item label="Max Flap Duration (minutes, 0=unlimited)">
-                <a-input-number
-                  v-model:value="form.flap_max_duration_minutes"
-                  :min="0"
-                  style="width: 100%"
-                  placeholder="0"
-                />
-              </a-form-item>
-            </a-col>
-          </a-row>
-        </template>
-
-        <a-form-item label="Reminder Interval (minutes, 0=disabled)">
-          <a-input-number
-            v-model:value="form.reminder_interval_minutes"
-            :min="0"
-            style="width: 100%"
-            placeholder="0"
+      Advanced
+    </button>
+    <div v-if="showAdvanced" class="space-y-4 pl-4 border-l border-slate-200">
+      <div class="space-y-1.5">
+        <label class="text-xs font-medium text-slate-900">Check interval (seconds)</label>
+        <UFormField name="interval" :ui="{ label: 'hidden' }">
+          <UInput
+            v-model.number="(state as unknown as { interval: number }).interval"
+            type="number"
+            :min="30"
+            :max="86400"
+            class="w-full"
           />
-          <div style="margin-top: 4px; font-size: 12px; color: rgba(0, 0, 0, 0.45)">
-            Send a reminder notification if an incident remains open for this many minutes.
-          </div>
-        </a-form-item>
-      </a-collapse-panel>
-    </a-collapse>
+        </UFormField>
+      </div>
+      <template v-if="state.type === 'http'">
+        <div class="space-y-1.5">
+          <label class="text-xs font-medium text-slate-900">Method</label>
+          <USelect
+            v-model="(state as unknown as { method: string }).method"
+            :items="methodOptions"
+            class="w-full"
+          />
+        </div>
+        <div class="space-y-1.5">
+          <label class="text-xs font-medium text-slate-900">Expected status</label>
+          <UInput
+            v-model.number="(state as unknown as { expected_status: number }).expected_status"
+            type="number"
+            :min="100"
+            :max="599"
+            class="w-full"
+          />
+        </div>
+        <div class="space-y-1.5">
+          <label class="text-xs font-medium text-slate-900">Headers</label>
+          <HeadersEditor
+            v-model="(state as unknown as { headers: Record<string, string> }).headers"
+          />
+        </div>
+      </template>
+    </div>
 
-    <a-form-item style="margin-top: 24px">
-      <a-space>
-        <a-button @click="() => emit('submit')">Cancel</a-button>
-        <a-button type="primary" :loading="loading" @click="handleSubmit">
-          {{ props.resource ? 'Update Monitor' : 'Create Monitor' }}
-        </a-button>
-      </a-space>
-    </a-form-item>
-  </a-form>
+    <button
+      type="button"
+      class="text-xs font-medium text-slate-700 hover:text-slate-900 flex items-center gap-1"
+      @click="toggleTags"
+    >
+      <UIcon
+        :name="showTags ? 'i-lucide-chevron-down' : 'i-lucide-chevron-right'"
+        class="size-3.5"
+      />
+      Tags
+    </button>
+    <div v-if="showTags" class="space-y-2 pl-4 border-l border-slate-200">
+      <div class="flex flex-wrap gap-1.5">
+        <span
+          v-for="id in (state as unknown as { tags?: string[] }).tags ?? []"
+          :key="id"
+          class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-slate-100 text-xs text-slate-700"
+        >
+          {{ tagName(id) }}
+          <button type="button" class="text-slate-400 hover:text-slate-700" @click="removeTag(id)">
+            <UIcon name="i-lucide-x" class="size-3" />
+          </button>
+        </span>
+      </div>
+      <div class="flex items-center gap-2">
+        <UInput
+          v-model="tagInput"
+          placeholder="Type a tag name and press Enter"
+          size="sm"
+          class="flex-1"
+          @keydown.enter.prevent="addTagFromInput"
+        />
+        <UButton color="neutral" variant="outline" size="xs" @click="addTagFromInput">
+          + Add
+        </UButton>
+      </div>
+    </div>
+
+    <div class="flex justify-end gap-2 pt-4 border-t border-slate-200">
+      <UButton color="neutral" variant="ghost" @click="emit('cancel')">Cancel</UButton>
+      <UButton type="submit" color="primary" :loading="submitting">
+        {{ isEdit ? 'Save changes' : 'Create monitor' }}
+      </UButton>
+    </div>
+  </UForm>
 </template>
-
-<style scoped></style>

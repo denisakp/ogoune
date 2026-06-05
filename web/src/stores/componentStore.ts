@@ -14,8 +14,12 @@ export const useComponentStore = defineStore('component', () => {
   const updateError = ref<string | null>(null)
   const removeLoading = ref(false)
   const removeError = ref<string | null>(null)
-  const loading = computed(() => loadLoading.value || addLoading.value || updateLoading.value || removeLoading.value)
-  const error = computed(() => loadError.value ?? addError.value ?? updateError.value ?? removeError.value)
+  const loading = computed(
+    () => loadLoading.value || addLoading.value || updateLoading.value || removeLoading.value,
+  )
+  const error = computed(
+    () => loadError.value ?? addError.value ?? updateError.value ?? removeError.value,
+  )
 
   const loadComponents = () =>
     withStoreAction(loadLoading, loadError, async () => {

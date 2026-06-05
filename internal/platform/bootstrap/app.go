@@ -42,6 +42,9 @@ type App struct {
 	APIKeyRepo              port.APIKeyRepository
 	ResourceCredentialRepo  port.ResourceCredentialRepository
 	ExpiryNotificationLogRepo port.ExpiryNotificationLogRepository
+	SessionRepo               port.SessionRepository
+	TwoFactorResetTokenRepo   port.TwoFactorResetTokenRepository
+	EscalationRepo            port.EscalationRepository
 
 	// Metrics phase
 	MetricsRecorder domain.MetricsRecorder
@@ -68,6 +71,9 @@ type App struct {
 	AuthService      *service.AuthService
 	JWTManager       *service.JWTManager
 	APIKeyService    *service.APIKeyService
+	SessionService   *service.SessionService
+	TwoFactorService *service.TwoFactorService
+	EscalationService *service.EscalationService
 
 	// Router phase
 	RootRouter *chi.Mux

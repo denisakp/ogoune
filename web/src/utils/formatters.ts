@@ -40,7 +40,12 @@ export const getExpirationStatus = (dateString?: string): ExpirationStatusResult
   if (!dateString) return { text: 'Unknown', color: '#d9d9d9', type: 'success' }
   const days = getDaysUntilExpiration(dateString)
   if (days < 0) return { text: 'Expired', color: '#ff4d4f', type: 'danger' }
-  if (days <= 7) return { text: `Expires in ${days} day${days !== 1 ? 's' : ''}`, color: '#ff4d4f', type: 'danger' }
+  if (days <= 7)
+    return {
+      text: `Expires in ${days} day${days !== 1 ? 's' : ''}`,
+      color: '#ff4d4f',
+      type: 'danger',
+    }
   if (days <= 30) return { text: `Expires in ${days} days`, color: '#faad14', type: 'warning' }
   return { text: `Expires in ${days} days`, color: '#52c41a', type: 'success' }
 }

@@ -156,6 +156,7 @@ Community Edition — expanding monitoring coverage, observability, and security
 - [x] **Custom domain status page** — serve your status page on `status.yourdomain.com`. **Community Edition.**
 - [ ] **White-label status page** — customize logo, colors, hide "Powered by Ogoune". **Community Edition.**
   The EE differentiator is the removal of "Powered by Ogoune" from generated PDFs and email branding.
+- [ ] **Live incident updates** *(exploratory, post-H3)* — editorial updates posted during an active incident (Investigating → Identified → Monitoring → Resolved), shown live on the public status page alongside the auto-detected uptime. Closes the loop between automatic detection and the planned Postmortem editor. Optional follow-ups: scheduled maintenance announcements, manual component degradation override, subscriber notifications (email/RSS). **Community Edition.** Effort estimate ~10-15 days backend + 5-7 days frontend across multiple sub-features. Not committed; revisit after Slice 4 (Status Page family) ships.
 
 ### Reporting
 

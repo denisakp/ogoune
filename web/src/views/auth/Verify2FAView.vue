@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { computed, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { SafetyOutlined } from '@ant-design/icons-vue'
 import type { Rule } from 'ant-design-vue/es/form'
 import { useAuthStore } from '@/stores/authStore.ts'
 
@@ -51,7 +50,7 @@ const handleVerify = async () => {
   <div class="verify-container">
     <div class="verify-card">
       <div class="verify-header">
-        <SafetyOutlined class="icon" />
+        <UIcon name="i-lucide-shield-check" class="icon" />
         <h1>Two-Factor Verification</h1>
         <p>Enter the 6-digit code from your authenticator app.</p>
         <p v-if="pendingEmail" class="email">Account: {{ pendingEmail }}</p>

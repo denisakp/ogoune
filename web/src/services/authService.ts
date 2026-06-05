@@ -1,5 +1,4 @@
-import axiosClient from '@/libs/axios.helper'
-import type { CustomAxiosConfig } from '@/libs/axios.helper'
+import { getAuthenticatedClient, http, request } from '@/core/http/client'
 
 export interface LoginRequest {
   email: string
@@ -19,6 +18,17 @@ export interface Verify2FARequest {
   otp: string
 }
 
+export interface SignupRequest {
+  email: string
+  password: string
+  newsletter?: boolean
+}
+
+export interface ResetPasswordRequest {
+  token: string
+  password: string
+}
+
 export interface VerifyResponse {
   email: string
   user_id: string
@@ -27,67 +37,75 @@ export interface VerifyResponse {
   two_factor_enabled: boolean
 }
 
+const SKIP_SUCCESS = { headers: { 'x-skip-success-toast': '1' } }
+const SKIP_BOTH = {
+  headers: { 'x-skip-success-toast': '1', 'x-skip-error-toast': '1' },
+}
+
 const authService = {
   /**
-   * Authenticate user with email and password
+   * Authenticate user with email and password. Unauthenticated endpoint.
    */
   async login(email: string, password: string): Promise<LoginResponse> {
-    const config: CustomAxiosConfig = {
-      skipSuccessToast: true, // Don't show success toast for login
-      skipErrorToast: false,
-    }
-
-    const response = await axiosClient.post<LoginResponse>(
-      '/auth/login',
-      { email, password },
-      config,
-    )
-
-    return response.data
+    return await request<LoginResponse>(http, 'auth/login', {
+      method: 'POST',
+      json: { email, password },
+      ...SKIP_SUCCESS,
+    })
   },
 
   /**
-   * Verify current JWT token
+   * Verify current JWT token. Uses the authenticated client.
+   * Errors are swallowed silently — the caller treats failure as "not authenticated".
    */
   async verify(): Promise<VerifyResponse> {
-    const config: CustomAxiosConfig = {
-      skipSuccessToast: true,
-      skipErrorToast: true, // Don't show error toast for token verification
-    }
-
-    const response = await axiosClient.get<VerifyResponse>('/auth/verify', config)
-    return response.data
+    return await request<VerifyResponse>(getAuthenticatedClient(), 'auth/verify', SKIP_BOTH)
   },
 
   /**
-   * Verify 2FA OTP and issue token
+   * Verify 2FA OTP and issue token. Unauthenticated endpoint.
    */
   async verify2FA(payload: Verify2FARequest): Promise<LoginResponse> {
-    const config: CustomAxiosConfig = {
-      skipSuccessToast: true,
-      skipErrorToast: false,
-    }
-
-    const response = await axiosClient.post<LoginResponse>('/auth/verify-2fa', payload, config)
-    return response.data
+    return await request<LoginResponse>(http, 'auth/verify-2fa', {
+      method: 'POST',
+      json: payload,
+      ...SKIP_SUCCESS,
+    })
   },
 
   /**
-   * Initialize password for first-time users
+   * Initialize password for first-time users. Unauthenticated endpoint.
    */
   async initializePassword(email: string, newPassword: string): Promise<LoginResponse> {
-    const config: CustomAxiosConfig = {
-      skipSuccessToast: true,
-      skipErrorToast: false,
-    }
+    return await request<LoginResponse>(http, 'auth/initialize-password', {
+      method: 'POST',
+      json: { email, new_password: newPassword },
+      ...SKIP_SUCCESS,
+    })
+  },
 
-    const response = await axiosClient.post<LoginResponse>(
-      '/auth/initialize-password',
-      { email, new_password: newPassword },
-      config,
-    )
+  async signUp(input: SignupRequest): Promise<LoginResponse> {
+    return await request<LoginResponse>(http, 'auth/signup', {
+      method: 'POST',
+      json: input,
+      ...SKIP_SUCCESS,
+    })
+  },
 
-    return response.data
+  async forgotPassword(email: string): Promise<void> {
+    await request<void>(http, 'auth/forgot-password', {
+      method: 'POST',
+      json: { email },
+      ...SKIP_SUCCESS,
+    })
+  },
+
+  async resetPasswordWithToken(input: ResetPasswordRequest): Promise<LoginResponse> {
+    return await request<LoginResponse>(http, 'auth/reset-password', {
+      method: 'POST',
+      json: input,
+      ...SKIP_SUCCESS,
+    })
   },
 }
 

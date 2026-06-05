@@ -23,6 +23,7 @@ func InitRouter(app *App) {
 	activityService := service.NewMonitoringActivityService(app.MonitoringActivityRepo)
 	tagService := service.NewTagService(app.TagsRepo)
 	statusPageSettingsService := service.NewStatusPageSettingsService(app.StatusPageSettingsRepo)
+	statusPageSettingsService.Configure("status.ogoune.app", cfg.SSLProvider)
 	statusPageService := service.NewStatusPageService(app.ResourceRepo, app.IncidentRepo, app.MonitoringActivityRepo, app.MaintenanceRepo, app.StatusPageSettingsRepo, app.ComponentRepo)
 	incidentAPIService := service.NewIncidentService(app.IncidentRepo, app.IncidentEventStepRepo)
 	liveSnapshotService := service.NewLiveSnapshotService(app.ResourceService, activityService, incidentAPIService)
@@ -42,8 +43,10 @@ func InitRouter(app *App) {
 	maintenanceHandler := handler.NewMaintenanceHandler(maintenanceAPIService)
 	statsHandler := handler.NewStatsHandler(statsService)
 	systemHandler := handler.NewSystemHandler()
+	runtimeConfigHandler := handler.NewRuntimeConfigHandler(cfg, AppVersion)
 	authHandler := handler.NewAuthHandler(app.AuthService, app.JWTManager)
 	accountHandler := handler.NewAccountHandler(app.AuthService, app.APIKeyService)
+	sessionHandler := handler.NewSessionHandler(app.SessionService)
 	componentHandler := handler.NewComponentHandler(app.ComponentService)
 
 	// V1 handlers
@@ -54,6 +57,8 @@ func InitRouter(app *App) {
 	tagV1Handler := v1handler.NewTagHandler(tagService)
 	statusPageV1Handler := v1handler.NewStatusPageV1Handler(app.ComponentRepo)
 	heartbeatV1Handler := v1handler.NewHeartbeatV1Handler(app.ResourceService)
+	twoFactorV1Handler := v1handler.NewTwoFactorHandler(app.TwoFactorService, app.AuthService)
+	escalationV1Handler := v1handler.NewEscalationHandler(app.EscalationService)
 
 	credentialService := service.NewResourceCredentialService(app.ResourceCredentialRepo, app.ResourceRepo)
 	credentialTester := service.NewResourceCredentialTester(app.ResourceRepo, BuildStrategies())
@@ -65,7 +70,7 @@ func InitRouter(app *App) {
 		return
 	}
 
-	apiHandler := api.NewRouter(resourceHandler, pingHandler, activityHandler, tagHandler, componentHandler, statusPageHandler, statusPageSettingsHandler, incidentHandler, notificationHandler, maintenanceHandler, statsHandler, systemHandler, authHandler, accountHandler, app.AuthService, app.APIKeyService, monitorV1Handler, incidentV1Handler, channelV1Handler, componentV1Handler, tagV1Handler, statusPageV1Handler, heartbeatV1Handler, credentialV1Handler, cfg.EnableSwagger, cfg)
+	apiHandler := api.NewRouter(resourceHandler, pingHandler, activityHandler, tagHandler, componentHandler, statusPageHandler, statusPageSettingsHandler, incidentHandler, notificationHandler, maintenanceHandler, statsHandler, systemHandler, runtimeConfigHandler, authHandler, accountHandler, app.AuthService, app.APIKeyService, app.SessionService, sessionHandler, twoFactorV1Handler, escalationV1Handler, monitorV1Handler, incidentV1Handler, channelV1Handler, componentV1Handler, tagV1Handler, statusPageV1Handler, heartbeatV1Handler, credentialV1Handler, cfg.EnableSwagger, cfg)
 
 	// Root router
 	rootRouter := chi.NewRouter()

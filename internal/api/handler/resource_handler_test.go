@@ -1159,7 +1159,7 @@ func TestGetLive_Unauthorized(t *testing.T) {
 	h := NewResourceHandler(&mockResourceService{}, liveService)
 
 	r := chi.NewRouter()
-	r.Use(middleware.AuthMiddleware(nil, nil))
+	r.Use(middleware.AuthMiddleware(nil, nil, nil))
 	r.Get("/resources/{id}/live", h.GetLive)
 
 	req := httptest.NewRequest(http.MethodGet, "/resources/r1/live", nil)
