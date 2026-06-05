@@ -2,6 +2,8 @@
 import { useEditor, EditorContent } from '@tiptap/vue-3'
 import StarterKit from '@tiptap/starter-kit'
 import Link from '@tiptap/extension-link'
+import TaskList from '@tiptap/extension-task-list'
+import TaskItem from '@tiptap/extension-task-item'
 import { ref, watch, onBeforeUnmount, computed } from 'vue'
 import DOMPurify from 'dompurify'
 
@@ -28,6 +30,8 @@ const editor = useEditor({
       autolink: true,
       HTMLAttributes: { rel: 'noopener noreferrer', target: '_blank' },
     }),
+    TaskList.configure({ HTMLAttributes: { class: 'rt-task-list' } }),
+    TaskItem.configure({ nested: true, HTMLAttributes: { class: 'rt-task-item' } }),
   ],
   editorProps: {
     attributes: {
@@ -64,6 +68,7 @@ function toggleItalic() { editor.value?.chain().focus().toggleItalic().run() }
 function toggleCode() { editor.value?.chain().focus().toggleCode().run() }
 function toggleBullet() { editor.value?.chain().focus().toggleBulletList().run() }
 function toggleOrdered() { editor.value?.chain().focus().toggleOrderedList().run() }
+function toggleTaskList() { editor.value?.chain().focus().toggleTaskList().run() }
 function toggleH1() { editor.value?.chain().focus().toggleHeading({ level: 1 }).run() }
 function toggleH2() { editor.value?.chain().focus().toggleHeading({ level: 2 }).run() }
 
@@ -83,8 +88,8 @@ function togglePreview() { preview.value = !preview.value }
 
 const sanitizedHtml = computed(() =>
   DOMPurify.sanitize(props.modelValue || '', {
-    ALLOWED_TAGS: ['p', 'br', 'strong', 'em', 'code', 'a', 'ul', 'ol', 'li', 'h1', 'h2'],
-    ALLOWED_ATTR: ['href', 'rel', 'target'],
+    ALLOWED_TAGS: ['p', 'br', 'strong', 'em', 'code', 'a', 'ul', 'ol', 'li', 'h1', 'h2', 'input', 'label', 'div'],
+    ALLOWED_ATTR: ['href', 'rel', 'target', 'type', 'checked', 'disabled', 'data-checked', 'data-type', 'class'],
   }),
 )
 
@@ -164,6 +169,25 @@ const items: TbItem[] = [
           <path d="M4 6h1v4" />
           <path d="M4 10h2" />
           <path d="M6 18H4c0-1 2-2 2-3s-1-1.5-2-1" />
+        </svg>
+      </button>
+
+      <!-- Task list (checkboxes) -->
+      <button
+        type="button"
+        class="h-8 w-8 inline-flex items-center justify-center rounded-md text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+        :class="{ 'bg-slate-100 text-slate-900': isActive('taskList') }"
+        title="Task list"
+        data-testid="rt-tasks"
+        @click="toggleTaskList"
+      >
+        <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="3 7 5 9 9 5" />
+          <line x1="13" y1="6" x2="21" y2="6" />
+          <polyline points="3 14 5 16 9 12" />
+          <line x1="13" y1="13" x2="21" y2="13" />
+          <polyline points="3 21 5 23 9 19" />
+          <line x1="13" y1="20" x2="21" y2="20" />
         </svg>
       </button>
 
@@ -274,5 +298,36 @@ const items: TbItem[] = [
 .ProseMirror a {
   color: #4f46e5;
   text-decoration: underline;
+}
+ul.rt-task-list {
+  list-style: none;
+  padding-left: 0;
+}
+li.rt-task-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  margin: 0.25rem 0;
+}
+li.rt-task-item > label {
+  margin-top: 0.2rem;
+  flex-shrink: 0;
+}
+li.rt-task-item > label > input[type="checkbox"] {
+  width: 1rem;
+  height: 1rem;
+  accent-color: #4f46e5;
+  cursor: pointer;
+}
+li.rt-task-item > div {
+  flex: 1;
+  min-width: 0;
+}
+li.rt-task-item > div > p {
+  margin: 0;
+}
+li.rt-task-item[data-checked="true"] > div {
+  color: #94a3b8;
+  text-decoration: line-through;
 }
 </style>

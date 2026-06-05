@@ -5,8 +5,8 @@ import type { PublicIncidentUpdate } from '@/types'
 
 function sanitize(html: string): string {
   return DOMPurify.sanitize(html, {
-    ALLOWED_TAGS: ['p', 'br', 'strong', 'em', 'code', 'a', 'ul', 'ol', 'li', 'h1', 'h2'],
-    ALLOWED_ATTR: ['href', 'rel', 'target'],
+    ALLOWED_TAGS: ['p', 'br', 'strong', 'em', 'code', 'a', 'ul', 'ol', 'li', 'h1', 'h2', 'input', 'label', 'div'],
+    ALLOWED_ATTR: ['href', 'rel', 'target', 'type', 'checked', 'disabled', 'data-checked', 'data-type', 'class'],
   })
 }
 
@@ -93,3 +93,34 @@ function relativeAgo(iso: string): string {
     </li>
   </ol>
 </template>
+
+<style>
+ul.rt-task-list {
+  list-style: none;
+  padding-left: 0;
+}
+li.rt-task-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  margin: 0.25rem 0;
+}
+li.rt-task-item > label {
+  margin-top: 0.2rem;
+  flex-shrink: 0;
+  pointer-events: none;
+}
+li.rt-task-item > label > input[type="checkbox"] {
+  width: 1rem;
+  height: 1rem;
+  accent-color: #4f46e5;
+  pointer-events: none;
+}
+li.rt-task-item > div > p {
+  margin: 0;
+}
+li.rt-task-item[data-checked="true"] > div {
+  color: #94a3b8;
+  text-decoration: line-through;
+}
+</style>
