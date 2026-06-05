@@ -2,6 +2,21 @@
 import { onMounted, reactive, ref } from 'vue'
 import { useIncidentUpdates } from '@/composables/useIncidentUpdates'
 import type { IncidentUpdate, IncidentUpdatePayload, IncidentUpdateStatus } from '@/services/incidentUpdateService'
+import RichTextEditor from '@/components/ui/RichTextEditor.vue'
+import DOMPurify from 'dompurify'
+
+function isEmptyHtml(html: string): boolean {
+  const tmp = document.createElement('div')
+  tmp.innerHTML = html
+  return tmp.textContent?.trim() === '' && !tmp.querySelector('img, hr, br, li')
+}
+
+function sanitize(html: string): string {
+  return DOMPurify.sanitize(html, {
+    ALLOWED_TAGS: ['p', 'br', 'strong', 'em', 'code', 'a', 'ul', 'ol', 'li', 'h2', 'h3', 'blockquote'],
+    ALLOWED_ATTR: ['href', 'rel', 'target'],
+  })
+}
 
 const props = defineProps<{ incidentId: string }>()
 
@@ -45,10 +60,10 @@ function fmtPosted(iso: string): string {
 }
 
 async function onSubmit() {
-  if (!draft.message.trim()) return
+  if (isEmptyHtml(draft.message)) return
   submitting.value = true
   try {
-    await add({ status: draft.status, message: draft.message.trim() })
+    await add({ status: draft.status, message: draft.message })
     draft.message = ''
   } finally {
     submitting.value = false
@@ -67,8 +82,8 @@ function cancelEdit() {
 }
 
 async function saveEdit(id: string) {
-  if (!editDraft.message.trim()) return
-  await edit(id, { status: editDraft.status, message: editDraft.message.trim() })
+  if (isEmptyHtml(editDraft.message)) return
+  await edit(id, { status: editDraft.status, message: editDraft.message })
   cancelEdit()
 }
 
@@ -103,17 +118,16 @@ async function confirmRemove(id: string) {
           <option v-for="s in STATUSES" :key="s.value" :value="s.value">{{ s.label }}</option>
         </select>
       </div>
-      <textarea
+      <RichTextEditor
         v-model="draft.message"
-        rows="3"
         placeholder="Describe what just happened (visible on the public status page)"
-        class="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-sans resize-y"
+        min-height="120px"
         data-testid="draft-message"
       />
       <div class="flex justify-end">
         <button
           type="submit"
-          :disabled="submitting || !draft.message.trim()"
+          :disabled="submitting || isEmptyHtml(draft.message)"
           class="rounded-md bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-medium px-3 py-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {{ submitting ? 'Posting…' : 'Post update' }}
@@ -143,11 +157,7 @@ async function confirmRemove(id: string) {
             >
               <option v-for="s in STATUSES" :key="s.value" :value="s.value">{{ s.label }}</option>
             </select>
-            <textarea
-              v-model="editDraft.message"
-              rows="3"
-              class="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-sans resize-y"
-            />
+            <RichTextEditor v-model="editDraft.message" min-height="120px" />
             <div class="flex justify-end gap-2">
               <button
                 type="button"
@@ -190,7 +200,7 @@ async function confirmRemove(id: string) {
               </button>
             </div>
           </div>
-          <p class="text-sm text-slate-700 whitespace-pre-wrap">{{ u.message }}</p>
+          <div class="text-sm text-slate-700 prose prose-sm max-w-none" v-html="sanitize(u.message)" />
         </template>
       </li>
     </ol>

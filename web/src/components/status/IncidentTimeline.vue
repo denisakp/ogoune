@@ -1,6 +1,14 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import DOMPurify from 'dompurify'
 import type { PublicIncidentUpdate } from '@/types'
+
+function sanitize(html: string): string {
+  return DOMPurify.sanitize(html, {
+    ALLOWED_TAGS: ['p', 'br', 'strong', 'em', 'code', 'a', 'ul', 'ol', 'li', 'h2', 'h3', 'blockquote'],
+    ALLOWED_ATTR: ['href', 'rel', 'target'],
+  })
+}
 
 const props = defineProps<{
   updates: PublicIncidentUpdate[]
@@ -74,7 +82,10 @@ function relativeAgo(iso: string): string {
         <h3 class="text-base font-semibold text-gray-900">{{ STATUS_LABEL[u.status] }}</h3>
       </div>
       <div>
-        <p class="text-base text-gray-900 leading-relaxed">{{ u.message }}</p>
+        <div
+          class="text-base text-gray-900 leading-relaxed prose prose-base max-w-none"
+          v-html="sanitize(u.message)"
+        />
         <p class="mt-1 text-sm text-gray-500">
           Posted {{ relativeAgo(u.posted_at) }}. {{ fmtPostedAt(u.posted_at) }}
         </p>
