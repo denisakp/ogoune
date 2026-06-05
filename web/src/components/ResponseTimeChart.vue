@@ -132,19 +132,28 @@ const barCount = computed(() => layout.value.buckets.length)
       class="relative w-full"
       :style="{ height: `${height - 24}px` }"
     >
-      <div class="flex items-end gap-[3px] w-full h-full px-1">
-        <span
+      <div
+        class="grid items-end w-full h-full px-1"
+        :style="{
+          gridTemplateColumns: `repeat(${barCount}, minmax(0, 1fr))`,
+        }"
+      >
+        <div
           v-for="(b, i) in layout.buckets"
           :key="b.startedAt"
-          class="flex-1 rounded-[2px] transition-[height] duration-300"
-          :style="{
-            height: `${Math.max(b.populated ? 6 : 2, b.ratio * 92)}%`,
-            backgroundColor: barColor(b, i === barCount - 1),
-            opacity: b.populated ? 1 : 0.45,
-          }"
-          :title="tooltip(b)"
-          :data-bar-index="i"
-        />
+          class="flex items-end justify-center h-full"
+        >
+          <span
+            class="block w-2 rounded-[2px] transition-[height] duration-300"
+            :style="{
+              height: `${Math.max(b.populated ? 6 : 2, b.ratio * 92)}%`,
+              backgroundColor: barColor(b, i === barCount - 1),
+              opacity: b.populated ? 1 : 0.45,
+            }"
+            :title="tooltip(b)"
+            :data-bar-index="i"
+          />
+        </div>
       </div>
     </div>
     <div
