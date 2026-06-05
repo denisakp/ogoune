@@ -28,6 +28,9 @@ func (h *StatusPageSettingsHandler) RegisterRoutes(r chi.Router) {
 	r.Get("/settings/statuspage", h.GetSettings)
 	r.Put("/settings/statuspage", h.UpdateSettings)
 	r.Post("/settings/statuspage/verify-domain", h.VerifyDomain)
+	// Spec 060 / US5 — branding logo upload/delete.
+	r.Post("/settings/statuspage/logo", h.UploadLogo)
+	r.Delete("/settings/statuspage/logo", h.DeleteLogo)
 }
 
 func toSettingsResponse(s *domain.StatusPageSettings) dto.StatusPageSettingsResponse {
@@ -56,9 +59,21 @@ func toSettingsResponse(s *domain.StatusPageSettings) dto.StatusPageSettingsResp
 		CustomDomainStatus:     status,
 		CustomDomainSSLStatus:  ssl,
 		CustomDomainDNSRecords: records,
+		LogoURLLight:           s.LogoURLLight,
+		LogoURLDark:            s.LogoURLDark,
+		FaviconURL:             s.FaviconURL,
+		PrimaryColor:           s.PrimaryColor,
+		ThemeOverrides:         themeOrEmpty(s.ThemeOverrides),
 		CreatedAt:              s.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
 		UpdatedAt:              s.UpdatedAt.Format("2006-01-02T15:04:05Z07:00"),
 	}
+}
+
+func themeOrEmpty(m map[string]string) map[string]string {
+	if m == nil {
+		return map[string]string{}
+	}
+	return m
 }
 
 // GetSettings retrieves the current status page settings.
@@ -89,14 +104,26 @@ func (h *StatusPageSettingsHandler) UpdateSettings(w http.ResponseWriter, r *htt
 		ShowUptimePercentage: req.ShowUptimePercentage,
 		HidePausedMonitors:   req.HidePausedMonitors,
 		ShowIncidentHistory:  req.ShowIncidentHistory,
+		LogoURLLight:         req.LogoURLLight,
+		LogoURLDark:          req.LogoURLDark,
+		FaviconURL:           req.FaviconURL,
+		PrimaryColor:         req.PrimaryColor,
+		ThemeOverrides:       req.ThemeOverrides,
 	}
 
 	if err := h.service.UpdateSettings(r.Context(), settings); err != nil {
-		if errors.Is(err, service.ErrCustomDomainInvalidHostname) {
+		switch {
+		case errors.Is(err, service.ErrCustomDomainInvalidHostname):
 			response.Error(w, http.StatusUnprocessableEntity, "Invalid hostname")
-			return
+		case errors.Is(err, service.ErrInvalidHexColor):
+			response.Error(w, http.StatusUnprocessableEntity, "INVALID_HEX_COLOR: "+err.Error())
+		case errors.Is(err, service.ErrInvalidThemeKey):
+			response.Error(w, http.StatusUnprocessableEntity, "INVALID_THEME_KEY: "+err.Error())
+		case errors.Is(err, service.ErrInvalidThemeValue):
+			response.Error(w, http.StatusUnprocessableEntity, "INVALID_THEME_VALUE: "+err.Error())
+		default:
+			response.Error(w, http.StatusInternalServerError, "Failed to update settings")
 		}
-		response.Error(w, http.StatusInternalServerError, "Failed to update settings")
 		return
 	}
 
