@@ -42,21 +42,39 @@ const state = ref<StatusPageSettingsResponse>({
 
 const sslProvider = computed<string>(() => useRuntimeConfig().ssl_provider ?? 'external')
 
+function normalizeOverrides(m: Record<string, string | undefined> | null | undefined): Record<string, string> {
+  if (!m) return {}
+  const out: Record<string, string> = {}
+  for (const k of Object.keys(m).sort()) {
+    const v = m[k]
+    if (typeof v === 'string' && v !== '') out[k] = v
+  }
+  return out
+}
+
+function s(v: unknown): string {
+  return typeof v === 'string' ? v : ''
+}
+function b(v: unknown): boolean {
+  return v === true
+}
+
 const dirty = computed(() => {
   if (!initial.value) return false
   const a = initial.value
-  const b = state.value
+  const c = state.value
   return (
-    a.name !== b.name ||
-    a.homepage_url !== b.homepage_url ||
-    a.custom_domain !== b.custom_domain ||
-    a.google_analytics_id !== b.google_analytics_id ||
-    a.enable_details_page !== b.enable_details_page ||
-    a.show_uptime_percentage !== b.show_uptime_percentage ||
-    a.hide_paused_monitors !== b.hide_paused_monitors ||
-    a.show_incident_history !== b.show_incident_history ||
-    a.primary_color !== b.primary_color ||
-    JSON.stringify(a.theme_overrides ?? {}) !== JSON.stringify(b.theme_overrides ?? {})
+    s(a.name) !== s(c.name) ||
+    s(a.homepage_url) !== s(c.homepage_url) ||
+    s(a.custom_domain) !== s(c.custom_domain) ||
+    s(a.google_analytics_id) !== s(c.google_analytics_id) ||
+    b(a.enable_details_page) !== b(c.enable_details_page) ||
+    b(a.show_uptime_percentage) !== b(c.show_uptime_percentage) ||
+    b(a.hide_paused_monitors) !== b(c.hide_paused_monitors) ||
+    b(a.show_incident_history) !== b(c.show_incident_history) ||
+    s(a.primary_color) !== s(c.primary_color) ||
+    JSON.stringify(normalizeOverrides(a.theme_overrides)) !==
+      JSON.stringify(normalizeOverrides(c.theme_overrides))
   )
 })
 
