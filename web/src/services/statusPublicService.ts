@@ -4,6 +4,7 @@ import type {
   PublicStatusIncidentsArchive,
   PublicStatusUptimeRange,
   PublicStatusResourceWindows,
+  PublicIncidentDetail,
 } from '@/types'
 
 /**
@@ -47,6 +48,15 @@ export const fetchPublicStatusUptime = async (
   const searchParams = new URLSearchParams({ from: q.from, to: q.to })
   if (q.component_id) searchParams.set('component_id', q.component_id)
   return await request<PublicStatusUptimeRange>(http, `status/uptime?${searchParams.toString()}`)
+}
+
+export const fetchPublicIncidentDetail = async (
+  incidentID: string,
+): Promise<PublicIncidentDetail> => {
+  return await request<PublicIncidentDetail>(
+    http,
+    `status/incidents/${encodeURIComponent(incidentID)}`,
+  )
 }
 
 export const fetchPublicStatusResourceWindows = async (

@@ -46,10 +46,11 @@ function statusLabel(inc: PublicIncidentSummary) {
   <section v-if="incidents.length > 0" class="space-y-3" data-section="recent-incidents">
     <h2 class="text-lg font-semibold text-gray-900">Recent Incidents</h2>
     <div class="space-y-3">
-      <article
+      <a
         v-for="inc in incidents"
         :key="inc.id"
-        class="rounded-xl border border-gray-200 bg-white p-4"
+        :href="`#/incidents/${encodeURIComponent(inc.id)}`"
+        class="block rounded-xl border border-gray-200 bg-white p-4 hover:bg-gray-50"
         :data-incident-id="inc.id"
       >
         <div class="flex items-start justify-between gap-3 mb-1">
@@ -63,7 +64,7 @@ function statusLabel(inc: PublicIncidentSummary) {
           <span class="text-xs text-gray-500 font-mono shrink-0">{{ fmtDate(inc.started_at) }}</span>
         </div>
         <p v-if="duration(inc)" class="text-xs text-gray-500 font-mono">Duration: {{ duration(inc) }}</p>
-      </article>
+      </a>
     </div>
   </section>
 </template>

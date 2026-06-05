@@ -139,12 +139,17 @@ Community Edition — expanding monitoring coverage, observability, and security
 
 ### Agent device monitoring — the killer feature
 
-- [ ] **Lightweight agent — phase 1 (Go)** — cross-platform device monitoring agent (Linux, macOS, Windows).
+- [ ] **Lightweight agent (Go)** — cross-platform device monitoring agent (Linux, macOS, Windows).
   CPU, memory, disk, network metrics. Reverse tunnel pattern (agent initiates outbound connection), no
-  inbound ports required. Traverses NAT and Kubernetes Ingress natively. **Community Edition.**
-- [ ] **Lightweight agent — phase 2 (Zig + eBPF)** — rewrite agent in Zig for sub-3MB RAM footprint. eBPF
-  programs intercept kernel events (OOMKills, segfaults, syscall latency spikes) at the source.
-  **Community Edition.**
+  inbound ports required. Traverses NAT and Kubernetes Ingress natively. eBPF programs (via `cilium/ebpf`)
+  intercept kernel events on Linux — OOMKills, segfaults, syscall latency spikes — at the source.
+  Single language across backend + agent (shared domain types, protocol DTOs, tooling). Static stripped
+  binary target ≤15MB. **Community Edition.**
+  > **Note:** A Zig rewrite for sub-3MB footprint was previously planned but dropped. eBPF tooling is
+  > mature in Go (Cilium, Datadog, Parca, Pixie all ship Go+eBPF in prod), Zig is pre-1.0 with weak
+  > Windows/macOS coverage, and footprint <30MB is not a real adoption blocker — Flash Correlation is
+  > the differentiator, not the language. If a future profile proves footprint matters commercially,
+  > Rust would be preferred over Zig for eBPF ecosystem maturity.
 - [ ] **Flash Correlation** — the game-changer. When a synthetic check fails (e.g. HTTP 502), the backend
   queries the agent through the reverse tunnel: "What did the kernel observe at that moment?" Alerts
   combine the external failure with the internal cause: *"Site went down BECAUSE the kernel OOMKilled

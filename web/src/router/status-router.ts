@@ -6,6 +6,7 @@ import { createRouter, createWebHashHistory, type RouteRecordRaw } from 'vue-rou
 const StatusPublicView = () => import('@/views/status/StatusPublicView.vue')
 const StatusHistoryView = () => import('@/views/status/StatusHistoryView.vue')
 const StatusUptimeView = () => import('@/views/status/StatusUptimeView.vue')
+const StatusIncidentView = () => import('@/views/status/StatusIncidentView.vue')
 const StatusPageDetailView = () => import('@/views/status-page/StatusPageDetailView.vue')
 
 export const statusRoutes: RouteRecordRaw[] = [
@@ -28,6 +29,11 @@ export const statusRoutes: RouteRecordRaw[] = [
     path: '/resource/:id',
     name: 'PublicStatusResource',
     component: StatusPageDetailView,
+  },
+  {
+    path: '/incidents/:id',
+    name: 'PublicStatusIncident',
+    component: StatusIncidentView,
   },
   {
     path: '/:pathMatch(.*)*',

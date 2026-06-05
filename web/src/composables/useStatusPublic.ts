@@ -4,6 +4,7 @@ import {
   fetchPublicStatusIncidents,
   fetchPublicStatusUptime,
   fetchPublicStatusResourceWindows,
+  fetchPublicIncidentDetail,
   type IncidentArchiveQuery,
   type UptimeRangeQuery,
 } from '@/services/statusPublicService'
@@ -12,6 +13,7 @@ import type {
   PublicStatusIncidentsArchive,
   PublicStatusUptimeRange,
   PublicStatusResourceWindows,
+  PublicIncidentDetail,
 } from '@/types'
 
 /**
@@ -41,6 +43,7 @@ export function useStatusPublic() {
   const incidents = shallowRef<PublicStatusIncidentsArchive | null>(null)
   const uptime = shallowRef<PublicStatusUptimeRange | null>(null)
   const resource = shallowRef<PublicStatusResourceWindows | null>(null)
+  const incidentDetail = shallowRef<PublicIncidentDetail | null>(null)
 
   async function withState<T>(fn: () => Promise<T>): Promise<T | null> {
     loading.value = true
@@ -79,6 +82,12 @@ export function useStatusPublic() {
     return data
   }
 
+  async function loadIncidentDetail(id: string) {
+    const data = await withState(() => fetchPublicIncidentDetail(id))
+    if (data) incidentDetail.value = data
+    return data
+  }
+
   return {
     loading,
     error,
@@ -88,9 +97,11 @@ export function useStatusPublic() {
     incidents,
     uptime,
     resource,
+    incidentDetail,
     loadSummary,
     loadIncidents,
     loadUptime,
     loadResourceWindows,
+    loadIncidentDetail,
   }
 }

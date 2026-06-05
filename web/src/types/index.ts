@@ -492,6 +492,30 @@ export interface PublicStatusUptimeRange {
   days: PublicUptimeDay[]
 }
 
+export type PublicIncidentUpdateStatus =
+  | 'investigating'
+  | 'identified'
+  | 'monitoring'
+  | 'resolved'
+
+export interface PublicIncidentUpdate {
+  id: string
+  status: PublicIncidentUpdateStatus
+  message: string
+  posted_at: string
+}
+
+export interface PublicIncidentDetail {
+  id: string
+  title: string
+  severity: PublicIncidentSeverity
+  started_at: string
+  resolved_at: string | null
+  component_id?: string
+  resource_id?: string
+  updates: PublicIncidentUpdate[]
+}
+
 export interface PublicResourceWindow {
   uptime_ratio: number
   incidents: number

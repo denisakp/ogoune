@@ -91,10 +91,11 @@ function componentLabel(inc: PublicIncidentSummary): string | null {
       <span class="text-xs text-gray-500">{{ month.count }} incident{{ month.count === 1 ? '' : 's' }}</span>
     </header>
     <div class="border-l border-r border-b border-gray-200 rounded-b-md overflow-hidden">
-      <article
+      <a
         v-for="inc in visibleIncidents"
         :key="inc.id"
-        class="flex items-center gap-4 px-4 py-3 border-t border-gray-100 first:border-t-0"
+        :href="`#/incidents/${encodeURIComponent(inc.id)}`"
+        class="flex items-center gap-4 px-4 py-3 border-t border-gray-100 first:border-t-0 hover:bg-gray-50"
         :data-incident-id="inc.id"
       >
         <div class="text-center w-10 shrink-0">
@@ -144,7 +145,10 @@ function componentLabel(inc: PublicIncidentSummary): string | null {
             </span>
           </div>
         </div>
-      </article>
+        <svg class="size-4 text-gray-300 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="9 18 15 12 9 6" />
+        </svg>
+      </a>
       <button
         v-if="hiddenCount > 0"
         type="button"
