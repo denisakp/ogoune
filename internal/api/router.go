@@ -127,6 +127,7 @@ func NewRouter(
 	r.Group(func(r chi.Router) {
 		r.Use(middleware.PublicStatusCache(60, 30))
 		r.Get("/status", publicStatusHandler.GetCurrent)
+		r.Get("/status/incidents", publicStatusHandler.GetIncidents)
 	})
 	// Legacy resource detail endpoint — replaced by /status/resource/:id/windows in US3.
 	r.Get("/status/{resourceId}", statusPageHandler.HandleResourceDetailStatus)

@@ -16,12 +16,17 @@ import (
 )
 
 type stubPublicStatus struct {
-	out *dto.PublicStatus
-	err error
+	out       *dto.PublicStatus
+	err       error
+	incidents *dto.PublicIncidentsResponse
+	incErr    error
 }
 
 func (s *stubPublicStatus) GetCurrent(context.Context) (*dto.PublicStatus, error) {
 	return s.out, s.err
+}
+func (s *stubPublicStatus) GetIncidents(context.Context, time.Time, time.Time, string) (*dto.PublicIncidentsResponse, error) {
+	return s.incidents, s.incErr
 }
 
 func TestPublicStatusHandler_HappyPath(t *testing.T) {
@@ -55,4 +60,35 @@ func TestPublicStatusHandler_ErrorReturnsProblemJSON(t *testing.T) {
 	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &body))
 	assert.Equal(t, float64(http.StatusInternalServerError), body["status"])
 	assert.Equal(t, "internal_error", body["code"])
+}
+
+func TestPublicStatusHandler_GetIncidents_HappyPath(t *testing.T) {
+	stub := &stubPublicStatus{
+		incidents: &dto.PublicIncidentsResponse{
+			GeneratedAt: time.Now().UTC(),
+			Total:       0,
+			Months:      []dto.PublicIncidentMonth{},
+		},
+	}
+	h := NewPublicStatusHandler(stub)
+	rec := httptest.NewRecorder()
+	h.GetIncidents(rec, httptest.NewRequest(http.MethodGet, "/status/incidents", nil))
+	require.Equal(t, http.StatusOK, rec.Code)
+}
+
+func TestPublicStatusHandler_GetIncidents_FromAfterTo422(t *testing.T) {
+	h := NewPublicStatusHandler(&stubPublicStatus{})
+	rec := httptest.NewRecorder()
+	h.GetIncidents(rec, httptest.NewRequest(http.MethodGet, "/status/incidents?from=2026-06-01&to=2026-05-01", nil))
+	require.Equal(t, http.StatusUnprocessableEntity, rec.Code)
+	var body map[string]any
+	_ = json.Unmarshal(rec.Body.Bytes(), &body)
+	assert.Equal(t, "invalid_range", body["code"])
+}
+
+func TestPublicStatusHandler_GetIncidents_InvalidFrom422(t *testing.T) {
+	h := NewPublicStatusHandler(&stubPublicStatus{})
+	rec := httptest.NewRecorder()
+	h.GetIncidents(rec, httptest.NewRequest(http.MethodGet, "/status/incidents?from=garbage", nil))
+	require.Equal(t, http.StatusUnprocessableEntity, rec.Code)
 }

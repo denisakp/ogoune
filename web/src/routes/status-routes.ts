@@ -10,6 +10,7 @@ import { defineComponent, h } from 'vue'
 // router stays mountable and feature-flag-safe.
 
 const StatusPublicView = () => import('@/views/status/StatusPublicView.vue')
+const StatusHistoryView = () => import('@/views/status/StatusHistoryView.vue')
 const StatusPageDetailView = () => import('@/views/status-page/StatusPageDetailView.vue')
 
 const PlaceholderView = (label: string) =>
@@ -34,7 +35,7 @@ export const statusRoutes: RouteRecordRaw[] = [
   {
     path: '/history',
     name: 'PublicStatusHistory',
-    component: PlaceholderView('Incident History'),
+    component: StatusHistoryView,
   },
   {
     path: '/uptime',

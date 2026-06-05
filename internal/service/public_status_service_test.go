@@ -152,3 +152,82 @@ func TestPublicStatus_RibbonReadsFromAggregates(t *testing.T) {
 	// Missing days remain at 0 — aggregator backfills within 5 min in production.
 	assert.Equal(t, 0.0, ribbon[0].Ratio)
 }
+
+// ---------- US2: GetIncidents ----------
+
+func mkIncidentAt(t *testing.T, id, resourceID, cause string, start time.Time, resolvedAt *time.Time) *domain.Incident {
+	t.Helper()
+	inc := &domain.Incident{
+		ResourceID: resourceID,
+		Cause:      cause,
+		StartedAt:  start,
+		ResolvedAt: resolvedAt,
+	}
+	inc.ID = id
+	return inc
+}
+
+func TestGetIncidents_GroupsByMonthNewestFirst(t *testing.T) {
+	svc, resources, components, incidents, _, _ := setup(t)
+	c, _ := components.Create(context.Background(), &domain.Component{Name: "API"})
+	r := mkResource(t, "res-1", "api1", c.ID, domain.StatusUp)
+	_, _ = resources.Create(context.Background(), r)
+
+	resolved := time.Date(2026, 5, 1, 0, 0, 0, 0, time.UTC)
+	_, _ = incidents.Create(context.Background(), mkIncidentAt(t, "i1", "res-1", "down A",
+		time.Date(2026, 4, 14, 9, 0, 0, 0, time.UTC), &resolved))
+	_, _ = incidents.Create(context.Background(), mkIncidentAt(t, "i2", "res-1", "down B",
+		time.Date(2026, 5, 21, 9, 0, 0, 0, time.UTC), &resolved))
+	_, _ = incidents.Create(context.Background(), mkIncidentAt(t, "i3", "res-1", "down C",
+		time.Date(2026, 6, 1, 9, 0, 0, 0, time.UTC), &resolved))
+
+	from := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	to := time.Date(2026, 12, 31, 0, 0, 0, 0, time.UTC)
+	out, err := svc.GetIncidents(context.Background(), from, to, "")
+	require.NoError(t, err)
+	assert.Equal(t, 3, out.Total)
+	require.Len(t, out.Months, 3)
+	// Newest month first.
+	assert.Equal(t, "2026-06", out.Months[0].YearMonth)
+	assert.Equal(t, "2026-05", out.Months[1].YearMonth)
+	assert.Equal(t, "2026-04", out.Months[2].YearMonth)
+}
+
+func TestGetIncidents_FiltersByComponent(t *testing.T) {
+	svc, resources, components, incidents, _, _ := setup(t)
+	c1, _ := components.Create(context.Background(), &domain.Component{Name: "API"})
+	c2, _ := components.Create(context.Background(), &domain.Component{Name: "Web"})
+	_, _ = resources.Create(context.Background(), mkResource(t, "ra", "api1", c1.ID, domain.StatusUp))
+	_, _ = resources.Create(context.Background(), mkResource(t, "rb", "web1", c2.ID, domain.StatusUp))
+
+	resolved := time.Date(2026, 5, 1, 0, 0, 0, 0, time.UTC)
+	_, _ = incidents.Create(context.Background(), mkIncidentAt(t, "i1", "ra", "api down",
+		time.Date(2026, 4, 14, 9, 0, 0, 0, time.UTC), &resolved))
+	_, _ = incidents.Create(context.Background(), mkIncidentAt(t, "i2", "rb", "web down",
+		time.Date(2026, 4, 15, 9, 0, 0, 0, time.UTC), &resolved))
+
+	from := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	to := time.Date(2026, 12, 31, 0, 0, 0, 0, time.UTC)
+	out, err := svc.GetIncidents(context.Background(), from, to, c1.ID)
+	require.NoError(t, err)
+	assert.Equal(t, 1, out.Total)
+	assert.Equal(t, "i1", out.Months[0].Incidents[0].ID)
+}
+
+func TestGetIncidents_EmptyResultStillReturnsEnvelope(t *testing.T) {
+	svc, _, _, _, _, _ := setup(t)
+	from := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
+	to := time.Date(2024, 12, 31, 0, 0, 0, 0, time.UTC)
+	out, err := svc.GetIncidents(context.Background(), from, to, "")
+	require.NoError(t, err)
+	assert.Equal(t, 0, out.Total)
+	assert.Empty(t, out.Months)
+}
+
+func TestGetIncidents_FromAfterTo_Errors(t *testing.T) {
+	svc, _, _, _, _, _ := setup(t)
+	from := time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC)
+	to := time.Date(2026, 5, 1, 0, 0, 0, 0, time.UTC)
+	_, err := svc.GetIncidents(context.Background(), from, to, "")
+	require.Error(t, err)
+}

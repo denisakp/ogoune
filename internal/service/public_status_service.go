@@ -172,6 +172,95 @@ func (s *PublicStatusService) resourceState(ctx context.Context, r *domain.Resou
 	}
 }
 
+// GetIncidents returns incidents grouped by year-month (newest-first) over
+// the [from, to] window, optionally filtered by component. Used by GET
+// /status/incidents (US2 — spec 060).
+func (s *PublicStatusService) GetIncidents(ctx context.Context, from, to time.Time, componentID string) (*dto.PublicIncidentsResponse, error) {
+	now := s.clock().UTC()
+	if from.IsZero() {
+		from = now.AddDate(0, 0, -90)
+	}
+	if to.IsZero() {
+		to = now
+	}
+	if from.After(to) {
+		return nil, fmt.Errorf("public_status: from > to")
+	}
+
+	// Resolve component membership if a filter is requested.
+	var resourceFilter map[string]struct{}
+	if componentID != "" {
+		members, err := s.resources.FindByComponentID(ctx, componentID)
+		if err != nil {
+			return nil, fmt.Errorf("public_status: load component resources: %w", err)
+		}
+		resourceFilter = map[string]struct{}{}
+		for _, r := range members {
+			resourceFilter[r.ID] = struct{}{}
+		}
+	}
+
+	// MVP page size: 500 incidents max — backed by paginated repo call.
+	rows, err := s.incidents.List(ctx, 500, 0)
+	if err != nil {
+		return nil, fmt.Errorf("public_status: list incidents: %w", err)
+	}
+
+	monthMap := map[string][]dto.PublicIncidentSummary{}
+	var total int
+	for _, inc := range rows {
+		if inc.StartedAt.Before(from) || inc.StartedAt.After(to) {
+			continue
+		}
+		if resourceFilter != nil {
+			if _, ok := resourceFilter[inc.ResourceID]; !ok {
+				continue
+			}
+		}
+		key := inc.StartedAt.UTC().Format("2006-01")
+		sev := dto.PublicSeverityMinor
+		if inc.ResolvedAt == nil {
+			sev = dto.PublicSeverityMajor
+		}
+		monthMap[key] = append(monthMap[key], dto.PublicIncidentSummary{
+			ID:          inc.ID,
+			Title:       incidentTitle(inc),
+			StartedAt:   inc.StartedAt,
+			ResolvedAt:  inc.ResolvedAt,
+			Severity:    sev,
+			ComponentID: componentID,
+			ResourceID:  inc.ResourceID,
+		})
+		total++
+	}
+
+	// Sort each month newest-first.
+	for _, list := range monthMap {
+		sort.SliceStable(list, func(i, j int) bool { return list[i].StartedAt.After(list[j].StartedAt) })
+	}
+	// Months newest-first.
+	keys := make([]string, 0, len(monthMap))
+	for k := range monthMap {
+		keys = append(keys, k)
+	}
+	sort.Sort(sort.Reverse(sort.StringSlice(keys)))
+
+	months := make([]dto.PublicIncidentMonth, 0, len(keys))
+	for _, k := range keys {
+		months = append(months, dto.PublicIncidentMonth{
+			YearMonth: k,
+			Count:     len(monthMap[k]),
+			Incidents: monthMap[k],
+		})
+	}
+
+	return &dto.PublicIncidentsResponse{
+		GeneratedAt: now,
+		Total:       total,
+		Months:      months,
+	}, nil
+}
+
 // loadMonthIncidents returns the public-shape incidents that started in the
 // current month and resolved (or are still open).
 func (s *PublicStatusService) loadMonthIncidents(ctx context.Context, now time.Time) ([]dto.PublicIncidentSummary, error) {
