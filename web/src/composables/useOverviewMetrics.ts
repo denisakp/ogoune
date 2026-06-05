@@ -63,11 +63,25 @@ export function useOverviewMetrics(range: () => OverviewRange) {
 
   const totalChecks = computed(() => filtered.value.length)
 
+  const validResponseTimes = computed(() =>
+    filtered.value
+      .map((a) => a.response_time)
+      .filter((v): v is number => Number.isFinite(v) && v > 0)
+      .sort((a, b) => a - b),
+  )
+
   const avgResponseTime = computed(() => {
-    const valid = filtered.value.filter((a) => Number.isFinite(a.response_time) && a.response_time > 0)
-    if (valid.length === 0) return 0
-    const sum = valid.reduce((acc, a) => acc + a.response_time, 0)
-    return Math.round(sum / valid.length)
+    const v = validResponseTimes.value
+    if (v.length === 0) return 0
+    const sum = v.reduce((acc, x) => acc + x, 0)
+    return Math.round(sum / v.length)
+  })
+
+  const p99ResponseTime = computed(() => {
+    const v = validResponseTimes.value
+    if (v.length === 0) return 0
+    const idx = Math.min(v.length - 1, Math.ceil(0.99 * v.length) - 1)
+    return Math.round(v[Math.max(0, idx)] ?? 0)
   })
 
   const successCount = computed(() => filtered.value.filter((a) => a.success).length)
@@ -91,6 +105,7 @@ export function useOverviewMetrics(range: () => OverviewRange) {
     error,
     totalChecks,
     avgResponseTime,
+    p99ResponseTime,
     uptimePct,
     series,
     refresh,

@@ -11,6 +11,7 @@ const range = computed<OverviewRange>(() => rangeInj?.range.value ?? '24h')
 interface MetricsShape {
   totalChecks: ComputedRef<number>
   avgResponseTime: ComputedRef<number>
+  p99ResponseTime: ComputedRef<number>
 }
 const metrics = inject<MetricsShape | null>('overview.metrics', null)
 
@@ -23,6 +24,7 @@ const downOrDegraded = computed(
 )
 
 const avgResponse = computed(() => metrics?.avgResponseTime.value ?? 0)
+const p99Response = computed(() => metrics?.p99ResponseTime.value ?? 0)
 const checksCount = computed(() => metrics?.totalChecks.value ?? 0)
 
 const RANGE_LABELS: Record<OverviewRange, string> = {
@@ -45,7 +47,7 @@ const cards = computed(() => [
   {
     label: 'Avg response',
     value: `${avgResponse.value}ms`,
-    sub: '',
+    sub: p99Response.value > 0 ? `p99 ${p99Response.value}ms` : '',
     icon: 'i-lucide-zap',
     iconBg: '#0EA5E914',
     iconColor: '#0EA5E9',
