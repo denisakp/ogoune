@@ -94,7 +94,7 @@ const copyToClipboard = async () => {
 <template>
   <div>
     <!-- Empty State -->
-    <div v-if="!body" style="color: rgba(0, 0, 0, 0.45); font-size: 12px">&lt;empty&gt;</div>
+    <div v-if="!body" class="empty-state">&lt;empty&gt;</div>
 
     <!-- Body Display -->
     <div v-else>
@@ -120,28 +120,14 @@ const copyToClipboard = async () => {
       <!-- Size Info -->
       <div
         v-if="responseSize"
-        style="font-size: 12px; color: rgba(0, 0, 0, 0.65); margin-bottom: 12px"
+        class="size-info"
       >
         Response size: {{ (responseSize / 1024).toFixed(2) }} KB
-        <span v-if="isTruncated" style="color: #faad14">(truncated)</span>
+        <span v-if="isTruncated" class="truncated">(truncated)</span>
       </div>
 
       <!-- Body Content -->
-      <div
-        style="
-          background-color: #1f1f1f;
-          color: #d4d4d4;
-          padding: 12px;
-          border-radius: 4px;
-          font-family: monospace;
-          font-size: 11px;
-          max-height: 400px;
-          overflow-y: auto;
-          white-space: pre-wrap;
-          word-break: break-all;
-          line-height: 1.4;
-        "
-      >
+      <div class="body-content&">
         {{ formattedBody }}
       </div>
 
@@ -156,5 +142,34 @@ const copyToClipboard = async () => {
 </template>
 
 <style scoped lang="css">
+.body-content {
+  background-color: #1f1f1f ;
+  color: #d4d4d4;
+  padding: 12px;
+  border-radius: 4px;
+  font-family: monospace;
+  font-size: 11px;
+  max-height: 400px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  word-break: break-all;
+  line-height: 1.4;
+}
+
+.size-info {
+  font-size: 12px;
+  color: rgba(0, 0, 0, 0.65);
+  margin-bottom: 12px;
+}
+
+.truncated {
+  color: #faad14;
+}
+
+.empty-state {
+  font-size: 14px;
+  color: rgba(0, 0, 0, 0.65);
+  
+}
 
 </style>
