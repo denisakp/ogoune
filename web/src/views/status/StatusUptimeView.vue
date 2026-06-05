@@ -52,8 +52,31 @@ async function refresh() {
 
 onMounted(async () => {
   await loadSummary()
+  clampToBounds()
   await refresh()
 })
+
+function clampToBounds() {
+  // Clamp the visible window to [earliestKey, currentMonthKey].
+  // Start with the latest 3-month window ending at the current month.
+  const now = new Date()
+  const curY = now.getUTCFullYear()
+  const curM = now.getUTCMonth() + 1
+  // End of visible window = startMonth + 2. We want endMonth ≤ currentMonth.
+  const endIdx = startMonth.value - 1 + 2
+  const endY = startYear.value + Math.floor(endIdx / 12)
+  const endM = ((endIdx % 12) + 12) % 12 + 1
+  const curKey = `${curY}-${String(curM).padStart(2, '0')}`
+  const endKey = `${endY}-${String(endM).padStart(2, '0')}`
+  if (endKey > curKey) {
+    // Force end == current month.
+    const startIdx = (curM - 1) - 2
+    startYear.value = curY + Math.floor(startIdx / 12)
+    let m = startIdx % 12
+    if (m < 0) m += 12
+    startMonth.value = m + 1
+  }
+}
 
 watch([startYear, startMonth, componentID], () => { refresh() })
 
@@ -78,16 +101,32 @@ function monthUptimePct(year: number, month: number): string {
 
 const branding = computed(() => summary.value?.branding ?? null)
 const brandName = computed(() => branding.value?.name ?? 'Status Page')
+
+const earliestYearMonth = computed(() => {
+  const iso = summary.value?.uptime_window?.earliest_day
+  if (!iso) {
+    // No data yet — pin the lower bound to the current month so user can't roam.
+    const now = new Date()
+    return `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, '0')}`
+  }
+  return iso.slice(0, 7)
+})
+
+const latestYearMonth = computed(() => {
+  // Always cap to the current month — uptime of future months doesn't exist.
+  const now = new Date()
+  return `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, '0')}`
+})
 </script>
 
 <template>
-  <div class="min-h-screen bg-white dark:bg-gray-950">
+  <div class="min-h-screen bg-white">
     <PublicHeader :branding="branding" />
     <PublicHistoryUptimeTabs />
 
     <main class="max-w-5xl mx-auto px-6 py-6 space-y-6" data-testid="status-uptime-view">
       <header class="flex flex-wrap items-center gap-3">
-        <div class="relative inline-flex items-center gap-2 rounded-md border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-1.5 text-sm">
+        <div class="relative inline-flex items-center gap-2 rounded-md border border-gray-200 bg-white px-3 py-1.5 text-sm">
           <svg class="size-4 text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
           </svg>
@@ -100,13 +139,15 @@ const brandName = computed(() => branding.value?.name ?? 'Status Page')
           class="ml-auto"
           :start-year="startYear"
           :start-month="startMonth"
+          :min-year-month="earliestYearMonth"
+          :max-year-month="latestYearMonth"
           @shift="shift"
         />
       </header>
 
       <div
         v-if="error && !uptime"
-        class="rounded-xl border border-red-200 bg-red-50 dark:bg-red-950/40 p-6 text-red-700 dark:text-red-300"
+        class="rounded-xl border border-red-200 bg-red-50 p-6 text-red-700"
       >
         <p class="font-semibold mb-1">Could not load uptime</p>
         <p class="text-sm opacity-80">{{ error.message }}</p>
@@ -123,7 +164,7 @@ const brandName = computed(() => branding.value?.name ?? 'Status Page')
           class="space-y-2"
         >
           <div class="flex items-baseline justify-between">
-            <h3 class="text-sm font-semibold text-gray-900 dark:text-gray-100">
+            <h3 class="text-sm font-semibold text-gray-900">
               {{ MONTHS[m.month - 1] }} {{ m.year }}
             </h3>
             <span class="text-xs font-mono text-gray-500" :data-month-pct="`${m.year}-${m.month}`">

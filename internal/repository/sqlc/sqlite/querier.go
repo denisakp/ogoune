@@ -69,6 +69,7 @@ type Querier interface {
 	FindActiveTwoFactorResetToken(ctx context.Context, arg FindActiveTwoFactorResetTokenParams) (TwoFactorResetToken, error)
 	FindComponentByID(ctx context.Context, id string) (Component, error)
 	FindDefaultNotificationChannels(ctx context.Context) ([]NotificationChannel, error)
+	FindEarliestUptimeDailyAggDay(ctx context.Context) (interface{}, error)
 	FindEscalationPolicyByID(ctx context.Context, id string) (EscalationPolicy, error)
 	FindIncidentByID(ctx context.Context, id string) (Incident, error)
 	FindIncidentDiagnosticsByIncidentID(ctx context.Context, incidentID string) (IncidentDiagnostic, error)

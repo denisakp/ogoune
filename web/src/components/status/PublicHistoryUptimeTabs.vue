@@ -20,7 +20,7 @@ function isActive(name: string) {
 
 <template>
   <nav
-    class="border-b border-gray-200 dark:border-gray-800"
+    class="border-b border-gray-200"
     aria-label="History uptime tabs"
     data-testid="history-uptime-tabs"
   >
@@ -32,8 +32,8 @@ function isActive(name: string) {
         :class="[
           'py-3 text-sm font-medium border-b-2 -mb-px transition-colors',
           isActive(tab.routeName)
-            ? 'border-gray-900 dark:border-gray-100 text-gray-900 dark:text-gray-100'
-            : 'border-transparent text-gray-500 hover:text-gray-900 dark:hover:text-gray-100',
+            ? 'border-gray-900 text-gray-900'
+            : 'border-transparent text-gray-500 hover:text-gray-900',
         ]"
         :data-active="isActive(tab.routeName) ? '1' : undefined"
         :data-testid="`tab-${tab.key}`"

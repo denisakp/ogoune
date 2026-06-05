@@ -11,15 +11,15 @@ function toggle() { open.value = !open.value }
 const aggregatedPillClass = computed(() => {
   switch (props.component.aggregated_state) {
     case 'up':
-      return 'text-emerald-700 dark:text-emerald-300'
+      return 'text-emerald-700'
     case 'degraded':
-      return 'text-yellow-700 dark:text-yellow-300'
+      return 'text-yellow-700'
     case 'down':
-      return 'text-red-700 dark:text-red-300'
+      return 'text-red-700'
     case 'maintenance':
-      return 'text-blue-700 dark:text-blue-300'
+      return 'text-blue-700'
     default:
-      return 'text-slate-600 dark:text-slate-300'
+      return 'text-slate-600'
   }
 })
 
@@ -48,12 +48,12 @@ const resourceCount = computed(() => props.component.resources.length)
 
 <template>
   <section
-    class="rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden bg-white dark:bg-gray-900"
+    class="rounded-xl border border-gray-200 overflow-hidden bg-white"
     :data-component-id="component.id"
   >
     <button
       type="button"
-      class="w-full flex items-center justify-between gap-3 px-4 py-3 bg-gray-50 dark:bg-gray-800/60 hover:bg-gray-100 dark:hover:bg-gray-800"
+      class="w-full flex items-center justify-between gap-3 px-4 py-3 bg-gray-50 hover:bg-gray-100"
       :aria-expanded="open"
       data-testid="component-toggle"
       @click="toggle"
@@ -75,7 +75,7 @@ const resourceCount = computed(() => props.component.resources.length)
           <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
         </svg>
         <span class="text-left min-w-0">
-          <span class="block font-semibold text-sm text-gray-900 dark:text-gray-100 truncate">{{ component.name }}</span>
+          <span class="block font-semibold text-sm text-gray-900 truncate">{{ component.name }}</span>
           <span class="block text-xs text-gray-500">{{ resourceCount }} resource{{ resourceCount === 1 ? '' : 's' }}</span>
         </span>
       </span>
@@ -95,7 +95,7 @@ const resourceCount = computed(() => props.component.resources.length)
       />
       <p
         v-if="resourceCount === 0"
-        class="text-sm text-gray-500 italic px-4 py-3 border-t border-gray-100 dark:border-gray-800"
+        class="text-sm text-gray-500 italic px-4 py-3 border-t border-gray-100"
       >
         No resources in this component yet.
       </p>

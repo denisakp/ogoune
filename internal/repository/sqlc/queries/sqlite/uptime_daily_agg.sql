@@ -19,3 +19,6 @@ WHERE resource_id = sqlc.arg(resource_id)
   AND day >= sqlc.arg(from_day)
   AND day <= sqlc.arg(to_day)
 ORDER BY day ASC;
+
+-- name: FindEarliestUptimeDailyAggDay :one
+SELECT MIN(day) AS earliest FROM uptime_daily_agg;

@@ -25,3 +25,6 @@ FROM uptime_daily_agg
 WHERE resource_id = $1
   AND day BETWEEN $2 AND $3
 ORDER BY day ASC;
+
+-- name: FindEarliestUptimeDailyAggDay :one
+SELECT MIN(day) AS earliest FROM uptime_daily_agg;

@@ -27,9 +27,9 @@ function duration(inc: PublicIncidentSummary): string {
 
 function statusPillClass(inc: PublicIncidentSummary) {
   if (!inc.resolved_at) {
-    return 'bg-orange-50 text-orange-700 dark:bg-orange-950/40 dark:text-orange-300'
+    return 'bg-orange-50 text-orange-700'
   }
-  return 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300'
+  return 'bg-emerald-50 text-emerald-700'
 }
 
 function statusDot(inc: PublicIncidentSummary) {
@@ -44,17 +44,17 @@ function statusLabel(inc: PublicIncidentSummary) {
 
 <template>
   <section v-if="incidents.length > 0" class="space-y-3" data-section="recent-incidents">
-    <h2 class="text-lg font-semibold text-gray-900 dark:text-gray-100">Recent Incidents</h2>
+    <h2 class="text-lg font-semibold text-gray-900">Recent Incidents</h2>
     <div class="space-y-3">
       <article
         v-for="inc in incidents"
         :key="inc.id"
-        class="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-4"
+        class="rounded-xl border border-gray-200 bg-white p-4"
         :data-incident-id="inc.id"
       >
         <div class="flex items-start justify-between gap-3 mb-1">
           <div class="flex items-center gap-2 min-w-0">
-            <h3 class="text-sm font-semibold text-gray-900 dark:text-gray-100 truncate">{{ inc.title }}</h3>
+            <h3 class="text-sm font-semibold text-gray-900 truncate">{{ inc.title }}</h3>
             <span :class="['inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium shrink-0', statusPillClass(inc)]">
               <span :class="['size-1.5 rounded-full', statusDot(inc)]" />
               {{ statusLabel(inc) }}

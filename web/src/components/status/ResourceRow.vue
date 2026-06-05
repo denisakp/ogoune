@@ -8,15 +8,15 @@ const props = defineProps<{ resource: PublicResource }>()
 const statePillClass = computed(() => {
   switch (props.resource.current_state) {
     case 'up':
-      return 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300'
+      return 'bg-emerald-50 text-emerald-700'
     case 'degraded':
-      return 'bg-yellow-50 text-yellow-800 dark:bg-yellow-950/40 dark:text-yellow-300'
+      return 'bg-yellow-50 text-yellow-800'
     case 'down':
-      return 'bg-red-50 text-red-700 dark:bg-red-950/40 dark:text-red-300'
+      return 'bg-red-50 text-red-700'
     case 'maintenance':
-      return 'bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300'
+      return 'bg-blue-50 text-blue-700'
     default:
-      return 'bg-slate-50 text-slate-600 dark:bg-slate-900/40 dark:text-slate-300'
+      return 'bg-slate-50 text-slate-600'
   }
 })
 
@@ -54,12 +54,12 @@ const uptimePct = computed(() => (props.resource.uptime_90d_ratio * 100).toFixed
 
 <template>
   <article
-    class="px-4 py-3 border-t border-gray-100 dark:border-gray-800 first:border-t-0"
+    class="px-4 py-3 border-t border-gray-100 first:border-t-0"
     :data-resource-id="resource.id"
   >
     <div class="flex items-start justify-between gap-3 mb-2">
       <div class="min-w-0 flex-1">
-        <p class="text-sm font-semibold text-gray-900 dark:text-gray-100 truncate">{{ resource.name }}</p>
+        <p class="text-sm font-semibold text-gray-900 truncate">{{ resource.name }}</p>
         <p class="text-xs font-mono text-gray-500 truncate">{{ resource.host }}</p>
       </div>
       <div class="flex items-center gap-3 shrink-0">

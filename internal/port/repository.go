@@ -252,4 +252,7 @@ type UptimeDailyAggRepository interface {
 	FindRange(ctx context.Context, resourceIDs []string, from, to time.Time) ([]*domain.UptimeDailyAgg, error)
 	// FindForResource returns the daily aggregates of one resource over [from, to].
 	FindForResource(ctx context.Context, resourceID string, from, to time.Time) ([]*domain.UptimeDailyAgg, error)
+	// FindEarliestDay returns the smallest Day across all resources.
+	// Returns the zero time when the table is empty.
+	FindEarliestDay(ctx context.Context) (time.Time, error)
 }

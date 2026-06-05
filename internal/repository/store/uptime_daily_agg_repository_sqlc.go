@@ -166,6 +166,70 @@ func (r *UptimeDailyAggRepositorySQLC) FindForResource(ctx context.Context, reso
 	}
 }
 
+func (r *UptimeDailyAggRepositorySQLC) FindEarliestDay(ctx context.Context) (time.Time, error) {
+	switch {
+	case r.pgQ != nil:
+		raw, err := r.pgQ.FindEarliestUptimeDailyAggDay(ctx)
+		if err != nil {
+			return time.Time{}, fmt.Errorf("sqlc: find earliest day (pg): %w", err)
+		}
+		return earliestFromAny(raw), nil
+	case r.sqliteQ != nil:
+		raw, err := r.sqliteQ.FindEarliestUptimeDailyAggDay(ctx)
+		if err != nil {
+			return time.Time{}, fmt.Errorf("sqlc: find earliest day (sqlite): %w", err)
+		}
+		return earliestFromAny(raw), nil
+	default:
+		return time.Time{}, r.unconfigured()
+	}
+}
+
+// earliestFromAny normalises the various nullable shapes sqlc returns from
+// MIN(day): nil, *time.Time, time.Time, pgtype.Date, string.
+func earliestFromAny(v any) time.Time {
+	switch x := v.(type) {
+	case nil:
+		return time.Time{}
+	case time.Time:
+		return x
+	case *time.Time:
+		if x == nil {
+			return time.Time{}
+		}
+		return *x
+	case string:
+		if x == "" {
+			return time.Time{}
+		}
+		t, err := time.Parse(dayLayout, x)
+		if err != nil {
+			return time.Time{}
+		}
+		return t
+	case []byte:
+		if len(x) == 0 {
+			return time.Time{}
+		}
+		t, err := time.Parse(dayLayout, string(x))
+		if err != nil {
+			return time.Time{}
+		}
+		return t
+	default:
+		// pgtype.Date or any other struct with a Time field exposed.
+		type hasTime interface{ TimeValue() (any, error) }
+		if h, ok := v.(hasTime); ok {
+			if tv, err := h.TimeValue(); err == nil {
+				if t, ok := tv.(time.Time); ok {
+					return t
+				}
+			}
+		}
+		return time.Time{}
+	}
+}
+
 func uptimeDailyAggFromPG(row pgsqlc.UptimeDailyAgg) *domain.UptimeDailyAgg {
 	return &domain.UptimeDailyAgg{
 		ResourceID:  row.ResourceID,

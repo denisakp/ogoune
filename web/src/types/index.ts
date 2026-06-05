@@ -451,9 +451,15 @@ export interface PublicBranding {
   primary_color?: string
 }
 
+export interface PublicUptimeWindow {
+  earliest_day?: string
+  latest_day: string
+}
+
 export interface PublicStatusSummary {
   generated_at: string
   branding: PublicBranding
+  uptime_window: PublicUptimeWindow
   verdict: PublicVerdict
   components: PublicComponentSummary[]
   standalone_resources: PublicResourceSummary[]

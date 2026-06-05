@@ -64,3 +64,15 @@ func (r *UptimeDailyAggRepository) FindRange(_ context.Context, resourceIDs []st
 func (r *UptimeDailyAggRepository) FindForResource(ctx context.Context, resourceID string, from, to time.Time) ([]*domain.UptimeDailyAgg, error) {
 	return r.FindRange(ctx, []string{resourceID}, from, to)
 }
+
+func (r *UptimeDailyAggRepository) FindEarliestDay(_ context.Context) (time.Time, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	var earliest time.Time
+	for _, row := range r.rows {
+		if earliest.IsZero() || row.Day.Before(earliest) {
+			earliest = row.Day
+		}
+	}
+	return earliest, nil
+}

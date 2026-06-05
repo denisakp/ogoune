@@ -140,6 +140,7 @@ func (s *PublicStatusService) GetCurrent(ctx context.Context) (*dto.PublicStatus
 
 	out.Verdict = computeVerdict(out.Components, out.StandaloneResources)
 	out.Branding = s.loadBranding(ctx)
+	out.UptimeWindow = s.loadUptimeWindow(ctx, now)
 
 	// Current month incidents.
 	monthIncidents, err := s.loadMonthIncidents(ctx, now)
@@ -370,6 +371,19 @@ func (s *PublicStatusService) GetUptime(ctx context.Context, componentID string,
 		GeneratedAt: now,
 		Days:        days,
 	}, nil
+}
+
+func (s *PublicStatusService) loadUptimeWindow(ctx context.Context, now time.Time) dto.PublicUptimeWindow {
+	today := truncDayUTC(now)
+	w := dto.PublicUptimeWindow{LatestDay: today.Format("2006-01-02")}
+	if s.uptimeAggs == nil {
+		return w
+	}
+	earliest, err := s.uptimeAggs.FindEarliestDay(ctx)
+	if err == nil && !earliest.IsZero() {
+		w.EarliestDay = earliest.UTC().Format("2006-01-02")
+	}
+	return w
 }
 
 func (s *PublicStatusService) loadBranding(ctx context.Context) dto.PublicBranding {

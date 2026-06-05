@@ -12,7 +12,7 @@ const logoLight = computed(() => props.branding?.logo_url_light || '')
 </script>
 
 <template>
-  <header class="border-b border-gray-200 dark:border-gray-800">
+  <header class="border-b border-gray-200">
     <div class="max-w-5xl mx-auto px-6 h-16 flex items-center justify-between">
       <a :href="homepage" class="flex items-center gap-2 group">
         <img
@@ -33,11 +33,11 @@ const logoLight = computed(() => props.branding?.logo_url_light || '')
         >
           <path d="M3 12h3l3 -8 4 16 3 -8 3 0" />
         </svg>
-        <span class="text-base font-semibold text-gray-900 dark:text-gray-100">{{ name }}</span>
+        <span class="text-base font-semibold text-gray-900">{{ name }}</span>
       </a>
       <a
         href="#"
-        class="text-sm text-indigo-600 dark:text-indigo-400 hover:underline"
+        class="text-sm text-indigo-600 hover:underline"
         data-testid="subscribe-link"
         @click.prevent
       >

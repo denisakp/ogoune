@@ -10,6 +10,17 @@ import (
 	"time"
 )
 
+const findEarliestUptimeDailyAggDay = `-- name: FindEarliestUptimeDailyAggDay :one
+SELECT MIN(day) AS earliest FROM uptime_daily_agg
+`
+
+func (q *Queries) FindEarliestUptimeDailyAggDay(ctx context.Context) (interface{}, error) {
+	row := q.db.QueryRowContext(ctx, findEarliestUptimeDailyAggDay)
+	var earliest interface{}
+	err := row.Scan(&earliest)
+	return earliest, err
+}
+
 const findUptimeDailyAggForResource = `-- name: FindUptimeDailyAggForResource :many
 SELECT resource_id, day, samples, up, degraded, down, uptime_ratio, computed_at
 FROM uptime_daily_agg

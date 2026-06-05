@@ -12,22 +12,22 @@ const palette = computed(() => {
   switch (props.verdict.status) {
     case 'operational':
       return {
-        pill: 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800',
+        pill: 'bg-emerald-50 text-emerald-700 border-emerald-200',
         dot: 'text-emerald-500',
       }
     case 'partial_degradation':
       return {
-        pill: 'bg-orange-50 text-orange-700 border-orange-200 dark:bg-orange-950/40 dark:text-orange-300 dark:border-orange-800',
+        pill: 'bg-orange-50 text-orange-700 border-orange-200',
         dot: 'text-orange-500',
       }
     case 'major_outage':
       return {
-        pill: 'bg-red-50 text-red-700 border-red-200 dark:bg-red-950/40 dark:text-red-300 dark:border-red-800',
+        pill: 'bg-red-50 text-red-700 border-red-200',
         dot: 'text-red-500',
       }
     default:
       return {
-        pill: 'bg-gray-50 text-gray-700 border-gray-200 dark:bg-gray-900/40 dark:text-gray-300 dark:border-gray-800',
+        pill: 'bg-gray-50 text-gray-700 border-gray-200',
         dot: 'text-gray-500',
       }
   }

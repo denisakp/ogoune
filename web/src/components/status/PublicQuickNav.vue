@@ -18,7 +18,7 @@ function go(name: string) {
     <div class="flex items-center gap-2">
       <button
         type="button"
-        class="inline-flex items-center gap-2 rounded-md border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-1.5 text-sm hover:bg-gray-50 dark:hover:bg-gray-800"
+        class="inline-flex items-center gap-2 rounded-md border border-gray-200 bg-white px-3 py-1.5 text-sm hover:bg-gray-50"
         data-testid="nav-history"
         @click="go('PublicStatusHistory')"
       >
@@ -30,7 +30,7 @@ function go(name: string) {
       </button>
       <button
         type="button"
-        class="inline-flex items-center gap-2 rounded-md border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-1.5 text-sm hover:bg-gray-50 dark:hover:bg-gray-800"
+        class="inline-flex items-center gap-2 rounded-md border border-gray-200 bg-white px-3 py-1.5 text-sm hover:bg-gray-50"
         data-testid="nav-uptime"
         @click="go('PublicStatusUptime')"
       >

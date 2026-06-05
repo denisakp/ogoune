@@ -33,7 +33,7 @@ const year = new Date().getUTCFullYear()
 
 <template>
   <footer
-    class="border-t border-gray-200 dark:border-gray-800 mt-12"
+    class="border-t border-gray-200 mt-12"
     data-testid="public-footer"
   >
     <div
@@ -43,7 +43,7 @@ const year = new Date().getUTCFullYear()
         <a
           v-if="backHref"
           :href="backHref"
-          class="hover:text-gray-700 dark:hover:text-gray-300 inline-flex items-center gap-1"
+          class="hover:text-gray-700 inline-flex items-center gap-1"
           data-testid="back-link"
         >
           ← {{ backLabel || 'Current Status' }}
@@ -53,7 +53,7 @@ const year = new Date().getUTCFullYear()
           href="https://ogoune.dev"
           target="_blank"
           rel="noopener noreferrer"
-          class="hover:text-gray-700 dark:hover:text-gray-300"
+          class="hover:text-gray-700"
           data-testid="powered-by"
         >
           Powered by Ogoune

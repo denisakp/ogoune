@@ -23,6 +23,10 @@ import * as svc from '@/services/statusPublicService'
 
 const summary: PublicStatusSummary = {
   generated_at: '2026-06-04T12:00:00Z',
+  branding: { name: 'Acme' },
+  // Earliest day far in the past so prev navigation is allowed under the
+  // new bounds clamp.
+  uptime_window: { earliest_day: '2020-01-01', latest_day: '2026-06-04' },
   verdict: { status: 'operational', label: 'OK', color: 'green' },
   components: [
     { id: 'c-api', name: 'API', aggregated_state: 'up', resources: [] },

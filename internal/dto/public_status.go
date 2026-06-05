@@ -78,10 +78,19 @@ type PublicBranding struct {
 	PrimaryColor string `json:"primary_color,omitempty"`
 }
 
+type PublicUptimeWindow struct {
+	// EarliestDay is the first day for which any uptime data exists, in
+	// YYYY-MM-DD UTC. Empty when no data yet.
+	EarliestDay string `json:"earliest_day,omitempty"`
+	// LatestDay is the most recent day we can report on (today UTC).
+	LatestDay string `json:"latest_day"`
+}
+
 type PublicStatus struct {
 	GeneratedAt           time.Time               `json:"generated_at"`
 	Branding              PublicBranding          `json:"branding"`
 	Verdict               PublicVerdict           `json:"verdict"`
+	UptimeWindow          PublicUptimeWindow      `json:"uptime_window"`
 	Components            []PublicComponent       `json:"components"`
 	StandaloneResources   []PublicResource        `json:"standalone_resources"`
 	CurrentMonthIncidents []PublicIncidentSummary `json:"current_month_incidents"`

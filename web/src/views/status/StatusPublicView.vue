@@ -18,7 +18,7 @@ const brandName = computed(() => branding.value?.name ?? 'Status Page')
 </script>
 
 <template>
-  <div class="min-h-screen bg-white dark:bg-gray-950">
+  <div class="min-h-screen bg-white">
     <PublicHeader :branding="branding" />
 
     <main class="max-w-5xl mx-auto px-6" data-testid="status-public-view">
@@ -46,14 +46,14 @@ const brandName = computed(() => branding.value?.name ?? 'Status Page')
 
       <div
         v-else-if="loading"
-        class="rounded-xl border border-gray-200 dark:border-gray-800 p-12 text-center text-gray-500 my-10"
+        class="rounded-xl border border-gray-200 p-12 text-center text-gray-500 my-10"
       >
         Loading status…
       </div>
 
       <div
         v-else-if="error"
-        class="rounded-xl border border-red-200 bg-red-50 dark:bg-red-950/40 p-6 text-red-700 dark:text-red-300 my-10"
+        class="rounded-xl border border-red-200 bg-red-50 p-6 text-red-700 my-10"
         data-testid="error-state"
       >
         <p class="font-semibold mb-1">Status temporarily unavailable</p>
