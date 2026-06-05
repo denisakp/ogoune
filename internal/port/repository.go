@@ -242,3 +242,14 @@ type EscalationRepository interface {
 
 // Custom-domain DNS state has been folded into StatusPageSettings — see
 // migration 0018. The standalone CustomDomainRepository has been removed.
+
+// UptimeDailyAggRepository — spec 060 FR-004 / FR-008 / FR-026.
+// Persists per-resource, per-UTC-day uptime aggregates produced by the cron.
+type UptimeDailyAggRepository interface {
+	// Upsert inserts or updates the row for (ResourceID, Day).
+	Upsert(ctx context.Context, agg *domain.UptimeDailyAgg) error
+	// FindRange returns aggregates for the given resources between [from, to] (inclusive).
+	FindRange(ctx context.Context, resourceIDs []string, from, to time.Time) ([]*domain.UptimeDailyAgg, error)
+	// FindForResource returns the daily aggregates of one resource over [from, to].
+	FindForResource(ctx context.Context, resourceID string, from, to time.Time) ([]*domain.UptimeDailyAgg, error)
+}

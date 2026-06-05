@@ -96,6 +96,7 @@ type Querier interface {
 	FindTagByName(ctx context.Context, name string) (Tag, error)
 	FindTagsByIDs(ctx context.Context, ids []string) ([]Tag, error)
 	FindUnresolvedIncidents(ctx context.Context, arg FindUnresolvedIncidentsParams) ([]Incident, error)
+	FindUptimeDailyAggForResource(ctx context.Context, arg FindUptimeDailyAggForResourceParams) ([]UptimeDailyAgg, error)
 	FindUserByEmail(ctx context.Context, email string) (User, error)
 	FindUserByID(ctx context.Context, id string) (User, error)
 	GetIncidentStatsSQLite(ctx context.Context, since time.Time) (GetIncidentStatsSQLiteRow, error)
@@ -170,6 +171,7 @@ type Querier interface {
 	UpdateUserPassword(ctx context.Context, arg UpdateUserPasswordParams) error
 	UpdateUserTwoFactorSecret(ctx context.Context, arg UpdateUserTwoFactorSecretParams) error
 	UpsertResourceCredential(ctx context.Context, arg UpsertResourceCredentialParams) error
+	UpsertUptimeDailyAgg(ctx context.Context, arg UpsertUptimeDailyAggParams) error
 }
 
 var _ Querier = (*Queries)(nil)

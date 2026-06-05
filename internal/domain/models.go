@@ -489,8 +489,27 @@ type StatusPageSettings struct {
 	CustomDomainStatus   DomainStatus    `json:"custom_domain_status"`
 	CustomDomainSSL      DomainSSLStatus `json:"custom_domain_ssl_status"`
 	CustomDomainDNS      []DNSRecord     `json:"custom_domain_dns_records"`
+	// Branding — spec 060 FR-013..FR-018.
+	LogoURLLight    string            `json:"logo_url_light"`
+	LogoURLDark     string            `json:"logo_url_dark"`
+	FaviconURL      string            `json:"favicon_url"`
+	PrimaryColor    string            `json:"primary_color"`
+	ThemeOverrides  map[string]string `json:"theme_overrides"`
 }
 
+// UptimeDailyAgg holds per-resource, per-UTC-day uptime counters populated
+// by the aggregator cron and consumed by the public ribbon / calendar /
+// per-resource windows endpoints. Spec 060 FR-004 / FR-008 / FR-026.
+type UptimeDailyAgg struct {
+	ResourceID  string    `json:"resource_id"`
+	Day         time.Time `json:"day"`
+	Samples     int       `json:"samples"`
+	Up          int       `json:"up"`
+	Degraded    int       `json:"degraded"`
+	Down        int       `json:"down"`
+	UptimeRatio float64   `json:"uptime_ratio"`
+	ComputedAt  time.Time `json:"computed_at"`
+}
 
 // APIKeyScope controls which routes an API key can access.
 type APIKeyScope string

@@ -268,6 +268,11 @@ type StatusPageSetting struct {
 	CustomDomainStatus     string             `json:"custom_domain_status"`
 	CustomDomainSslStatus  string             `json:"custom_domain_ssl_status"`
 	CustomDomainDnsRecords []byte             `json:"custom_domain_dns_records"`
+	LogoUrlLight           string             `json:"logo_url_light"`
+	LogoUrlDark            string             `json:"logo_url_dark"`
+	FaviconUrl             string             `json:"favicon_url"`
+	PrimaryColor           string             `json:"primary_color"`
+	ThemeOverrides         []byte             `json:"theme_overrides"`
 }
 
 type Tag struct {
@@ -285,6 +290,17 @@ type TwoFactorResetToken struct {
 	ExpiresAt pgtype.Timestamptz `json:"expires_at"`
 	UsedAt    pgtype.Timestamptz `json:"used_at"`
 	CreatedAt pgtype.Timestamptz `json:"created_at"`
+}
+
+type UptimeDailyAgg struct {
+	ResourceID  string             `json:"resource_id"`
+	Day         pgtype.Date        `json:"day"`
+	Samples     int32              `json:"samples"`
+	Up          int32              `json:"up"`
+	Degraded    int32              `json:"degraded"`
+	Down        int32              `json:"down"`
+	UptimeRatio pgtype.Numeric     `json:"uptime_ratio"`
+	ComputedAt  pgtype.Timestamptz `json:"computed_at"`
 }
 
 type User struct {

@@ -96,6 +96,8 @@ type Querier interface {
 	FindTagByName(ctx context.Context, name string) (Tag, error)
 	FindTagsByIDs(ctx context.Context, dollar_1 []string) ([]Tag, error)
 	FindUnresolvedIncidents(ctx context.Context, arg FindUnresolvedIncidentsParams) ([]Incident, error)
+	FindUptimeDailyAggForResource(ctx context.Context, arg FindUptimeDailyAggForResourceParams) ([]UptimeDailyAgg, error)
+	FindUptimeDailyAggRange(ctx context.Context, arg FindUptimeDailyAggRangeParams) ([]UptimeDailyAgg, error)
 	FindUserByEmail(ctx context.Context, email string) (User, error)
 	FindUserByID(ctx context.Context, id string) (User, error)
 	// Two aggregated counts in a single round-trip. CTE keeps the row scan
@@ -173,6 +175,7 @@ type Querier interface {
 	UpdateUserPassword(ctx context.Context, arg UpdateUserPasswordParams) error
 	UpdateUserTwoFactorSecret(ctx context.Context, arg UpdateUserTwoFactorSecretParams) error
 	UpsertResourceCredential(ctx context.Context, arg UpsertResourceCredentialParams) error
+	UpsertUptimeDailyAgg(ctx context.Context, arg UpsertUptimeDailyAggParams) error
 }
 
 var _ Querier = (*Queries)(nil)

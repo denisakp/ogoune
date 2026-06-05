@@ -394,6 +394,103 @@ export interface PublicMonitorDetail {
   maintenance?: MaintenanceBanner
 }
 
+// =====================================================================
+// Spec 060 — Public Status Page DTOs
+// =====================================================================
+
+export type PublicVerdictStatus = 'operational' | 'partial_degradation' | 'major_outage'
+export type PublicVerdictColor = 'green' | 'yellow' | 'orange' | 'red'
+
+export interface PublicVerdict {
+  status: PublicVerdictStatus
+  label: string
+  color: PublicVerdictColor
+}
+
+export type PublicAggregatedState = 'up' | 'degraded' | 'down' | 'maintenance' | 'unknown'
+
+export interface PublicUptimeRibbonDay {
+  day: string
+  ratio: number
+}
+
+export interface PublicResourceSummary {
+  id: string
+  name: string
+  host: string
+  current_state: PublicAggregatedState
+  uptime_90d_ratio: number
+  uptime_ribbon: PublicUptimeRibbonDay[]
+}
+
+export interface PublicComponentSummary {
+  id: string
+  name: string
+  aggregated_state: PublicAggregatedState
+  resources: PublicResourceSummary[]
+}
+
+export type PublicIncidentSeverity = 'minor' | 'major' | 'critical'
+
+export interface PublicIncidentSummary {
+  id: string
+  title: string
+  started_at: string
+  resolved_at: string | null
+  severity: PublicIncidentSeverity
+  component_id?: string
+  resource_id?: string
+}
+
+export interface PublicStatusSummary {
+  generated_at: string
+  verdict: PublicVerdict
+  components: PublicComponentSummary[]
+  standalone_resources: PublicResourceSummary[]
+  current_month_incidents: PublicIncidentSummary[]
+}
+
+export interface PublicIncidentMonth {
+  year_month: string
+  count: number
+  incidents: PublicIncidentSummary[]
+}
+
+export interface PublicStatusIncidentsArchive {
+  generated_at: string
+  total: number
+  months: PublicIncidentMonth[]
+}
+
+export interface PublicUptimeDay {
+  day: string
+  uptime_ratio: number
+  samples: number
+  incidents: number
+}
+
+export interface PublicStatusUptimeRange {
+  generated_at: string
+  days: PublicUptimeDay[]
+}
+
+export interface PublicResourceWindow {
+  uptime_ratio: number
+  incidents: number
+}
+
+export interface PublicStatusResourceWindows {
+  id: string
+  name: string
+  windows: {
+    '24h': PublicResourceWindow
+    '7d': PublicResourceWindow
+    '30d': PublicResourceWindow
+    '90d': PublicResourceWindow
+  }
+  recent_incidents: PublicIncidentSummary[]
+}
+
 /**
  * Notification Channel Types
  */

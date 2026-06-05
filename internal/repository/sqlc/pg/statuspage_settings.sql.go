@@ -17,9 +17,10 @@ INSERT INTO status_page_settings (
     enable_details_page, show_uptime_percentage, hide_paused_monitors,
     show_incident_history,
     custom_domain_status, custom_domain_ssl_status, custom_domain_dns_records,
+    logo_url_light, logo_url_dark, favicon_url, primary_color, theme_overrides,
     created_at, updated_at
 )
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
 `
 
 type CreateStatusPageSettingsParams struct {
@@ -35,6 +36,11 @@ type CreateStatusPageSettingsParams struct {
 	CustomDomainStatus     string             `json:"custom_domain_status"`
 	CustomDomainSslStatus  string             `json:"custom_domain_ssl_status"`
 	CustomDomainDnsRecords []byte             `json:"custom_domain_dns_records"`
+	LogoUrlLight           string             `json:"logo_url_light"`
+	LogoUrlDark            string             `json:"logo_url_dark"`
+	FaviconUrl             string             `json:"favicon_url"`
+	PrimaryColor           string             `json:"primary_color"`
+	ThemeOverrides         []byte             `json:"theme_overrides"`
 	CreatedAt              pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt              pgtype.Timestamptz `json:"updated_at"`
 }
@@ -53,6 +59,11 @@ func (q *Queries) CreateStatusPageSettings(ctx context.Context, arg CreateStatus
 		arg.CustomDomainStatus,
 		arg.CustomDomainSslStatus,
 		arg.CustomDomainDnsRecords,
+		arg.LogoUrlLight,
+		arg.LogoUrlDark,
+		arg.FaviconUrl,
+		arg.PrimaryColor,
+		arg.ThemeOverrides,
 		arg.CreatedAt,
 		arg.UpdatedAt,
 	)
@@ -60,7 +71,7 @@ func (q *Queries) CreateStatusPageSettings(ctx context.Context, arg CreateStatus
 }
 
 const getStatusPageSettings = `-- name: GetStatusPageSettings :one
-SELECT id, created_at, updated_at, name, homepage_url, custom_domain, google_analytics_id, enable_details_page, show_uptime_percentage, hide_paused_monitors, show_incident_history, custom_domain_status, custom_domain_ssl_status, custom_domain_dns_records FROM status_page_settings LIMIT 1
+SELECT id, created_at, updated_at, name, homepage_url, custom_domain, google_analytics_id, enable_details_page, show_uptime_percentage, hide_paused_monitors, show_incident_history, custom_domain_status, custom_domain_ssl_status, custom_domain_dns_records, logo_url_light, logo_url_dark, favicon_url, primary_color, theme_overrides FROM status_page_settings LIMIT 1
 `
 
 func (q *Queries) GetStatusPageSettings(ctx context.Context) (StatusPageSetting, error) {
@@ -81,6 +92,11 @@ func (q *Queries) GetStatusPageSettings(ctx context.Context) (StatusPageSetting,
 		&i.CustomDomainStatus,
 		&i.CustomDomainSslStatus,
 		&i.CustomDomainDnsRecords,
+		&i.LogoUrlLight,
+		&i.LogoUrlDark,
+		&i.FaviconUrl,
+		&i.PrimaryColor,
+		&i.ThemeOverrides,
 	)
 	return i, err
 }
@@ -98,7 +114,12 @@ SET name = $2,
     custom_domain_status = $10,
     custom_domain_ssl_status = $11,
     custom_domain_dns_records = $12,
-    updated_at = $13
+    logo_url_light = $13,
+    logo_url_dark = $14,
+    favicon_url = $15,
+    primary_color = $16,
+    theme_overrides = $17,
+    updated_at = $18
 WHERE id = $1
 `
 
@@ -115,6 +136,11 @@ type UpdateStatusPageSettingsParams struct {
 	CustomDomainStatus     string             `json:"custom_domain_status"`
 	CustomDomainSslStatus  string             `json:"custom_domain_ssl_status"`
 	CustomDomainDnsRecords []byte             `json:"custom_domain_dns_records"`
+	LogoUrlLight           string             `json:"logo_url_light"`
+	LogoUrlDark            string             `json:"logo_url_dark"`
+	FaviconUrl             string             `json:"favicon_url"`
+	PrimaryColor           string             `json:"primary_color"`
+	ThemeOverrides         []byte             `json:"theme_overrides"`
 	UpdatedAt              pgtype.Timestamptz `json:"updated_at"`
 }
 
@@ -132,6 +158,11 @@ func (q *Queries) UpdateStatusPageSettings(ctx context.Context, arg UpdateStatus
 		arg.CustomDomainStatus,
 		arg.CustomDomainSslStatus,
 		arg.CustomDomainDnsRecords,
+		arg.LogoUrlLight,
+		arg.LogoUrlDark,
+		arg.FaviconUrl,
+		arg.PrimaryColor,
+		arg.ThemeOverrides,
 		arg.UpdatedAt,
 	)
 	return err
