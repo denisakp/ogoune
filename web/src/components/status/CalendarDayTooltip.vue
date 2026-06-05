@@ -61,7 +61,7 @@ const statusBgClass = computed(() => {
 
 const downtimeLabel = computed(() => {
   const s = props.day.downtime_seconds
-  if (s <= 0) return ''
+  if (typeof s !== 'number' || !Number.isFinite(s) || s <= 0) return ''
   const hours = Math.floor(s / 3600)
   const mins = Math.round((s % 3600) / 60)
   if (hours === 0) return `${mins} mins`
