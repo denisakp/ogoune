@@ -536,24 +536,31 @@ func buildRibbon(from, to time.Time, byDay map[string]float64) []dto.PublicRibbo
 		key := d.Format("2006-01-02")
 		entry := dto.PublicRibbonEntry{Day: key}
 		if v, ok := byDay[key]; ok {
-			entry.Ratio = v
-		} else {
-			entry.Ratio = 0 // 0 distinguishes "unknown" only if combined with no row marker; we keep 0 for null-as-zero baseline.
+			r := v
+			entry.Ratio = &r
 		}
 		out = append(out, entry)
 	}
 	return out
 }
 
+// averageRibbon computes the mean over days with known data. Days with no
+// data are excluded — a freshly added resource must read 100% on its 4 days
+// of history, not 4.4% (its 4 days divided by 90).
 func averageRibbon(ribbon []dto.PublicRibbonEntry) float64 {
-	if len(ribbon) == 0 {
+	sum := 0.0
+	count := 0
+	for _, e := range ribbon {
+		if e.Ratio == nil {
+			continue
+		}
+		sum += *e.Ratio
+		count++
+	}
+	if count == 0 {
 		return 0
 	}
-	sum := 0.0
-	for _, e := range ribbon {
-		sum += e.Ratio
-	}
-	return sum / float64(len(ribbon))
+	return sum / float64(count)
 }
 
 func truncDayUTC(t time.Time) time.Time {

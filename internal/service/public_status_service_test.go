@@ -148,9 +148,13 @@ func TestPublicStatus_RibbonReadsFromAggregates(t *testing.T) {
 	ribbon := out.Components[0].Resources[0].UptimeRibbon
 	require.Len(t, ribbon, 90)
 	assert.Equal(t, "2026-06-04", ribbon[89].Day)
-	assert.InDelta(t, 0.9876, ribbon[89].Ratio, 0.0001)
-	// Missing days remain at 0 — aggregator backfills within 5 min in production.
-	assert.Equal(t, 0.0, ribbon[0].Ratio)
+	require.NotNil(t, ribbon[89].Ratio)
+	assert.InDelta(t, 0.9876, *ribbon[89].Ratio, 0.0001)
+	// Missing days surface as nil so a fresh resource doesn't read 0%.
+	assert.Nil(t, ribbon[0].Ratio)
+	// 90-day uptime is computed over known days only — a single 0.9876 day
+	// must surface as ~98.76%, not 0.9876/90 = 1.1%.
+	assert.InDelta(t, 0.9876, out.Components[0].Resources[0].Uptime90dRatio, 0.0001)
 }
 
 // ---------- US2: GetIncidents ----------

@@ -411,7 +411,9 @@ export type PublicAggregatedState = 'up' | 'degraded' | 'down' | 'maintenance' |
 
 export interface PublicUptimeRibbonDay {
   day: string
-  ratio: number
+  // null = no data for that day. The UI surfaces these as "unknown" cells,
+  // and the 90-day average is computed over known days only.
+  ratio: number | null
 }
 
 export interface PublicResourceSummary {

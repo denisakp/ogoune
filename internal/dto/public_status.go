@@ -39,8 +39,8 @@ type PublicVerdict struct {
 }
 
 type PublicRibbonEntry struct {
-	Day   string  `json:"day"`
-	Ratio float64 `json:"ratio"`
+	Day   string   `json:"day"`
+	Ratio *float64 `json:"ratio"`
 }
 
 type PublicResource struct {
