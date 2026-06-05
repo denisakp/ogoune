@@ -4,7 +4,6 @@ export interface NotificationStats {
   sent_30d: number
   pending: number
   failed_24h: number
-  last_sent_at: string | null
 }
 
 export const fetchNotificationStats = async (): Promise<NotificationStats> => {

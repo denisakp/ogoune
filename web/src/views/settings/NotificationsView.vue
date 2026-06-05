@@ -29,7 +29,6 @@ const notifStats = ref<{
   sent_30d: number
   pending: number
   failed_24h: number
-  last_sent_at: string | null
 } | null>(null)
 
 function lastSentLabel(iso: string | null | undefined): string {
@@ -42,21 +41,6 @@ function lastSentLabel(iso: string | null | undefined): string {
     return `${Math.round(ms / 86_400_000)}d ago`
   } catch {
     return '—'
-  }
-}
-
-function lastSentExact(iso: string | null | undefined): string {
-  if (!iso) return ''
-  try {
-    const d = new Date(iso)
-    return d.toLocaleString('en-US', {
-      month: 'short',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-    })
-  } catch {
-    return ''
   }
 }
 
