@@ -38,6 +38,7 @@ func TestNewRouter_PingIsPublicAndResourcesAreProtected(t *testing.T) {
 	publicStatusHandler := handler.NewPublicStatusHandler(nil)
 	statusPageSettingsHandler := handler.NewStatusPageSettingsHandler(nil)
 	incidentHandler := handler.NewIncidentHandler(nil)
+	incidentUpdateHandler := handler.NewIncidentUpdateHandler(nil)
 	notificationHandler := handler.NewNotificationHandler(nil)
 	maintenanceHandler := handler.NewMaintenanceHandler(nil)
 	statsHandler := handler.NewStatsHandler(nil)
@@ -56,6 +57,7 @@ func TestNewRouter_PingIsPublicAndResourcesAreProtected(t *testing.T) {
 		publicStatusHandler,
 		statusPageSettingsHandler,
 		incidentHandler,
+		incidentUpdateHandler,
 		notificationHandler,
 		maintenanceHandler,
 		statsHandler,

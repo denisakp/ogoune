@@ -256,3 +256,13 @@ type UptimeDailyAggRepository interface {
 	// Returns the zero time when the table is empty.
 	FindEarliestDay(ctx context.Context) (time.Time, error)
 }
+
+// IncidentUpdateRepository — spec 060 / US7. Persists per-incident lifecycle
+// status updates (investigating / identified / monitoring / resolved).
+type IncidentUpdateRepository interface {
+	Create(ctx context.Context, u *domain.IncidentUpdate) (*domain.IncidentUpdate, error)
+	FindByID(ctx context.Context, id string) (*domain.IncidentUpdate, error)
+	ListByIncident(ctx context.Context, incidentID string) ([]*domain.IncidentUpdate, error)
+	Update(ctx context.Context, u *domain.IncidentUpdate) error
+	Delete(ctx context.Context, id string) error
+}

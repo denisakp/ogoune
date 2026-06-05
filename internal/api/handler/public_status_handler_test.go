@@ -31,6 +31,9 @@ func (s *stubPublicStatus) GetIncidents(context.Context, time.Time, time.Time, s
 func (s *stubPublicStatus) GetUptime(context.Context, string, time.Time, time.Time) (*dto.PublicUptimeResponse, error) {
 	return &dto.PublicUptimeResponse{}, nil
 }
+func (s *stubPublicStatus) GetIncidentDetail(context.Context, string) (*dto.PublicIncidentDetail, error) {
+	return &dto.PublicIncidentDetail{}, nil
+}
 
 func TestPublicStatusHandler_HappyPath(t *testing.T) {
 	stub := &stubPublicStatus{

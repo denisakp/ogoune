@@ -8,6 +8,7 @@ import (
 
 	dbruntime "github.com/denisakp/ogoune/internal/database"
 	"github.com/denisakp/ogoune/internal/repository/store"
+	"github.com/denisakp/ogoune/internal/service"
 )
 
 // InitDatabase opens the database runtime and wires all sqlc-backed
@@ -62,4 +63,10 @@ func InitDatabase(app *App) {
 	app.TwoFactorResetTokenRepo = store.NewTwoFactorResetTokenRepositorySQLC(rt)
 	app.EscalationRepo = store.NewEscalationRepositorySQLC(rt)
 	app.UptimeDailyAggRepo = store.NewUptimeDailyAggRepositorySQLC(rt)
+	app.IncidentUpdateRepo = store.NewIncidentUpdateRepositorySQLC(rt)
+
+	// Seed-time services that the worker layer depends on must be built
+	// before InitWorker runs (InitServices is too late). The full
+	// PublicStatusService stays in InitServices since it has no worker dep.
+	app.IncidentUpdateService = service.NewIncidentUpdateService(app.IncidentUpdateRepo)
 }

@@ -118,6 +118,17 @@ type IncidentEventStep struct {
 	Message    pgtype.Text        `json:"message"`
 }
 
+type IncidentUpdate struct {
+	ID         string             `json:"id"`
+	IncidentID string             `json:"incident_id"`
+	Status     string             `json:"status"`
+	Message    string             `json:"message"`
+	PostedBy   string             `json:"posted_by"`
+	PostedAt   pgtype.Timestamptz `json:"posted_at"`
+	CreatedAt  pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt  pgtype.Timestamptz `json:"updated_at"`
+}
+
 type Maintenance struct {
 	ID             string             `json:"id"`
 	CreatedAt      pgtype.Timestamptz `json:"created_at"`

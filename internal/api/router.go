@@ -37,6 +37,7 @@ func NewRouter(
 	publicStatusHandler *handler.PublicStatusHandler,
 	statusPageSettingsHandler *handler.StatusPageSettingsHandler,
 	incidentHandler *handler.IncidentHandler,
+	incidentUpdateHandler *handler.IncidentUpdateHandler,
 	notificationHandler *handler.NotificationHandler,
 	maintenanceHandler *handler.MaintenanceHandler,
 	statsHandler *handler.StatsHandler,
@@ -128,6 +129,7 @@ func NewRouter(
 		r.Use(middleware.PublicStatusCache(60, 30))
 		r.Get("/status", publicStatusHandler.GetCurrent)
 		r.Get("/status/incidents", publicStatusHandler.GetIncidents)
+		r.Get("/status/incidents/{id}", publicStatusHandler.GetIncidentDetail)
 		r.Get("/status/uptime", publicStatusHandler.GetUptime)
 	})
 	// Legacy resource detail endpoint — replaced by /status/resource/:id/windows in US3.
@@ -236,6 +238,11 @@ func NewRouter(
 			r.Get("/", incidentHandler.ListIncidents)                         // GET /incidents - list all incidents (supports ?unresolved=true, ?limit=x, ?offset=y)
 			r.Get("/{id}", incidentHandler.GetIncidentDetail)                 // GET /incidents/{id} - get incident details with event steps
 			r.Get("/{id}/event-steps", incidentHandler.GetIncidentEventSteps) // GET /incidents/{id}/event-steps - get event steps for incident
+			// Incident updates timeline (US7).
+			r.Get("/{id}/updates", incidentUpdateHandler.List)
+			r.With(middleware.RequireReadWrite).Post("/{id}/updates", incidentUpdateHandler.Create)
+			r.With(middleware.RequireReadWrite).Patch("/{id}/updates/{updateID}", incidentUpdateHandler.Update)
+			r.With(middleware.RequireReadWrite).Delete("/{id}/updates/{updateID}", incidentUpdateHandler.Delete)
 		})
 
 		// Notification Channels API

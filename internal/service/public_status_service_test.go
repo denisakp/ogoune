@@ -58,7 +58,7 @@ func setup(t *testing.T) (*PublicStatusService, *fake.ResourceFake, *fake.Compon
 	incidents := fake.NewIncidentFake()
 	maintenances := &stubMaintenances{activeForResource: map[string]bool{}}
 	aggs := fake.NewUptimeDailyAggRepository()
-	svc := NewPublicStatusService(resources, components, incidents, maintenances, aggs, nil)
+	svc := NewPublicStatusService(resources, components, incidents, maintenances, aggs, nil, nil)
 	svc.SetClock(func() time.Time { return time.Date(2026, 6, 4, 12, 0, 0, 0, time.UTC) })
 	return svc, resources, components, incidents, aggs, maintenances
 }

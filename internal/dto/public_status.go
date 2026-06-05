@@ -125,6 +125,35 @@ type PublicWindowStats struct {
 	Incidents   int     `json:"incidents"`
 }
 
+// ---------- US7: Incident detail page (Claude-style timeline) ----------
+
+type PublicIncidentUpdateStatus string
+
+const (
+	PublicUpdateInvestigating PublicIncidentUpdateStatus = "investigating"
+	PublicUpdateIdentified    PublicIncidentUpdateStatus = "identified"
+	PublicUpdateMonitoring    PublicIncidentUpdateStatus = "monitoring"
+	PublicUpdateResolved      PublicIncidentUpdateStatus = "resolved"
+)
+
+type PublicIncidentUpdate struct {
+	ID       string                     `json:"id"`
+	Status   PublicIncidentUpdateStatus `json:"status"`
+	Message  string                     `json:"message"`
+	PostedAt time.Time                  `json:"posted_at"`
+}
+
+type PublicIncidentDetail struct {
+	ID          string                 `json:"id"`
+	Title       string                 `json:"title"`
+	Severity    PublicIncidentSeverity `json:"severity"`
+	StartedAt   time.Time              `json:"started_at"`
+	ResolvedAt  *time.Time             `json:"resolved_at"`
+	ComponentID string                 `json:"component_id,omitempty"`
+	ResourceID  string                 `json:"resource_id,omitempty"`
+	Updates     []PublicIncidentUpdate `json:"updates"`
+}
+
 type PublicResourceWindowsResponse struct {
 	ID              string                       `json:"id"`
 	Name            string                       `json:"name"`

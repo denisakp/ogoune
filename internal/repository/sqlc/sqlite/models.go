@@ -119,6 +119,17 @@ type IncidentEventStep struct {
 	Message    sql.NullString `json:"message"`
 }
 
+type IncidentUpdate struct {
+	ID         string    `json:"id"`
+	IncidentID string    `json:"incident_id"`
+	Status     string    `json:"status"`
+	Message    string    `json:"message"`
+	PostedBy   string    `json:"posted_by"`
+	PostedAt   time.Time `json:"posted_at"`
+	CreatedAt  time.Time `json:"created_at"`
+	UpdatedAt  time.Time `json:"updated_at"`
+}
+
 type Maintenance struct {
 	ID             string         `json:"id"`
 	CreatedAt      time.Time      `json:"created_at"`

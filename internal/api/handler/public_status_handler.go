@@ -4,10 +4,14 @@ package handler
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"time"
 
+	"github.com/go-chi/chi/v5"
+
 	"github.com/denisakp/ogoune/internal/dto"
+	"github.com/denisakp/ogoune/internal/repository"
 )
 
 // PublicStatusProvider is the minimum surface the handler needs from the
@@ -16,6 +20,7 @@ type PublicStatusProvider interface {
 	GetCurrent(ctx context.Context) (*dto.PublicStatus, error)
 	GetIncidents(ctx context.Context, from, to time.Time, componentID string) (*dto.PublicIncidentsResponse, error)
 	GetUptime(ctx context.Context, componentID string, from, to time.Time) (*dto.PublicUptimeResponse, error)
+	GetIncidentDetail(ctx context.Context, incidentID string) (*dto.PublicIncidentDetail, error)
 }
 
 type PublicStatusHandler struct {
@@ -131,6 +136,35 @@ func (h *PublicStatusHandler) GetUptime(w http.ResponseWriter, r *http.Request) 
 
 	data, err := h.svc.GetUptime(r.Context(), q.Get("component_id"), from, to)
 	if err != nil {
+		writeProblem(w, http.StatusInternalServerError, "internal_error", err.Error())
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(data)
+}
+
+// GetIncidentDetail — GET /status/incidents/{id}.
+//
+//	@Summary	Single incident with its lifecycle updates timeline
+//	@Tags		public-status
+//	@Produce	json
+//	@Param		id	path		string	true	"Incident ID"
+//	@Success	200	{object}	dto.PublicIncidentDetail
+//	@Failure	404	{object}	dto.ProblemDetails
+//	@Failure	500	{object}	dto.ProblemDetails
+//	@Router		/status/incidents/{id} [get]
+func (h *PublicStatusHandler) GetIncidentDetail(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+	if id == "" {
+		writeProblem(w, http.StatusBadRequest, "missing_id", "incident id is required")
+		return
+	}
+	data, err := h.svc.GetIncidentDetail(r.Context(), id)
+	if err != nil {
+		if errors.Is(err, repository.ErrNotFound) {
+			writeProblem(w, http.StatusNotFound, "not_found", "incident not found")
+			return
+		}
 		writeProblem(w, http.StatusInternalServerError, "internal_error", err.Error())
 		return
 	}

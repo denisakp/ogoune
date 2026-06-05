@@ -500,6 +500,29 @@ type StatusPageSettings struct {
 // UptimeDailyAgg holds per-resource, per-UTC-day uptime counters populated
 // by the aggregator cron and consumed by the public ribbon / calendar /
 // per-resource windows endpoints. Spec 060 FR-004 / FR-008 / FR-026.
+// IncidentUpdateStatus is the human-facing status of an incident lifecycle
+// update — Atlassian-style. Distinct from monitoring's internal
+// IncidentEventStepType (which is machine-generated).
+type IncidentUpdateStatus string
+
+const (
+	IncidentUpdateInvestigating IncidentUpdateStatus = "investigating"
+	IncidentUpdateIdentified    IncidentUpdateStatus = "identified"
+	IncidentUpdateMonitoring    IncidentUpdateStatus = "monitoring"
+	IncidentUpdateResolved      IncidentUpdateStatus = "resolved"
+)
+
+// IncidentUpdate is a status update posted on an incident during its
+// lifecycle (auto-seeded on detect/resolve, optionally edited by an admin).
+type IncidentUpdate struct {
+	Base
+	IncidentID string               `json:"incident_id"`
+	Status     IncidentUpdateStatus `json:"status"`
+	Message    string               `json:"message"`
+	PostedBy   string               `json:"posted_by,omitempty"`
+	PostedAt   time.Time            `json:"posted_at"`
+}
+
 type UptimeDailyAgg struct {
 	ResourceID  string    `json:"resource_id"`
 	Day         time.Time `json:"day"`

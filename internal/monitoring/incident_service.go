@@ -15,6 +15,14 @@ import (
 	"github.com/hibiken/asynq"
 )
 
+// IncidentUpdateSeeder is the minimal surface the incident lifecycle needs
+// to seed user-facing status updates (spec 060 / US7). Defined inline to
+// avoid pulling internal/service into the monitoring package.
+type IncidentUpdateSeeder interface {
+	AutoSeedOnDetect(ctx context.Context, incidentID, message string)
+	AutoSeedOnResolve(ctx context.Context, incidentID, message string)
+}
+
 // IncidentService manages incident creation and resolution with dynamic notification dispatch.
 // It creates incidents only after 3 consecutive failures and tracks the full lifecycle.
 // Notifications are sent via user-configured notification channels (SMTP, Webhook, etc.).
@@ -25,6 +33,7 @@ type IncidentService struct {
 	notificationChannels port.NotificationChannelRepository
 	diagnostics          port.IncidentDiagnosticsRepository
 	components           port.ComponentRepository
+	updates              IncidentUpdateSeeder
 	client               *asynq.Client
 }
 
@@ -45,6 +54,12 @@ func NewIncidentService(
 		diagnostics:          diagnostics,
 		client:               client,
 	}
+}
+
+// SetUpdateSeeder wires the optional incident-update auto-seeder. When nil,
+// the lifecycle silently skips public status updates.
+func (s *IncidentService) SetUpdateSeeder(seeder IncidentUpdateSeeder) {
+	s.updates = seeder
 }
 
 // SetComponentRepository sets the component repository for notification resolution
@@ -115,6 +130,11 @@ func (s *IncidentService) CreateIncident(ctx context.Context, r *domain.Resource
 
 	if _, err := s.eventSteps.Create(ctx, detectedStep); err != nil {
 		slog.Warn("failed to create detected event step", "incident_id", incident.ID, "error", err)
+	}
+
+	// Seed the first public-facing status update (US7).
+	if s.updates != nil {
+		s.updates.AutoSeedOnDetect(ctx, incident.ID, "")
 	}
 
 	if _, err := s.eventSteps.FindLastByIncidentAndStep(ctx, incident.ID, domain.IncidentEventStepDownAlert); err == nil {
@@ -345,6 +365,11 @@ func (s *IncidentService) ResolveIncident(ctx context.Context, r *domain.Resourc
 
 	if err := s.incidents.Update(ctx, activeIncident); err != nil {
 		return fmt.Errorf("failed to resolve incident: %w", err)
+	}
+
+	// Seed the public "resolved" status update (US7).
+	if s.updates != nil {
+		s.updates.AutoSeedOnResolve(ctx, activeIncident.ID, "")
 	}
 
 	slog.Info("incident resolved", "incident_id", activeIncident.ID, "resource_id", r.ID)

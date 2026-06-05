@@ -14,13 +14,14 @@ import (
 
 // PublicStatusService computes the snapshot exposed at GET /status.
 type PublicStatusService struct {
-	resources    port.ResourceRepository
-	components   port.ComponentRepository
-	incidents    port.IncidentRepository
-	maintenances port.MaintenanceRepository
-	uptimeAggs   port.UptimeDailyAggRepository
-	settings     port.StatusPageSettingsRepository
-	clock        func() time.Time
+	resources       port.ResourceRepository
+	components      port.ComponentRepository
+	incidents       port.IncidentRepository
+	maintenances    port.MaintenanceRepository
+	uptimeAggs      port.UptimeDailyAggRepository
+	settings        port.StatusPageSettingsRepository
+	incidentUpdates port.IncidentUpdateRepository
+	clock           func() time.Time
 }
 
 func NewPublicStatusService(
@@ -30,16 +31,56 @@ func NewPublicStatusService(
 	maintenances port.MaintenanceRepository,
 	uptimeAggs port.UptimeDailyAggRepository,
 	settings port.StatusPageSettingsRepository,
+	incidentUpdates port.IncidentUpdateRepository,
 ) *PublicStatusService {
 	return &PublicStatusService{
-		resources:    resources,
-		components:   components,
-		incidents:    incidents,
-		maintenances: maintenances,
-		uptimeAggs:   uptimeAggs,
-		settings:     settings,
-		clock:        time.Now,
+		resources:       resources,
+		components:      components,
+		incidents:       incidents,
+		maintenances:    maintenances,
+		uptimeAggs:      uptimeAggs,
+		settings:        settings,
+		incidentUpdates: incidentUpdates,
+		clock:           time.Now,
 	}
+}
+
+// GetIncidentDetail returns the incident plus its lifecycle update timeline
+// for the public detail page (US7).
+func (s *PublicStatusService) GetIncidentDetail(ctx context.Context, incidentID string) (*dto.PublicIncidentDetail, error) {
+	inc, err := s.incidents.FindByID(ctx, incidentID)
+	if err != nil {
+		return nil, err
+	}
+	sev := dto.PublicSeverityMinor
+	if inc.ResolvedAt == nil {
+		sev = dto.PublicSeverityMajor
+	}
+	out := &dto.PublicIncidentDetail{
+		ID:         inc.ID,
+		Title:      incidentTitle(inc),
+		Severity:   sev,
+		StartedAt:  inc.StartedAt,
+		ResolvedAt: inc.ResolvedAt,
+		ResourceID: inc.ResourceID,
+		Updates:    []dto.PublicIncidentUpdate{},
+	}
+	if s.incidentUpdates != nil {
+		rows, err := s.incidentUpdates.ListByIncident(ctx, incidentID)
+		if err != nil {
+			return nil, fmt.Errorf("public_status: list incident updates: %w", err)
+		}
+		out.Updates = make([]dto.PublicIncidentUpdate, 0, len(rows))
+		for _, u := range rows {
+			out.Updates = append(out.Updates, dto.PublicIncidentUpdate{
+				ID:       u.ID,
+				Status:   dto.PublicIncidentUpdateStatus(u.Status),
+				Message:  u.Message,
+				PostedAt: u.PostedAt,
+			})
+		}
+	}
+	return out, nil
 }
 
 // SetClock overrides the wall clock — used by tests.
