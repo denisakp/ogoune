@@ -111,7 +111,7 @@ const decodeDetails = (details?: string): string => {
       </div>
     </template>
     <template v-else>
-      <UEmptyState icon="i-lucide-smile" title="No incidents recorded" />
+      <UEmpty icon="i-lucide-smile" title="No incidents recorded" />
     </template>
   </UCard>
 </template>

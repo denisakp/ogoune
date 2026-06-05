@@ -96,7 +96,7 @@ const getStatusColor = (
     </div>
 
     <div v-else-if="components.length === 0" class="empty-state">
-      <UEmptyState
+      <UEmpty
         icon="i-lucide-layers"
         title="No components yet"
         description="Create one by grouping resources in Monitors view."

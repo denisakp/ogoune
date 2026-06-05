@@ -72,7 +72,7 @@ const pageConfig = computed(() => ({
           <UIcon name="i-lucide-loader-circle" class="size-8 animate-spin text-primary-500" />
         </div>
         <div v-else class="error-container">
-          <UEmptyState icon="i-lucide-circle-alert" title="Failed to load status page data. Please try again later." />
+          <UEmpty icon="i-lucide-circle-alert" title="Failed to load status page data. Please try again later." />
         </div>
       </div>
     </div>

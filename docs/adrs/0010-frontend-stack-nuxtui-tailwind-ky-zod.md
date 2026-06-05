@@ -120,6 +120,7 @@ Ogoune adopts **Nuxt UI v3 + Tailwind v4 + Iconify (lucide + heroicons) + Ky + Z
 - [x] Bundle baseline + delta at `docs/benchmarks/frontend-bundle-2026.md`
 - [x] Flip ADR-0010 to `Accepted` at end of Slice 1 (after PR-2 and PR-3 land)
 - [x] Drop AntDV + Axios + dev-only demo route in Slice 6 (PRD 009) — landed on branch `061-prd-009-cleanup-antdv-axios-adrs`. AntDV (4.2.6) and axios (1.12.2) fully removed from `web/package.json`; `unplugin-vue-components` `AntDesignVueResolver` removed from `vite.config.ts`; `web/src/antdv-timepicker-style-shim.ts` deleted; `web/src/libs/axios.helper.ts` deleted. Production JS bundle shrank ~22% (2,235,949 → 1,733,726 bytes, ~490 KB saved). All 522 frontend tests pass.
+- [x] PRD-010 — redundant `src/components/ui/` wrappers consolidated (branch `062-prd-010-nuxtui-wrappers`). Deleted `UEmptyState`, `UKbd`, `USkeleton`, `UStepper`, `UDatePicker`, `UDataTable` (+ `data-table-helpers.ts` + the specs). `MonitorsView.vue` rewritten on top of NuxtUI native `UTable` (TanStack columns). `@vuepic/vue-datepicker` dependency removed. `useConfirm` + `UConfirmModal` retained — verified already on `useOverlay` + `UModal` (no code change). Bundle: 1,734,118 → 1,732,345 bytes (-1.7 KB). All 506 frontend tests pass.
 
 ## References
 

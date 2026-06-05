@@ -245,7 +245,7 @@ const getOverallStatusColor = () => {
         </div>
 
         <div v-if="!loading && services.length === 0" class="empty-state">
-          <UEmptyState icon="i-lucide-radar" title="No services to monitor" />
+          <UEmpty icon="i-lucide-radar" title="No services to monitor" />
         </div>
         <div v-else class="services-list">
           <div

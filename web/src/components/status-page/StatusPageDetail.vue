@@ -201,7 +201,7 @@ watch(
 
       <!-- Error State -->
       <div v-else-if="!monitorData" class="error-container">
-        <UEmptyState icon="i-lucide-circle-alert" title="Failed to load monitor details. Please try again later." />
+        <UEmpty icon="i-lucide-circle-alert" title="Failed to load monitor details. Please try again later." />
       </div>
 
       <!-- Content -->

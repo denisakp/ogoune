@@ -8,7 +8,7 @@ const toast = useToast()
 const { isEnterprise: isEE } = useLicence()
 
 const inputValue = ref('')
-const dateValue = ref<Date | null>(null)
+const dateValueText = ref<string>('')
 const confirmResult = ref<string | null>(null)
 const removedFilter = ref<string | null>(null)
 
@@ -75,7 +75,7 @@ const sampleSparkline = [10, 14, 12, 18, 22, 19, 25, 23, 28, 30, 27, 32]
             <UInput v-model="inputValue" placeholder="Type here..." />
           </UCard>
           <UCard>
-            <UDatePicker v-model="dateValue" placeholder="Pick a date" />
+            <UInput v-model="dateValueText" type="date" placeholder="Pick a date" />
           </UCard>
         </div>
       </div>
@@ -143,31 +143,45 @@ const sampleSparkline = [10, 14, 12, 18, 22, 19, 25, 23, 28, 30, 27, 32]
           <UCard>
             <p class="text-sm font-medium mb-2">UKbd</p>
             <div class="flex gap-3">
-              <UKbd :keys="['⌘', 'K']" />
-              <UKbd :keys="['⌘', '?']" />
-              <UKbd :keys="['G', 'I']" />
+              <span class="inline-flex items-center gap-1"><UKbd>⌘</UKbd><UKbd>K</UKbd></span>
+              <span class="inline-flex items-center gap-1"><UKbd>⌘</UKbd><UKbd>?</UKbd></span>
+              <span class="inline-flex items-center gap-1"><UKbd>G</UKbd><UKbd>I</UKbd></span>
             </div>
           </UCard>
 
           <UCard>
             <p class="text-sm font-medium mb-2">USkeleton</p>
             <div class="space-y-2">
-              <USkeleton variant="text" />
+              <USkeleton class="h-4 w-full" />
               <div class="flex items-center gap-2">
-                <USkeleton variant="circle" />
-                <USkeleton variant="text" width="40%" />
+                <USkeleton class="size-8 rounded-full" />
+                <USkeleton class="h-4 w-2/5" />
               </div>
-              <USkeleton variant="rect" height="40px" />
-              <USkeleton variant="table-row" />
-              <USkeleton variant="card" />
+              <USkeleton class="h-10 w-full" />
+              <USkeleton class="h-10 w-full" />
+              <USkeleton class="h-32 w-full" />
             </div>
           </UCard>
 
           <UCard>
             <p class="text-sm font-medium mb-2">UStepper</p>
             <div class="space-y-3">
-              <UStepper :steps="['Profile', 'Verify', 'Done']" :active-step="1" />
-              <UStepper :steps="['One', 'Two', 'Three']" :active-step="0" variant="dots" />
+              <UStepper
+                :items="[
+                  { value: 'profile', title: 'Profile' },
+                  { value: 'verify', title: 'Verify' },
+                  { value: 'done', title: 'Done' },
+                ]"
+                :model-value="'verify'"
+              />
+              <UStepper
+                :items="[
+                  { value: 'one', title: 'One' },
+                  { value: 'two', title: 'Two' },
+                  { value: 'three', title: 'Three' },
+                ]"
+                :model-value="'one'"
+              />
             </div>
           </UCard>
 
@@ -191,8 +205,8 @@ const sampleSparkline = [10, 14, 12, 18, 22, 19, 25, 23, 28, 30, 27, 32]
           </UCard>
 
           <UCard>
-            <p class="text-sm font-medium mb-2">UEmptyState</p>
-            <UEmptyState
+            <p class="text-sm font-medium mb-2">UEmpty</p>
+            <UEmpty
               icon="i-lucide-radar"
               title="No monitors yet"
               description="Add your first monitor to start receiving alerts."
@@ -200,7 +214,7 @@ const sampleSparkline = [10, 14, 12, 18, 22, 19, 25, 23, 28, 30, 27, 32]
               <template #actions>
                 <UButton size="sm">Add monitor</UButton>
               </template>
-            </UEmptyState>
+            </UEmpty>
           </UCard>
         </div>
 

@@ -36,7 +36,6 @@
     "@tiptap/pm": "^3.26.0",
     "@tiptap/starter-kit": "^3.26.0",
     "@tiptap/vue-3": "^3.26.0",
-    "@vuepic/vue-datepicker": "^11.0.0",
     "@vueuse/core": "^11.0.0",
     "cron-parser": "^5.5.0",
     "cronstrue": "^3.14.0",

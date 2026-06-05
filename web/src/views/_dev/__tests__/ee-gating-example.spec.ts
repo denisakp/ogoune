@@ -31,10 +31,9 @@ const stubs = {
   USkeleton: true,
   UStepper: true,
   UStatCard: true,
-  UEmptyState: true,
+  UEmpty: true,
   UUptimeBar: true,
   UUptimeCalendar: true,
-  UDatePicker: true,
 }
 
 describe('EE-gating live example in NuxtUIDemoView (spec 055 SC-006)', () => {

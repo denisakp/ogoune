@@ -151,7 +151,7 @@ const ranges: RangeKey[] = ['2h', '24h', '7d', '30d']
     </div>
 
     <!-- Empty state -->
-    <UEmptyState
+    <UEmpty
       v-else
       icon="i-lucide-chart-no-axes-column"
       title="No statistics available"

@@ -234,7 +234,7 @@ const goBack = () => {
     </template>
 
     <template v-else>
-      <UEmptyState
+      <UEmpty
         icon="i-lucide-search-x"
         title="Resource not found"
         description="The requested resource does not exist."
@@ -242,7 +242,7 @@ const goBack = () => {
         <template #actions>
           <UButton color="primary" @click="goBack">Go Back</UButton>
         </template>
-      </UEmptyState>
+      </UEmpty>
     </template>
 
     <ResourceModal v-model:open="showEditModal" :resource="resource" @submit="handleEditSubmit" />
