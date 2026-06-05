@@ -19,7 +19,6 @@ const monitor: NavItem[] = [
 ]
 
 const report: NavItem[] = [
-  { label: 'Status Page', to: '/settings/org/status-page', icon: 'i-lucide-globe' },
   { label: 'Reports', to: '/reports', icon: 'i-lucide-file-text' },
   { label: 'Dashboards', to: '/dashboards', icon: 'i-lucide-layout-grid' },
 ]
