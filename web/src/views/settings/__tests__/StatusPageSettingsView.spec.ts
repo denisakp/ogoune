@@ -49,7 +49,7 @@ const baseline = {
   name: 'Status Page',
   homepage_url: '',
   custom_domain: '',
-  google_analytics_id: '',
+  umami_website_id: '',
   enable_details_page: true,
   show_uptime_percentage: true,
   hide_paused_monitors: true,

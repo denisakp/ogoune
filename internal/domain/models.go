@@ -484,7 +484,8 @@ type StatusPageSettings struct {
 	Name                 string          `json:"name"`
 	HomepageURL          string          `json:"homepage_url"`
 	CustomDomain         string          `json:"custom_domain"`
-	GoogleAnalyticsID    string          `json:"google_analytics_id"`
+	UmamiWebsiteID       string          `json:"umami_website_id"`
+	UmamiScriptURL       string          `json:"umami_script_url"`
 	EnableDetailsPage    bool            `json:"enable_details_page"`
 	ShowUptimePercentage bool            `json:"show_uptime_percentage"`
 	HidePausedMonitors   bool            `json:"hide_paused_monitors"`

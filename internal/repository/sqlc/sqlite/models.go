@@ -288,6 +288,8 @@ type StatusPageSetting struct {
 	FaviconUrl             string    `json:"favicon_url"`
 	PrimaryColor           string    `json:"primary_color"`
 	ThemeOverrides         string    `json:"theme_overrides"`
+	UmamiWebsiteID         string    `json:"umami_website_id"`
+	UmamiScriptUrl         string    `json:"umami_script_url"`
 }
 
 type Tag struct {
