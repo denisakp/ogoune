@@ -30,19 +30,22 @@ async function tryConfirm() {
   confirmResult.value = ok ? 'confirmed' : 'dismissed'
 }
 
-const sampleDays90 = Array.from({ length: 90 }, (_, i) => {
+const sampleEntries90 = Array.from({ length: 90 }, (_, i) => {
+  const day = `2026-d${String(i).padStart(2, '0')}`
   const r = (i * 31 + 7) % 10
-  if (r === 0) return 'down' as const
-  if (r === 1) return 'warning' as const
-  if (r === 2) return 'nodata' as const
-  return 'up' as const
+  if (r === 0) return { day, ratio: 0.85 }
+  if (r === 1) return { day, ratio: 0.97 }
+  if (r === 2) return { day, ratio: null }
+  if (r === 3) return { day, ratio: 0.995 }
+  return { day, ratio: 1 }
 })
 
-const sampleDays31 = Array.from({ length: 31 }, (_, i) => {
+const sampleEntries31 = Array.from({ length: 31 }, (_, i) => {
+  const day = `2026-05-${String(i + 1).padStart(2, '0')}`
   const r = (i * 13 + 3) % 9
-  if (r === 0) return 'warning' as const
-  if (r === 1) return 'down' as const
-  return 'up' as const
+  if (r === 0) return { day, ratio: 0.96 }
+  if (r === 1) return { day, ratio: 0.9 }
+  return { day, ratio: 1 }
 })
 
 const sampleSparkline = [10, 14, 12, 18, 22, 19, 25, 23, 28, 30, 27, 32]
@@ -203,13 +206,13 @@ const sampleSparkline = [10, 14, 12, 18, 22, 19, 25, 23, 28, 30, 27, 32]
 
         <UCard class="mt-4">
           <p class="text-sm font-medium mb-2">UUptimeBar (90 days)</p>
-          <UUptimeBar :days="sampleDays90" />
+          <UUptimeBar :entries="sampleEntries90" />
         </UCard>
 
         <UCard class="mt-4">
           <p class="text-sm font-medium mb-2">UUptimeCalendar</p>
           <div class="max-w-xs">
-            <UUptimeCalendar :month="5" :year="2026" :days="sampleDays31" :uptime-pct="98.21" />
+            <UUptimeCalendar :year="2026" :month="5" :entries="sampleEntries31" />
           </div>
         </UCard>
       </div>

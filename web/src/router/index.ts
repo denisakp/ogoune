@@ -19,8 +19,6 @@ const TwoFactorResetView = () => import('@/views/auth/TwoFactorResetView.vue')
 const Verify2FAView = () => import('@/views/auth/Verify2FAView.vue')
 const IncidentsView = () => import('@/views/incidents/IncidentsView.vue')
 const IncidentView = () => import('@/views/incidents/IncidentView.vue')
-const StatusPageView = () => import('@/views/status-page/StatusPageView.vue')
-const StatusPageDetailView = () => import('@/views/status-page/StatusPageDetailView.vue')
 const LoginView = () => import('@/views/auth/LoginView.vue')
 const RegisterView = () => import('@/views/auth/RegisterView.vue')
 const ForgotPasswordView = () => import('@/views/auth/ForgotPasswordView.vue')
@@ -194,19 +192,9 @@ const routes: RouteRecordRaw[] = [
   { path: '/settings/notifications', redirect: '/notifications' },
   { path: '/settings/escalation', redirect: '/escalation' },
   { path: '/settings/api-keys', redirect: '/api-keys' },
-  // Public status page routes (no app layout)
-  {
-    path: '/status',
-    name: 'StatusPage',
-    component: StatusPageView,
-    meta: { public: true, requiresLayout: false },
-  },
-  {
-    path: '/status/:id',
-    name: 'StatusPageDetail',
-    component: StatusPageDetailView,
-    meta: { public: true, requiresLayout: false },
-  },
+  // NB: the public status page lives in its own bundle (status.html → status-main.ts).
+  // In dev: http://localhost:5173/status.html (and /status.html/uptime, /status.html/history).
+  // In prod: served at status.<domain> or the custom_domain set in status page settings.
 ]
 
 // Dev-only demo routes — build-time tree-shaken in production.

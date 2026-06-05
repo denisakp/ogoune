@@ -7,9 +7,10 @@ INSERT INTO status_page_settings (
     enable_details_page, show_uptime_percentage, hide_paused_monitors,
     show_incident_history,
     custom_domain_status, custom_domain_ssl_status, custom_domain_dns_records,
+    logo_url_light, logo_url_dark, favicon_url, primary_color, theme_overrides,
     created_at, updated_at
 )
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
 
 -- name: UpdateStatusPageSettings :exec
 UPDATE status_page_settings
@@ -24,5 +25,10 @@ SET name = ?,
     custom_domain_status = ?,
     custom_domain_ssl_status = ?,
     custom_domain_dns_records = ?,
+    logo_url_light = ?,
+    logo_url_dark = ?,
+    favicon_url = ?,
+    primary_color = ?,
+    theme_overrides = ?,
     updated_at = ?
 WHERE id = ?;

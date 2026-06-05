@@ -3,35 +3,37 @@ import { createMemoryHistory, createRouter } from 'vue-router'
 
 import { statusRoutes } from './status-router'
 
-describe('status-router', () => {
+describe('status-router (spec 060)', () => {
   const buildRouter = () => createRouter({ history: createMemoryHistory(), routes: statusRoutes })
 
-  it('resolves /status route and keeps lazy-loaded status view', () => {
+  it('resolves / to the current snapshot view', () => {
     const router = buildRouter()
-    const resolved = router.resolve('/status')
-
-    expect(resolved.name).toBe('StatusPage')
+    const resolved = router.resolve('/')
+    expect(resolved.name).toBe('PublicStatusCurrent')
     expect(typeof resolved.matched[0]?.components?.default).toBe('function')
   })
 
-  it('resolves /status/:id route and preserves params', () => {
+  it('resolves /history to the incident archive view', () => {
     const router = buildRouter()
-    const resolved = router.resolve('/status/resource-123')
-
-    expect(resolved.name).toBe('StatusPageDetail')
-    expect(resolved.params.id).toBe('resource-123')
-    expect(typeof resolved.matched[0]?.components?.default).toBe('function')
+    const resolved = router.resolve('/history')
+    expect(resolved.name).toBe('PublicStatusHistory')
   })
 
-  it('redirects / to /status', () => {
-    const rootRedirect = statusRoutes.find((route) => route.path === '/')
-
-    expect(rootRedirect?.redirect).toBe('/status')
+  it('resolves /uptime to the calendar view', () => {
+    const router = buildRouter()
+    const resolved = router.resolve('/uptime')
+    expect(resolved.name).toBe('PublicStatusUptime')
   })
 
-  it('redirects unknown routes to /status', () => {
-    const catchAllRedirect = statusRoutes.find((route) => route.path === '/:pathMatch(.*)*')
+  it('resolves /resource/:id preserving the param', () => {
+    const router = buildRouter()
+    const resolved = router.resolve('/resource/res-123')
+    expect(resolved.name).toBe('PublicStatusResource')
+    expect(resolved.params.id).toBe('res-123')
+  })
 
-    expect(catchAllRedirect?.redirect).toBe('/status')
+  it('redirects unknown paths to /', () => {
+    const catchAll = statusRoutes.find((r) => r.path === '/:pathMatch(.*)*')
+    expect(catchAll?.redirect).toBe('/')
   })
 })

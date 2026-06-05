@@ -7,6 +7,7 @@ import IncidentHeader from '@/components/incidents/IncidentHeader.vue'
 import IncidentTimeline from '@/components/incidents/IncidentTimeline.vue'
 import DiagnosticsPanel from '@/components/incidents/DiagnosticsPanel.vue'
 import NotificationsPanel from '@/components/incidents/NotificationsPanel.vue'
+import IncidentStatusUpdates from '@/components/incidents/IncidentStatusUpdates.vue'
 import type { Incident } from '@/types'
 
 const route = useRoute()
@@ -76,9 +77,12 @@ defineExpose({ incident, loadIncident, onAction })
       <IncidentHeader :incident="incident" @action="onAction" />
 
       <div class="grid grid-cols-[1fr_360px] gap-5 items-start">
-        <div class="bg-white rounded-lg border border-slate-200 p-5">
-          <h3 class="text-base font-semibold text-slate-900 mb-4">Timeline</h3>
-          <IncidentTimeline :events="events" />
+        <div class="flex flex-col gap-5">
+          <div class="bg-white rounded-lg border border-slate-200 p-5">
+            <h3 class="text-base font-semibold text-slate-900 mb-4">Timeline</h3>
+            <IncidentTimeline :events="events" />
+          </div>
+          <IncidentStatusUpdates v-if="incident" :incident-id="incident.id" />
         </div>
 
         <div class="flex flex-col gap-5">

@@ -1,38 +1,139 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, inject, onMounted, ref, type ComputedRef, type Ref } from 'vue'
 import { useRouter } from 'vue-router'
 
 import { useResourceStore } from '@/stores/resourceStore'
+import { fetchPublicStatusSummary } from '@/services/statusPublicService'
+import type { OverviewRange } from '@/composables/useOverviewMetrics'
+import type { PublicStatusSummary } from '@/types'
 
 const resourceStore = useResourceStore()
 const router = useRouter()
 
-const totalResources = computed(() => resourceStore.resources.length)
+const rangeInj = inject<{ range: Ref<OverviewRange> } | null>('overview.range', null)
+const range = computed<OverviewRange>(() => rangeInj?.range.value ?? '24h')
+
+interface MetricsShape { uptimePct: ComputedRef<number | null> }
+const metrics = inject<MetricsShape | null>('overview.metrics', null)
+
+const RANGE_LABEL: Record<OverviewRange, string> = {
+  '1h': '1-hour uptime',
+  '6h': '6-hour uptime',
+  '24h': '24-hour uptime',
+  '7d': '7-day uptime',
+  '30d': '30-day uptime',
+}
+
 const downCount = computed(() => resourceStore.resources.filter((r) => r.status === 'down').length)
-const upCount = computed(() => resourceStore.resources.filter((r) => r.status === 'up').length)
+const hasIncidents = computed(() => downCount.value > 0)
+
+const summary = ref<PublicStatusSummary | null>(null)
+
+onMounted(async () => {
+  try {
+    summary.value = await fetchPublicStatusSummary()
+  } catch {
+    summary.value = null
+  }
+})
+
+// Aggregate every resource's 90-day ribbon → keep the last 30 entries,
+// average each day across resources. Ribbons return ratio:null for days
+// without data.
+const dailyRatios = computed<(number | null)[]>(() => {
+  const resources = [
+    ...(summary.value?.components.flatMap((c) => c.resources) ?? []),
+    ...(summary.value?.standalone_resources ?? []),
+  ]
+  if (resources.length === 0) return []
+  const ribbons = resources.map((r) => r.uptime_ribbon ?? [])
+  const len = ribbons.reduce((m, r) => Math.max(m, r.length), 0)
+  if (len === 0) return []
+  const start = Math.max(0, len - 30)
+  const out: (number | null)[] = []
+  for (let i = start; i < len; i++) {
+    let sum = 0
+    let count = 0
+    for (const r of ribbons) {
+      const entry = r[i]
+      if (entry && entry.ratio !== null) {
+        sum += entry.ratio
+        count++
+      }
+    }
+    out.push(count === 0 ? null : sum / count)
+  }
+  return out
+})
+
+const knownRatios = computed(() => dailyRatios.value.filter((v): v is number => v !== null))
 
 const uptimePct = computed(() => {
-  if (totalResources.value === 0) return 100
-  return Math.round((upCount.value / totalResources.value) * 1000) / 10
+  // Prefer the windowed value from useOverviewMetrics (activity-based, real
+  // time-aware). Fall back to the 90-day ribbon mean when no activities
+  // landed in the window yet.
+  const windowed = metrics?.uptimePct.value
+  if (typeof windowed === 'number') return Math.round(windowed * 100) / 100
+  if (knownRatios.value.length === 0) {
+    if (resourceStore.resources.length === 0) return 100
+    const up = resourceStore.resources.filter((r) => r.status === 'up').length
+    return Math.round((up / resourceStore.resources.length) * 1000) / 10
+  }
+  const mean = knownRatios.value.reduce((a, b) => a + b, 0) / knownRatios.value.length
+  return Math.round(mean * 1000) / 10
 })
+
 const uptimeWhole = computed(() => Math.floor(uptimePct.value))
 const uptimeDecimal = computed(() => {
   const dec = Math.round((uptimePct.value - Math.floor(uptimePct.value)) * 100)
   return dec.toString().padStart(2, '0')
 })
 
-const hasIncidents = computed(() => downCount.value > 0)
+interface SparkBar {
+  h: number
+  band: 'operational' | 'minor' | 'major' | 'outage' | 'unknown'
+}
 
-const sparkBars = computed(() => {
-  const heights = [
-    52, 48, 60, 55, 62, 58, 50, 45, 53, 48, 56, 65, 70, 62, 58, 50, 48, 55, 72, 60, 52, 45, 50, 58,
-    65, 55, 48, 42, 55, 60,
+function bandFor(ratio: number | null): SparkBar['band'] {
+  if (ratio === null) return 'unknown'
+  if (ratio >= 1) return 'operational'
+  if (ratio >= 0.99) return 'minor'
+  if (ratio >= 0.95) return 'major'
+  return 'outage'
+}
+
+const sparkBars = computed<SparkBar[]>(() => {
+  const ratios = dailyRatios.value
+  if (ratios.length === 0) {
+    return Array.from({ length: 30 }, () => ({ h: 30, band: 'unknown' as const }))
+  }
+  const padded: (number | null)[] = [
+    ...Array(Math.max(0, 30 - ratios.length)).fill(null),
+    ...ratios.slice(-30),
   ]
-  return heights.map((h, i) => ({
-    h,
-    isDown: hasIncidents.value && i === 22,
-  }))
+  return padded.map((r) => {
+    const band = bandFor(r)
+    let h = 30
+    if (r !== null) {
+      const v = Math.max(0.5, r)
+      h = Math.round(30 + (v - 0.5) * 140)
+      if (h > 100) h = 100
+    }
+    return { h, band }
+  })
 })
+
+const BAND_COLORS: Record<SparkBar['band'], string> = {
+  operational: '#4F46E5',
+  minor: '#F59E0B',
+  major: '#F97316',
+  outage: '#EF4444',
+  unknown: '#E2E8F0',
+}
+
+function openStatusPage() {
+  window.open('/status.html', '_blank', 'noopener')
+}
 </script>
 
 <template>
@@ -76,7 +177,7 @@ const sparkBars = computed(() => {
             <span class="text-xl font-semibold text-slate-500 leading-none pb-1">%</span>
           </div>
           <div class="text-[10px] font-medium text-slate-400 uppercase tracking-wider mt-1">
-            30-day uptime
+            {{ RANGE_LABEL[range] }}
           </div>
         </div>
 
@@ -89,8 +190,8 @@ const sparkBars = computed(() => {
                 class="w-2 rounded-[1px]"
                 :style="{
                   height: `${b.h}%`,
-                  backgroundColor: b.isDown ? '#EF4444' : '#4F46E5',
-                  opacity: b.isDown ? 1 : 0.35,
+                  backgroundColor: BAND_COLORS[b.band],
+                  opacity: b.band === 'unknown' ? 0.4 : 1,
                 }"
               />
             </div>
@@ -119,7 +220,7 @@ const sparkBars = computed(() => {
       <button
         type="button"
         class="inline-flex items-center justify-between gap-1.5 px-2.5 py-1.5 rounded-md border border-slate-200 text-[12px] text-slate-700 hover:bg-slate-50"
-        @click="router.push('/status')"
+        @click="openStatusPage"
       >
         <span class="inline-flex items-center gap-1.5">
           <UIcon name="i-lucide-external-link" class="size-3.5" />

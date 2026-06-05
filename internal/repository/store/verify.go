@@ -25,4 +25,8 @@ var (
 	_ port.SessionRepository             = (*SessionRepositorySQLC)(nil)
 	_ port.TwoFactorResetTokenRepository = (*TwoFactorResetTokenRepositorySQLC)(nil)
 	_ port.EscalationRepository          = (*EscalationRepositorySQLC)(nil)
+
+	// Spec 060 — Public Status Pages
+	_ port.UptimeDailyAggRepository = (*UptimeDailyAggRepositorySQLC)(nil)
+	_ port.IncidentUpdateRepository = (*IncidentUpdateRepositorySQLC)(nil)
 )

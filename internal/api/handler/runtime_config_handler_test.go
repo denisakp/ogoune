@@ -33,6 +33,26 @@ func TestRuntimeConfigHandler_Get(t *testing.T) {
 	if got.Version != "0.4.2-test" {
 		t.Errorf("version: got %q want 0.4.2-test", got.Version)
 	}
+	// Community by default (no ENTERPRISE_LICENSE_KEY in test env) → powered_by_required must be true.
+	if !got.PoweredByRequired {
+		t.Errorf("powered_by_required: got false want true in community mode")
+	}
+}
+
+func TestRuntimeConfigHandler_PoweredByRequired_EnterpriseSuppresses(t *testing.T) {
+	t.Setenv("ENTERPRISE_LICENSE_KEY", "pg_ent_test_key")
+	cfg := &config.Config{SSLProvider: "external"}
+	h := NewRuntimeConfigHandler(cfg, "x")
+	rec := httptest.NewRecorder()
+	h.Get(rec, httptest.NewRequest(http.MethodGet, "/api/config/runtime", nil))
+	var got runtimeConfigResponse
+	_ = json.Unmarshal(rec.Body.Bytes(), &got)
+	if got.Edition != "enterprise" {
+		t.Fatalf("edition: got %q want enterprise", got.Edition)
+	}
+	if got.PoweredByRequired {
+		t.Errorf("powered_by_required: got true want false in enterprise mode")
+	}
 }
 
 func TestRuntimeConfigHandler_AllSSLProviders(t *testing.T) {

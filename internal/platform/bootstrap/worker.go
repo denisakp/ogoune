@@ -81,6 +81,9 @@ func initTimingWheelWorker(app *App, enrichmentService *service.EnrichmentServic
 		app.IncidentDiagnosticsRepo,
 		nil,
 	)
+	if app.IncidentUpdateService != nil {
+		incidentService.SetUpdateSeeder(app.IncidentUpdateService)
+	}
 	app.DetectorIncidentSvc = incidentService
 
 	monitoringHandler := worker.NewMonitoringTaskHandler(app.ResourceRepo, app.MonitoringActivityRepo, app.MaintenanceRepo, app.IncidentDiagnosticsRepo, executor, incidentService, app.ComponentService, app.ConfirmationScheduler)
@@ -196,6 +199,9 @@ func initAsynqProcessor(app *App, enrichmentService *service.EnrichmentService) 
 		app.IncidentDiagnosticsRepo,
 		app.AsynqClient,
 	)
+	if app.IncidentUpdateService != nil {
+		incidentService.SetUpdateSeeder(app.IncidentUpdateService)
+	}
 	app.DetectorIncidentSvc = incidentService
 
 	monitoringHandler := worker.NewMonitoringTaskHandler(app.ResourceRepo, app.MonitoringActivityRepo, app.MaintenanceRepo, app.IncidentDiagnosticsRepo, executor, incidentService, app.ComponentService, app.ConfirmationScheduler)

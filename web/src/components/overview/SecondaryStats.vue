@@ -1,9 +1,19 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, inject, type ComputedRef, type Ref } from 'vue'
 import { useResourceStore } from '@/stores/resourceStore'
-import { fetchStatsSummary } from '@/services/statsService'
+import type { OverviewRange } from '@/composables/useOverviewMetrics'
 
 const resourceStore = useResourceStore()
+
+const rangeInj = inject<{ range: Ref<OverviewRange> } | null>('overview.range', null)
+const range = computed<OverviewRange>(() => rangeInj?.range.value ?? '24h')
+
+interface MetricsShape {
+  totalChecks: ComputedRef<number>
+  avgResponseTime: ComputedRef<number>
+  p99ResponseTime: ComputedRef<number>
+}
+const metrics = inject<MetricsShape | null>('overview.metrics', null)
 
 const totalResources = computed(() => resourceStore.resources.length)
 const downOrDegraded = computed(
@@ -13,30 +23,17 @@ const downOrDegraded = computed(
     ).length,
 )
 
-const avgResponse = computed(() => {
-  const resources = resourceStore.resources
-  if (resources.length === 0) return 0
-  const sum = resources.reduce((acc, r) => {
-    const rt = (r as { response_time?: number }).response_time ?? 0
-    return acc + rt
-  }, 0)
-  return Math.round(sum / resources.length)
-})
+const avgResponse = computed(() => metrics?.avgResponseTime.value ?? 0)
+const p99Response = computed(() => metrics?.p99ResponseTime.value ?? 0)
+const checksCount = computed(() => metrics?.totalChecks.value ?? 0)
 
-const checksToday = ref<number | null>(null)
-const checksDelta = ref<string>('')
-onMounted(async () => {
-  try {
-    const summary = await fetchStatsSummary('24h')
-    checksToday.value = (summary as unknown as { total_checks_24h?: number }).total_checks_24h ?? 0
-    const delta = (summary as unknown as { delta_pct?: number }).delta_pct
-    if (typeof delta === 'number') {
-      checksDelta.value = `${delta >= 0 ? '+' : ''}${delta}% vs yesterday`
-    }
-  } catch {
-    checksToday.value = 0
-  }
-})
+const RANGE_LABELS: Record<OverviewRange, string> = {
+  '1h': 'Checks (1h)',
+  '6h': 'Checks (6h)',
+  '24h': 'Checks today',
+  '7d': 'Checks (7d)',
+  '30d': 'Checks (30d)',
+}
 
 const cards = computed(() => [
   {
@@ -50,15 +47,15 @@ const cards = computed(() => [
   {
     label: 'Avg response',
     value: `${avgResponse.value}ms`,
-    sub: '',
+    sub: p99Response.value > 0 ? `p99 ${p99Response.value}ms` : '',
     icon: 'i-lucide-zap',
     iconBg: '#0EA5E914',
     iconColor: '#0EA5E9',
   },
   {
-    label: 'Checks today',
-    value: checksToday.value === null ? '—' : checksToday.value.toLocaleString(),
-    sub: checksDelta.value,
+    label: RANGE_LABELS[range.value],
+    value: checksCount.value.toLocaleString(),
+    sub: '',
     icon: 'i-lucide-activity',
     iconBg: '#10B98114',
     iconColor: '#10B981',

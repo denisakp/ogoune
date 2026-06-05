@@ -26,3 +26,10 @@ func Get() Edition {
 func IsEnterprise() bool {
 	return Get() == Enterprise
 }
+
+// PoweredByRequired reports whether the public status page must display the
+// "Powered by Ogoune" attribution. Community edition always requires it;
+// Enterprise may suppress it.
+func PoweredByRequired() bool {
+	return !IsEnterprise()
+}

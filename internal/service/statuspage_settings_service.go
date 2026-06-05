@@ -26,9 +26,95 @@ const (
 
 var (
 	hostnameRE = regexp.MustCompile(`^(?:(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)\.)+[a-z]{2,63}$`)
+	hexColorRE = regexp.MustCompile(`^#[0-9a-fA-F]{6}$`)
+	radiusRE   = regexp.MustCompile(`^(0|[1-9][0-9]?)(px|rem|em)?$`)
 
 	ErrCustomDomainInvalidHostname = errors.New("invalid hostname")
+	ErrInvalidHexColor             = errors.New("invalid hex color, expected #RRGGBB")
+	ErrInvalidThemeKey             = errors.New("invalid theme override key")
+	ErrInvalidThemeValue           = errors.New("invalid theme override value")
 )
+
+// themeOverrideKeys is the closed whitelist of CSS-variable names operators
+// may set under `theme_overrides`. Each entry maps to its validator.
+var themeOverrideKeys = map[string]func(string) bool{
+	"--status-bg":        validateHex,
+	"--status-text":      validateHex,
+	"--status-up":        validateHex,
+	"--status-degraded":  validateHex,
+	"--status-down":      validateHex,
+	"--status-radius":    validateRadius,
+}
+
+func validateHex(v string) bool    { return hexColorRE.MatchString(v) }
+func validateRadius(v string) bool { return radiusRE.MatchString(v) }
+
+func validatePrimaryColor(c string) error {
+	if c == "" {
+		return nil
+	}
+	if !hexColorRE.MatchString(c) {
+		return ErrInvalidHexColor
+	}
+	return nil
+}
+
+func validateThemeOverrides(m map[string]string) error {
+	for k, v := range m {
+		check, ok := themeOverrideKeys[k]
+		if !ok {
+			return fmt.Errorf("%w: %s", ErrInvalidThemeKey, k)
+		}
+		if !check(v) {
+			return fmt.Errorf("%w: %s=%q", ErrInvalidThemeValue, k, v)
+		}
+	}
+	return nil
+}
+
+// Logo slot persistence (spec 060 / US5 T069-T070). Blob storage is handled
+// by the handler (writes to STATIC_DIR); the service only persists the URL.
+
+var ErrInvalidLogoSlot = errors.New("invalid logo slot")
+
+var validLogoSlots = map[string]struct{}{
+	"light":   {},
+	"dark":    {},
+	"favicon": {},
+}
+
+func ValidateLogoSlot(slot string) error {
+	if _, ok := validLogoSlots[slot]; !ok {
+		return ErrInvalidLogoSlot
+	}
+	return nil
+}
+
+func (s *StatusPageSettingsService) SetLogoURL(ctx context.Context, slot, url string) (*domain.StatusPageSettings, error) {
+	if err := ValidateLogoSlot(slot); err != nil {
+		return nil, err
+	}
+	existing, err := s.repo.Get(ctx)
+	if err != nil {
+		return nil, err
+	}
+	switch slot {
+	case "light":
+		existing.LogoURLLight = url
+	case "dark":
+		existing.LogoURLDark = url
+	case "favicon":
+		existing.FaviconURL = url
+	}
+	if err := s.repo.Upsert(ctx, existing); err != nil {
+		return nil, err
+	}
+	return existing, nil
+}
+
+func (s *StatusPageSettingsService) ClearLogo(ctx context.Context, slot string) (*domain.StatusPageSettings, error) {
+	return s.SetLogoURL(ctx, slot, "")
+}
 
 // DNSResolver indirection so tests can swap the resolver.
 type DNSResolver interface {
@@ -110,6 +196,15 @@ func (s *StatusPageSettingsService) UpdateSettings(ctx context.Context, settings
 		if err := validateHostname(settings.CustomDomain); err != nil {
 			return err
 		}
+	}
+
+	// Spec 060 / US5 — branding validation.
+	settings.PrimaryColor = strings.TrimSpace(settings.PrimaryColor)
+	if err := validatePrimaryColor(settings.PrimaryColor); err != nil {
+		return err
+	}
+	if err := validateThemeOverrides(settings.ThemeOverrides); err != nil {
+		return err
 	}
 
 	existing, err := s.repo.Get(ctx)

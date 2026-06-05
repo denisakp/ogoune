@@ -34,6 +34,7 @@ type Querier interface {
 	CreateIncident(ctx context.Context, arg CreateIncidentParams) error
 	CreateIncidentDiagnostics(ctx context.Context, arg CreateIncidentDiagnosticsParams) (IncidentDiagnostic, error)
 	CreateIncidentEventStep(ctx context.Context, arg CreateIncidentEventStepParams) error
+	CreateIncidentUpdate(ctx context.Context, arg CreateIncidentUpdateParams) error
 	CreateMaintenance(ctx context.Context, arg CreateMaintenanceParams) error
 	CreateMonitoringActivity(ctx context.Context, arg CreateMonitoringActivityParams) error
 	CreateNotificationChannel(ctx context.Context, arg CreateNotificationChannelParams) error
@@ -56,6 +57,7 @@ type Querier interface {
 	DeleteIncident(ctx context.Context, id string) (int64, error)
 	DeleteIncidentDiagnostics(ctx context.Context, id string) (int64, error)
 	DeleteIncidentEventStep(ctx context.Context, id string) (int64, error)
+	DeleteIncidentUpdate(ctx context.Context, id string) error
 	DeleteMaintenance(ctx context.Context, id string) (int64, error)
 	DeleteNotificationChannel(ctx context.Context, id string) (int64, error)
 	DeleteNotificationEvent(ctx context.Context, id string) error
@@ -69,6 +71,7 @@ type Querier interface {
 	FindActiveTwoFactorResetToken(ctx context.Context, arg FindActiveTwoFactorResetTokenParams) (TwoFactorResetToken, error)
 	FindComponentByID(ctx context.Context, id string) (Component, error)
 	FindDefaultNotificationChannels(ctx context.Context) ([]NotificationChannel, error)
+	FindEarliestUptimeDailyAggDay(ctx context.Context) (interface{}, error)
 	FindEscalationPolicyByID(ctx context.Context, id string) (EscalationPolicy, error)
 	FindIncidentByID(ctx context.Context, id string) (Incident, error)
 	FindIncidentDiagnosticsByIncidentID(ctx context.Context, incidentID string) (IncidentDiagnostic, error)
@@ -96,9 +99,11 @@ type Querier interface {
 	FindTagByName(ctx context.Context, name string) (Tag, error)
 	FindTagsByIDs(ctx context.Context, ids []string) ([]Tag, error)
 	FindUnresolvedIncidents(ctx context.Context, arg FindUnresolvedIncidentsParams) ([]Incident, error)
+	FindUptimeDailyAggForResource(ctx context.Context, arg FindUptimeDailyAggForResourceParams) ([]UptimeDailyAgg, error)
 	FindUserByEmail(ctx context.Context, email string) (User, error)
 	FindUserByID(ctx context.Context, id string) (User, error)
 	GetIncidentStatsSQLite(ctx context.Context, since time.Time) (GetIncidentStatsSQLiteRow, error)
+	GetIncidentUpdate(ctx context.Context, id string) (IncidentUpdate, error)
 	GetRecentResponseTimes(ctx context.Context, arg GetRecentResponseTimesParams) ([]GetRecentResponseTimesRow, error)
 	GetResourceCredentialByResourceID(ctx context.Context, resourceID string) (ResourceCredential, error)
 	GetStatusPageSettings(ctx context.Context) (StatusPageSetting, error)
@@ -121,6 +126,7 @@ type Querier interface {
 	ListEscalationStepsByPolicy(ctx context.Context, policyID string) ([]EscalationStep, error)
 	ListIncidentDiagnosticsByIncidentIDs(ctx context.Context, incidentIds []string) ([]IncidentDiagnostic, error)
 	ListIncidentEventSteps(ctx context.Context, arg ListIncidentEventStepsParams) ([]IncidentEventStep, error)
+	ListIncidentUpdates(ctx context.Context, incidentID string) ([]IncidentUpdate, error)
 	ListIncidents(ctx context.Context, arg ListIncidentsParams) ([]Incident, error)
 	ListMaintenanceResourceIDsByMaintenanceID(ctx context.Context, maintenanceID string) ([]string, error)
 	ListMaintenancesAll(ctx context.Context, arg ListMaintenancesAllParams) ([]Maintenance, error)
@@ -156,6 +162,7 @@ type Querier interface {
 	UpdateIncident(ctx context.Context, arg UpdateIncidentParams) (int64, error)
 	UpdateIncidentDiagnostics(ctx context.Context, arg UpdateIncidentDiagnosticsParams) (int64, error)
 	UpdateIncidentEventStep(ctx context.Context, arg UpdateIncidentEventStepParams) (int64, error)
+	UpdateIncidentUpdate(ctx context.Context, arg UpdateIncidentUpdateParams) error
 	UpdateMaintenance(ctx context.Context, arg UpdateMaintenanceParams) error
 	UpdateNotificationChannel(ctx context.Context, arg UpdateNotificationChannelParams) (int64, error)
 	UpdateNotificationEvent(ctx context.Context, arg UpdateNotificationEventParams) (int64, error)
@@ -170,6 +177,7 @@ type Querier interface {
 	UpdateUserPassword(ctx context.Context, arg UpdateUserPasswordParams) error
 	UpdateUserTwoFactorSecret(ctx context.Context, arg UpdateUserTwoFactorSecretParams) error
 	UpsertResourceCredential(ctx context.Context, arg UpsertResourceCredentialParams) error
+	UpsertUptimeDailyAgg(ctx context.Context, arg UpsertUptimeDailyAggParams) error
 }
 
 var _ Querier = (*Queries)(nil)

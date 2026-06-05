@@ -25,6 +25,8 @@ func InitMetrics(app *App) {
 		ogouneCollector := metrics.NewOgouneCollector(app.ResourceRepo, app.IncidentRepo, app.MonitoringActivityRepo)
 		reg.MustRegister(ogouneCollector)
 		app.MetricsRegistry = reg
+		// Spec 060 / T088b — public status cache observability.
+		app.PublicStatusCacheMetr = metrics.NewPublicStatusMetrics(reg)
 		slog.Info("Prometheus metrics endpoint enabled")
 	}
 }

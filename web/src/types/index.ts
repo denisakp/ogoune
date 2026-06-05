@@ -394,6 +394,147 @@ export interface PublicMonitorDetail {
   maintenance?: MaintenanceBanner
 }
 
+// =====================================================================
+// Spec 060 — Public Status Page DTOs
+// =====================================================================
+
+export type PublicVerdictStatus = 'operational' | 'partial_degradation' | 'major_outage'
+export type PublicVerdictColor = 'green' | 'yellow' | 'orange' | 'red'
+
+export interface PublicVerdict {
+  status: PublicVerdictStatus
+  label: string
+  color: PublicVerdictColor
+}
+
+export type PublicAggregatedState = 'up' | 'degraded' | 'down' | 'maintenance' | 'unknown'
+
+export interface PublicUptimeRibbonDay {
+  day: string
+  // null = no data for that day. The UI surfaces these as "unknown" cells,
+  // and the 90-day average is computed over known days only.
+  ratio: number | null
+}
+
+export interface PublicResourceSummary {
+  id: string
+  name: string
+  host: string
+  current_state: PublicAggregatedState
+  uptime_90d_ratio: number
+  uptime_ribbon: PublicUptimeRibbonDay[]
+}
+
+export interface PublicComponentSummary {
+  id: string
+  name: string
+  aggregated_state: PublicAggregatedState
+  resources: PublicResourceSummary[]
+}
+
+export type PublicIncidentSeverity = 'minor' | 'major' | 'critical'
+
+export interface PublicIncidentSummary {
+  id: string
+  title: string
+  started_at: string
+  resolved_at: string | null
+  severity: PublicIncidentSeverity
+  component_id?: string
+  resource_id?: string
+}
+
+export interface PublicBranding {
+  name: string
+  homepage_url?: string
+  logo_url_light?: string
+  logo_url_dark?: string
+  favicon_url?: string
+  primary_color?: string
+}
+
+export interface PublicUptimeWindow {
+  earliest_day?: string
+  latest_day: string
+}
+
+export interface PublicStatusSummary {
+  generated_at: string
+  branding: PublicBranding
+  uptime_window: PublicUptimeWindow
+  verdict: PublicVerdict
+  components: PublicComponentSummary[]
+  standalone_resources: PublicResourceSummary[]
+  current_month_incidents: PublicIncidentSummary[]
+}
+
+export interface PublicIncidentMonth {
+  year_month: string
+  count: number
+  incidents: PublicIncidentSummary[]
+}
+
+export interface PublicStatusIncidentsArchive {
+  generated_at: string
+  total: number
+  months: PublicIncidentMonth[]
+}
+
+export interface PublicUptimeDay {
+  day: string
+  uptime_ratio: number
+  samples: number
+  incidents: number
+  downtime_seconds: number
+  related_incidents: PublicIncidentSummary[]
+}
+
+export interface PublicStatusUptimeRange {
+  generated_at: string
+  days: PublicUptimeDay[]
+}
+
+export type PublicIncidentUpdateStatus =
+  | 'investigating'
+  | 'identified'
+  | 'monitoring'
+  | 'resolved'
+
+export interface PublicIncidentUpdate {
+  id: string
+  status: PublicIncidentUpdateStatus
+  message: string
+  posted_at: string
+}
+
+export interface PublicIncidentDetail {
+  id: string
+  title: string
+  severity: PublicIncidentSeverity
+  started_at: string
+  resolved_at: string | null
+  component_id?: string
+  resource_id?: string
+  updates: PublicIncidentUpdate[]
+}
+
+export interface PublicResourceWindow {
+  uptime_ratio: number
+  incidents: number
+}
+
+export interface PublicStatusResourceWindows {
+  id: string
+  name: string
+  windows: {
+    '24h': PublicResourceWindow
+    '7d': PublicResourceWindow
+    '30d': PublicResourceWindow
+    '90d': PublicResourceWindow
+  }
+  recent_incidents: PublicIncidentSummary[]
+}
+
 /**
  * Notification Channel Types
  */
@@ -514,6 +655,18 @@ export interface MaintenanceBanner {
 }
 
 // Status Page Settings Management
+export type StatusPageLogoSlot = 'light' | 'dark' | 'favicon'
+
+export type StatusPageThemeKey =
+  | '--status-bg'
+  | '--status-text'
+  | '--status-up'
+  | '--status-degraded'
+  | '--status-down'
+  | '--status-radius'
+
+export type StatusPageThemeOverrides = Partial<Record<StatusPageThemeKey, string>>
+
 export interface StatusPageSettingsRequest {
   name: string
   homepage_url: string
@@ -523,6 +676,11 @@ export interface StatusPageSettingsRequest {
   show_uptime_percentage: boolean
   hide_paused_monitors: boolean
   show_incident_history: boolean
+  logo_url_light?: string
+  logo_url_dark?: string
+  favicon_url?: string
+  primary_color?: string
+  theme_overrides?: StatusPageThemeOverrides
 }
 
 export interface StatusPageDNSRecord {
@@ -546,6 +704,11 @@ export interface StatusPageSettingsResponse {
   custom_domain_status: 'pending' | 'verified' | 'failed'
   custom_domain_ssl_status: 'none' | 'provisioning' | 'active'
   custom_domain_dns_records: StatusPageDNSRecord[]
+  logo_url_light: string
+  logo_url_dark: string
+  favicon_url: string
+  primary_color: string
+  theme_overrides: StatusPageThemeOverrides
   created_at: string
   updated_at: string
 }

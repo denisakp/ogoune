@@ -1,6 +1,7 @@
 package bootstrap
 
 import (
+	"context"
 	"log/slog"
 	"net/http"
 	"os"
@@ -9,10 +10,24 @@ import (
 	"github.com/denisakp/ogoune/internal/api"
 	"github.com/denisakp/ogoune/internal/api/handler"
 	v1handler "github.com/denisakp/ogoune/internal/api/handler/v1"
+	"github.com/denisakp/ogoune/internal/api/middleware"
 	"github.com/denisakp/ogoune/internal/metrics"
 	"github.com/denisakp/ogoune/internal/service"
 	"github.com/go-chi/chi/v5"
 )
+
+// asCacheRecorder lifts the nil-typed PublicStatusMetrics back to the
+// interface the middleware expects, returning nil when metrics are
+// disabled so the typed nil doesn't escape into the middleware chain.
+func asCacheRecorder(m *metricsModule) middleware.PublicStatusCacheRecorder {
+	if m == nil {
+		return nil
+	}
+	return m
+}
+
+// metricsModule is a type alias so we don't have to import `metrics` here.
+type metricsModule = metrics.PublicStatusMetrics
 
 // InitRouter creates handlers, builds the Chi router, and mounts static files.
 func InitRouter(app *App) {
@@ -37,8 +52,10 @@ func InitRouter(app *App) {
 	activityHandler := handler.NewMonitoringActivityHandler(activityService)
 	tagHandler := handler.NewTagHandler(tagService)
 	statusPageHandler := handler.NewStatusPageHandler(statusPageService)
+	publicStatusHandler := handler.NewPublicStatusHandler(app.PublicStatusService)
 	statusPageSettingsHandler := handler.NewStatusPageSettingsHandler(statusPageSettingsService)
 	incidentHandler := handler.NewIncidentHandler(incidentAPIService)
+	incidentUpdateHandler := handler.NewIncidentUpdateHandler(app.IncidentUpdateService)
 	notificationHandler := handler.NewNotificationHandler(notificationService)
 	maintenanceHandler := handler.NewMaintenanceHandler(maintenanceAPIService)
 	statsHandler := handler.NewStatsHandler(statsService)
@@ -70,7 +87,7 @@ func InitRouter(app *App) {
 		return
 	}
 
-	apiHandler := api.NewRouter(resourceHandler, pingHandler, activityHandler, tagHandler, componentHandler, statusPageHandler, statusPageSettingsHandler, incidentHandler, notificationHandler, maintenanceHandler, statsHandler, systemHandler, runtimeConfigHandler, authHandler, accountHandler, app.AuthService, app.APIKeyService, app.SessionService, sessionHandler, twoFactorV1Handler, escalationV1Handler, monitorV1Handler, incidentV1Handler, channelV1Handler, componentV1Handler, tagV1Handler, statusPageV1Handler, heartbeatV1Handler, credentialV1Handler, cfg.EnableSwagger, cfg)
+	apiHandler := api.NewRouter(resourceHandler, pingHandler, activityHandler, tagHandler, componentHandler, statusPageHandler, publicStatusHandler, asCacheRecorder(app.PublicStatusCacheMetr), statusPageSettingsHandler, incidentHandler, incidentUpdateHandler, notificationHandler, maintenanceHandler, statsHandler, systemHandler, runtimeConfigHandler, authHandler, accountHandler, app.AuthService, app.APIKeyService, app.SessionService, sessionHandler, twoFactorV1Handler, escalationV1Handler, monitorV1Handler, incidentV1Handler, channelV1Handler, componentV1Handler, tagV1Handler, statusPageV1Handler, heartbeatV1Handler, credentialV1Handler, cfg.EnableSwagger, cfg)
 
 	// Root router
 	rootRouter := chi.NewRouter()
@@ -94,10 +111,29 @@ func InitRouter(app *App) {
 		slog.Warn("static directory not found, frontend will not be served", "dir", staticDir)
 	}
 
+	// Spec 060 / US6 — Host router: dispatch requests reaching the custom
+	// status-page hostname to the public bundle instead of the admin app.
+	// The HostRouter wraps the full rootRouter so any unmatched custom-host
+	// request also lands on the status bundle.
+	var topHandler http.Handler = rootRouter
+	if info, err := os.Stat(cfg.StaticDir); err == nil && info.IsDir() {
+		statusBundle := handler.NewStaticStatusHandler(cfg.StaticDir, app.PublicStatusService)
+		hostRouter := middleware.NewHostRouter(statusBundle)
+		// Seed the cache from current settings (if any) and wire the refresh
+		// callback so the middleware reflects future saves / verifications.
+		if app.StatusPageSettingsRepo != nil {
+			if s, err := app.StatusPageSettingsRepo.Get(context.Background()); err == nil && s != nil {
+				hostRouter.Set(s.CustomDomain, string(s.CustomDomainStatus))
+			}
+		}
+		statusPageSettingsHandler.SetDomainRefresh(hostRouter.Set)
+		topHandler = hostRouter.Middleware(rootRouter)
+	}
+
 	app.RootRouter = rootRouter
 	app.Server = &http.Server{
 		Addr:         ":" + cfg.Port,
-		Handler:      rootRouter,
+		Handler:      topHandler,
 		ReadTimeout:  15 * time.Second,
 		WriteTimeout: 15 * time.Second,
 		IdleTimeout:  60 * time.Second,

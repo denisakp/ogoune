@@ -223,4 +223,50 @@ describe('FR-036 destructive flows route through useConfirm', () => {
 
   // Tag CRUD UI dropped from spec 059 — tag management is deferred to a
   // resource-form inline flow + a future light hygiene panel.
+
+  it('Remove status page logo → confirm modal mounted (spec 060 / T084)', async () => {
+    confirmMock.mockResolvedValue(false)
+    vi.doMock('@/services/statusPageSettingsService', () => ({
+      uploadStatusPageLogo: vi.fn(),
+      deleteStatusPageLogo: vi.fn(),
+    }))
+    vi.doMock('ant-design-vue', () => ({
+      message: { success: vi.fn(), error: vi.fn() },
+    }))
+    const { default: BrandingSection } = await import(
+      '@/components/settings/branding/BrandingSection.vue'
+    )
+    const { mount } = await import('@vue/test-utils')
+    const w = mount(BrandingSection, {
+      props: {
+        settings: {
+          id: 'sp-1',
+          name: 'Acme',
+          homepage_url: '',
+          custom_domain: '',
+          google_analytics_id: '',
+          enable_details_page: true,
+          show_uptime_percentage: true,
+          hide_paused_monitors: true,
+          show_incident_history: true,
+          custom_domain_status: 'pending',
+          custom_domain_ssl_status: 'none',
+          custom_domain_dns_records: [],
+          logo_url_light: '/static/uploads/statuspage/light-x.png',
+          logo_url_dark: '',
+          favicon_url: '',
+          primary_color: '#4f46e5',
+          theme_overrides: {},
+          created_at: '',
+          updated_at: '',
+        },
+        primaryColor: '#4f46e5',
+        themeOverrides: {},
+      },
+    })
+    type Vm = { onDelete: (slot: 'light' | 'dark' | 'favicon') => Promise<void> }
+    const vm = w.vm as unknown as Vm
+    await vm.onDelete('light')
+    expect(confirmMock).toHaveBeenCalled()
+  })
 })

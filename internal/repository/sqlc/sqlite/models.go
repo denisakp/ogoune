@@ -119,6 +119,17 @@ type IncidentEventStep struct {
 	Message    sql.NullString `json:"message"`
 }
 
+type IncidentUpdate struct {
+	ID         string    `json:"id"`
+	IncidentID string    `json:"incident_id"`
+	Status     string    `json:"status"`
+	Message    string    `json:"message"`
+	PostedBy   string    `json:"posted_by"`
+	PostedAt   time.Time `json:"posted_at"`
+	CreatedAt  time.Time `json:"created_at"`
+	UpdatedAt  time.Time `json:"updated_at"`
+}
+
 type Maintenance struct {
 	ID             string         `json:"id"`
 	CreatedAt      time.Time      `json:"created_at"`
@@ -269,6 +280,11 @@ type StatusPageSetting struct {
 	CustomDomainStatus     string    `json:"custom_domain_status"`
 	CustomDomainSslStatus  string    `json:"custom_domain_ssl_status"`
 	CustomDomainDnsRecords string    `json:"custom_domain_dns_records"`
+	LogoUrlLight           string    `json:"logo_url_light"`
+	LogoUrlDark            string    `json:"logo_url_dark"`
+	FaviconUrl             string    `json:"favicon_url"`
+	PrimaryColor           string    `json:"primary_color"`
+	ThemeOverrides         string    `json:"theme_overrides"`
 }
 
 type Tag struct {
@@ -286,6 +302,17 @@ type TwoFactorResetToken struct {
 	ExpiresAt time.Time    `json:"expires_at"`
 	UsedAt    sql.NullTime `json:"used_at"`
 	CreatedAt time.Time    `json:"created_at"`
+}
+
+type UptimeDailyAgg struct {
+	ResourceID  string    `json:"resource_id"`
+	Day         string    `json:"day"`
+	Samples     int64     `json:"samples"`
+	Up          int64     `json:"up"`
+	Degraded    int64     `json:"degraded"`
+	Down        int64     `json:"down"`
+	UptimeRatio float64   `json:"uptime_ratio"`
+	ComputedAt  time.Time `json:"computed_at"`
 }
 
 type User struct {

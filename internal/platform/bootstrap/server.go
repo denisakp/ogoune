@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 )
@@ -43,6 +44,12 @@ func RunServer(app *App) {
 		}
 	}()
 
+	// Spec 060 / US6 T081 — optional native listeners on :80 / :443.
+	// Default OFF. Recommended path is to keep the app on its main port
+	// behind a reverse proxy that handles TLS termination + Host routing.
+	startExtraListener("STATUS_HTTP_LISTEN_80", ":80", app.Server.Handler)
+	startExtraListener("STATUS_HTTPS_LISTEN_443", ":443", app.Server.Handler)
+
 	// Block until we receive a signal
 	<-quit
 	slog.Info("received shutdown signal")
@@ -75,4 +82,28 @@ func RunServer(app *App) {
 	}
 
 	slog.Info("Ogoune application stopped successfully")
+}
+
+// startExtraListener spins up an additional HTTP listener when the matching
+// env var is set to a truthy value ("1", "true", "yes"). The listener shares
+// the same handler as the main server, which means the HostRouter wrapping
+// still applies and admin endpoints stay locked to the default host.
+func startExtraListener(envVar, addr string, h http.Handler) {
+	val := strings.ToLower(strings.TrimSpace(os.Getenv(envVar)))
+	if val != "1" && val != "true" && val != "yes" {
+		return
+	}
+	go func() {
+		slog.Info("extra listener up", "env", envVar, "addr", addr)
+		srv := &http.Server{
+			Addr:         addr,
+			Handler:      h,
+			ReadTimeout:  15 * time.Second,
+			WriteTimeout: 15 * time.Second,
+			IdleTimeout:  60 * time.Second,
+		}
+		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			slog.Error("extra listener failed", "env", envVar, "error", err)
+		}
+	}()
 }

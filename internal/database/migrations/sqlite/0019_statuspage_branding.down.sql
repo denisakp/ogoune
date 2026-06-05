@@ -1,0 +1,2 @@
+-- SQLite cannot DROP a column inline; columns remain (safe — old code ignores them).
+-- Operators wanting a true rollback recreate the schema from scratch.

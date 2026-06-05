@@ -41,6 +41,40 @@ func encodeDNSRecordsString(records []domain.DNSRecord) string {
 	return string(encodeDNSRecords(records))
 }
 
+func encodeThemeOverrides(m map[string]string) []byte {
+	if m == nil {
+		m = map[string]string{}
+	}
+	b, err := json.Marshal(m)
+	if err != nil {
+		return []byte("{}")
+	}
+	return b
+}
+
+func encodeThemeOverridesString(m map[string]string) string {
+	return string(encodeThemeOverrides(m))
+}
+
+func decodeThemeOverrides(raw []byte) map[string]string {
+	if len(raw) == 0 {
+		return map[string]string{}
+	}
+	out := map[string]string{}
+	_ = json.Unmarshal(raw, &out)
+	if out == nil {
+		return map[string]string{}
+	}
+	return out
+}
+
+func defaultPrimaryColor(c string) string {
+	if c == "" {
+		return "#4f46e5"
+	}
+	return c
+}
+
 func defaultDomainStatus(s string) domain.DomainStatus {
 	if s == "" {
 		return domain.DomainStatusPending
@@ -135,6 +169,11 @@ func (r *StatusPageSettingsRepositorySQLC) Upsert(ctx context.Context, s *domain
 				CustomDomainStatus:     string(defaultDomainStatus(string(s.CustomDomainStatus))),
 				CustomDomainSslStatus:  string(defaultDomainSSL(string(s.CustomDomainSSL))),
 				CustomDomainDnsRecords: encodeDNSRecords(s.CustomDomainDNS),
+				LogoUrlLight:           s.LogoURLLight,
+				LogoUrlDark:            s.LogoURLDark,
+				FaviconUrl:             s.FaviconURL,
+				PrimaryColor:           defaultPrimaryColor(s.PrimaryColor),
+				ThemeOverrides:         encodeThemeOverrides(s.ThemeOverrides),
 				CreatedAt:              pgtype.Timestamptz{Time: s.CreatedAt, Valid: true},
 				UpdatedAt:              pgtype.Timestamptz{Time: s.UpdatedAt, Valid: true},
 			})
@@ -158,6 +197,11 @@ func (r *StatusPageSettingsRepositorySQLC) Upsert(ctx context.Context, s *domain
 			CustomDomainStatus:     string(defaultDomainStatus(string(s.CustomDomainStatus))),
 			CustomDomainSslStatus:  string(defaultDomainSSL(string(s.CustomDomainSSL))),
 			CustomDomainDnsRecords: encodeDNSRecords(s.CustomDomainDNS),
+			LogoUrlLight:           s.LogoURLLight,
+			LogoUrlDark:            s.LogoURLDark,
+			FaviconUrl:             s.FaviconURL,
+			PrimaryColor:           defaultPrimaryColor(s.PrimaryColor),
+			ThemeOverrides:         encodeThemeOverrides(s.ThemeOverrides),
 			UpdatedAt:              pgtype.Timestamptz{Time: s.UpdatedAt, Valid: true},
 		})
 	case r.sqliteQ != nil:
@@ -181,6 +225,11 @@ func (r *StatusPageSettingsRepositorySQLC) Upsert(ctx context.Context, s *domain
 				CustomDomainStatus:     string(defaultDomainStatus(string(s.CustomDomainStatus))),
 				CustomDomainSslStatus:  string(defaultDomainSSL(string(s.CustomDomainSSL))),
 				CustomDomainDnsRecords: encodeDNSRecordsString(s.CustomDomainDNS),
+				LogoUrlLight:           s.LogoURLLight,
+				LogoUrlDark:            s.LogoURLDark,
+				FaviconUrl:             s.FaviconURL,
+				PrimaryColor:           defaultPrimaryColor(s.PrimaryColor),
+				ThemeOverrides:         encodeThemeOverridesString(s.ThemeOverrides),
 				CreatedAt:              s.CreatedAt,
 				UpdatedAt:              s.UpdatedAt,
 			})
@@ -204,6 +253,11 @@ func (r *StatusPageSettingsRepositorySQLC) Upsert(ctx context.Context, s *domain
 			CustomDomainStatus:     string(defaultDomainStatus(string(s.CustomDomainStatus))),
 			CustomDomainSslStatus:  string(defaultDomainSSL(string(s.CustomDomainSSL))),
 			CustomDomainDnsRecords: encodeDNSRecordsString(s.CustomDomainDNS),
+			LogoUrlLight:           s.LogoURLLight,
+			LogoUrlDark:            s.LogoURLDark,
+			FaviconUrl:             s.FaviconURL,
+			PrimaryColor:           defaultPrimaryColor(s.PrimaryColor),
+			ThemeOverrides:         encodeThemeOverridesString(s.ThemeOverrides),
 			UpdatedAt:              s.UpdatedAt,
 		})
 	default:
@@ -229,6 +283,11 @@ func statusPageSettingsFromPG(row pgsqlc.StatusPageSetting) *domain.StatusPageSe
 		CustomDomainStatus:   defaultDomainStatus(row.CustomDomainStatus),
 		CustomDomainSSL:      defaultDomainSSL(row.CustomDomainSslStatus),
 		CustomDomainDNS:      decodeDNSRecords(row.CustomDomainDnsRecords),
+		LogoURLLight:         row.LogoUrlLight,
+		LogoURLDark:          row.LogoUrlDark,
+		FaviconURL:           row.FaviconUrl,
+		PrimaryColor:         defaultPrimaryColor(row.PrimaryColor),
+		ThemeOverrides:       decodeThemeOverrides(row.ThemeOverrides),
 	}
 }
 
@@ -250,5 +309,10 @@ func statusPageSettingsFromSQLite(row sqlitesqlc.StatusPageSetting) *domain.Stat
 		CustomDomainStatus:   defaultDomainStatus(row.CustomDomainStatus),
 		CustomDomainSSL:      defaultDomainSSL(row.CustomDomainSslStatus),
 		CustomDomainDNS:      decodeDNSRecords([]byte(row.CustomDomainDnsRecords)),
+		LogoURLLight:         row.LogoUrlLight,
+		LogoURLDark:          row.LogoUrlDark,
+		FaviconURL:           row.FaviconUrl,
+		PrimaryColor:         defaultPrimaryColor(row.PrimaryColor),
+		ThemeOverrides:       decodeThemeOverrides([]byte(row.ThemeOverrides)),
 	}
 }

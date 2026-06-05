@@ -21,17 +21,19 @@ func NewRuntimeConfigHandler(cfg *config.Config, version string) *RuntimeConfigH
 }
 
 type runtimeConfigResponse struct {
-	SSLProvider string `json:"ssl_provider"`
-	Edition     string `json:"edition"`
-	Version     string `json:"version"`
+	SSLProvider       string `json:"ssl_provider"`
+	Edition           string `json:"edition"`
+	Version           string `json:"version"`
+	PoweredByRequired bool   `json:"powered_by_required"`
 }
 
 // Get handles GET /api/config/runtime.
 func (h *RuntimeConfigHandler) Get(w http.ResponseWriter, _ *http.Request) {
 	resp := runtimeConfigResponse{
-		SSLProvider: h.cfg.SSLProvider,
-		Edition:     string(license.Get()),
-		Version:     h.version,
+		SSLProvider:       h.cfg.SSLProvider,
+		Edition:           string(license.Get()),
+		Version:           h.version,
+		PoweredByRequired: license.PoweredByRequired(),
 	}
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(resp)
