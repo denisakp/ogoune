@@ -78,7 +78,7 @@ onMounted(() => {
           <span class="text-xs text-slate-400">{{ rangeLabel }}</span>
         </div>
         <div class="relative">
-          <ResponseTimeChart :data="metrics.series.value" />
+          <ResponseTimeChart :data="metrics.series.value" :range="range" />
           <div
             v-if="!metrics.loading.value && metrics.series.value.length === 0"
             class="absolute inset-0 flex items-center justify-center text-xs text-slate-400"

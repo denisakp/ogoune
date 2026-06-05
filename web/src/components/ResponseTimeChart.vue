@@ -13,16 +13,35 @@
 
 import { computed } from 'vue'
 import type { ResponseTime } from '@/types'
+import type { OverviewRange } from '@/composables/useOverviewMetrics'
 
 interface Props {
   data?: ResponseTime[]
   height?: number
+  range?: OverviewRange
 }
 
 const props = withDefaults(defineProps<Props>(), {
   data: () => [],
   height: 220,
+  range: '24h',
 })
+
+const RANGE_BUCKETS: Record<OverviewRange, { bucketMs: number; count: number }> = {
+  '1h': { bucketMs: 60_000, count: 60 },
+  '6h': { bucketMs: 15 * 60_000, count: 24 },
+  '24h': { bucketMs: 60 * 60_000, count: 24 },
+  '7d': { bucketMs: 6 * 60 * 60_000, count: 28 },
+  '30d': { bucketMs: 24 * 60 * 60_000, count: 30 },
+}
+
+const RANGE_AXIS: Record<OverviewRange, string[]> = {
+  '1h': ['1 hour ago', '30 min ago', 'Now'],
+  '6h': ['6 hours ago', '3 hours ago', 'Now'],
+  '24h': ['00:00', '06:00', '12:00', '18:00', 'Now'],
+  '7d': ['7 days ago', '4 days ago', '2 days ago', 'Now'],
+  '30d': ['30 days ago', '20 days ago', '10 days ago', 'Now'],
+}
 
 interface Bucket {
   ratio: number
@@ -32,29 +51,7 @@ interface Bucket {
 }
 
 const layout = computed(() => {
-  if (props.data.length === 0) {
-    return { buckets: [] as Bucket[], axis: [] as { label: string }[] }
-  }
-  const ts = props.data.map((d) => new Date(d.timestamp).getTime())
-  const min = Math.min(...ts)
-  const max = Math.max(...ts)
-  const span = Math.max(max - min, 60 * 1000)
-
-  const oneHour = 60 * 60 * 1000
-  const oneDay = 24 * oneHour
-  let bucketMs: number
-  let count: number
-  if (span <= 26 * oneHour) {
-    bucketMs = oneHour
-    count = 24
-  } else if (span <= 8 * oneDay) {
-    bucketMs = 6 * oneHour
-    count = 28
-  } else {
-    bucketMs = oneDay
-    count = 30
-  }
-
+  const { bucketMs, count } = RANGE_BUCKETS[props.range]
   const end = Date.now()
   const start = end - count * bucketMs
 
@@ -87,21 +84,7 @@ const layout = computed(() => {
     for (const b of buckets) b.ratio = b.avgMs / maxAvg
   }
 
-  let axis: { label: string }[]
-  if (bucketMs === oneHour) {
-    axis = [
-      { label: '00:00' },
-      { label: '06:00' },
-      { label: '12:00' },
-      { label: '18:00' },
-      { label: 'Now' },
-    ]
-  } else if (bucketMs === 6 * oneHour) {
-    axis = [{ label: '-7d' }, { label: '-5d' }, { label: '-2d' }, { label: 'Now' }]
-  } else {
-    axis = [{ label: '-30d' }, { label: '-20d' }, { label: '-10d' }, { label: 'Now' }]
-  }
-  return { buckets, axis }
+  return { buckets, axis: RANGE_AXIS[props.range].map((label) => ({ label })) }
 })
 
 function tooltip(b: Bucket): string {
