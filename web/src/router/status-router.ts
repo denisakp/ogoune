@@ -1,31 +1,45 @@
-import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router'
+import { createRouter, createWebHashHistory, type RouteRecordRaw } from 'vue-router'
 
-const StatusPageView = () => import('@/views/status-page/StatusPageView.vue')
+// Spec 060 — public status page routes.
+// Mounted by status-main.ts (separate bundle, status.html entry).
+
+const StatusPublicView = () => import('@/views/status/StatusPublicView.vue')
+const StatusHistoryView = () => import('@/views/status/StatusHistoryView.vue')
+const StatusUptimeView = () => import('@/views/status/StatusUptimeView.vue')
 const StatusPageDetailView = () => import('@/views/status-page/StatusPageDetailView.vue')
 
 export const statusRoutes: RouteRecordRaw[] = [
   {
-    path: '/status',
-    name: 'StatusPage',
-    component: StatusPageView,
+    path: '/',
+    name: 'PublicStatusCurrent',
+    component: StatusPublicView,
   },
   {
-    path: '/status/:id',
-    name: 'StatusPageDetail',
+    path: '/history',
+    name: 'PublicStatusHistory',
+    component: StatusHistoryView,
+  },
+  {
+    path: '/uptime',
+    name: 'PublicStatusUptime',
+    component: StatusUptimeView,
+  },
+  {
+    path: '/resource/:id',
+    name: 'PublicStatusResource',
     component: StatusPageDetailView,
   },
   {
-    path: '/',
-    redirect: '/status',
-  },
-  {
     path: '/:pathMatch(.*)*',
-    redirect: '/status',
+    redirect: '/',
   },
 ]
 
+// Hash history → the public bundle works from any entry path (status.html in
+// dev, root path under a custom domain in prod) without requiring SPA fallback
+// from the server. Once the Host router lands (US5), we can revisit.
 const statusRouter = createRouter({
-  history: createWebHistory(import.meta.env.BASE_URL),
+  history: createWebHashHistory(),
   routes: statusRoutes,
 })
 
