@@ -15,12 +15,26 @@ import (
 // StatusPageSettingsHandler handles HTTP requests for status page settings.
 // Spec 059 fold: now also owns the custom-domain DNS lifecycle.
 type StatusPageSettingsHandler struct {
-	service *service.StatusPageSettingsService
+	service       *service.StatusPageSettingsService
+	domainRefresh func(domain, status string)
 }
 
 // NewStatusPageSettingsHandler creates a new handler instance.
 func NewStatusPageSettingsHandler(svc *service.StatusPageSettingsService) *StatusPageSettingsHandler {
 	return &StatusPageSettingsHandler{service: svc}
+}
+
+// SetDomainRefresh wires the callback invoked after every successful save /
+// verify so the HostRouter middleware can refresh its in-memory cache
+// (spec 060 / US6 T080).
+func (h *StatusPageSettingsHandler) SetDomainRefresh(fn func(domain, status string)) {
+	h.domainRefresh = fn
+}
+
+func (h *StatusPageSettingsHandler) notifyDomainCache(domain, status string) {
+	if h.domainRefresh != nil {
+		h.domainRefresh(domain, status)
+	}
 }
 
 // RegisterRoutes registers the settings routes.
@@ -132,6 +146,7 @@ func (h *StatusPageSettingsHandler) UpdateSettings(w http.ResponseWriter, r *htt
 		response.Error(w, http.StatusInternalServerError, "Failed to retrieve updated settings")
 		return
 	}
+	h.notifyDomainCache(updated.CustomDomain, string(updated.CustomDomainStatus))
 	response.JSON(w, http.StatusOK, toSettingsResponse(updated))
 }
 
@@ -142,5 +157,6 @@ func (h *StatusPageSettingsHandler) VerifyDomain(w http.ResponseWriter, r *http.
 		response.Error(w, http.StatusInternalServerError, "Failed to verify domain")
 		return
 	}
+	h.notifyDomainCache(updated.CustomDomain, string(updated.CustomDomainStatus))
 	response.JSON(w, http.StatusOK, toSettingsResponse(updated))
 }

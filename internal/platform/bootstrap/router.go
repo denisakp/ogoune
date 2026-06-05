@@ -1,6 +1,7 @@
 package bootstrap
 
 import (
+	"context"
 	"log/slog"
 	"net/http"
 	"os"
@@ -9,6 +10,7 @@ import (
 	"github.com/denisakp/ogoune/internal/api"
 	"github.com/denisakp/ogoune/internal/api/handler"
 	v1handler "github.com/denisakp/ogoune/internal/api/handler/v1"
+	"github.com/denisakp/ogoune/internal/api/middleware"
 	"github.com/denisakp/ogoune/internal/metrics"
 	"github.com/denisakp/ogoune/internal/service"
 	"github.com/go-chi/chi/v5"
@@ -96,10 +98,29 @@ func InitRouter(app *App) {
 		slog.Warn("static directory not found, frontend will not be served", "dir", staticDir)
 	}
 
+	// Spec 060 / US6 — Host router: dispatch requests reaching the custom
+	// status-page hostname to the public bundle instead of the admin app.
+	// The HostRouter wraps the full rootRouter so any unmatched custom-host
+	// request also lands on the status bundle.
+	var topHandler http.Handler = rootRouter
+	if info, err := os.Stat(cfg.StaticDir); err == nil && info.IsDir() {
+		statusBundle := handler.NewStaticStatusHandler(cfg.StaticDir, app.PublicStatusService)
+		hostRouter := middleware.NewHostRouter(statusBundle)
+		// Seed the cache from current settings (if any) and wire the refresh
+		// callback so the middleware reflects future saves / verifications.
+		if app.StatusPageSettingsRepo != nil {
+			if s, err := app.StatusPageSettingsRepo.Get(context.Background()); err == nil && s != nil {
+				hostRouter.Set(s.CustomDomain, string(s.CustomDomainStatus))
+			}
+		}
+		statusPageSettingsHandler.SetDomainRefresh(hostRouter.Set)
+		topHandler = hostRouter.Middleware(rootRouter)
+	}
+
 	app.RootRouter = rootRouter
 	app.Server = &http.Server{
 		Addr:         ":" + cfg.Port,
-		Handler:      rootRouter,
+		Handler:      topHandler,
 		ReadTimeout:  15 * time.Second,
 		WriteTimeout: 15 * time.Second,
 		IdleTimeout:  60 * time.Second,
