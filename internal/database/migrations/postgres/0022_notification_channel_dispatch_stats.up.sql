@@ -1,0 +1,4 @@
+ALTER TABLE notification_channels
+    ADD COLUMN IF NOT EXISTS last_sent_at    TIMESTAMPTZ NULL,
+    ADD COLUMN IF NOT EXISTS last_failure_at TIMESTAMPTZ NULL,
+    ADD COLUMN IF NOT EXISTS failures_24h    INTEGER     NOT NULL DEFAULT 0;

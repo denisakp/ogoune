@@ -185,7 +185,8 @@ func (s *StatusPageSettingsService) UpdateSettings(ctx context.Context, settings
 	settings.Name = strings.TrimSpace(settings.Name)
 	settings.HomepageURL = strings.TrimSpace(settings.HomepageURL)
 	settings.CustomDomain = strings.ToLower(strings.TrimSpace(settings.CustomDomain))
-	settings.GoogleAnalyticsID = strings.TrimSpace(settings.GoogleAnalyticsID)
+	settings.UmamiWebsiteID = strings.TrimSpace(settings.UmamiWebsiteID)
+	settings.UmamiScriptURL = strings.TrimSpace(settings.UmamiScriptURL)
 
 	if settings.Name == "" {
 		settings.Name = "Status Page"

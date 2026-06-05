@@ -41,3 +41,19 @@ SELECT nc.* FROM notification_channels nc
 JOIN component_notification_channels cnc
     ON cnc.notification_channel_id = nc.id
 WHERE cnc.component_id = $1;
+
+-- name: MarkNotificationChannelSent :exec
+UPDATE notification_channels
+SET last_sent_at = @at,
+    updated_at   = @at
+WHERE id = @id;
+
+-- name: MarkNotificationChannelFailure :exec
+UPDATE notification_channels
+SET failures_24h    = CASE
+    WHEN last_failure_at IS NULL OR last_failure_at < @cutoff_at THEN 1
+    ELSE failures_24h + 1
+END,
+    last_failure_at = @at,
+    updated_at      = @at
+WHERE id = @id;

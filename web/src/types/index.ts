@@ -289,7 +289,8 @@ export interface ExpirationStatus {
 export interface StatusPageSettings {
   name: string
   homepage_url?: string
-  google_analytics_id?: string
+  umami_website_id?: string
+  umami_script_url?: string
   enable_details_page: boolean
   show_uptime_percentage: boolean
 }
@@ -589,6 +590,9 @@ export interface NotificationChannel {
   type: NotificationChannelType
   config: NotificationConfig
   enabled_by_default: boolean
+  last_sent_at?: string | null
+  last_failure_at?: string | null
+  failures_24h?: number
   created_at: string
   updated_at: string
 }
@@ -671,7 +675,8 @@ export interface StatusPageSettingsRequest {
   name: string
   homepage_url: string
   custom_domain: string
-  google_analytics_id: string
+  umami_website_id: string
+  umami_script_url: string
   enable_details_page: boolean
   show_uptime_percentage: boolean
   hide_paused_monitors: boolean
@@ -696,7 +701,8 @@ export interface StatusPageSettingsResponse {
   name: string
   homepage_url: string
   custom_domain: string
-  google_analytics_id: string
+  umami_website_id: string
+  umami_script_url: string
   enable_details_page: boolean
   show_uptime_percentage: boolean
   hide_paused_monitors: boolean

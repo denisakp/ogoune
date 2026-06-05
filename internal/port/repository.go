@@ -154,6 +154,9 @@ type NotificationChannelRepository interface {
 	FindDefaultChannels(ctx context.Context) ([]*domain.NotificationChannel, error)
 	FindByResourceID(ctx context.Context, resourceID string) ([]*domain.NotificationChannel, error)
 	FindByComponentID(ctx context.Context, componentID string) ([]*domain.NotificationChannel, error)
+	// Spec 060 follow-up — per-channel dispatch counters.
+	MarkSent(ctx context.Context, channelID string, at time.Time) error
+	MarkFailure(ctx context.Context, channelID string, at time.Time) error
 }
 
 // MaintenanceRepository manages maintenance windows.

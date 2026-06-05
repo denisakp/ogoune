@@ -17,6 +17,11 @@ vi.mock('@/services/notificationChannelService', () => ({
   deleteChannel: (...a: unknown[]) => deleteChannelMock(...a),
 }))
 
+const fetchNotificationStatsMock = vi.fn().mockResolvedValue(null)
+vi.mock('@/services/notificationStatsService', () => ({
+  fetchNotificationStats: (...a: unknown[]) => fetchNotificationStatsMock(...a),
+}))
+
 const confirmMock = vi.fn()
 vi.mock('@/composables/useConfirm', () => ({
   useConfirm: (opts: unknown) => confirmMock(opts),
@@ -94,8 +99,10 @@ describe('NotificationsView', () => {
     expect(vm.stats.length).toBe(4)
     expect(vm.stats[0].label).toBe('CHANNELS')
     expect(vm.stats[0].value).toBe('1')
+    // When the stats endpoint hasn't returned (or fails), the KPI shows
+    // the em dash placeholder. The previous "Backend metric pending"
+    // hint is gone now that the counters are wired to a real endpoint.
     expect(vm.stats[1].value).toBe('—')
-    expect(vm.stats[1].meta).toContain('Backend metric pending')
   })
 
   it('Default toggle on row B → previous default A un-toggled (optimistic)', async () => {

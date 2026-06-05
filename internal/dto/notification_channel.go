@@ -2,6 +2,7 @@ package dto
 
 import (
 	"encoding/json"
+	"time"
 
 	"github.com/denisakp/ogoune/internal/domain"
 )
@@ -64,6 +65,9 @@ type NotificationChannelResponse struct {
 	Type             domain.NotificationChannelType `json:"type"`
 	Config           map[string]interface{}         `json:"config"`
 	EnabledByDefault bool                           `json:"enabled_by_default"`
+	LastSentAt       *string                        `json:"last_sent_at"`
+	LastFailureAt    *string                        `json:"last_failure_at"`
+	Failures24h      int                            `json:"failures_24h"`
 	CreatedAt        string                         `json:"created_at"`
 	UpdatedAt        string                         `json:"updated_at"`
 }
@@ -75,12 +79,23 @@ func ToNotificationChannelResponse(channel *domain.NotificationChannel) (*Notifi
 		return nil, err
 	}
 
+	fmtTime := func(t *time.Time) *string {
+		if t == nil {
+			return nil
+		}
+		s := t.Format("2006-01-02T15:04:05Z07:00")
+		return &s
+	}
+
 	return &NotificationChannelResponse{
 		ID:               channel.ID,
 		Name:             channel.Name,
 		Type:             channel.Type,
 		Config:           configMap,
 		EnabledByDefault: channel.EnabledByDefault,
+		LastSentAt:       fmtTime(channel.LastSentAt),
+		LastFailureAt:    fmtTime(channel.LastFailureAt),
+		Failures24h:      channel.Failures24h,
 		CreatedAt:        channel.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
 		UpdatedAt:        channel.UpdatedAt.Format("2006-01-02T15:04:05Z07:00"),
 	}, nil

@@ -12,14 +12,15 @@ import (
 
 const createStatusPageSettings = `-- name: CreateStatusPageSettings :exec
 INSERT INTO status_page_settings (
-    id, name, homepage_url, custom_domain, google_analytics_id,
+    id, name, homepage_url, custom_domain,
+    umami_website_id, umami_script_url,
     enable_details_page, show_uptime_percentage, hide_paused_monitors,
     show_incident_history,
     custom_domain_status, custom_domain_ssl_status, custom_domain_dns_records,
     logo_url_light, logo_url_dark, favicon_url, primary_color, theme_overrides,
     created_at, updated_at
 )
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 `
 
 type CreateStatusPageSettingsParams struct {
@@ -27,7 +28,8 @@ type CreateStatusPageSettingsParams struct {
 	Name                   string    `json:"name"`
 	HomepageUrl            string    `json:"homepage_url"`
 	CustomDomain           string    `json:"custom_domain"`
-	GoogleAnalyticsID      string    `json:"google_analytics_id"`
+	UmamiWebsiteID         string    `json:"umami_website_id"`
+	UmamiScriptUrl         string    `json:"umami_script_url"`
 	EnableDetailsPage      int64     `json:"enable_details_page"`
 	ShowUptimePercentage   int64     `json:"show_uptime_percentage"`
 	HidePausedMonitors     int64     `json:"hide_paused_monitors"`
@@ -50,7 +52,8 @@ func (q *Queries) CreateStatusPageSettings(ctx context.Context, arg CreateStatus
 		arg.Name,
 		arg.HomepageUrl,
 		arg.CustomDomain,
-		arg.GoogleAnalyticsID,
+		arg.UmamiWebsiteID,
+		arg.UmamiScriptUrl,
 		arg.EnableDetailsPage,
 		arg.ShowUptimePercentage,
 		arg.HidePausedMonitors,
@@ -70,7 +73,7 @@ func (q *Queries) CreateStatusPageSettings(ctx context.Context, arg CreateStatus
 }
 
 const getStatusPageSettings = `-- name: GetStatusPageSettings :one
-SELECT id, created_at, updated_at, name, homepage_url, custom_domain, google_analytics_id, enable_details_page, show_uptime_percentage, hide_paused_monitors, show_incident_history, custom_domain_status, custom_domain_ssl_status, custom_domain_dns_records, logo_url_light, logo_url_dark, favicon_url, primary_color, theme_overrides FROM status_page_settings LIMIT 1
+SELECT id, created_at, updated_at, name, homepage_url, custom_domain, google_analytics_id, enable_details_page, show_uptime_percentage, hide_paused_monitors, show_incident_history, custom_domain_status, custom_domain_ssl_status, custom_domain_dns_records, logo_url_light, logo_url_dark, favicon_url, primary_color, theme_overrides, umami_website_id, umami_script_url FROM status_page_settings LIMIT 1
 `
 
 func (q *Queries) GetStatusPageSettings(ctx context.Context) (StatusPageSetting, error) {
@@ -96,6 +99,8 @@ func (q *Queries) GetStatusPageSettings(ctx context.Context) (StatusPageSetting,
 		&i.FaviconUrl,
 		&i.PrimaryColor,
 		&i.ThemeOverrides,
+		&i.UmamiWebsiteID,
+		&i.UmamiScriptUrl,
 	)
 	return i, err
 }
@@ -105,7 +110,8 @@ UPDATE status_page_settings
 SET name = ?,
     homepage_url = ?,
     custom_domain = ?,
-    google_analytics_id = ?,
+    umami_website_id = ?,
+    umami_script_url = ?,
     enable_details_page = ?,
     show_uptime_percentage = ?,
     hide_paused_monitors = ?,
@@ -126,7 +132,8 @@ type UpdateStatusPageSettingsParams struct {
 	Name                   string    `json:"name"`
 	HomepageUrl            string    `json:"homepage_url"`
 	CustomDomain           string    `json:"custom_domain"`
-	GoogleAnalyticsID      string    `json:"google_analytics_id"`
+	UmamiWebsiteID         string    `json:"umami_website_id"`
+	UmamiScriptUrl         string    `json:"umami_script_url"`
 	EnableDetailsPage      int64     `json:"enable_details_page"`
 	ShowUptimePercentage   int64     `json:"show_uptime_percentage"`
 	HidePausedMonitors     int64     `json:"hide_paused_monitors"`
@@ -148,7 +155,8 @@ func (q *Queries) UpdateStatusPageSettings(ctx context.Context, arg UpdateStatus
 		arg.Name,
 		arg.HomepageUrl,
 		arg.CustomDomain,
-		arg.GoogleAnalyticsID,
+		arg.UmamiWebsiteID,
+		arg.UmamiScriptUrl,
 		arg.EnableDetailsPage,
 		arg.ShowUptimePercentage,
 		arg.HidePausedMonitors,

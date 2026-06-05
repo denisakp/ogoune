@@ -143,6 +143,8 @@ type Querier interface {
 	ListTagIDsByResourceID(ctx context.Context, resourceID string) ([]string, error)
 	ListTags(ctx context.Context, arg ListTagsParams) ([]Tag, error)
 	ListTagsByResourceIDs(ctx context.Context, dollar_1 []string) ([]ListTagsByResourceIDsRow, error)
+	MarkNotificationChannelFailure(ctx context.Context, arg MarkNotificationChannelFailureParams) error
+	MarkNotificationChannelSent(ctx context.Context, arg MarkNotificationChannelSentParams) error
 	MarkNotificationEventTerminal(ctx context.Context, arg MarkNotificationEventTerminalParams) (int64, error)
 	MarkTwoFactorResetTokenUsed(ctx context.Context, arg MarkTwoFactorResetTokenUsedParams) (int64, error)
 	NextEscalationPriority(ctx context.Context) (int32, error)
