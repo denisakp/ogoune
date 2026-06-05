@@ -4,6 +4,8 @@ import StarterKit from '@tiptap/starter-kit'
 import Link from '@tiptap/extension-link'
 import TaskList from '@tiptap/extension-task-list'
 import TaskItem from '@tiptap/extension-task-item'
+import { Extension } from '@tiptap/core'
+import { Plugin, PluginKey } from '@tiptap/pm/state'
 import { ref, watch, onBeforeUnmount, computed } from 'vue'
 import DOMPurify from 'dompurify'
 
@@ -16,6 +18,45 @@ const props = defineProps<{
 const emit = defineEmits<{ (e: 'update:modelValue', value: string): void }>()
 
 const preview = ref(false)
+
+// Markdown shortcut: when a paragraph starts with "[ ] " or "[x] ",
+// convert it into a task list item with the matching checked state.
+// Tiptap's TaskItem doesn't ship this rule out of the box.
+const TaskListMarkdownShortcut = Extension.create({
+  name: 'taskListMarkdownShortcut',
+  addProseMirrorPlugins() {
+    const editorRef = this.editor
+    return [
+      new Plugin({
+        key: new PluginKey('taskListMarkdownShortcut'),
+        appendTransaction: (transactions, _oldState, newState) => {
+          if (!transactions.some((tr) => tr.docChanged)) return null
+          const $from = newState.selection.$from
+          const parent = $from.parent
+          if (parent.type.name !== 'paragraph') return null
+          const text = parent.textContent
+          const match = text.match(/^\[( |x|X)\]\s/)
+          if (!match) return null
+          const checked = match[1]?.toLowerCase() === 'x'
+          // Defer the structural transformation until after this tx settles.
+          Promise.resolve().then(() => {
+            const ed = editorRef
+            if (!ed) return
+            const range = { from: $from.before(), to: $from.after() }
+            ed.chain()
+              .focus()
+              .setTextSelection({ from: range.from + 1, to: range.from + 1 + match[0].length })
+              .deleteSelection()
+              .toggleTaskList()
+              .updateAttributes('taskItem', { checked })
+              .run()
+          })
+          return null
+        },
+      }),
+    ]
+  },
+})
 
 const editor = useEditor({
   content: props.modelValue || '',
@@ -32,6 +73,7 @@ const editor = useEditor({
     }),
     TaskList.configure({ HTMLAttributes: { class: 'rt-task-list' } }),
     TaskItem.configure({ nested: true, HTMLAttributes: { class: 'rt-task-item' } }),
+    TaskListMarkdownShortcut,
   ],
   editorProps: {
     attributes: {
