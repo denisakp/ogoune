@@ -8,8 +8,9 @@ interface SlackConfig {
 }
 interface Props {
   modelValue: SlackConfig
+  fieldErrors?: Record<string, string>
 }
-const props = defineProps<Props>()
+const props = withDefaults(defineProps<Props>(), { fieldErrors: () => ({}) })
 const emit = defineEmits<{ (e: 'update:modelValue', v: SlackConfig): void }>()
 
 function update<K extends keyof SlackConfig>(key: K, value: SlackConfig[K]) {
@@ -19,21 +20,29 @@ function update<K extends keyof SlackConfig>(key: K, value: SlackConfig[K]) {
 
 <template>
   <div class="space-y-3">
-    <UFormField label="Slack incoming-webhook URL" name="config.webhook_url">
+    <UFormField
+      label="Slack incoming-webhook URL"
+      name="config.webhook_url"
+      :error="fieldErrors['config.webhook_url']"
+    >
       <UInput
         :model-value="modelValue.webhook_url"
         placeholder="https://hooks.slack.com/services/T/B/X"
         @update:model-value="(v) => update('webhook_url', String(v))"
       />
     </UFormField>
-    <UFormField label="Channel" name="config.channel">
+    <UFormField label="Channel" name="config.channel" :error="fieldErrors['config.channel']">
       <UInput
         :model-value="modelValue.channel"
         placeholder="oncall"
         @update:model-value="(v) => update('channel', String(v))"
       />
     </UFormField>
-    <UFormField label="Display name (optional)" name="config.display_name">
+    <UFormField
+      label="Display name (optional)"
+      name="config.display_name"
+      :error="fieldErrors['config.display_name']"
+    >
       <UInput
         :model-value="modelValue.display_name ?? ''"
         placeholder="Ogoune bot"

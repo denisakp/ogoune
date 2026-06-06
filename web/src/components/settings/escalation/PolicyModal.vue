@@ -87,7 +87,7 @@ defineExpose({ policy, fieldError, addStep, removeStep, updateStep, onSubmit })
         </UFormField>
 
         <div class="grid grid-cols-2 gap-3">
-          <UFormField label="Scope">
+          <UFormField label="Scope" :error="fieldError['scope.kind']">
             <USelect
               :model-value="policy.scope.kind"
               :items="['component', 'tag']"
@@ -140,7 +140,10 @@ defineExpose({ policy, fieldError, addStep, removeStep, updateStep, onSubmit })
                 />
               </div>
               <div class="grid grid-cols-2 gap-3">
-                <UFormField label="Delay (min)">
+                <UFormField
+                  label="Delay (min)"
+                  :error="fieldError[`steps.${i}.delay_minutes`]"
+                >
                   <UInput
                     type="number"
                     :model-value="s.delay_minutes"
@@ -149,7 +152,10 @@ defineExpose({ policy, fieldError, addStep, removeStep, updateStep, onSubmit })
                     @update:model-value="(v) => updateStep(i, 'delay_minutes', Number(v))"
                   />
                 </UFormField>
-                <UFormField label="Channels">
+                <UFormField
+                  label="Channels"
+                  :error="fieldError[`steps.${i}.channel_ids`]"
+                >
                   <USelectMenu
                     :model-value="s.channel_ids"
                     multiple
@@ -163,10 +169,6 @@ defineExpose({ policy, fieldError, addStep, removeStep, updateStep, onSubmit })
             </li>
           </ul>
         </div>
-
-        <p v-if="Object.keys(fieldError).length > 0" class="text-xs text-error">
-          {{ Object.values(fieldError)[0] }}
-        </p>
       </div>
     </template>
 

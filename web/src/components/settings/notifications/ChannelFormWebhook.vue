@@ -13,8 +13,9 @@ interface WebhookConfig {
 
 interface Props {
   modelValue: WebhookConfig
+  fieldErrors?: Record<string, string>
 }
-const props = defineProps<Props>()
+const props = withDefaults(defineProps<Props>(), { fieldErrors: () => ({}) })
 const emit = defineEmits<{ (e: 'update:modelValue', v: WebhookConfig): void }>()
 
 function update<K extends keyof WebhookConfig>(key: K, value: WebhookConfig[K]) {
@@ -42,14 +43,14 @@ function updateHeader(i: number, k: keyof Header, v: string) {
 
 <template>
   <div class="space-y-3">
-    <UFormField label="URL" name="config.url">
+    <UFormField label="URL" name="config.url" :error="fieldErrors['config.url']">
       <UInput
         :model-value="modelValue.url"
         placeholder="https://events.example.com/hook"
         @update:model-value="(v) => update('url', String(v))"
       />
     </UFormField>
-    <UFormField label="Method" name="config.method">
+    <UFormField label="Method" name="config.method" :error="fieldErrors['config.method']">
       <USelect
         :model-value="modelValue.method"
         :items="['POST', 'PUT']"

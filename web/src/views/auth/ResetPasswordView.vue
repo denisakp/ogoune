@@ -30,7 +30,8 @@ const isLoading = computed(() => authStore.isLoading)
 interface Strength {
   score: 0 | 1 | 2 | 3 | 4
   label: string
-  color: string
+  textClass: string
+  fillClass: string
 }
 const strength = computed<Strength>(() => {
   const p = state.password
@@ -40,11 +41,25 @@ const strength = computed<Strength>(() => {
   if (/\d/.test(p)) s++
   if (/[^A-Za-z0-9]/.test(p)) s++
   const labels = ['Too weak', 'Weak', 'Fair', 'Good', 'Strong'] as const
-  const colors = ['#94A3B8', '#EF4444', '#F59E0B', '#10B981', '#047857'] as const
+  const textClasses = [
+    'text-slate-400',
+    'text-red-500',
+    'text-amber-500',
+    'text-emerald-500',
+    'text-emerald-700',
+  ] as const
+  const fillClasses = [
+    'bg-slate-400',
+    'bg-red-500',
+    'bg-amber-500',
+    'bg-emerald-500',
+    'bg-emerald-700',
+  ] as const
   return {
     score: s as 0 | 1 | 2 | 3 | 4,
     label: labels[s] ?? 'Too weak',
-    color: colors[s] ?? '#94A3B8',
+    textClass: textClasses[s] ?? 'text-slate-400',
+    fillClass: fillClasses[s] ?? 'bg-slate-400',
   }
 })
 
@@ -130,18 +145,14 @@ defineExpose({ state, onSubmit, formRef, expiredOrUsed, strength })
       <div v-if="state.password" class="space-y-1.5">
         <div class="flex items-center justify-between text-[11px]">
           <span class="text-slate-600 font-medium">Password strength</span>
-          <span class="font-semibold" :style="{ color: strength.color }">{{
-            strength.label
-          }}</span>
+          <span class="font-semibold" :class="strength.textClass">{{ strength.label }}</span>
         </div>
         <div class="flex gap-1">
           <div
             v-for="i in 5"
             :key="i"
             class="flex-1 h-1 rounded-sm"
-            :style="{
-              backgroundColor: i <= strength.score + 1 ? strength.color : '#E2E8F0',
-            }"
+            :class="i <= strength.score + 1 ? strength.fillClass : 'bg-slate-200'"
           />
         </div>
       </div>

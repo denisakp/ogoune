@@ -134,15 +134,11 @@ defineExpose({
           <UInput v-model="name" placeholder="Ops mailbox" />
         </UFormField>
 
-        <component :is="formComponent" v-model="config" />
+        <component :is="formComponent" v-model="config" :field-errors="fieldError" />
 
         <div class="flex items-center gap-4 pt-2">
           <UCheckbox v-model="isDefault" label="Set as default" />
           <UCheckbox v-model="isActive" label="Active" />
-        </div>
-
-        <div v-if="Object.keys(fieldError).length > 0" class="text-xs text-error">
-          {{ Object.values(fieldError)[0] }}
         </div>
 
         <div v-if="testResult" class="text-xs">
