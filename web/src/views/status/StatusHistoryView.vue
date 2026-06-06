@@ -76,9 +76,9 @@ const brandName = computed(() => branding.value?.name ?? 'Status Page')
             <line x1="8" y1="2" x2="8" y2="6" />
             <line x1="3" y1="10" x2="21" y2="10" />
           </svg>
-          <input v-model="fromDate" type="date" class="bg-transparent outline-none text-xs font-mono" data-testid="filter-from" />
+          <UInput v-model="fromDate" type="date" size="xs" variant="none" :ui="{ base: 'bg-transparent outline-none text-xs font-mono p-0' }" data-testid="filter-from" />
           <span class="text-gray-400">›</span>
-          <input v-model="toDate" type="date" class="bg-transparent outline-none text-xs font-mono" data-testid="filter-to" />
+          <UInput v-model="toDate" type="date" size="xs" variant="none" :ui="{ base: 'bg-transparent outline-none text-xs font-mono p-0' }" data-testid="filter-to" />
         </label>
         <div class="relative inline-flex items-center gap-2 rounded-md border border-gray-200 bg-white px-3 py-1.5 text-sm">
           <svg class="size-4 text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">

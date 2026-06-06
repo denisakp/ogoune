@@ -73,15 +73,15 @@ function toMenuItems(items: NavItem[]) {
     </nav>
 
     <div class="p-3 border-t border-default">
-      <a
-        href="/status.html"
+      <ULink
+        to="/status.html"
         target="_blank"
         rel="noopener"
         class="flex items-center gap-2 px-2 py-1.5 rounded-md text-xs text-success hover:bg-elevated transition-colors"
       >
         <span class="size-2 rounded-full bg-success" />
         All systems operational
-      </a>
+      </ULink>
     </div>
   </aside>
 </template>

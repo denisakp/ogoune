@@ -5,7 +5,8 @@
  * Notification channels — design fidelity v2.
  * Page-level h1 + tagline + info alert + 4 KPI cards + table with Default toggle.
  */
-import { computed, onMounted, ref } from 'vue'
+import { computed, h, onMounted, ref, resolveComponent } from 'vue'
+import type { TableColumn } from '@nuxt/ui'
 
 import {
   fetchChannels,
@@ -227,7 +228,110 @@ const initialForModal = computed(() => {
 
 onMounted(reload)
 
-defineExpose({ channels, stats, openCreate, onSubmit, onToggleDefault, onDelete })
+const columns: TableColumn<NotificationChannel>[] = [
+  {
+    id: 'channel',
+    header: 'Channel',
+    cell: ({ row }) => {
+      const c = row.original
+      const tm = typeMeta(c.type)
+      const recipient = recipientPreview(c)
+      return h('div', { class: 'flex items-center gap-3' }, [
+        h(
+          'div',
+          {
+            class: ['size-9 shrink-0 rounded-md flex items-center justify-center', tm.iconBg],
+          },
+          [h(resolveComponent('UIcon'), { name: tm.icon, class: 'size-4' })],
+        ),
+        h('div', { class: 'min-w-0' }, [
+          h('p', { class: 'font-semibold text-default' }, c.name),
+          recipient
+            ? h(
+                'p',
+                { class: 'text-xs text-muted font-mono truncate' },
+                recipient,
+              )
+            : null,
+        ]),
+      ])
+    },
+  },
+  {
+    id: 'type',
+    header: 'Type',
+    cell: ({ row }) => {
+      const tm = typeMeta(row.original.type)
+      return h(
+        resolveComponent('UBadge'),
+        { color: tm.badge, variant: 'subtle', size: 'sm' },
+        () => tm.label,
+      )
+    },
+  },
+  {
+    id: 'status',
+    header: 'Status',
+    cell: () =>
+      h(
+        resolveComponent('UBadge'),
+        { color: 'success', variant: 'subtle', size: 'sm' },
+        () => [
+          h('span', { class: 'inline-block size-1.5 rounded-full mr-1 bg-success' }),
+          'Verified',
+        ],
+      ),
+  },
+  {
+    id: 'default',
+    header: 'Default',
+    cell: ({ row }) =>
+      h(resolveComponent('USwitch'), {
+        modelValue: row.original.enabled_by_default,
+        'onClick': () => onToggleDefault(row.original),
+      }),
+  },
+  {
+    id: 'last_sent',
+    header: 'Last sent',
+    cell: ({ row }) =>
+      h('span', { class: 'text-muted' }, lastSentForChannel(row.original)),
+  },
+  {
+    id: 'failures',
+    header: 'Failures (24h)',
+    cell: ({ row }) =>
+      h(
+        'span',
+        { class: failuresClass(row.original.failures_24h) },
+        String(row.original.failures_24h ?? 0),
+      ),
+  },
+  {
+    id: 'actions',
+    header: '',
+    cell: ({ row }) => {
+      const c = row.original
+      return h(
+        resolveComponent('UDropdownMenu'),
+        {
+          items: [
+            { label: 'Edit', icon: 'i-lucide-pencil', onSelect: () => openEdit(c) },
+            { label: 'Delete', icon: 'i-lucide-trash-2', onSelect: () => onDelete(c) },
+          ],
+        },
+        () =>
+          h(resolveComponent('UButton'), {
+            variant: 'ghost',
+            size: 'xs',
+            icon: 'i-lucide-more-horizontal',
+          }),
+      )
+    },
+  },
+]
+
+defineExpose({ channels, stats, openCreate, onSubmit, onToggleDefault, onDelete, columns })
 </script>
 
 <template>
@@ -277,67 +381,7 @@ defineExpose({ channels, stats, openCreate, onSubmit, onToggleDefault, onDelete 
     </UEmpty>
 
     <div v-else class="overflow-hidden rounded-xl border border-default bg-default">
-      <table class="w-full text-sm">
-        <thead class="bg-elevated text-xs uppercase tracking-wide text-muted">
-          <tr>
-            <th class="px-4 py-2 text-left font-medium">Channel</th>
-            <th class="px-4 py-2 text-left font-medium">Type</th>
-            <th class="px-4 py-2 text-left font-medium">Status</th>
-            <th class="px-4 py-2 text-left font-medium">Default</th>
-            <th class="px-4 py-2 text-left font-medium">Last sent</th>
-            <th class="px-4 py-2 text-left font-medium">Failures (24h)</th>
-            <th class="px-4 py-2"></th>
-          </tr>
-        </thead>
-        <tbody class="divide-y divide-default">
-          <tr v-for="c in channels" :key="c.id" class="hover:bg-elevated/40 transition-colors">
-            <td class="px-4 py-3">
-              <div class="flex items-center gap-3">
-                <div
-                  class="size-9 shrink-0 rounded-md flex items-center justify-center"
-                  :class="typeMeta(c.type).iconBg"
-                >
-                  <UIcon :name="typeMeta(c.type).icon" class="size-4" />
-                </div>
-                <div class="min-w-0">
-                  <p class="font-semibold text-default">{{ c.name }}</p>
-                  <p v-if="recipientPreview(c)" class="text-xs text-muted font-mono truncate">
-                    {{ recipientPreview(c) }}
-                  </p>
-                </div>
-              </div>
-            </td>
-            <td class="px-4 py-3">
-              <UBadge :color="typeMeta(c.type).badge" variant="subtle" size="sm">
-                {{ typeMeta(c.type).label }}
-              </UBadge>
-            </td>
-            <td class="px-4 py-3">
-              <UBadge color="success" variant="subtle" size="sm">
-                <span class="inline-block size-1.5 rounded-full mr-1 bg-success" />
-                Verified
-              </UBadge>
-            </td>
-            <td class="px-4 py-3">
-              <USwitch :model-value="c.enabled_by_default" @click="onToggleDefault(c)" />
-            </td>
-            <td class="px-4 py-3 text-muted">{{ lastSentForChannel(c) }}</td>
-            <td class="px-4 py-3" :class="failuresClass(c.failures_24h)">
-              {{ c.failures_24h ?? 0 }}
-            </td>
-            <td class="px-4 py-3 text-right">
-              <UDropdownMenu
-                :items="[
-                  { label: 'Edit', icon: 'i-lucide-pencil', onSelect: () => openEdit(c) },
-                  { label: 'Delete', icon: 'i-lucide-trash-2', onSelect: () => onDelete(c) },
-                ]"
-              >
-                <UButton variant="ghost" size="xs" icon="i-lucide-more-horizontal" />
-              </UDropdownMenu>
-            </td>
-          </tr>
-        </tbody>
-      </table>
+      <UTable :data="channels" :columns="columns" />
     </div>
 
     <ChannelModal

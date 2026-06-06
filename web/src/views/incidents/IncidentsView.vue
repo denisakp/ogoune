@@ -98,7 +98,7 @@ defineExpose({ filtered, filters })
         placeholder="Search by resource or cause"
         icon="i-lucide-search"
         size="sm"
-        class="flex-1 min-w-[260px]"
+        class="flex-1 min-w-65"
       />
       <USelectMenu
         v-model="filters.type.value"
@@ -129,9 +129,9 @@ defineExpose({ filtered, filters })
         :value="c.value"
         @remove="filters.removeChip(c)"
       />
-      <button type="button" class="text-xs text-primary-600 underline ml-1" @click="filters.clear">
+      <UButton variant="link" color="primary" size="xs" class="ml-1" @click="filters.clear">
         Clear all
-      </button>
+      </UButton>
     </div>
 
     <div class="bg-white rounded-lg border border-slate-200 overflow-hidden">

@@ -396,9 +396,14 @@ defineExpose({ state, onSubmit, formRef, stripExtras })
           class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-slate-100 text-xs text-slate-700"
         >
           {{ tagName(id) }}
-          <button type="button" class="text-slate-400 hover:text-slate-700" @click="removeTag(id)">
-            <UIcon name="i-lucide-x" class="size-3" />
-          </button>
+          <UButton
+            variant="ghost"
+            color="neutral"
+            size="2xs"
+            icon="i-lucide-x"
+            :aria-label="`Remove tag ${tagName(id)}`"
+            @click="removeTag(id)"
+          />
         </span>
       </div>
       <div class="flex items-center gap-2">
