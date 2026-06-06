@@ -122,7 +122,13 @@ const goBack = () => {
     </div>
 
     <template v-else-if="resource">
-      <UButton color="neutral" variant="ghost" icon="i-lucide-arrow-left" class="mb-4" @click="goBack">
+      <UButton
+        color="neutral"
+        variant="ghost"
+        icon="i-lucide-arrow-left"
+        class="mb-4"
+        @click="goBack"
+      >
         Monitoring
       </UButton>
 
@@ -130,7 +136,10 @@ const goBack = () => {
       <div class="flex justify-between items-start mb-6 gap-4">
         <div>
           <div class="flex items-center gap-3 mb-2">
-            <div class="flex items-center justify-center size-10 rounded-full" style="background-color: #87d068">
+            <div
+              class="flex items-center justify-center size-10 rounded-full"
+              style="background-color: #87d068"
+            >
               <UIcon name="i-lucide-radar" class="size-5 text-white" />
             </div>
             <div>
@@ -153,7 +162,13 @@ const goBack = () => {
                 <span v-if="lastUpdated" class="text-xs text-muted">
                   Updated {{ lastUpdatedRelative }}
                 </span>
-                <UButton size="xs" color="neutral" variant="soft" :disabled="isLiveLoading" @click="refresh">
+                <UButton
+                  size="xs"
+                  color="neutral"
+                  variant="soft"
+                  :disabled="isLiveLoading"
+                  @click="refresh"
+                >
                   ↻
                 </UButton>
               </div>
@@ -161,7 +176,12 @@ const goBack = () => {
           </div>
         </div>
         <div class="flex gap-2">
-          <UButton color="neutral" variant="soft" icon="i-lucide-pause" @click="handlePauseResource">
+          <UButton
+            color="neutral"
+            variant="soft"
+            icon="i-lucide-pause"
+            @click="handlePauseResource"
+          >
             Pause
           </UButton>
           <UButton color="neutral" variant="soft" icon="i-lucide-pencil" @click="openEditModal">
@@ -214,7 +234,9 @@ const goBack = () => {
             <div class="grid grid-cols-2 gap-4 text-sm">
               <div>
                 <div class="text-xs text-muted mb-1">Protocol</div>
-                <UBadge color="info" variant="subtle">{{ resource.protocol_type?.toUpperCase() ?? '—' }}</UBadge>
+                <UBadge color="info" variant="subtle">{{
+                  resource.protocol_type?.toUpperCase() ?? '—'
+                }}</UBadge>
               </div>
               <div>
                 <div class="text-xs text-muted mb-1">Port</div>

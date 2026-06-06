@@ -55,7 +55,6 @@ const currentStats = computed(() => ({
       <div class="flex justify-between items-center">
         <span class="text-sm font-semibold">Performance</span>
         <UTabs v-model="timeRange" :items="ranges" variant="pill" size="xs" />
-
       </div>
     </template>
     <div class="grid grid-cols-1 sm:grid-cols-2 gap-6 mb-6">

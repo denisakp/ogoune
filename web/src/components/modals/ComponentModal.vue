@@ -86,7 +86,9 @@ const handleCancel = () => {
     <template #body>
       <div class="space-y-4">
         <div>
-          <label class="block text-sm font-medium mb-1">Component Name <span class="text-red-500">*</span></label>
+          <label class="block text-sm font-medium mb-1"
+            >Component Name <span class="text-red-500">*</span></label
+          >
           <UInput
             v-model="form.name"
             placeholder="e.g., Frontend Services"
@@ -97,12 +99,25 @@ const handleCancel = () => {
 
         <div>
           <label class="block text-sm font-medium mb-1">Description</label>
-          <UTextarea v-model="form.description" placeholder="Optional description" :rows="3" class="w-full" />
+          <UTextarea
+            v-model="form.description"
+            placeholder="Optional description"
+            :rows="3"
+            class="w-full"
+          />
         </div>
 
         <div>
-          <label class="block text-sm font-medium mb-1">Alert Grouping Window (seconds, 0 = disabled)</label>
-          <UInputNumber v-model="form.groupingWindowSeconds" :min="0" :max="300" placeholder="0" class="w-full" />
+          <label class="block text-sm font-medium mb-1"
+            >Alert Grouping Window (seconds, 0 = disabled)</label
+          >
+          <UInputNumber
+            v-model="form.groupingWindowSeconds"
+            :min="0"
+            :max="300"
+            placeholder="0"
+            class="w-full"
+          />
           <p class="mt-1 text-xs text-muted">
             Group multiple resource alerts into a single component notification within this window
             (10–300s). Set 0 to disable.
@@ -112,7 +127,9 @@ const handleCancel = () => {
     </template>
     <template #footer>
       <div class="flex justify-end gap-2 w-full">
-        <UButton color="neutral" variant="soft" :disabled="loading" @click="handleCancel">Cancel</UButton>
+        <UButton color="neutral" variant="soft" :disabled="loading" @click="handleCancel"
+          >Cancel</UButton
+        >
         <UButton color="primary" :loading="loading" @click="handleSubmit">OK</UButton>
       </div>
     </template>

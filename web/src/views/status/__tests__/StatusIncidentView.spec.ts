@@ -41,9 +41,24 @@ function mkDetail(overrides: Partial<PublicIncidentDetail> = {}): PublicIncident
     resolved_at: '2026-06-03T07:38:00Z',
     resource_id: 'res-api',
     updates: [
-      { id: 'u3', status: 'resolved', message: 'This incident has been resolved.', posted_at: '2026-06-03T07:38:00Z' },
-      { id: 'u2', status: 'monitoring', message: 'A fix has been implemented and we are monitoring the results.', posted_at: '2026-06-03T07:28:00Z' },
-      { id: 'u1', status: 'investigating', message: 'We are currently investigating this issue.', posted_at: '2026-06-03T07:10:00Z' },
+      {
+        id: 'u3',
+        status: 'resolved',
+        message: 'This incident has been resolved.',
+        posted_at: '2026-06-03T07:38:00Z',
+      },
+      {
+        id: 'u2',
+        status: 'monitoring',
+        message: 'A fix has been implemented and we are monitoring the results.',
+        posted_at: '2026-06-03T07:28:00Z',
+      },
+      {
+        id: 'u1',
+        status: 'investigating',
+        message: 'We are currently investigating this issue.',
+        posted_at: '2026-06-03T07:10:00Z',
+      },
     ],
     ...overrides,
   }
@@ -52,7 +67,9 @@ function mkDetail(overrides: Partial<PublicIncidentDetail> = {}): PublicIncident
 function buildRouter(id = 'inc-1') {
   return createRouter({
     history: createMemoryHistory(`/incidents/${id}`),
-    routes: [{ path: '/incidents/:id', name: 'PublicStatusIncident', component: StatusIncidentView }],
+    routes: [
+      { path: '/incidents/:id', name: 'PublicStatusIncident', component: StatusIncidentView },
+    ],
   })
 }
 
@@ -105,7 +122,9 @@ describe('StatusIncidentView — US7', () => {
     const w = mount(StatusIncidentView, { global: { plugins: [router] } })
     await flushPromises()
 
-    vi.mocked(svc.fetchPublicIncidentDetail).mockResolvedValue(mkDetail({ id: 'inc-2', title: 'Second issue' }))
+    vi.mocked(svc.fetchPublicIncidentDetail).mockResolvedValue(
+      mkDetail({ id: 'inc-2', title: 'Second issue' }),
+    )
     await router.push('/incidents/inc-2')
     await flushPromises()
     expect(w.text()).toContain('Second issue')

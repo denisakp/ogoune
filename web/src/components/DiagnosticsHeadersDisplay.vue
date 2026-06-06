@@ -31,19 +31,14 @@ const columns: TableColumn<HeaderRow>[] = [
     id: 'name',
     accessorKey: 'key',
     header: 'Name',
-    cell: ({ row }) =>
-      h('span', { class: 'font-mono text-xs text-muted' }, row.original.key),
+    cell: ({ row }) => h('span', { class: 'font-mono text-xs text-muted' }, row.original.key),
   },
   {
     id: 'value',
     accessorKey: 'value',
     header: 'Value',
     cell: ({ row }) =>
-      h(
-        'span',
-        { class: 'font-mono text-xs text-default break-all' },
-        row.original.value,
-      ),
+      h('span', { class: 'font-mono text-xs text-default break-all' }, row.original.value),
   },
 ]
 </script>

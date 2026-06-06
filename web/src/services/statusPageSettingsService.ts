@@ -1,5 +1,9 @@
 import { getAuthenticatedClient, request } from '@/core/http/client'
-import type { StatusPageLogoSlot, StatusPageSettingsRequest, StatusPageSettingsResponse } from '@/types'
+import type {
+  StatusPageLogoSlot,
+  StatusPageSettingsRequest,
+  StatusPageSettingsResponse,
+} from '@/types'
 
 export const getStatusPageSettings = async (): Promise<StatusPageSettingsResponse> => {
   return await request<StatusPageSettingsResponse>(getAuthenticatedClient(), 'settings/statuspage')
@@ -37,9 +41,7 @@ export const uploadStatusPageLogo = async (
 }
 
 export const deleteStatusPageLogo = async (slot: StatusPageLogoSlot): Promise<void> => {
-  await request<unknown>(
-    getAuthenticatedClient(),
-    `settings/statuspage/logo?slot=${slot}`,
-    { method: 'DELETE' },
-  )
+  await request<unknown>(getAuthenticatedClient(), `settings/statuspage/logo?slot=${slot}`, {
+    method: 'DELETE',
+  })
 }

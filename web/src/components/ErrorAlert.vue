@@ -6,5 +6,11 @@ defineProps<{
 </script>
 
 <template>
-  <UAlert color="error" variant="soft" icon="i-lucide-circle-alert" :title="title" :description="message" />
+  <UAlert
+    color="error"
+    variant="soft"
+    icon="i-lucide-circle-alert"
+    :title="title"
+    :description="message"
+  />
 </template>

@@ -88,7 +88,10 @@ const ranges: { value: RangeKey; label: string }[] = [
       <div>
         <div class="flex justify-between items-center mb-2">
           <span class="text-xs text-muted">Overall uptime</span>
-          <span class="text-base font-bold" :style="{ color: getUptimeColor(summary.overall_uptime) }">
+          <span
+            class="text-base font-bold"
+            :style="{ color: getUptimeColor(summary.overall_uptime) }"
+          >
             {{ summary.overall_uptime.toFixed(1) }}%
           </span>
         </div>
@@ -140,10 +143,6 @@ const ranges: { value: RangeKey; label: string }[] = [
     </div>
 
     <!-- Empty state -->
-    <UEmpty
-      v-else
-      icon="i-lucide-chart-no-axes-column"
-      title="No statistics available"
-    />
+    <UEmpty v-else icon="i-lucide-chart-no-axes-column" title="No statistics available" />
   </UCard>
 </template>

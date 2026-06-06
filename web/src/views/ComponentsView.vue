@@ -68,9 +68,7 @@ const handleRemoveResource = async (componentId: string, resourceId: string) => 
   }
 }
 
-const getStatusColor = (
-  status: string,
-): 'success' | 'warning' | 'error' | 'neutral' => {
+const getStatusColor = (status: string): 'success' | 'warning' | 'error' | 'neutral' => {
   const colors: Record<string, 'success' | 'warning' | 'error' | 'neutral'> = {
     up: 'success',
     degraded: 'warning',

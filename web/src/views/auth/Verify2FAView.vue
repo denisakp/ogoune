@@ -59,7 +59,14 @@ const onComplete = (value: string[]) => {
           </div>
         </div>
 
-        <UButton type="submit" color="primary" size="lg" block :loading="isLoading" :disabled="otpDigits.length !== 6">
+        <UButton
+          type="submit"
+          color="primary"
+          size="lg"
+          block
+          :loading="isLoading"
+          :disabled="otpDigits.length !== 6"
+        >
           Verify &amp; Continue
         </UButton>
       </form>

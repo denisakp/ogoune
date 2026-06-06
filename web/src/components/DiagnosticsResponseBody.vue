@@ -118,10 +118,7 @@ const copyToClipboard = async () => {
       />
 
       <!-- Size Info -->
-      <div
-        v-if="responseSize"
-        class="size-info"
-      >
+      <div v-if="responseSize" class="size-info">
         Response size: {{ (responseSize / 1024).toFixed(2) }} KB
         <span v-if="isTruncated" class="truncated">(truncated)</span>
       </div>
@@ -133,7 +130,13 @@ const copyToClipboard = async () => {
 
       <!-- Copy Button -->
       <div class="mt-3">
-        <UButton size="xs" color="neutral" variant="soft" icon="i-lucide-copy" @click="copyToClipboard">
+        <UButton
+          size="xs"
+          color="neutral"
+          variant="soft"
+          icon="i-lucide-copy"
+          @click="copyToClipboard"
+        >
           Copy
         </UButton>
       </div>
@@ -143,7 +146,7 @@ const copyToClipboard = async () => {
 
 <style scoped lang="css">
 .body-content {
-  background-color: #1f1f1f ;
+  background-color: #1f1f1f;
   color: #d4d4d4;
   padding: 12px;
   border-radius: 4px;
@@ -169,7 +172,5 @@ const copyToClipboard = async () => {
 .empty-state {
   font-size: 14px;
   color: rgba(0, 0, 0, 0.65);
-  
 }
-
 </style>

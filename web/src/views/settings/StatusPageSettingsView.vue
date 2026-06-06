@@ -43,7 +43,9 @@ const state = ref<StatusPageSettingsResponse>({
 
 const sslProvider = computed<string>(() => useRuntimeConfig().ssl_provider ?? 'external')
 
-function normalizeOverrides(m: Record<string, string | undefined> | null | undefined): Record<string, string> {
+function normalizeOverrides(
+  m: Record<string, string | undefined> | null | undefined,
+): Record<string, string> {
   if (!m) return {}
   const out: Record<string, string> = {}
   for (const k of Object.keys(m).sort()) {
@@ -165,8 +167,12 @@ function onBrandingRefreshed(next: StatusPageSettingsResponse) {
   state.value = { ...next, custom_domain_dns_records: [...next.custom_domain_dns_records] }
 }
 
-function setPrimaryColor(value: string) { state.value.primary_color = value }
-function setThemeOverrides(value: StatusPageThemeOverrides) { state.value.theme_overrides = value }
+function setPrimaryColor(value: string) {
+  state.value.primary_color = value
+}
+function setThemeOverrides(value: StatusPageThemeOverrides) {
+  state.value.theme_overrides = value
+}
 
 onMounted(load)
 
@@ -206,10 +212,7 @@ defineExpose({ state, initial, dirty, load, save, reset, verify, sslPanelLabel }
           label="Umami script URL (optional)"
           help="Defaults to https://cloud.umami.is/script.js. Set this when you self-host."
         >
-          <UInput
-            v-model="state.umami_script_url"
-            placeholder="https://cloud.umami.is/script.js"
-          />
+          <UInput v-model="state.umami_script_url" placeholder="https://cloud.umami.is/script.js" />
         </UFormField>
       </section>
 

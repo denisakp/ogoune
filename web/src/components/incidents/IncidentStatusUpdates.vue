@@ -1,7 +1,11 @@
 <script setup lang="ts">
 import { onMounted, reactive, ref } from 'vue'
 import { useIncidentUpdates } from '@/composables/useIncidentUpdates'
-import type { IncidentUpdate, IncidentUpdatePayload, IncidentUpdateStatus } from '@/services/incidentUpdateService'
+import type {
+  IncidentUpdate,
+  IncidentUpdatePayload,
+  IncidentUpdateStatus,
+} from '@/services/incidentUpdateService'
 import RichTextEditor from '@/components/ui/RichTextEditor.vue'
 import DOMPurify from 'dompurify'
 
@@ -13,8 +17,33 @@ function isEmptyHtml(html: string): boolean {
 
 function sanitize(html: string): string {
   return DOMPurify.sanitize(html, {
-    ALLOWED_TAGS: ['p', 'br', 'strong', 'em', 'code', 'a', 'ul', 'ol', 'li', 'h1', 'h2', 'input', 'label', 'div'],
-    ALLOWED_ATTR: ['href', 'rel', 'target', 'type', 'checked', 'disabled', 'data-checked', 'data-type', 'class'],
+    ALLOWED_TAGS: [
+      'p',
+      'br',
+      'strong',
+      'em',
+      'code',
+      'a',
+      'ul',
+      'ol',
+      'li',
+      'h1',
+      'h2',
+      'input',
+      'label',
+      'div',
+    ],
+    ALLOWED_ATTR: [
+      'href',
+      'rel',
+      'target',
+      'type',
+      'checked',
+      'disabled',
+      'data-checked',
+      'data-type',
+      'class',
+    ],
   })
 }
 
@@ -37,7 +66,9 @@ const submitting = ref(false)
 const editingId = ref<string | null>(null)
 const editDraft = reactive<IncidentUpdatePayload>({ status: 'investigating', message: '' })
 
-onMounted(() => { refresh() })
+onMounted(() => {
+  refresh()
+})
 
 function dotFor(s: IncidentUpdateStatus): string {
   return STATUSES.find((x) => x.value === s)?.dot ?? 'bg-slate-400'
@@ -50,10 +81,17 @@ function labelFor(s: IncidentUpdateStatus): string {
 function fmtPosted(iso: string): string {
   try {
     const d = new Date(iso)
-    return d.toLocaleString('en-US', {
-      month: 'short', day: '2-digit', year: 'numeric',
-      hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'UTC',
-    }) + ' UTC'
+    return (
+      d.toLocaleString('en-US', {
+        month: 'short',
+        day: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false,
+        timeZone: 'UTC',
+      }) + ' UTC'
+    )
   } catch {
     return iso
   }
@@ -100,7 +138,9 @@ async function confirmRemove(id: string) {
   >
     <header class="flex items-baseline justify-between">
       <h3 class="text-base font-semibold text-slate-900">Status updates</h3>
-      <span class="text-xs text-slate-500">{{ updates.length }} update{{ updates.length === 1 ? '' : 's' }}</span>
+      <span class="text-xs text-slate-500"
+        >{{ updates.length }} update{{ updates.length === 1 ? '' : 's' }}</span
+      >
     </header>
 
     <form
@@ -200,7 +240,10 @@ async function confirmRemove(id: string) {
               </button>
             </div>
           </div>
-          <div class="text-sm text-slate-700 prose prose-sm max-w-none" v-html="sanitize(u.message)" />
+          <div
+            class="text-sm text-slate-700 prose prose-sm max-w-none"
+            v-html="sanitize(u.message)"
+          />
         </template>
       </li>
     </ol>

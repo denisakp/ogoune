@@ -64,7 +64,6 @@ const items = [
     },
   ],
 ]
-
 </script>
 
 <template>

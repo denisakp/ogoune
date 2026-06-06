@@ -6,10 +6,7 @@ import { useConfirm } from '@/composables/useConfirm'
 import LogoUploadField from './LogoUploadField.vue'
 import PrimaryColorPicker from './PrimaryColorPicker.vue'
 import ThemeOverridesEditor from './ThemeOverridesEditor.vue'
-import {
-  uploadStatusPageLogo,
-  deleteStatusPageLogo,
-} from '@/services/statusPageSettingsService'
+import { uploadStatusPageLogo, deleteStatusPageLogo } from '@/services/statusPageSettingsService'
 import type {
   StatusPageLogoSlot,
   StatusPageSettingsResponse,
@@ -78,8 +75,12 @@ const logoLight = computed(() => props.settings?.logo_url_light ?? '')
 const logoDark = computed(() => props.settings?.logo_url_dark ?? '')
 const favicon = computed(() => props.settings?.favicon_url ?? '')
 
-function setPrimary(v: string) { emit('update:primaryColor', v) }
-function setOverrides(v: StatusPageThemeOverrides) { emit('update:themeOverrides', v) }
+function setPrimary(v: string) {
+  emit('update:primaryColor', v)
+}
+function setOverrides(v: StatusPageThemeOverrides) {
+  emit('update:themeOverrides', v)
+}
 </script>
 
 <template>
@@ -89,9 +90,7 @@ function setOverrides(v: StatusPageThemeOverrides) { emit('update:themeOverrides
   >
     <header>
       <h2 class="text-base font-semibold text-slate-900">Branding</h2>
-      <p class="text-sm text-slate-500">
-        Customize the look and feel of your public status page.
-      </p>
+      <p class="text-sm text-slate-500">Customize the look and feel of your public status page.</p>
     </header>
 
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">

@@ -79,11 +79,7 @@ const barTitle = (bar: { hour: string; uptime: number; successful: number; total
           width: `${totalWidth}px`,
         }"
       >
-        <UTooltip
-          v-for="(bar, index) in bars"
-          :key="index"
-          :text="barTitle(bar)"
-        >
+        <UTooltip v-for="(bar, index) in bars" :key="index" :text="barTitle(bar)">
           <div
             class="sparkline-bar"
             :style="{

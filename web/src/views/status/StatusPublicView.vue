@@ -13,7 +13,9 @@ import PublicPageFooter from '@/components/status/PublicPageFooter.vue'
 
 const { summary, loading, error, generatedAt, secondsAgo, loadSummary } = useStatusPublic()
 
-onMounted(() => { loadSummary() })
+onMounted(() => {
+  loadSummary()
+})
 
 const branding = computed(() => summary.value?.branding ?? null)
 const brandName = computed(() => branding.value?.name ?? 'Status Page')

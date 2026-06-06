@@ -83,7 +83,9 @@ function expiryIcon(type: 'success' | 'warning' | string): string {
       >
         {{ tag.name }}
       </UBadge>
-      <UBadge v-if="!resource.tags || resource.tags.length === 0" color="neutral" variant="soft">No tags</UBadge>
+      <UBadge v-if="!resource.tags || resource.tags.length === 0" color="neutral" variant="soft"
+        >No tags</UBadge
+      >
     </div>
   </UCard>
 
@@ -115,7 +117,9 @@ function expiryIcon(type: 'success' | 'warning' | string): string {
             </div>
             <div class="mt-2 flex items-center gap-2 flex-wrap">
               <UBadge
-                :color="expiryColor(getExpirationStatus(resource.metadata.ssl_expiration_date).type)"
+                :color="
+                  expiryColor(getExpirationStatus(resource.metadata.ssl_expiration_date).type)
+                "
                 variant="subtle"
                 :icon="expiryIcon(getExpirationStatus(resource.metadata.ssl_expiration_date).type)"
               >
@@ -157,9 +161,13 @@ function expiryIcon(type: 'success' | 'warning' | string): string {
             </div>
             <div class="mt-2 flex items-center gap-2 flex-wrap">
               <UBadge
-                :color="expiryColor(getExpirationStatus(resource.metadata.domain_expiration_date).type)"
+                :color="
+                  expiryColor(getExpirationStatus(resource.metadata.domain_expiration_date).type)
+                "
                 variant="subtle"
-                :icon="expiryIcon(getExpirationStatus(resource.metadata.domain_expiration_date).type)"
+                :icon="
+                  expiryIcon(getExpirationStatus(resource.metadata.domain_expiration_date).type)
+                "
               >
                 {{ getExpirationStatus(resource.metadata.domain_expiration_date).text }}
               </UBadge>

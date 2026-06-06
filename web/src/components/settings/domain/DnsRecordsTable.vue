@@ -27,8 +27,7 @@ const columns: TableColumn<DNSRecord>[] = [
     id: 'type',
     accessorKey: 'type',
     header: 'Type',
-    cell: ({ row }) =>
-      h('span', { class: 'font-mono text-xs text-default' }, row.original.type),
+    cell: ({ row }) => h('span', { class: 'font-mono text-xs text-default' }, row.original.type),
   },
   {
     id: 'host',
@@ -57,9 +56,7 @@ const columns: TableColumn<DNSRecord>[] = [
         ),
       ]
       if (row.original.last_error) {
-        children.push(
-          h('p', { class: 'text-[10px] text-error mt-1' }, row.original.last_error),
-        )
+        children.push(h('p', { class: 'text-[10px] text-error mt-1' }, row.original.last_error))
       }
       return h('div', children)
     },

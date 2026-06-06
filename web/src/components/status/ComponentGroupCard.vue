@@ -8,7 +8,9 @@ const props = defineProps<{ component: PublicComponent }>()
 const emit = defineEmits<{ (e: 'open-resource', resource: PublicResource): void }>()
 
 const open = ref(true)
-function toggle() { open.value = !open.value }
+function toggle() {
+  open.value = !open.value
+}
 
 const aggregatedPillClass = computed(() => {
   switch (props.component.aggregated_state) {
@@ -27,21 +29,31 @@ const aggregatedPillClass = computed(() => {
 
 const dotClass = computed(() => {
   switch (props.component.aggregated_state) {
-    case 'up': return 'bg-emerald-500'
-    case 'degraded': return 'bg-yellow-400'
-    case 'down': return 'bg-red-500'
-    case 'maintenance': return 'bg-blue-500'
-    default: return 'bg-slate-400'
+    case 'up':
+      return 'bg-emerald-500'
+    case 'degraded':
+      return 'bg-yellow-400'
+    case 'down':
+      return 'bg-red-500'
+    case 'maintenance':
+      return 'bg-blue-500'
+    default:
+      return 'bg-slate-400'
   }
 })
 
 const aggregatedLabel = computed(() => {
   switch (props.component.aggregated_state) {
-    case 'up': return 'All Operational'
-    case 'degraded': return 'Partially Degraded'
-    case 'down': return 'Major Outage'
-    case 'maintenance': return 'Under Maintenance'
-    default: return 'Unknown'
+    case 'up':
+      return 'All Operational'
+    case 'degraded':
+      return 'Partially Degraded'
+    case 'down':
+      return 'Major Outage'
+    case 'maintenance':
+      return 'Under Maintenance'
+    default:
+      return 'Unknown'
   }
 })
 
@@ -73,12 +85,26 @@ const resourceCount = computed(() => props.component.resources.length)
         >
           <polyline points="9 18 15 12 9 6" />
         </svg>
-        <svg class="size-4 text-indigo-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
+        <svg
+          class="size-4 text-indigo-500"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.8"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <path
+            d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"
+          />
         </svg>
         <span class="text-left min-w-0">
-          <span class="block font-semibold text-sm text-gray-900 truncate">{{ component.name }}</span>
-          <span class="block text-xs text-gray-500">{{ resourceCount }} resource{{ resourceCount === 1 ? '' : 's' }}</span>
+          <span class="block font-semibold text-sm text-gray-900 truncate">{{
+            component.name
+          }}</span>
+          <span class="block text-xs text-gray-500"
+            >{{ resourceCount }} resource{{ resourceCount === 1 ? '' : 's' }}</span
+          >
         </span>
       </span>
       <span

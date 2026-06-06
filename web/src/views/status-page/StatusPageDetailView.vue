@@ -94,7 +94,13 @@ const goBack = () => {
     <div class="status-header">
       <div class="container">
         <div class="header-content">
-          <UButton color="neutral" variant="ghost" class="back-button" icon="i-lucide-arrow-left" @click="goBack">
+          <UButton
+            color="neutral"
+            variant="ghost"
+            class="back-button"
+            icon="i-lucide-arrow-left"
+            @click="goBack"
+          >
             Back to Status Page
           </UButton>
 

@@ -110,11 +110,7 @@ const barCount = computed(() => layout.value.buckets.length)
 
 <template>
   <div class="w-full" :style="{ height: `${height}px` }" data-testid="response-time-chart">
-    <div
-      v-if="barCount > 0"
-      class="relative w-full"
-      :style="{ height: `${height - 24}px` }"
-    >
+    <div v-if="barCount > 0" class="relative w-full" :style="{ height: `${height - 24}px` }">
       <div
         class="grid items-end w-full h-full px-1"
         :style="{

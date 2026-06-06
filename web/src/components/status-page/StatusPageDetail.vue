@@ -217,7 +217,10 @@ watch(
 
       <!-- Error State -->
       <div v-else-if="!monitorData" class="error-container">
-        <UEmpty icon="i-lucide-circle-alert" title="Failed to load monitor details. Please try again later." />
+        <UEmpty
+          icon="i-lucide-circle-alert"
+          title="Failed to load monitor details. Please try again later."
+        />
       </div>
 
       <!-- Content -->
@@ -283,10 +286,7 @@ watch(
                   :key="index"
                   :text="`Day ${index + 1} — ${getBarTooltipText(bar)}`"
                 >
-                  <div
-                    class="uptime-bar"
-                    :style="{ backgroundColor: getBarColor(bar) }"
-                  ></div>
+                  <div class="uptime-bar" :style="{ backgroundColor: getBarColor(bar) }"></div>
                 </UTooltip>
               </div>
             </div>
@@ -307,9 +307,7 @@ watch(
               <div class="stat-label">Last 24 hours</div>
             </div>
             <div class="stat-item">
-              <div class="stat-value">
-                {{ monitorData.uptime_summary.last_7_days.toFixed(3) }}%
-              </div>
+              <div class="stat-value">{{ monitorData.uptime_summary.last_7_days.toFixed(3) }}%</div>
               <div class="stat-label">Last 7 days</div>
             </div>
             <div class="stat-item">

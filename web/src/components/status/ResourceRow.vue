@@ -38,11 +38,16 @@ const stateDotClass = computed(() => {
 
 const stateLabel = computed(() => {
   switch (props.resource.current_state) {
-    case 'up': return 'Operational'
-    case 'degraded': return 'Degraded'
-    case 'down': return 'Outage'
-    case 'maintenance': return 'Maintenance'
-    default: return 'Unknown'
+    case 'up':
+      return 'Operational'
+    case 'degraded':
+      return 'Degraded'
+    case 'down':
+      return 'Outage'
+    case 'maintenance':
+      return 'Maintenance'
+    default:
+      return 'Unknown'
   }
 })
 
@@ -71,13 +76,24 @@ const uptimePct = computed(() => (props.resource.uptime_90d_ratio * 100).toFixed
       <div class="flex items-center gap-3 shrink-0">
         <span class="text-xs font-mono text-gray-500">{{ uptimePct }} uptime</span>
         <span
-          :class="['inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium', statePillClass]"
+          :class="[
+            'inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium',
+            statePillClass,
+          ]"
           :data-state="resource.current_state"
         >
           <span :class="['size-1.5 rounded-full', stateDotClass]" />
           {{ stateLabel }}
         </span>
-        <svg class="size-4 text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <svg
+          class="size-4 text-gray-400"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
           <polyline points="9 18 15 12 9 6" />
         </svg>
       </div>

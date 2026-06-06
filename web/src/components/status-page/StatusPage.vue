@@ -33,7 +33,6 @@ const emit = defineEmits<{
   'service-click': [serviceId: string]
 }>()
 
-
 const handleServiceClick = (serviceId: string) => {
   if (props.enableDetailsPage) {
     emit('service-click', serviceId)
@@ -258,9 +257,7 @@ const getOverallStatusColor = () => {
 
       <!-- Footer -->
       <div class="status-page-footer">
-        <span class="text-sm text-muted">
-          Last updated: {{ new Date().toLocaleString() }}
-        </span>
+        <span class="text-sm text-muted"> Last updated: {{ new Date().toLocaleString() }} </span>
       </div>
     </div>
   </div>

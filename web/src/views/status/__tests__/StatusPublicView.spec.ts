@@ -2,11 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { mount, flushPromises } from '@vue/test-utils'
 import { createRouter, createMemoryHistory } from 'vue-router'
 import StatusPublicView from '../StatusPublicView.vue'
-import type {
-  PublicStatusSummary,
-  PublicResource,
-  PublicComponent,
-} from '@/types'
+import type { PublicStatusSummary, PublicResource, PublicComponent } from '@/types'
 
 vi.mock('@/services/statusPublicService', () => ({
   fetchPublicStatusSummary: vi.fn(),
@@ -110,9 +106,7 @@ describe('StatusPublicView — US1', () => {
     const empty = await renderView(mkSummary())
     expect(empty.find('[data-section="standalone-resources"]').exists()).toBe(false)
 
-    const populated = await renderView(
-      mkSummary({ standalone_resources: [mkResource('lonely')] }),
-    )
+    const populated = await renderView(mkSummary({ standalone_resources: [mkResource('lonely')] }))
     expect(populated.find('[data-section="standalone-resources"]').exists()).toBe(true)
   })
 

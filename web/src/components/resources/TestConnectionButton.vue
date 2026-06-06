@@ -45,10 +45,7 @@ async function runTest() {
 
 <template>
   <div data-testid="test-connection" class="mt-2">
-    <component
-      :is="disabledReason ? 'UTooltip' : 'div'"
-      :text="disabledReason ?? undefined"
-    >
+    <component :is="disabledReason ? 'UTooltip' : 'div'" :text="disabledReason ?? undefined">
       <UButton
         :loading="loading"
         :disabled="!!disabledReason"

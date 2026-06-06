@@ -229,9 +229,7 @@ const columns: TableColumn<APIKey>[] = [
       return h(
         resolveComponent('UDropdownMenu'),
         {
-          items: [
-            { label: 'Revoke', icon: 'i-lucide-trash-2', onSelect: () => onRevoke(k) },
-          ],
+          items: [{ label: 'Revoke', icon: 'i-lucide-trash-2', onSelect: () => onRevoke(k) }],
         },
         () =>
           h(resolveComponent('UButton'), {

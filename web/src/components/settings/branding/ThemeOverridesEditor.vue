@@ -83,12 +83,7 @@ function reset(key: StatusPageThemeKey) {
     </p>
 
     <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-      <div
-        v-for="f in COLOR_FIELDS"
-        :key="f.key"
-        class="flex items-center gap-2"
-        :data-key="f.key"
-      >
+      <div v-for="f in COLOR_FIELDS" :key="f.key" class="flex items-center gap-2" :data-key="f.key">
         <label class="flex-1 min-w-0 text-sm text-slate-700">
           {{ f.label }}
           <span class="block text-xs text-slate-400 font-mono truncate">{{ f.key }}</span>

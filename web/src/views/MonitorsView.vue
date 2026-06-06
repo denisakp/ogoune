@@ -231,11 +231,7 @@ defineExpose({
     />
 
     <div v-if="totalPages > 1" class="flex justify-center mt-3">
-      <UPagination
-        v-model:page="page"
-        :items-per-page="perPage"
-        :total="filteredRows.length"
-      />
+      <UPagination v-model:page="page" :items-per-page="perPage" :total="filteredRows.length" />
     </div>
 
     <ResourceModal v-model:open="showModal" :resource="editingResource" @submit="onFormSubmit" />

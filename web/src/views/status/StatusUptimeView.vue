@@ -9,8 +9,20 @@ import PublicPageFooter from '@/components/status/PublicPageFooter.vue'
 
 const { uptime, summary, error, loadSummary, loadUptime } = useStatusPublic()
 
-const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June',
-  'July', 'August', 'September', 'October', 'November', 'December']
+const MONTHS = [
+  'January',
+  'February',
+  'March',
+  'April',
+  'May',
+  'June',
+  'July',
+  'August',
+  'September',
+  'October',
+  'November',
+  'December',
+]
 
 const componentID = ref('')
 const today = new Date()
@@ -65,12 +77,12 @@ function clampToBounds() {
   // End of visible window = startMonth + 2. We want endMonth ≤ currentMonth.
   const endIdx = startMonth.value - 1 + 2
   const endY = startYear.value + Math.floor(endIdx / 12)
-  const endM = ((endIdx % 12) + 12) % 12 + 1
+  const endM = (((endIdx % 12) + 12) % 12) + 1
   const curKey = `${curY}-${String(curM).padStart(2, '0')}`
   const endKey = `${endY}-${String(endM).padStart(2, '0')}`
   if (endKey > curKey) {
     // Force end == current month.
-    const startIdx = (curM - 1) - 2
+    const startIdx = curM - 1 - 2
     startYear.value = curY + Math.floor(startIdx / 12)
     let m = startIdx % 12
     if (m < 0) m += 12
@@ -78,10 +90,12 @@ function clampToBounds() {
   }
 }
 
-watch([startYear, startMonth, componentID], () => { refresh() })
+watch([startYear, startMonth, componentID], () => {
+  refresh()
+})
 
 function shift(delta: number) {
-  const idx = (startMonth.value - 1) + delta
+  const idx = startMonth.value - 1 + delta
   startYear.value += Math.floor(idx / 12)
   let m = idx % 12
   if (m < 0) m += 12
@@ -126,11 +140,27 @@ const latestYearMonth = computed(() => {
 
     <main class="max-w-5xl mx-auto px-6 py-6 space-y-6" data-testid="status-uptime-view">
       <header class="flex flex-wrap items-center gap-3">
-        <div class="relative inline-flex items-center gap-2 rounded-md border border-gray-200 bg-white px-3 py-1.5 text-sm">
-          <svg class="size-4 text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
+        <div
+          class="relative inline-flex items-center gap-2 rounded-md border border-gray-200 bg-white px-3 py-1.5 text-sm"
+        >
+          <svg
+            class="size-4 text-gray-400"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <path
+              d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"
+            />
           </svg>
-          <select v-model="componentID" class="bg-transparent outline-none pr-6" data-testid="filter-component">
+          <select
+            v-model="componentID"
+            class="bg-transparent outline-none pr-6"
+            data-testid="filter-component"
+          >
             <option value="">All Components</option>
             <option v-for="c in componentOptions" :key="c.id" :value="c.id">{{ c.name }}</option>
           </select>
@@ -153,10 +183,7 @@ const latestYearMonth = computed(() => {
         <p class="text-sm opacity-80">{{ error.message }}</p>
       </div>
 
-      <section
-        class="grid gap-8 sm:grid-cols-2 lg:grid-cols-3"
-        data-testid="calendars"
-      >
+      <section class="grid gap-8 sm:grid-cols-2 lg:grid-cols-3" data-testid="calendars">
         <div
           v-for="m in visibleMonths"
           :key="`${m.year}-${m.month}`"
@@ -179,10 +206,18 @@ const latestYearMonth = computed(() => {
     <PublicPageFooter :brand-name="brandName" back-href="#/" back-label="Current Status">
       <template #right>
         <div class="flex items-center gap-3 text-xs">
-          <span class="inline-flex items-center gap-1"><span class="size-2 rounded-sm bg-emerald-500" /> Operational</span>
-          <span class="inline-flex items-center gap-1"><span class="size-2 rounded-sm bg-yellow-400" /> Minor</span>
-          <span class="inline-flex items-center gap-1"><span class="size-2 rounded-sm bg-orange-500" /> Major</span>
-          <span class="inline-flex items-center gap-1"><span class="size-2 rounded-sm bg-red-500" /> Outage</span>
+          <span class="inline-flex items-center gap-1"
+            ><span class="size-2 rounded-sm bg-emerald-500" /> Operational</span
+          >
+          <span class="inline-flex items-center gap-1"
+            ><span class="size-2 rounded-sm bg-yellow-400" /> Minor</span
+          >
+          <span class="inline-flex items-center gap-1"
+            ><span class="size-2 rounded-sm bg-orange-500" /> Major</span
+          >
+          <span class="inline-flex items-center gap-1"
+            ><span class="size-2 rounded-sm bg-red-500" /> Outage</span
+          >
         </div>
       </template>
     </PublicPageFooter>

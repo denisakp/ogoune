@@ -49,8 +49,7 @@ const stats = computed(() => {
   const total = channels.value.length
   const defaultCount = channels.value.filter((c) => c.enabled_by_default).length
   const scopedCount = total - defaultCount
-  const fmt = (v: number | undefined | null) =>
-    typeof v === 'number' ? v.toLocaleString() : '—'
+  const fmt = (v: number | undefined | null) => (typeof v === 'number' ? v.toLocaleString() : '—')
   return [
     {
       key: 'channels',
@@ -246,13 +245,7 @@ const columns: TableColumn<NotificationChannel>[] = [
         ),
         h('div', { class: 'min-w-0' }, [
           h('p', { class: 'font-semibold text-default' }, c.name),
-          recipient
-            ? h(
-                'p',
-                { class: 'text-xs text-muted font-mono truncate' },
-                recipient,
-              )
-            : null,
+          recipient ? h('p', { class: 'text-xs text-muted font-mono truncate' }, recipient) : null,
         ]),
       ])
     },
@@ -273,14 +266,10 @@ const columns: TableColumn<NotificationChannel>[] = [
     id: 'status',
     header: 'Status',
     cell: () =>
-      h(
-        resolveComponent('UBadge'),
-        { color: 'success', variant: 'subtle', size: 'sm' },
-        () => [
-          h('span', { class: 'inline-block size-1.5 rounded-full mr-1 bg-success' }),
-          'Verified',
-        ],
-      ),
+      h(resolveComponent('UBadge'), { color: 'success', variant: 'subtle', size: 'sm' }, () => [
+        h('span', { class: 'inline-block size-1.5 rounded-full mr-1 bg-success' }),
+        'Verified',
+      ]),
   },
   {
     id: 'default',
@@ -288,14 +277,13 @@ const columns: TableColumn<NotificationChannel>[] = [
     cell: ({ row }) =>
       h(resolveComponent('USwitch'), {
         modelValue: row.original.enabled_by_default,
-        'onClick': () => onToggleDefault(row.original),
+        onClick: () => onToggleDefault(row.original),
       }),
   },
   {
     id: 'last_sent',
     header: 'Last sent',
-    cell: ({ row }) =>
-      h('span', { class: 'text-muted' }, lastSentForChannel(row.original)),
+    cell: ({ row }) => h('span', { class: 'text-muted' }, lastSentForChannel(row.original)),
   },
   {
     id: 'failures',

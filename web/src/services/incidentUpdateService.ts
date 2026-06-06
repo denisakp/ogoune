@@ -1,10 +1,6 @@
 import { getAuthenticatedClient, request } from '@/core/http/client'
 
-export type IncidentUpdateStatus =
-  | 'investigating'
-  | 'identified'
-  | 'monitoring'
-  | 'resolved'
+export type IncidentUpdateStatus = 'investigating' | 'identified' | 'monitoring' | 'resolved'
 
 export interface IncidentUpdate {
   id: string
@@ -53,10 +49,7 @@ export const updateIncidentUpdate = async (
   )
 }
 
-export const deleteIncidentUpdate = async (
-  incidentID: string,
-  updateID: string,
-): Promise<void> => {
+export const deleteIncidentUpdate = async (incidentID: string, updateID: string): Promise<void> => {
   await request<unknown>(
     getAuthenticatedClient(),
     `incidents/${encodeURIComponent(incidentID)}/updates/${encodeURIComponent(updateID)}`,

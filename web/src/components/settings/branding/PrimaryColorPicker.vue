@@ -8,18 +8,30 @@ const props = defineProps<{
 const emit = defineEmits<{ (e: 'update:modelValue', value: string): void }>()
 
 const SWATCHES = [
-  '#4f46e5', '#6366f1', '#8b5cf6', '#ec4899',
-  '#f43f5e', '#f97316', '#f59e0b', '#84cc16',
-  '#10b981', '#14b8a6', '#06b6d4', '#0ea5e9',
+  '#4f46e5',
+  '#6366f1',
+  '#8b5cf6',
+  '#ec4899',
+  '#f43f5e',
+  '#f97316',
+  '#f59e0b',
+  '#84cc16',
+  '#10b981',
+  '#14b8a6',
+  '#06b6d4',
+  '#0ea5e9',
 ]
 
 const HEX_RE = /^#[0-9a-fA-F]{6}$/
 
 const localHex = ref(props.modelValue || '')
 
-watch(() => props.modelValue, (v) => {
-  if (v !== localHex.value) localHex.value = v || ''
-})
+watch(
+  () => props.modelValue,
+  (v) => {
+    if (v !== localHex.value) localHex.value = v || ''
+  },
+)
 
 const isValid = computed(() => localHex.value === '' || HEX_RE.test(localHex.value))
 

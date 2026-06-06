@@ -745,13 +745,13 @@ defineExpose({ resource, activeTab, loadDetail, loadActivity, togglePause, onDel
               <div
                 v-for="a in g.items"
                 :key="a.id"
-                class="relative -ml-[27px] flex items-center gap-3 py-2 pl-6 pr-2 rounded-md hover:bg-slate-50"
+                class="relative -ml-6.75 flex items-center gap-3 py-2 pl-6 pr-2 rounded-md hover:bg-slate-50"
               >
                 <span
                   class="absolute left-0 size-2 rounded-full ring-2 ring-white shrink-0"
                   :style="{ backgroundColor: a.success ? '#10B981' : '#EF4444' }"
                 />
-                <span class="text-xs font-mono text-slate-500 w-[80px] shrink-0">
+                <span class="text-xs font-mono text-slate-500 w-20 shrink-0">
                   {{ timeOfDay(a.created_at) }}
                 </span>
                 <span
@@ -799,7 +799,7 @@ defineExpose({ resource, activeTab, loadDetail, loadActivity, togglePause, onDel
               v-for="b in stripBuckets"
               :key="b.index"
               type="button"
-              class="flex-1 min-w-[3px] rounded-sm transition-opacity"
+              class="flex-1 min-w-0.75 rounded-sm transition-opacity"
               :class="{
                 'opacity-100': selectedBucketIndex === b.index,
                 'opacity-90 hover:opacity-100': selectedBucketIndex !== b.index,
@@ -889,7 +889,7 @@ defineExpose({ resource, activeTab, loadDetail, loadActivity, togglePause, onDel
                   class="size-1.5 rounded-full shrink-0"
                   :style="{ backgroundColor: a.success ? '#10B981' : '#EF4444' }"
                 />
-                <span class="font-mono text-slate-600 w-[80px] shrink-0">
+                <span class="font-mono text-slate-600 w-20 shrink-0">
                   {{ timeOfDay(a.created_at) }}
                 </span>
                 <span class="text-slate-700 flex-1 truncate min-w-0">

@@ -495,11 +495,7 @@ export interface PublicStatusUptimeRange {
   days: PublicUptimeDay[]
 }
 
-export type PublicIncidentUpdateStatus =
-  | 'investigating'
-  | 'identified'
-  | 'monitoring'
-  | 'resolved'
+export type PublicIncidentUpdateStatus = 'investigating' | 'identified' | 'monitoring' | 'resolved'
 
 export interface PublicIncidentUpdate {
   id: string

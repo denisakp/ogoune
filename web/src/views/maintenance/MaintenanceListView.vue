@@ -152,8 +152,7 @@ const columns: TableColumn<Maintenance>[] = [
   {
     id: 'title',
     header: 'Title',
-    cell: ({ row }) =>
-      h('span', { class: 'font-medium text-default' }, row.original.title),
+    cell: ({ row }) => h('span', { class: 'font-medium text-default' }, row.original.title),
   },
   {
     id: 'strategy',
@@ -170,16 +169,12 @@ const columns: TableColumn<Maintenance>[] = [
     header: 'Status',
     cell: ({ row }) => {
       const s = row.original.status
-      const dotClass =
-        s === 'active' ? 'bg-success' : s === 'scheduled' ? 'bg-warning' : 'bg-muted'
+      const dotClass = s === 'active' ? 'bg-success' : s === 'scheduled' ? 'bg-warning' : 'bg-muted'
       const label = s === 'active' ? 'Active' : s === 'scheduled' ? 'Scheduled' : 'Finished'
       return h(
         resolveComponent('UBadge'),
         { color: statusColor(s), variant: 'subtle', size: 'sm' },
-        () => [
-          h('span', { class: `inline-block size-1.5 rounded-full mr-1 ${dotClass}` }),
-          label,
-        ],
+        () => [h('span', { class: `inline-block size-1.5 rounded-full mr-1 ${dotClass}` }), label],
       )
     },
   },
@@ -195,11 +190,7 @@ const columns: TableColumn<Maintenance>[] = [
     cell: ({ row }) => {
       const rs = row.original.resources ?? []
       const label =
-        rs.length === 0
-          ? 'All resources'
-          : rs.length === 1
-            ? rs[0].name
-            : `${rs.length} resources`
+        rs.length === 0 ? 'All resources' : rs.length === 1 ? rs[0].name : `${rs.length} resources`
       const toneClass = rs.length === 0 ? 'text-muted' : 'text-default'
       return h(
         'code',

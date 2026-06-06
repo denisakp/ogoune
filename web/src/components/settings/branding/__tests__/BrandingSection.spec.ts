@@ -13,7 +13,9 @@ vi.mock('@nuxt/ui/composables/useToast', () => ({
 
 import * as svc from '@/services/statusPageSettingsService'
 
-function mkSettings(overrides: Partial<StatusPageSettingsResponse> = {}): StatusPageSettingsResponse {
+function mkSettings(
+  overrides: Partial<StatusPageSettingsResponse> = {},
+): StatusPageSettingsResponse {
   return {
     id: 'sp-1',
     name: 'Acme',

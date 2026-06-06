@@ -22,7 +22,9 @@ const resource: PublicResource = {
   uptime_ribbon: [],
 }
 
-function mkDetails(overrides: Partial<PublicStatusResourceWindows> = {}): PublicStatusResourceWindows {
+function mkDetails(
+  overrides: Partial<PublicStatusResourceWindows> = {},
+): PublicStatusResourceWindows {
   return {
     id: 'res-1',
     name: 'api.acme.com',
