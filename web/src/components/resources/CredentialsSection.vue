@@ -45,10 +45,7 @@ function update(patch: Partial<CredentialCreatePayload>) {
 
 <template>
   <div v-if="supported" data-testid="credentials-section" class="mb-4">
-    <div class="flex items-center gap-2 my-3">
-      <span class="text-sm font-medium">Authentication (optional)</span>
-      <div class="flex-1 border-t border-slate-200 dark:border-slate-700"></div>
-    </div>
+    <USeparator label="Authentication (optional)" class="my-3" />
 
     <UAlert
       v-if="hasExistingCredential"

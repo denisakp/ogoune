@@ -79,18 +79,21 @@ const barTitle = (bar: { hour: string; uptime: number; successful: number; total
           width: `${totalWidth}px`,
         }"
       >
-        <div
+        <UTooltip
           v-for="(bar, index) in bars"
           :key="index"
-          class="sparkline-bar"
-          :title="barTitle(bar)"
-          :style="{
-            height: `${bar.height}px`,
-            width: `${barWidth}px`,
-            backgroundColor: bar.color,
-            marginRight: index < bars.length - 1 ? `${gap}px` : '0',
-          }"
-        ></div>
+          :text="barTitle(bar)"
+        >
+          <div
+            class="sparkline-bar"
+            :style="{
+              height: `${bar.height}px`,
+              width: `${barWidth}px`,
+              backgroundColor: bar.color,
+              marginRight: index < bars.length - 1 ? `${gap}px` : '0',
+            }"
+          ></div>
+        </UTooltip>
       </div>
       <div class="sparkline-percentage">{{ overallUptime }}%</div>
     </div>

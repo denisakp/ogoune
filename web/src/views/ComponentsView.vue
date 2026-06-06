@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useToast } from '@nuxt/ui/composables/useToast'
 import { storeToRefs } from 'pinia'
 import { useComponentStore } from '@/stores/componentStore'
@@ -15,11 +15,19 @@ const toast = useToast()
 
 const showModal = ref(false)
 const editingComponent = ref<Component | null>(null)
-const expandedComponents = ref<Set<string>>(new Set())
+const openValue = ref<string[]>([])
 
 onMounted(async () => {
   await componentStore.loadComponents()
 })
+
+const accordionItems = computed(() =>
+  components.value.map((c) => ({
+    value: c.id,
+    label: c.name,
+    _component: c,
+  })),
+)
 
 const openEditModal = (component: Component) => {
   editingComponent.value = component
@@ -30,16 +38,6 @@ const handleFormSubmit = async () => {
   showModal.value = false
   await componentStore.loadComponents()
 }
-
-const toggleExpand = (componentId: string) => {
-  if (expandedComponents.value.has(componentId)) {
-    expandedComponents.value.delete(componentId)
-  } else {
-    expandedComponents.value.add(componentId)
-  }
-}
-
-const isExpanded = (componentId: string) => expandedComponents.value.has(componentId)
 
 const handleDelete = async (id: string) => {
   const ok = await useConfirm({
@@ -103,67 +101,70 @@ const getStatusColor = (
       />
     </div>
 
-    <div v-else class="components-list">
-      <UCard
-        v-for="component in components"
-        :key="component.id"
-        class="component-card"
-      >
+    <UAccordion
+      v-else
+      v-model="openValue"
+      type="multiple"
+      :items="accordionItems"
+      class="components-list"
+    >
+      <template #default="{ item, open }">
         <div class="component-header">
-          <UButton
-            color="neutral"
-            variant="ghost"
-            size="sm"
-            class="expand-btn"
-            :icon="isExpanded(component.id) ? 'i-lucide-chevron-up' : 'i-lucide-chevron-down'"
-            @click="toggleExpand(component.id)"
+          <UIcon
+            :name="open ? 'i-lucide-chevron-up' : 'i-lucide-chevron-down'"
+            class="size-4 shrink-0"
           />
-
           <div class="component-title-section">
-            <UBadge :color="getStatusColor(component.status)" variant="subtle" />
-            <h3 class="component-name">{{ component.name }}</h3>
-            <span class="component-status" :class="component.status.toLowerCase()">
-              {{ component.status.toUpperCase() }}
+            <UBadge :color="getStatusColor(item._component.status)" variant="subtle" />
+            <h3 class="component-name">{{ item._component.name }}</h3>
+            <span class="component-status" :class="item._component.status.toLowerCase()">
+              {{ item._component.status.toUpperCase() }}
             </span>
             <span class="resource-count">
-              {{ component.resources?.length || 0 }} resource(s)
+              {{ item._component.resources?.length || 0 }} resource(s)
             </span>
           </div>
-
-          <div class="component-actions">
+          <div class="component-actions" @click.stop>
             <UButton
               color="neutral"
               variant="ghost"
               size="sm"
               icon="i-lucide-pencil"
-              title="Edit component name/description"
-              @click="openEditModal(component)"
+              :title="'Edit component name/description'"
+              @click="openEditModal(item._component)"
             />
             <UButton
               color="error"
               variant="ghost"
               size="sm"
               icon="i-lucide-trash-2"
-              title="Delete component (must be empty)"
-              @click="handleDelete(component.id)"
+              :title="'Delete component (must be empty)'"
+              @click="handleDelete(item._component.id)"
             />
           </div>
         </div>
-
-        <div v-if="component.description" class="component-description">
-          {{ component.description }}
+      </template>
+      <template #content="{ item }">
+        <div v-if="item._component.description" class="component-description">
+          {{ item._component.description }}
         </div>
-
-        <div v-if="isExpanded(component.id)" class="component-resources">
-          <div v-if="component.resources?.length === 0" class="no-resources">
+        <div class="component-resources">
+          <div v-if="item._component.resources?.length === 0" class="no-resources">
             <p>No resources in this component</p>
           </div>
-
           <div v-else class="resources-list">
-            <div v-for="resource in component.resources" :key="resource.id" class="resource-row">
+            <div
+              v-for="resource in item._component.resources"
+              :key="resource.id"
+              class="resource-row"
+            >
               <div class="resource-info">
                 <span class="resource-name">{{ resource.name }}</span>
-                <UBadge :color="getStatusColor(resource.status)" variant="subtle" class="resource-status-tag">
+                <UBadge
+                  :color="getStatusColor(resource.status)"
+                  variant="subtle"
+                  class="resource-status-tag"
+                >
                   {{ resource.status.toUpperCase() }}
                 </UBadge>
               </div>
@@ -172,20 +173,19 @@ const getStatusColor = (
                 variant="ghost"
                 size="xs"
                 icon="i-lucide-trash-2"
-                title="Remove from component"
-                @click="handleRemoveResource(component.id, resource.id)"
+                :title="'Remove from component'"
+                @click="handleRemoveResource(item._component.id, resource.id)"
               >
                 Remove
               </UButton>
             </div>
           </div>
         </div>
-
-        <div v-if="isExpanded(component.id)" class="component-metadata">
-          <span class="metadata-item"> Created {{ timeAgo(component.created_at) }} </span>
+        <div class="component-metadata">
+          <span class="metadata-item">Created {{ timeAgo(item._component.created_at) }}</span>
         </div>
-      </UCard>
-    </div>
+      </template>
+    </UAccordion>
 
     <ComponentModal
       v-if="showModal"
@@ -228,24 +228,11 @@ const getStatusColor = (
   gap: 16px;
 }
 
-.component-card {
-  border-radius: 8px;
-  transition: all 0.3s ease;
-}
-
-.component-card:hover {
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-}
-
 .component-header {
   display: flex;
   align-items: center;
   gap: 16px;
-  justify-content: space-between;
-}
-
-.expand-btn {
-  flex-shrink: 0;
+  width: 100%;
 }
 
 .component-title-section {
@@ -302,14 +289,12 @@ const getStatusColor = (
 .component-description {
   color: #666;
   font-size: 13px;
-  margin-top: 12px;
-  padding: 8px 0;
+  margin-top: 8px;
+  padding: 4px 0;
 }
 
 .component-resources {
-  margin-top: 16px;
-  padding-top: 16px;
-  border-top: 1px solid #f0f0f0;
+  margin-top: 12px;
 }
 
 .no-resources {

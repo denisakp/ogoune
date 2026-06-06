@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { computed, ref } from 'vue'
 import type { Incident } from '@/types'
 import { formatDate, formatDuration } from '@/utils/formatters'
 
@@ -14,13 +14,8 @@ const sortedIncidents = computed(() =>
 )
 const visibleIncidents = computed(() => sortedIncidents.value.slice(0, incidentsToShow.value))
 const hasMoreIncidents = computed(() => sortedIncidents.value.length > incidentsToShow.value)
-const expandedDetails = ref<Set<string>>(new Set())
 const loadMoreIncidents = () => {
   incidentsToShow.value += 3
-}
-const toggleDetails = (id: string) => {
-  if (expandedDetails.value.has(id)) expandedDetails.value.delete(id)
-  else expandedDetails.value.add(id)
 }
 
 const getIncidentStatus = (incident: Incident): { text: string; color: 'success' | 'error' } =>
@@ -34,6 +29,22 @@ const decodeDetails = (details?: string): string => {
     return details
   }
 }
+
+type TimelineItem = {
+  value: string
+  color: 'success' | 'error'
+  icon: string
+  incident: Incident
+}
+
+const timelineItems = computed<TimelineItem[]>(() =>
+  visibleIncidents.value.map((incident) => ({
+    value: incident.id,
+    color: incident.resolved_at ? 'success' : 'error',
+    icon: incident.resolved_at ? 'i-lucide-check' : 'i-lucide-circle',
+    incident,
+  })),
+)
 </script>
 
 <template>
@@ -45,67 +56,66 @@ const decodeDetails = (details?: string): string => {
       </div>
     </template>
     <template v-if="sortedIncidents.length > 0">
-      <ul class="space-y-4">
-        <li
-          v-for="incident in visibleIncidents"
-          :key="incident.id"
-          class="relative pl-6"
-        >
-          <span
-            class="absolute left-0 top-1 size-3 rounded-full"
-            :style="{ backgroundColor: incident.resolved_at ? '#52c41a' : '#f5222d' }"
-          ></span>
-          <div class="pb-4">
-            <div class="flex justify-between items-start mb-2">
-              <div class="flex-1">
-                <div class="flex items-center gap-2 mb-1">
-                  <UBadge :color="getIncidentStatus(incident).color" variant="subtle">
-                    {{ getIncidentStatus(incident).text }}
-                  </UBadge>
-                  <span class="text-xs text-muted">
-                    {{ formatDuration(incident.started_at, incident.resolved_at) }}
-                  </span>
-                </div>
-                <div class="font-medium mb-1">{{ incident.reason }}</div>
-                <div class="text-xs text-muted mb-1">
-                  <strong>Cause:</strong> {{ incident.cause }}
-                </div>
-              </div>
+      <UTimeline :items="timelineItems">
+        <template #title="{ item }">
+          <div class="flex items-center gap-2">
+            <UBadge :color="getIncidentStatus(item.incident).color" variant="subtle">
+              {{ getIncidentStatus(item.incident).text }}
+            </UBadge>
+            <span class="text-xs text-muted">
+              {{ formatDuration(item.incident.started_at, item.incident.resolved_at) }}
+            </span>
+          </div>
+          <div class="font-medium mt-1">{{ item.incident.reason }}</div>
+        </template>
+        <template #description="{ item }">
+          <div class="text-xs text-muted mb-1">
+            <strong>Cause:</strong> {{ item.incident.cause }}
+          </div>
+          <div class="text-xs text-muted mb-2">
+            <div class="flex items-center gap-1">
+              <UIcon name="i-lucide-calendar" class="size-3" />
+              <span>Started: {{ formatDate(item.incident.started_at) }}</span>
             </div>
-            <div class="text-xs text-muted mb-2">
-              <div class="flex items-center gap-1">
-                <UIcon name="i-lucide-calendar" class="size-3" />
-                <span>Started: {{ formatDate(incident.started_at) }}</span>
-              </div>
-              <div v-if="incident.resolved_at" class="mt-1 flex items-center gap-1">
-                <UIcon name="i-lucide-check" class="size-3" />
-                <span>Resolved: {{ formatDate(incident.resolved_at) }}</span>
-              </div>
-              <div v-else class="mt-1 flex items-center gap-1 text-red-500">
-                <UIcon name="i-lucide-circle-alert" class="size-3" />
-                <span>Still ongoing</span>
-              </div>
+            <div v-if="item.incident.resolved_at" class="mt-1 flex items-center gap-1">
+              <UIcon name="i-lucide-check" class="size-3" />
+              <span>Resolved: {{ formatDate(item.incident.resolved_at) }}</span>
             </div>
-            <div v-if="incident.details">
-              <UButton size="xs" color="neutral" variant="ghost" @click="toggleDetails(incident.id)">
-                <UIcon :name="expandedDetails.has(incident.id) ? 'i-lucide-chevron-up' : 'i-lucide-chevron-down'" class="size-3" />
-                Technical details
-              </UButton>
-              <div
-                v-if="expandedDetails.has(incident.id)"
-                class="mt-2 text-xs font-mono p-3 rounded bg-slate-50 dark:bg-slate-900 break-words"
-              >
-                {{ decodeDetails(incident.details) }}
-              </div>
+            <div v-else class="mt-1 flex items-center gap-1 text-red-500">
+              <UIcon name="i-lucide-circle-alert" class="size-3" />
+              <span>Still ongoing</span>
             </div>
           </div>
-        </li>
-      </ul>
+          <UCollapsible v-if="item.incident.details">
+            <template #default="{ open }">
+              <UButton size="xs" color="neutral" variant="ghost">
+                <UIcon
+                  :name="open ? 'i-lucide-chevron-up' : 'i-lucide-chevron-down'"
+                  class="size-3"
+                />
+                Technical details
+              </UButton>
+            </template>
+            <template #content>
+              <div
+                class="mt-2 text-xs font-mono p-3 rounded bg-slate-50 dark:bg-slate-900 break-words"
+              >
+                {{ decodeDetails(item.incident.details) }}
+              </div>
+            </template>
+          </UCollapsible>
+        </template>
+      </UTimeline>
       <div
         v-if="hasMoreIncidents"
         class="text-center mt-4 pt-4 border-t border-slate-100 dark:border-slate-800"
       >
-        <UButton color="neutral" variant="soft" icon="i-lucide-chevron-down" @click="loadMoreIncidents">
+        <UButton
+          color="neutral"
+          variant="soft"
+          icon="i-lucide-chevron-down"
+          @click="loadMoreIncidents"
+        >
           Load more incidents ({{ sortedIncidents.length - incidentsToShow }} remaining)
         </UButton>
       </div>

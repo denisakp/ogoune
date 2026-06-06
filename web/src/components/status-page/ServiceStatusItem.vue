@@ -90,13 +90,16 @@ const barTitle = (bar: UptimeBar): string => {
     </div>
 
     <div class="uptime-bar-container">
-      <div
+      <UTooltip
         v-for="(bar, index) in uptimeBars"
         :key="index"
-        class="uptime-bar"
-        :title="barTitle(bar)"
-        :style="{ backgroundColor: getBarColor(bar) }"
-      ></div>
+        :text="barTitle(bar)"
+      >
+        <div
+          class="uptime-bar"
+          :style="{ backgroundColor: getBarColor(bar) }"
+        ></div>
+      </UTooltip>
     </div>
   </div>
 </template>

@@ -54,7 +54,7 @@ describe('BrandingSection — US5', () => {
 
   it('renders 3 logo slots, primary color picker, and theme overrides editor', () => {
     const w = render()
-    expect(w.findAll('[data-slot]')).toHaveLength(3)
+    expect(w.findAll('[data-logo-slot]')).toHaveLength(3)
     expect(w.find('[data-testid="primary-color-picker"]').exists()).toBe(true)
     expect(w.find('[data-testid="theme-overrides-editor"]').exists()).toBe(true)
   })
@@ -71,7 +71,7 @@ describe('BrandingSection — US5', () => {
     vi.mocked(svc.uploadStatusPageLogo).mockResolvedValue(next)
     const w = render()
     const file = new File([new Uint8Array([1, 2, 3])], 'logo.png', { type: 'image/png' })
-    const lightInput = w.findAll('[data-slot]')[0]?.find('[data-testid="file-input"]')
+    const lightInput = w.findAll('[data-logo-slot]')[0]?.find('[data-testid="file-input"]')
     Object.defineProperty(lightInput!.element, 'files', { value: [file] })
     await lightInput!.trigger('change')
     await flushPromises()

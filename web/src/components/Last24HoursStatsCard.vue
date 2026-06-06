@@ -33,6 +33,12 @@ const getUptimeColor = (uptime: number): string => {
   return '#ff4d4f'
 }
 
+const uptimeColorName = (uptime: number): 'success' | 'warning' | 'error' => {
+  if (uptime >= 95) return 'success'
+  if (uptime >= 80) return 'warning'
+  return 'error'
+}
+
 const getIncidentWidth = (incidents: number): number => {
   return Math.min((incidents / 10) * 100, 100)
 }
@@ -52,7 +58,12 @@ const getRangeText = (range: string): string => {
   return rangeMap[range] || 'Last 24 hours'
 }
 
-const ranges: RangeKey[] = ['2h', '24h', '7d', '30d']
+const ranges: { value: RangeKey; label: string }[] = [
+  { value: '2h', label: '2h' },
+  { value: '24h', label: '24h' },
+  { value: '7d', label: '7d' },
+  { value: '30d', label: '30d' },
+]
 </script>
 
 <template>
@@ -62,18 +73,8 @@ const ranges: RangeKey[] = ['2h', '24h', '7d', '30d']
     </template>
 
     <!-- Time Range Selector -->
-    <div class="mb-4 flex gap-1">
-      <UButton
-        v-for="range in ranges"
-        :key="range"
-        :color="timeRange === range ? 'primary' : 'neutral'"
-        :variant="timeRange === range ? 'solid' : 'soft'"
-        size="xs"
-        class="flex-1 text-xs justify-center"
-        @click="timeRange = range"
-      >
-        {{ range }}
-      </UButton>
+    <div class="mb-4">
+      <UTabs v-model="timeRange" :items="ranges" variant="pill" size="xs" />
     </div>
 
     <!-- Loading state -->
@@ -91,16 +92,12 @@ const ranges: RangeKey[] = ['2h', '24h', '7d', '30d']
             {{ summary.overall_uptime.toFixed(1) }}%
           </span>
         </div>
-        <div class="h-1 bg-slate-100 dark:bg-slate-800 rounded overflow-hidden">
-          <div
-            :style="{
-              height: '100%',
-              width: summary.overall_uptime + '%',
-              backgroundColor: getUptimeColor(summary.overall_uptime),
-              transition: 'all 0.3s ease',
-            }"
-          ></div>
-        </div>
+        <UProgress
+          :value="summary.overall_uptime"
+          :max="100"
+          :color="uptimeColorName(summary.overall_uptime)"
+          size="xs"
+        />
       </div>
 
       <!-- Incidents -->
@@ -109,16 +106,12 @@ const ranges: RangeKey[] = ['2h', '24h', '7d', '30d']
           <span class="text-xs text-muted">Incidents</span>
           <span class="text-base font-bold">{{ summary.incidents }}</span>
         </div>
-        <div class="h-1 bg-slate-100 dark:bg-slate-800 rounded overflow-hidden">
-          <div
-            :style="{
-              height: '100%',
-              width: getIncidentWidth(summary.incidents) + '%',
-              backgroundColor: '#ff7875',
-              transition: 'all 0.3s ease',
-            }"
-          ></div>
-        </div>
+        <UProgress
+          :value="getIncidentWidth(summary.incidents)"
+          :max="100"
+          color="error"
+          size="xs"
+        />
       </div>
 
       <!-- Without Incidents -->
@@ -129,16 +122,12 @@ const ranges: RangeKey[] = ['2h', '24h', '7d', '30d']
             {{ summary.without_incidents_duration }}
           </span>
         </div>
-        <div class="h-1 bg-slate-100 dark:bg-slate-800 rounded overflow-hidden">
-          <div
-            :style="{
-              height: '100%',
-              width: getDurationWidth(summary.without_incidents_duration) + '%',
-              backgroundColor: '#52c41a',
-              transition: 'all 0.3s ease',
-            }"
-          ></div>
-        </div>
+        <UProgress
+          :value="getDurationWidth(summary.without_incidents_duration)"
+          :max="100"
+          color="success"
+          size="xs"
+        />
       </div>
 
       <!-- Affected Monitors -->

@@ -26,6 +26,7 @@ describe('TestConnectionButton', () => {
   it('is disabled until a resourceId and password are provided', () => {
     const wrapper = mount(TestConnectionButton, {
       props: { resourceId: undefined, payload: null },
+      global: { stubs: { UTooltip: { template: '<div><slot /></div>' } } },
     })
     const btn = wrapper.find('[data-testid="test-connection-button"]')
     expect(btn.attributes('disabled')).toBeDefined()
@@ -36,6 +37,7 @@ describe('TestConnectionButton', () => {
     testCredentialMock.mockResolvedValue({ status: 'ok', latency_ms: 42 })
     const wrapper = mount(TestConnectionButton, {
       props: { resourceId: 'r1', payload: { password: 's3cret' } },
+      global: { stubs: { UTooltip: { template: '<div><slot /></div>' } } },
     })
     await wrapper.find('[data-testid="test-connection-button"]').trigger('click')
     await flushPromises()
@@ -50,6 +52,7 @@ describe('TestConnectionButton', () => {
     testCredentialMock.mockResolvedValue({ status: 'failed', cause: 'auth_failed', latency_ms: 12 })
     const wrapper = mount(TestConnectionButton, {
       props: { resourceId: 'r1', payload: { password: 'wrong' } },
+      global: { stubs: { UTooltip: { template: '<div><slot /></div>' } } },
     })
     await wrapper.find('[data-testid="test-connection-button"]').trigger('click')
     await flushPromises()
@@ -64,6 +67,7 @@ describe('TestConnectionButton', () => {
     retryAfterSecondsMock.mockReturnValue(45)
     const wrapper = mount(TestConnectionButton, {
       props: { resourceId: 'r1', payload: { password: 's3cret' } },
+      global: { stubs: { UTooltip: { template: '<div><slot /></div>' } } },
     })
     await wrapper.find('[data-testid="test-connection-button"]').trigger('click')
     await flushPromises()

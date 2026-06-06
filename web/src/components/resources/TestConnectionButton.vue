@@ -45,17 +45,21 @@ async function runTest() {
 
 <template>
   <div data-testid="test-connection" class="mt-2">
-    <UButton
-      :loading="loading"
-      :disabled="!!disabledReason"
-      :title="disabledReason ?? ''"
-      data-testid="test-connection-button"
-      color="neutral"
-      variant="soft"
-      @click="runTest"
+    <component
+      :is="disabledReason ? 'UTooltip' : 'div'"
+      :text="disabledReason ?? undefined"
     >
-      Test connection
-    </UButton>
+      <UButton
+        :loading="loading"
+        :disabled="!!disabledReason"
+        data-testid="test-connection-button"
+        color="neutral"
+        variant="soft"
+        @click="runTest"
+      >
+        Test connection
+      </UButton>
+    </component>
 
     <UAlert
       v-if="result"

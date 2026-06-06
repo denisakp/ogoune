@@ -27,23 +27,12 @@ const props = withDefaults(defineProps<Props>(), {
   enableDetailsPage: true,
 })
 
-const expandedComponents = ref<Set<string>>(new Set())
+const openGroups = ref<string[]>([])
 
 const emit = defineEmits<{
   'service-click': [serviceId: string]
 }>()
 
-const toggleComponentExpand = (componentId: string) => {
-  if (expandedComponents.value.has(componentId)) {
-    expandedComponents.value.delete(componentId)
-  } else {
-    expandedComponents.value.add(componentId)
-  }
-}
-
-const isComponentExpanded = (componentId: string) => {
-  return expandedComponents.value.has(componentId)
-}
 
 const handleServiceClick = (serviceId: string) => {
   if (props.enableDetailsPage) {
@@ -170,51 +159,52 @@ const getOverallStatusColor = () => {
           <p class="section-subtitle">Service groups and their status</p>
         </div>
 
-        <div class="components-list">
-          <div
-            v-for="component in componentGroups"
-            :key="component.id"
-            class="component-card"
-          >
-            <div class="component-header" @click="toggleComponentExpand(component.id)">
-              <UButton
-                color="neutral"
-                variant="ghost"
-                size="xs"
-                class="expand-btn"
-                :icon="isComponentExpanded(component.id) ? 'i-lucide-chevron-up' : 'i-lucide-chevron-down'"
-                @click.stop="toggleComponentExpand(component.id)"
+        <UAccordion
+          v-model="openGroups"
+          type="multiple"
+          :items="componentGroups.map((g) => ({ value: g.id, label: g.name, _group: g }))"
+          class="components-list"
+        >
+          <template #default="{ item, open }">
+            <div class="component-header">
+              <UIcon
+                :name="open ? 'i-lucide-chevron-up' : 'i-lucide-chevron-down'"
+                class="size-4 shrink-0"
               />
               <span
                 class="status-dot"
                 :style="{
                   backgroundColor:
-                    component.status === 'Operational'
+                    item._group.status === 'Operational'
                       ? '#52c41a'
-                      : component.status === 'Down'
+                      : item._group.status === 'Down'
                         ? '#ff4d4f'
                         : '#faad14',
                 }"
               ></span>
-              <h3 class="component-name">{{ component.name }}</h3>
-              <span class="component-status" :class="component.status.toLowerCase().replace(' ', '-')">
-                {{ component.status }}
+              <h3 class="component-name">{{ item._group.name }}</h3>
+              <span
+                class="component-status"
+                :class="item._group.status.toLowerCase().replace(' ', '-')"
+              >
+                {{ item._group.status }}
               </span>
               <span class="component-resource-count">
-                {{ component.resources.length }} service(s)
+                {{ item._group.resources.length }} service(s)
               </span>
             </div>
-
-            <div v-if="isComponentExpanded(component.id)" class="component-resources">
-              <div v-if="component.resources.length === 0" class="no-resources">
+          </template>
+          <template #content="{ item }">
+            <div class="component-resources">
+              <div v-if="item._group.resources.length === 0" class="no-resources">
                 <p>No services in this component</p>
               </div>
               <div
-                v-for="resource in component.resources"
+                v-for="resource in item._group.resources"
                 :key="resource.id"
                 class="resource-item-wrapper"
                 :class="{ clickable: enableDetailsPage }"
-                @click="handleServiceClick(resource.id)"
+                @click.stop="handleServiceClick(resource.id)"
               >
                 <ServiceStatusItem
                   :name="resource.name"
@@ -225,8 +215,8 @@ const getOverallStatusColor = () => {
                 />
               </div>
             </div>
-          </div>
-        </div>
+          </template>
+        </UAccordion>
       </div>
 
       <!-- Services Section -->

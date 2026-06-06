@@ -183,6 +183,22 @@ const loadMoreEvents = () => {
   visibleEventsCount.value += Math.min(remaining, 5)
 }
 
+type EventTimelineItem = {
+  value: number
+  color: 'success' | 'error'
+  icon: string
+  event: MonitorRecentEvent
+}
+
+const eventTimelineItems = computed<EventTimelineItem[]>(() =>
+  visibleEvents.value.map((event, idx) => ({
+    value: idx,
+    color: event.type === 'down' ? 'error' : 'success',
+    icon: event.type === 'down' ? 'i-lucide-arrow-down' : 'i-lucide-arrow-up',
+    event,
+  })),
+)
+
 watch(
   () => props.monitorData?.id,
   () => {
@@ -262,13 +278,16 @@ watch(
                 {{ monitorData.uptime_summary.last_90_days.toFixed(3) }}%
               </div>
               <div class="uptime-bar-container">
-                <div
+                <UTooltip
                   v-for="(bar, index) in uptimeBars"
                   :key="index"
-                  class="uptime-bar"
-                  :title="`Day ${index + 1} — ${getBarTooltipText(bar)}`"
-                  :style="{ backgroundColor: getBarColor(bar) }"
-                ></div>
+                  :text="`Day ${index + 1} — ${getBarTooltipText(bar)}`"
+                >
+                  <div
+                    class="uptime-bar"
+                    :style="{ backgroundColor: getBarColor(bar) }"
+                  ></div>
+                </UTooltip>
               </div>
             </div>
           </div>
@@ -342,43 +361,32 @@ watch(
             <h2 class="section-title">Recent events</h2>
           </div>
 
-          <div class="events-list">
-            <div v-for="(event, index) in visibleEvents" :key="index" class="event-item">
-              <div class="event-icon-wrapper">
-                <div
-                  class="event-icon"
-                  :class="{
-                    'event-icon-down': event.type === 'down',
-                    'event-icon-up': event.type === 'up',
-                  }"
-                >
-                  <UIcon v-if="event.type === 'down'" name="i-lucide-arrow-down" />
-                  <UIcon v-if="event.type === 'up'" name="i-lucide-arrow-up" />
+          <UCard>
+            <UTimeline :items="eventTimelineItems">
+              <template #title="{ item }">
+                <div class="text-base font-semibold">{{ getEventTitle(item.event) }}</div>
+              </template>
+              <template #description="{ item }">
+                <div v-if="item.event.details" class="text-sm text-muted mb-1">
+                  Details: {{ item.event.details }}
                 </div>
-                <div v-if="index !== visibleEvents.length - 1" class="event-line"></div>
-              </div>
+                <div class="text-xs text-muted">{{ formatTimestamp(item.event.timestamp) }}</div>
+              </template>
+            </UTimeline>
 
-              <div class="event-content">
-                <div class="event-title">{{ getEventTitle(event) }}</div>
-                <div v-if="event.details" class="event-details">Details: {{ event.details }}</div>
-                <div class="event-timestamp">{{ formatTimestamp(event.timestamp) }}</div>
-              </div>
+            <div class="events-footer">
+              <UButton
+                v-if="hasMoreEvents"
+                color="primary"
+                variant="link"
+                class="load-more-button"
+                @click="loadMoreEvents"
+              >
+                Load More Events
+              </UButton>
+              <div v-else-if="allEventsShown" class="all-events-message">That's all mate! 🎉</div>
             </div>
-          </div>
-
-          <!-- Load More / All Events Shown -->
-          <div class="events-footer">
-            <UButton
-              v-if="hasMoreEvents"
-              color="primary"
-              variant="link"
-              class="load-more-button"
-              @click="loadMoreEvents"
-            >
-              Load More Events
-            </UButton>
-            <div v-else-if="allEventsShown" class="all-events-message">That's all mate! 🎉</div>
-          </div>
+          </UCard>
         </div>
       </div>
     </div>
@@ -549,84 +557,10 @@ watch(
   margin-bottom: 24px;
 }
 
-.events-list {
-  background: #ffffff;
-  border-radius: 8px;
-  padding: 24px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-}
-
-.event-item {
-  display: flex;
-  gap: 16px;
-  position: relative;
-}
-
-.event-item:not(:last-child) {
-  margin-bottom: 24px;
-}
-
-.event-icon-wrapper {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  flex-shrink: 0;
-}
-
-.event-icon {
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 18px;
-  color: #ffffff;
-}
-
-.event-icon-down {
-  background-color: #ff4d4f;
-}
-
-.event-icon-up {
-  background-color: #52c41a;
-}
-
-.event-line {
-  width: 2px;
-  flex: 1;
-  background-color: #f0f0f0;
-  margin-top: 8px;
-}
-
-.event-content {
-  flex: 1;
-  padding-top: 8px;
-}
-
-.event-title {
-  font-size: 16px;
-  font-weight: 600;
-  color: rgba(0, 0, 0, 0.85);
-  margin-bottom: 4px;
-}
-
-.event-details {
-  font-size: 14px;
-  color: rgba(0, 0, 0, 0.65);
-  margin-bottom: 8px;
-  line-height: 1.5;
-}
-
-.event-timestamp {
-  font-size: 12px;
-  color: rgba(0, 0, 0, 0.45);
-}
-
 .events-footer {
-  margin-top: 24px;
+  margin-top: 16px;
   text-align: center;
-  padding: 16px;
+  padding: 8px 16px;
 }
 
 .load-more-button {

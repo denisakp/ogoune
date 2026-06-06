@@ -32,15 +32,6 @@ const items = [
       to: '/settings/account',
     },
     {
-      label: 'Theme',
-      icon: 'i-lucide-sun-moon',
-      children: [
-        { label: 'Light', icon: 'i-lucide-sun', onSelect: () => setMode('light') },
-        { label: 'Dark', icon: 'i-lucide-moon', onSelect: () => setMode('dark') },
-        { label: 'System', icon: 'i-lucide-monitor', onSelect: () => setMode('system') },
-      ],
-    },
-    {
       label: 'Keyboard shortcuts',
       icon: 'i-lucide-keyboard',
       kbds: ['⌘', '?'],
@@ -74,19 +65,6 @@ const items = [
   ],
 ]
 
-function setMode(mode: 'light' | 'dark' | 'system') {
-  // Color mode is wired in AppTopbar (parent) — here we just persist via the
-  // same localStorage key NuxtUI uses, so reading/writing stays consistent.
-  if (typeof window === 'undefined') return
-  localStorage.setItem('nuxt-color-mode', mode)
-  const resolved =
-    mode === 'system'
-      ? window.matchMedia('(prefers-color-scheme: dark)').matches
-        ? 'dark'
-        : 'light'
-      : mode
-  document.documentElement.classList.toggle('dark', resolved === 'dark')
-}
 </script>
 
 <template>

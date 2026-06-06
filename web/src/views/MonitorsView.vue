@@ -230,29 +230,12 @@ defineExpose({
       empty="No monitors yet"
     />
 
-    <div
-      v-if="totalPages > 1"
-      class="flex items-center justify-between text-xs text-muted mt-3"
-    >
-      <span>Page {{ page }} of {{ totalPages }}</span>
-      <div class="flex gap-1">
-        <UButton
-          size="xs"
-          color="neutral"
-          variant="ghost"
-          icon="i-lucide-chevron-left"
-          :disabled="page <= 1"
-          @click="page = page - 1"
-        />
-        <UButton
-          size="xs"
-          color="neutral"
-          variant="ghost"
-          icon="i-lucide-chevron-right"
-          :disabled="page >= totalPages"
-          @click="page = page + 1"
-        />
-      </div>
+    <div v-if="totalPages > 1" class="flex justify-center mt-3">
+      <UPagination
+        v-model:page="page"
+        :items-per-page="perPage"
+        :total="filteredRows.length"
+      />
     </div>
 
     <ResourceModal v-model:open="showModal" :resource="editingResource" @submit="onFormSubmit" />

@@ -56,7 +56,7 @@ function handle(file: File) {
 </script>
 
 <template>
-  <div class="space-y-2" :data-slot="slotName">
+  <div class="space-y-2" :data-logo-slot="slotName">
     <p class="text-sm font-medium text-slate-900">{{ label }}</p>
     <p v-if="helper" class="text-xs text-slate-500">{{ helper }}</p>
 
@@ -77,11 +77,7 @@ function handle(file: File) {
           class="max-h-full max-w-full object-contain"
           data-testid="logo-preview"
         />
-        <svg v-else class="size-6 text-slate-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <rect x="3" y="3" width="18" height="18" rx="2" />
-          <circle cx="8.5" cy="8.5" r="1.5" />
-          <polyline points="21 15 16 10 5 21" />
-        </svg>
+        <UIcon v-else name="i-lucide-image" class="size-6 text-slate-300" />
       </div>
 
       <div class="flex flex-col justify-center min-w-0 flex-1">
@@ -99,16 +95,17 @@ function handle(file: File) {
         <p class="text-xs text-slate-500">PNG, JPG, SVG, WebP · max 500 KB</p>
       </div>
 
-      <button
+      <UButton
         v-if="currentUrl"
-        type="button"
-        class="self-center rounded-md px-2 py-1 text-xs text-red-600 hover:bg-red-50"
+        color="error"
+        variant="ghost"
+        size="xs"
         data-testid="delete-logo"
         :disabled="uploading"
         @click="emit('delete', slotName)"
       >
         Remove
-      </button>
+      </UButton>
 
       <input
         ref="inputEl"
