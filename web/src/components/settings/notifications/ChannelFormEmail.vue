@@ -29,27 +29,27 @@ function update<K extends keyof SmtpConfig>(key: K, value: SmtpConfig[K]) {
   <div class="space-y-3">
     <UFormField label="SMTP host" name="config.host" :error="fieldErrors['config.host']">
       <UInput
-        :model-value="modelValue.host"
+class="w-full"         :model-value="modelValue.host"
         placeholder="smtp.gmail.com"
         @update:model-value="(v) => update('host', String(v))"
       />
     </UFormField>
     <UFormField label="Port" name="config.port" :error="fieldErrors['config.port']">
       <UInput
-        type="number"
+class="w-full"         type="number"
         :model-value="modelValue.port"
         @update:model-value="(v) => update('port', Number(v))"
       />
     </UFormField>
     <UFormField label="Username" name="config.username" :error="fieldErrors['config.username']">
       <UInput
-        :model-value="modelValue.username"
+class="w-full"         :model-value="modelValue.username"
         @update:model-value="(v) => update('username', String(v))"
       />
     </UFormField>
     <UFormField label="Password" name="config.password" :error="fieldErrors['config.password']">
       <UInput
-        type="password"
+class="w-full"         type="password"
         :model-value="modelValue.password"
         autocomplete="new-password"
         @update:model-value="(v) => update('password', String(v))"
@@ -57,7 +57,7 @@ function update<K extends keyof SmtpConfig>(key: K, value: SmtpConfig[K]) {
     </UFormField>
     <UFormField label="Sender" name="config.sender" :error="fieldErrors['config.sender']">
       <UInput
-        type="email"
+class="w-full"         type="email"
         :model-value="modelValue.sender"
         placeholder="noreply@example.com"
         @update:model-value="(v) => update('sender', String(v))"
@@ -65,7 +65,7 @@ function update<K extends keyof SmtpConfig>(key: K, value: SmtpConfig[K]) {
     </UFormField>
     <UFormField label="Recipient" name="config.recipient" :error="fieldErrors['config.recipient']">
       <UInput
-        type="email"
+class="w-full"         type="email"
         :model-value="modelValue.recipient"
         placeholder="ops@example.com"
         @update:model-value="(v) => update('recipient', String(v))"

@@ -45,14 +45,14 @@ function updateHeader(i: number, k: keyof Header, v: string) {
   <div class="space-y-3">
     <UFormField label="URL" name="config.url" :error="fieldErrors['config.url']">
       <UInput
-        :model-value="modelValue.url"
+class="w-full"         :model-value="modelValue.url"
         placeholder="https://events.example.com/hook"
         @update:model-value="(v) => update('url', String(v))"
       />
     </UFormField>
     <UFormField label="Method" name="config.method" :error="fieldErrors['config.method']">
       <USelect
-        :model-value="modelValue.method"
+class="w-full"         :model-value="modelValue.method"
         :items="['POST', 'PUT']"
         @update:model-value="(v) => update('method', v as 'POST' | 'PUT')"
       />
