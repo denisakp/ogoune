@@ -5,6 +5,7 @@
  */
 import { ref } from 'vue'
 import twoFactorService from '@/services/twoFactorService'
+import AuthLayout from '@/components/layout/AuthLayout.vue'
 
 const email = ref('')
 const submitting = ref(false)
@@ -25,43 +26,45 @@ defineExpose({ email, submitted, onSubmit })
 </script>
 
 <template>
-  <div class="min-h-screen flex items-center justify-center bg-default p-6">
-    <div class="w-full max-w-md space-y-6">
-      <header class="space-y-1">
-        <h1 class="text-xl font-semibold text-default">Reset two-factor authentication</h1>
-        <p class="text-sm text-muted">
-          Tell us which email is on your account. If we recognise it, we'll send instructions.
-        </p>
-      </header>
+  <AuthLayout>
+    <template #title>
+      <h1 class="text-[22px] font-bold text-slate-900 leading-tight">
+        Reset two-factor authentication
+      </h1>
+    </template>
+    <template #subtitle>
+      Tell us which email is on your account. If we recognise it, we'll send instructions.
+    </template>
 
-      <UAlert
-        v-if="submitted"
-        color="success"
-        variant="soft"
-        icon="i-lucide-mail-check"
-        title="Check your inbox."
-        description="If this email is registered, we sent reset instructions. Check your inbox."
-      />
+    <UAlert
+      v-if="submitted"
+      color="success"
+      variant="soft"
+      icon="i-lucide-mail-check"
+      title="Check your inbox."
+      description="If this email is registered, we sent reset instructions. Check your inbox."
+    />
 
-      <form v-else class="space-y-4" @submit.prevent="onSubmit">
+    <form v-else class="space-y-4" @submit.prevent="onSubmit">
+      <UFormField label="Email">
         <UInput
           v-model="email"
           type="email"
           placeholder="you@example.com"
           autocomplete="email"
           required
+          class="w-full"
         />
-        <UButton type="submit" color="primary" block :loading="submitting">
-          Send reset link
-        </UButton>
-      </form>
+      </UFormField>
+      <UButton type="submit" color="primary" block :loading="submitting">
+        Send reset link
+      </UButton>
+    </form>
 
-      <RouterLink
-        to="/login"
-        class="block text-center text-xs text-muted hover:text-default underline underline-offset-4"
-      >
+    <template #footer>
+      <RouterLink to="/login" class="text-slate-600 hover:text-default underline underline-offset-4">
         Back to login
       </RouterLink>
-    </div>
-  </div>
+    </template>
+  </AuthLayout>
 </template>

@@ -227,103 +227,89 @@ defineExpose({ state, onSubmit, formRef, stripExtras })
 
 <template>
   <UForm ref="formRef" :schema="resourceSchema" :state="state" class="space-y-4" @submit="onSubmit">
-    <div class="space-y-1.5">
-      <label class="text-xs font-medium text-slate-900">Type</label>
-      <UFormField name="type" :ui="{ label: 'hidden' }">
-        <USelect v-model="state.type" :items="typeOptions" class="w-full" />
-      </UFormField>
-    </div>
+    <UFormField name="type" label="Type">
+      <USelect v-model="state.type" :items="typeOptions" class="w-full" />
+    </UFormField>
 
-    <div class="space-y-1.5">
-      <label class="text-xs font-medium text-slate-900">Name</label>
-      <UFormField name="name" :ui="{ label: 'hidden' }">
-        <UInput
-          v-model="(state as unknown as { name: string }).name"
-          placeholder="api.acme.com"
-          class="w-full"
-        />
-      </UFormField>
-    </div>
+    <UFormField name="name" label="Name">
+      <UInput
+        v-model="(state as unknown as { name: string }).name"
+        placeholder="api.acme.com"
+        class="w-full"
+      />
+    </UFormField>
 
-    <div v-if="state.type === 'http' || state.type === 'keyword'" class="space-y-1.5">
-      <label class="text-xs font-medium text-slate-900">URL</label>
-      <UFormField name="url" :ui="{ label: 'hidden' }">
-        <UInput
-          v-model="(state as unknown as { url: string }).url"
-          placeholder="https://api.acme.com/health"
-          class="w-full"
-        />
-      </UFormField>
-    </div>
-
-    <div v-if="state.type === 'keyword'" class="space-y-1.5">
-      <label class="text-xs font-medium text-slate-900">Keyword</label>
-      <UFormField name="keyword" :ui="{ label: 'hidden' }">
-        <UInput v-model="(state as unknown as { keyword: string }).keyword" class="w-full" />
-      </UFormField>
-    </div>
-
-    <div
-      v-if="['tcp', 'protocol', 'dns', 'icmp'].includes(state.type as string)"
-      class="space-y-1.5"
+    <UFormField
+      v-if="state.type === 'http' || state.type === 'keyword'"
+      name="url"
+      label="URL"
     >
-      <label class="text-xs font-medium text-slate-900">Host</label>
-      <UFormField name="host" :ui="{ label: 'hidden' }">
-        <UInput
-          v-model="(state as unknown as { host: string }).host"
-          placeholder="db.acme.com"
-          class="w-full"
-        />
-      </UFormField>
-    </div>
+      <UInput
+        v-model="(state as unknown as { url: string }).url"
+        placeholder="https://api.acme.com/health"
+        class="w-full"
+      />
+    </UFormField>
 
-    <div v-if="state.type === 'tcp' || state.type === 'protocol'" class="space-y-1.5">
-      <label class="text-xs font-medium text-slate-900">Port</label>
-      <UFormField name="port" :ui="{ label: 'hidden' }">
-        <UInput
-          v-model.number="(state as unknown as { port: number }).port"
-          type="number"
-          :min="1"
-          :max="65535"
-          class="w-full"
-        />
-      </UFormField>
-    </div>
+    <UFormField v-if="state.type === 'keyword'" name="keyword" label="Keyword">
+      <UInput v-model="(state as unknown as { keyword: string }).keyword" class="w-full" />
+    </UFormField>
 
-    <div v-if="state.type === 'dns'" class="space-y-1.5">
-      <label class="text-xs font-medium text-slate-900">Record type</label>
-      <UFormField name="record_type" :ui="{ label: 'hidden' }">
-        <USelect
-          v-model="(state as unknown as { record_type: string }).record_type"
-          :items="dnsRecordTypes"
-          class="w-full"
-        />
-      </UFormField>
-    </div>
+    <UFormField
+      v-if="['tcp', 'protocol', 'dns', 'icmp'].includes(state.type as string)"
+      name="host"
+      label="Host"
+    >
+      <UInput
+        v-model="(state as unknown as { host: string }).host"
+        placeholder="db.acme.com"
+        class="w-full"
+      />
+    </UFormField>
 
-    <div v-if="state.type === 'protocol'" class="space-y-1.5">
-      <label class="text-xs font-medium text-slate-900">Protocol</label>
-      <UFormField name="protocol" :ui="{ label: 'hidden' }">
-        <USelect
-          v-model="(state as unknown as { protocol: string }).protocol"
-          :items="protocols"
-          class="w-full"
-        />
-      </UFormField>
-    </div>
+    <UFormField
+      v-if="state.type === 'tcp' || state.type === 'protocol'"
+      name="port"
+      label="Port"
+    >
+      <UInput
+        v-model.number="(state as unknown as { port: number }).port"
+        type="number"
+        :min="1"
+        :max="65535"
+        class="w-full"
+      />
+    </UFormField>
 
-    <div v-if="state.type === 'heartbeat'" class="space-y-1.5">
-      <label class="text-xs font-medium text-slate-900">Grace period (seconds)</label>
-      <UFormField name="grace_seconds" :ui="{ label: 'hidden' }">
-        <UInput
-          v-model.number="(state as unknown as { grace_seconds: number }).grace_seconds"
-          type="number"
-          :min="30"
-          :max="86400"
-          class="w-full"
-        />
-      </UFormField>
-    </div>
+    <UFormField v-if="state.type === 'dns'" name="record_type" label="Record type">
+      <USelect
+        v-model="(state as unknown as { record_type: string }).record_type"
+        :items="dnsRecordTypes"
+        class="w-full"
+      />
+    </UFormField>
+
+    <UFormField v-if="state.type === 'protocol'" name="protocol" label="Protocol">
+      <USelect
+        v-model="(state as unknown as { protocol: string }).protocol"
+        :items="protocols"
+        class="w-full"
+      />
+    </UFormField>
+
+    <UFormField
+      v-if="state.type === 'heartbeat'"
+      name="grace_seconds"
+      label="Grace period (seconds)"
+    >
+      <UInput
+        v-model.number="(state as unknown as { grace_seconds: number }).grace_seconds"
+        type="number"
+        :min="30"
+        :max="86400"
+        class="w-full"
+      />
+    </UFormField>
 
     <button
       type="button"
@@ -337,29 +323,24 @@ defineExpose({ state, onSubmit, formRef, stripExtras })
       Advanced
     </button>
     <div v-if="showAdvanced" class="space-y-4 pl-4 border-l border-slate-200">
-      <div class="space-y-1.5">
-        <label class="text-xs font-medium text-slate-900">Check interval (seconds)</label>
-        <UFormField name="interval" :ui="{ label: 'hidden' }">
-          <UInput
-            v-model.number="(state as unknown as { interval: number }).interval"
-            type="number"
-            :min="30"
-            :max="86400"
-            class="w-full"
-          />
-        </UFormField>
-      </div>
+      <UFormField name="interval" label="Check interval (seconds)">
+        <UInput
+          v-model.number="(state as unknown as { interval: number }).interval"
+          type="number"
+          :min="30"
+          :max="86400"
+          class="w-full"
+        />
+      </UFormField>
       <template v-if="state.type === 'http'">
-        <div class="space-y-1.5">
-          <label class="text-xs font-medium text-slate-900">Method</label>
+        <UFormField label="Method">
           <USelect
             v-model="(state as unknown as { method: string }).method"
             :items="methodOptions"
             class="w-full"
           />
-        </div>
-        <div class="space-y-1.5">
-          <label class="text-xs font-medium text-slate-900">Expected status</label>
+        </UFormField>
+        <UFormField label="Expected status">
           <UInput
             v-model.number="(state as unknown as { expected_status: number }).expected_status"
             type="number"
@@ -367,13 +348,12 @@ defineExpose({ state, onSubmit, formRef, stripExtras })
             :max="599"
             class="w-full"
           />
-        </div>
-        <div class="space-y-1.5">
-          <label class="text-xs font-medium text-slate-900">Headers</label>
+        </UFormField>
+        <UFormField label="Headers">
           <HeadersEditor
             v-model="(state as unknown as { headers: Record<string, string> }).headers"
           />
-        </div>
+        </UFormField>
       </template>
     </div>
 

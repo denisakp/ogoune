@@ -49,3 +49,8 @@ body {
 [data-slot='root'] > [class*='container'] > * > button {
   width: 100%;
 }
+
+/* PRD-014 — shared auth-page background gradient. */
+.auth-gradient {
+  background: linear-gradient(135deg, #eef2ff 0%, #f8fafc 50%, #e0e7ff 100%);
+}
