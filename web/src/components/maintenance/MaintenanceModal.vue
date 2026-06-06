@@ -66,6 +66,16 @@ const timezones = computed<string[]>(() => {
 
 const weekdayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 
+// PRD-015 R2: UCheckboxGroup operates on string[]; underlying state stays boolean[7] (FR-003).
+const selectedWeekdays = computed<string[]>({
+  get: () => weekdays.value
+    .map((b, i) => (b ? weekdayLabels[i] : null))
+    .filter((x): x is string => !!x),
+  set: (selected) => {
+    weekdays.value = weekdayLabels.map((l) => selected.includes(l))
+  },
+})
+
 // Build cron expression from the friendly inputs.
 function buildCron(): string {
   const [h, m] = cronTime.value.split(':').map((n) => Number(n) || 0)
@@ -217,35 +227,19 @@ defineExpose({
       <div class="space-y-5">
         <!-- Title + Strategy row -->
         <div class="grid grid-cols-2 gap-5">
-          <UFormField>
-            <template #label> <span class="text-error">*</span> Title </template>
+          <UFormField label="Title" required>
             <UInput v-model="title" placeholder="e.g., Database upgrade" />
           </UFormField>
 
-          <UFormField>
-            <template #label> <span class="text-error">*</span> Strategy </template>
-            <div class="flex items-center gap-5">
-              <label class="flex items-center gap-2 cursor-pointer text-sm">
-                <input
-                  type="radio"
-                  value="one_time"
-                  :checked="strategy === 'one_time'"
-                  class="accent-primary size-4"
-                  @change="strategy = 'one_time'"
-                />
-                One-time
-              </label>
-              <label class="flex items-center gap-2 cursor-pointer text-sm">
-                <input
-                  type="radio"
-                  value="cron"
-                  :checked="strategy === 'cron'"
-                  class="accent-primary size-4"
-                  @change="strategy = 'cron'"
-                />
-                Cron
-              </label>
-            </div>
+          <UFormField label="Strategy" required>
+            <URadioGroup
+              v-model="strategy"
+              orientation="horizontal"
+              :items="[
+                { label: 'One-time', value: 'one_time' },
+                { label: 'Cron', value: 'cron' },
+              ]"
+            />
           </UFormField>
         </div>
 
@@ -260,8 +254,7 @@ defineExpose({
         <!-- ONE-TIME body -->
         <template v-if="strategy === 'one_time'">
           <div class="grid grid-cols-2 gap-5">
-            <UFormField>
-              <template #label> <span class="text-error">*</span> Start at </template>
+            <UFormField label="Start at" required>
               <UInput
                 v-model="startAt"
                 type="datetime-local"
@@ -283,8 +276,7 @@ defineExpose({
           <section class="space-y-3">
             <h3 class="text-sm font-semibold text-default">Start time (time of day)</h3>
             <div class="grid grid-cols-2 gap-5">
-              <UFormField>
-                <template #label> <span class="text-error">*</span> Time </template>
+              <UFormField label="Time" required>
                 <UInput v-model="cronTime" type="time" />
               </UFormField>
               <UFormField label="Timezone">
@@ -295,44 +287,27 @@ defineExpose({
 
           <section class="space-y-2">
             <h3 class="text-sm font-semibold text-default">How often should it run?</h3>
-            <div class="inline-flex rounded-md bg-elevated p-0.5">
-              <button
-                v-for="m in [
-                  { value: 'weekdays', label: 'Days of week' },
-                  { value: 'monthdays', label: 'Days of month' },
-                  { value: 'first_last', label: 'First/Last day' },
-                ]"
-                :key="m.value"
-                type="button"
-                class="px-3 py-1.5 text-xs rounded-md transition-colors"
-                :class="
-                  cronMode === m.value
-                    ? 'bg-primary text-inverted font-medium'
-                    : 'text-muted hover:text-default'
-                "
-                @click="cronMode = m.value as 'weekdays' | 'monthdays' | 'first_last'"
-              >
-                {{ m.label }}
-              </button>
-            </div>
+            <UTabs
+              v-model="cronMode"
+              variant="pill"
+              size="xs"
+              :items="[
+                { label: 'Days of week', value: 'weekdays' },
+                { label: 'Days of month', value: 'monthdays' },
+                { label: 'First/Last day', value: 'first_last' },
+              ]"
+              :content="false"
+              :ui="{ root: 'inline-flex' }"
+            />
 
             <template v-if="cronMode === 'weekdays'">
-              <p class="text-sm font-medium text-default">Weekdays</p>
-              <div class="flex flex-wrap gap-3">
-                <label
-                  v-for="(d, i) in weekdayLabels"
-                  :key="d"
-                  class="flex items-center gap-1.5 text-sm cursor-pointer"
-                >
-                  <input
-                    type="checkbox"
-                    class="accent-primary size-4"
-                    :checked="weekdays[i]"
-                    @change="toggleWeekday(i)"
-                  />
-                  {{ d }}
-                </label>
-              </div>
+              <UFormField label="Weekdays">
+                <UCheckboxGroup
+                  v-model="selectedWeekdays"
+                  orientation="horizontal"
+                  :items="weekdayLabels.map((label) => ({ label, value: label }))"
+                />
+              </UFormField>
             </template>
 
             <template v-else-if="cronMode === 'monthdays'">
@@ -345,27 +320,16 @@ defineExpose({
             </template>
 
             <template v-else>
-              <p class="text-sm font-medium text-default">Pick</p>
-              <div class="flex gap-3">
-                <label class="flex items-center gap-2 text-sm cursor-pointer">
-                  <input
-                    type="radio"
-                    class="accent-primary"
-                    :checked="firstLast === 'first'"
-                    @change="firstLast = 'first'"
-                  />
-                  First day of month
-                </label>
-                <label class="flex items-center gap-2 text-sm cursor-pointer">
-                  <input
-                    type="radio"
-                    class="accent-primary"
-                    :checked="firstLast === 'last'"
-                    @change="firstLast = 'last'"
-                  />
-                  Last day of month
-                </label>
-              </div>
+              <UFormField label="Pick">
+                <URadioGroup
+                  v-model="firstLast"
+                  orientation="horizontal"
+                  :items="[
+                    { label: 'First day of month', value: 'first' },
+                    { label: 'Last day of month', value: 'last' },
+                  ]"
+                />
+              </UFormField>
             </template>
           </section>
 
@@ -395,8 +359,7 @@ defineExpose({
 
           <section class="space-y-2">
             <h3 class="text-sm font-semibold text-default">Duration (per occurrence)</h3>
-            <UFormField>
-              <template #label> <span class="text-error">*</span> Minutes </template>
+            <UFormField label="Minutes" required>
               <UInput
                 v-model.number="durationMinutes"
                 type="number"
@@ -407,32 +370,35 @@ defineExpose({
             </UFormField>
           </section>
 
-          <section class="rounded-md border border-default/40 bg-elevated/50 p-3 space-y-2">
-            <button
-              type="button"
-              class="flex items-center gap-1.5 text-sm font-medium text-default w-full"
-              @click="showAdvanced = !showAdvanced"
+          <UCollapsible
+            v-model:open="showAdvanced"
+            class="rounded-md border border-default/40 bg-elevated/50 p-3"
+          >
+            <UButton
+              variant="ghost"
+              color="neutral"
+              size="sm"
+              :trailing-icon="showAdvanced ? 'i-lucide-chevron-down' : 'i-lucide-chevron-right'"
+              class="w-full justify-start"
             >
-              <UIcon
-                :name="showAdvanced ? 'i-lucide-chevron-down' : 'i-lucide-chevron-right'"
-                class="size-4"
-              />
               Advanced options (optional)
-            </button>
-            <template v-if="showAdvanced">
-              <p class="text-xs text-muted">
-                Limits when this recurring schedule can run. Leave empty to run indefinitely.
-              </p>
-              <div class="grid grid-cols-2 gap-5">
-                <UFormField label="Effective from">
-                  <UInput v-model="effectiveFrom" type="date" placeholder="Start date (optional)" />
-                </UFormField>
-                <UFormField label="Effective until">
-                  <UInput v-model="effectiveUntil" type="date" placeholder="End date (optional)" />
-                </UFormField>
+            </UButton>
+            <template #content>
+              <div class="pt-2 space-y-2">
+                <p class="text-xs text-muted">
+                  Limits when this recurring schedule can run. Leave empty to run indefinitely.
+                </p>
+                <div class="grid grid-cols-2 gap-5">
+                  <UFormField label="Effective from">
+                    <UInput v-model="effectiveFrom" type="date" placeholder="Start date (optional)" />
+                  </UFormField>
+                  <UFormField label="Effective until">
+                    <UInput v-model="effectiveUntil" type="date" placeholder="End date (optional)" />
+                  </UFormField>
+                </div>
               </div>
             </template>
-          </section>
+          </UCollapsible>
         </template>
 
         <UFormField label="Resources">

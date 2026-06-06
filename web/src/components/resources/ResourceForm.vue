@@ -30,9 +30,8 @@ const showTags = ref(false)
 const tagInput = ref('')
 const availableTags = ref<Tag[]>([])
 
-function toggleTags() {
-  showTags.value = !showTags.value
-  if (showTags.value) void loadTags()
+function onTagsToggle(open: boolean) {
+  if (open) void loadTags()
 }
 
 async function loadTags() {
@@ -311,94 +310,107 @@ defineExpose({ state, onSubmit, formRef, stripExtras })
       />
     </UFormField>
 
-    <button
-      type="button"
-      class="text-xs font-medium text-slate-700 hover:text-slate-900 flex items-center gap-1"
-      @click="showAdvanced = !showAdvanced"
-    >
-      <UIcon
-        :name="showAdvanced ? 'i-lucide-chevron-down' : 'i-lucide-chevron-right'"
-        class="size-3.5"
-      />
-      Advanced
-    </button>
-    <div v-if="showAdvanced" class="space-y-4 pl-4 border-l border-slate-200">
-      <UFormField name="interval" label="Check interval (seconds)">
-        <UInput
-          v-model.number="(state as unknown as { interval: number }).interval"
-          type="number"
-          :min="30"
-          :max="86400"
-          class="w-full"
-        />
-      </UFormField>
-      <template v-if="state.type === 'http'">
-        <UFormField label="Method">
-          <USelect
-            v-model="(state as unknown as { method: string }).method"
-            :items="methodOptions"
-            class="w-full"
-          />
-        </UFormField>
-        <UFormField label="Expected status">
-          <UInput
-            v-model.number="(state as unknown as { expected_status: number }).expected_status"
-            type="number"
-            :min="100"
-            :max="599"
-            class="w-full"
-          />
-        </UFormField>
-        <UFormField label="Headers">
-          <HeadersEditor
-            v-model="(state as unknown as { headers: Record<string, string> }).headers"
-          />
-        </UFormField>
+    <UCollapsible v-model:open="showAdvanced">
+      <UButton
+        variant="ghost"
+        color="neutral"
+        size="xs"
+        :trailing-icon="showAdvanced ? 'i-lucide-chevron-down' : 'i-lucide-chevron-right'"
+        class="font-medium"
+      >
+        Advanced
+      </UButton>
+      <template #content>
+        <div class="space-y-4 pt-2 pl-4 border-l border-slate-200">
+          <UFormField name="interval" label="Check interval (seconds)">
+            <UInput
+              v-model.number="(state as unknown as { interval: number }).interval"
+              type="number"
+              :min="30"
+              :max="86400"
+              class="w-full"
+            />
+          </UFormField>
+          <template v-if="state.type === 'http'">
+            <UFormField label="Method">
+              <USelect
+                v-model="(state as unknown as { method: string }).method"
+                :items="methodOptions"
+                class="w-full"
+              />
+            </UFormField>
+            <UFormField label="Expected status">
+              <UInput
+                v-model.number="(state as unknown as { expected_status: number }).expected_status"
+                type="number"
+                :min="100"
+                :max="599"
+                class="w-full"
+              />
+            </UFormField>
+            <UFormField label="Headers">
+              <HeadersEditor
+                v-model="(state as unknown as { headers: Record<string, string> }).headers"
+              />
+            </UFormField>
+          </template>
+        </div>
       </template>
-    </div>
+    </UCollapsible>
 
-    <button
-      type="button"
-      class="text-xs font-medium text-slate-700 hover:text-slate-900 flex items-center gap-1"
-      @click="toggleTags"
-    >
-      <UIcon
-        :name="showTags ? 'i-lucide-chevron-down' : 'i-lucide-chevron-right'"
-        class="size-3.5"
-      />
-      Tags
-    </button>
-    <div v-if="showTags" class="space-y-2 pl-4 border-l border-slate-200">
-      <div class="flex flex-wrap gap-1.5">
-        <span
-          v-for="id in (state as unknown as { tags?: string[] }).tags ?? []"
-          :key="id"
-          class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-slate-100 text-xs text-slate-700"
-        >
-          {{ tagName(id) }}
-          <UButton
-            variant="ghost"
-            color="neutral"
-            size="2xs"
-            icon="i-lucide-x"
-            :aria-label="`Remove tag ${tagName(id)}`"
-            @click="removeTag(id)"
-          />
-        </span>
-      </div>
-      <div class="flex items-center gap-2">
-        <UInput
-          v-model="tagInput"
-          placeholder="Type a tag name and press Enter"
-          size="sm"
-          class="flex-1"
-          @keydown.enter.prevent="addTagFromInput"
-        />
-        <UButton color="neutral" variant="outline" size="xs" @click="addTagFromInput">
-          + Add
-        </UButton>
-      </div>
-    </div>
+    <UCollapsible v-model:open="showTags" @update:open="onTagsToggle">
+      <UButton
+        variant="ghost"
+        color="neutral"
+        size="xs"
+        :trailing-icon="showTags ? 'i-lucide-chevron-down' : 'i-lucide-chevron-right'"
+        class="font-medium"
+      >
+        Tags
+      </UButton>
+      <template #content>
+        <div class="space-y-2 pt-2 pl-4 border-l border-slate-200">
+          <div class="flex flex-wrap gap-1.5">
+            <UBadge
+              v-for="id in (state as unknown as { tags?: string[] }).tags ?? []"
+              :key="id"
+              variant="subtle"
+              color="neutral"
+              size="md"
+            >
+              {{ tagName(id) }}
+              <UButton
+                variant="ghost"
+                color="neutral"
+                size="2xs"
+                icon="i-lucide-x"
+                :aria-label="`Remove tag ${tagName(id)}`"
+                class="-mr-1"
+                @click="removeTag(id)"
+              />
+            </UBadge>
+          </div>
+          <div class="flex items-center gap-2">
+            <UInput
+              v-model="tagInput"
+              placeholder="Type a tag name and press Enter"
+              size="sm"
+              class="flex-1"
+              @keydown.enter.prevent="addTagFromInput"
+            />
+            <UButton
+              color="neutral"
+              variant="outline"
+              size="xs"
+              icon="i-lucide-plus"
+              @click="addTagFromInput"
+            >
+              Add
+            </UButton>
+          </div>
+        </div>
+      </template>
+    </UCollapsible>
 
     <div class="flex justify-end gap-2 pt-4 border-t border-slate-200">
       <UButton color="neutral" variant="ghost" @click="emit('cancel')">Cancel</UButton>

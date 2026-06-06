@@ -267,27 +267,19 @@ defineExpose({
         class="flex-1 min-w-64"
       />
 
-      <div class="inline-flex rounded-md bg-elevated p-0.5">
-        <button
-          v-for="p in [
-            { value: 'all', label: 'All' },
-            { value: 'active', label: 'Active' },
-            { value: 'scheduled', label: 'Scheduled' },
-            { value: 'finished', label: 'Finished' },
-          ]"
-          :key="p.value"
-          type="button"
-          class="px-3 py-1.5 text-xs rounded-md transition-colors"
-          :class="
-            preset === p.value
-              ? 'bg-primary text-inverted font-medium'
-              : 'text-muted hover:text-default'
-          "
-          @click="preset = p.value as 'all' | 'active' | 'scheduled' | 'finished'"
-        >
-          {{ p.label }}
-        </button>
-      </div>
+      <UTabs
+        v-model="preset"
+        variant="pill"
+        size="xs"
+        :items="[
+          { label: 'All', value: 'all' },
+          { label: 'Active', value: 'active' },
+          { label: 'Scheduled', value: 'scheduled' },
+          { label: 'Finished', value: 'finished' },
+        ]"
+        :content="false"
+        :ui="{ root: 'inline-flex' }"
+      />
 
       <USelect
         v-model="strategyFilter"

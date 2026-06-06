@@ -59,6 +59,9 @@ defineExpose({ activeStep, next, back, finish, skip })
             {{ stepLabel }}
           </div>
           <div class="flex items-center gap-3">
+            <!-- PRD-015 R6: UStepper dots-only mode is not feasible in NuxtUI 4.8.1
+                 without overriding ~10 ui keys. Hand-rolled dots retained as a
+                 documented exception (FR-013 fallback path per tasks.md T027). -->
             <div class="flex items-center gap-1.5">
               <span
                 v-for="i in totalSteps"
@@ -68,21 +71,23 @@ defineExpose({ activeStep, next, back, finish, skip })
               />
             </div>
             <div class="flex-1" />
-            <button
+            <UButton
               v-if="activeStep < totalSteps - 1"
-              type="button"
-              class="text-xs text-slate-500 hover:text-slate-700 px-2 py-1"
+              variant="link"
+              color="neutral"
+              size="xs"
               @click="skip"
             >
               Skip
-            </button>
-            <button
-              type="button"
-              class="text-slate-400 hover:text-slate-600"
+            </UButton>
+            <UButton
+              variant="ghost"
+              color="neutral"
+              size="2xs"
+              icon="i-lucide-x"
+              aria-label="Close"
               @click="emit('close')"
-            >
-              <UIcon name="i-lucide-x" class="size-3.5" />
-            </button>
+            />
           </div>
         </div>
 
@@ -143,31 +148,15 @@ defineExpose({ activeStep, next, back, finish, skip })
                 Pick a channel for alerts. You can add more later.
               </p>
             </div>
-            <div class="space-y-2">
-              <label
-                v-for="opt in [
-                  { v: 'email', l: 'Email', i: 'i-lucide-mail' },
-                  { v: 'slack', l: 'Slack', i: 'i-lucide-slack' },
-                  { v: 'webhook', l: 'Webhook', i: 'i-lucide-webhook' },
-                ]"
-                :key="opt.v"
-                class="flex items-center gap-3 px-3.5 py-3 rounded-md border cursor-pointer"
-                :class="
-                  channelKind === opt.v
-                    ? 'border-primary-600 bg-primary-50'
-                    : 'border-slate-200 hover:border-slate-300'
-                "
-              >
-                <input
-                  v-model="channelKind"
-                  type="radio"
-                  :value="opt.v"
-                  class="accent-primary-600"
-                />
-                <UIcon :name="opt.i" class="size-4 text-slate-600" />
-                <span class="text-sm font-medium text-slate-900">{{ opt.l }}</span>
-              </label>
-            </div>
+            <URadioGroup
+              v-model="channelKind"
+              :items="[
+                { label: 'Email', value: 'email', icon: 'i-lucide-mail' },
+                { label: 'Slack', value: 'slack', icon: 'i-lucide-slack' },
+                { label: 'Webhook', value: 'webhook', icon: 'i-lucide-webhook' },
+              ]"
+              :ui="{ root: 'space-y-2', item: 'flex items-center gap-3 px-3.5 py-3 rounded-md border border-slate-200' }"
+            />
           </div>
 
           <div v-else class="flex flex-col items-center text-center gap-3.5">
@@ -196,14 +185,15 @@ defineExpose({ activeStep, next, back, finish, skip })
           class="flex items-center px-5 py-3.5 bg-slate-50 border-t border-slate-100"
           :class="activeStep > 0 && activeStep < totalSteps - 1 ? 'justify-between' : 'justify-end'"
         >
-          <button
+          <UButton
             v-if="activeStep > 0 && activeStep < totalSteps - 1"
-            type="button"
-            class="text-sm text-slate-600 hover:text-slate-900 px-3 py-2"
+            variant="link"
+            color="neutral"
+            size="sm"
             @click="back"
           >
             Back
-          </button>
+          </UButton>
           <UButton
             v-if="activeStep < totalSteps - 1"
             color="primary"
