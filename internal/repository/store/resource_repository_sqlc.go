@@ -166,6 +166,9 @@ func (r *ResourceRepositorySQLC) FindByID(ctx context.Context, id string) (*doma
 	if err := r.attachPreloads(ctx, []*domain.Resource{out}); err != nil {
 		return nil, err
 	}
+	if err := r.attachUptimeStats(ctx, []*domain.Resource{out}); err != nil {
+		return nil, err
+	}
 	return out, nil
 }
 

@@ -61,8 +61,9 @@ func TestResourceRepository_FindByIDPreloads_RoundTripBound(t *testing.T) {
 		require.NotNil(t, loaded)
 
 		// 1 principal SELECT + 4 preload IN-queries (Tags, Channels,
-		// Component since component_id != nil, Credential check empty).
-		assert.EqualValues(t, 5, counter.Snapshot(),
-			"FindByID with all relations: expected 5 round-trips (1+4)")
+		// Component since component_id != nil, Credential check empty)
+		// + 2 uptime stats queries (uptime_daily_agg SUM + AVG response).
+		assert.EqualValues(t, 7, counter.Snapshot(),
+			"FindByID with all relations: expected 7 round-trips (1+4 preloads+2 stats)")
 	})
 }
