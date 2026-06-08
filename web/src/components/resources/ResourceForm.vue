@@ -30,9 +30,8 @@ const showTags = ref(false)
 const tagInput = ref('')
 const availableTags = ref<Tag[]>([])
 
-function toggleTags() {
-  showTags.value = !showTags.value
-  if (showTags.value) void loadTags()
+function onTagsToggle(open: boolean) {
+  if (open) void loadTags()
 }
 
 async function loadTags() {
@@ -227,193 +226,183 @@ defineExpose({ state, onSubmit, formRef, stripExtras })
 
 <template>
   <UForm ref="formRef" :schema="resourceSchema" :state="state" class="space-y-4" @submit="onSubmit">
-    <div class="space-y-1.5">
-      <label class="text-xs font-medium text-slate-900">Type</label>
-      <UFormField name="type" :ui="{ label: 'hidden' }">
-        <USelect v-model="state.type" :items="typeOptions" class="w-full" />
-      </UFormField>
-    </div>
+    <UFormField name="type" label="Type">
+      <USelect v-model="state.type" :items="typeOptions" class="w-full" />
+    </UFormField>
 
-    <div class="space-y-1.5">
-      <label class="text-xs font-medium text-slate-900">Name</label>
-      <UFormField name="name" :ui="{ label: 'hidden' }">
-        <UInput
-          v-model="(state as unknown as { name: string }).name"
-          placeholder="api.acme.com"
-          class="w-full"
-        />
-      </UFormField>
-    </div>
-
-    <div v-if="state.type === 'http' || state.type === 'keyword'" class="space-y-1.5">
-      <label class="text-xs font-medium text-slate-900">URL</label>
-      <UFormField name="url" :ui="{ label: 'hidden' }">
-        <UInput
-          v-model="(state as unknown as { url: string }).url"
-          placeholder="https://api.acme.com/health"
-          class="w-full"
-        />
-      </UFormField>
-    </div>
-
-    <div v-if="state.type === 'keyword'" class="space-y-1.5">
-      <label class="text-xs font-medium text-slate-900">Keyword</label>
-      <UFormField name="keyword" :ui="{ label: 'hidden' }">
-        <UInput v-model="(state as unknown as { keyword: string }).keyword" class="w-full" />
-      </UFormField>
-    </div>
-
-    <div
-      v-if="['tcp', 'protocol', 'dns', 'icmp'].includes(state.type as string)"
-      class="space-y-1.5"
-    >
-      <label class="text-xs font-medium text-slate-900">Host</label>
-      <UFormField name="host" :ui="{ label: 'hidden' }">
-        <UInput
-          v-model="(state as unknown as { host: string }).host"
-          placeholder="db.acme.com"
-          class="w-full"
-        />
-      </UFormField>
-    </div>
-
-    <div v-if="state.type === 'tcp' || state.type === 'protocol'" class="space-y-1.5">
-      <label class="text-xs font-medium text-slate-900">Port</label>
-      <UFormField name="port" :ui="{ label: 'hidden' }">
-        <UInput
-          v-model.number="(state as unknown as { port: number }).port"
-          type="number"
-          :min="1"
-          :max="65535"
-          class="w-full"
-        />
-      </UFormField>
-    </div>
-
-    <div v-if="state.type === 'dns'" class="space-y-1.5">
-      <label class="text-xs font-medium text-slate-900">Record type</label>
-      <UFormField name="record_type" :ui="{ label: 'hidden' }">
-        <USelect
-          v-model="(state as unknown as { record_type: string }).record_type"
-          :items="dnsRecordTypes"
-          class="w-full"
-        />
-      </UFormField>
-    </div>
-
-    <div v-if="state.type === 'protocol'" class="space-y-1.5">
-      <label class="text-xs font-medium text-slate-900">Protocol</label>
-      <UFormField name="protocol" :ui="{ label: 'hidden' }">
-        <USelect
-          v-model="(state as unknown as { protocol: string }).protocol"
-          :items="protocols"
-          class="w-full"
-        />
-      </UFormField>
-    </div>
-
-    <div v-if="state.type === 'heartbeat'" class="space-y-1.5">
-      <label class="text-xs font-medium text-slate-900">Grace period (seconds)</label>
-      <UFormField name="grace_seconds" :ui="{ label: 'hidden' }">
-        <UInput
-          v-model.number="(state as unknown as { grace_seconds: number }).grace_seconds"
-          type="number"
-          :min="30"
-          :max="86400"
-          class="w-full"
-        />
-      </UFormField>
-    </div>
-
-    <button
-      type="button"
-      class="text-xs font-medium text-slate-700 hover:text-slate-900 flex items-center gap-1"
-      @click="showAdvanced = !showAdvanced"
-    >
-      <UIcon
-        :name="showAdvanced ? 'i-lucide-chevron-down' : 'i-lucide-chevron-right'"
-        class="size-3.5"
+    <UFormField name="name" label="Name">
+      <UInput
+        v-model="(state as unknown as { name: string }).name"
+        placeholder="api.acme.com"
+        class="w-full"
       />
-      Advanced
-    </button>
-    <div v-if="showAdvanced" class="space-y-4 pl-4 border-l border-slate-200">
-      <div class="space-y-1.5">
-        <label class="text-xs font-medium text-slate-900">Check interval (seconds)</label>
-        <UFormField name="interval" :ui="{ label: 'hidden' }">
-          <UInput
-            v-model.number="(state as unknown as { interval: number }).interval"
-            type="number"
-            :min="30"
-            :max="86400"
-            class="w-full"
-          />
-        </UFormField>
-      </div>
-      <template v-if="state.type === 'http'">
-        <div class="space-y-1.5">
-          <label class="text-xs font-medium text-slate-900">Method</label>
-          <USelect
-            v-model="(state as unknown as { method: string }).method"
-            :items="methodOptions"
-            class="w-full"
-          />
-        </div>
-        <div class="space-y-1.5">
-          <label class="text-xs font-medium text-slate-900">Expected status</label>
-          <UInput
-            v-model.number="(state as unknown as { expected_status: number }).expected_status"
-            type="number"
-            :min="100"
-            :max="599"
-            class="w-full"
-          />
-        </div>
-        <div class="space-y-1.5">
-          <label class="text-xs font-medium text-slate-900">Headers</label>
-          <HeadersEditor
-            v-model="(state as unknown as { headers: Record<string, string> }).headers"
-          />
+    </UFormField>
+
+    <UFormField v-if="state.type === 'http' || state.type === 'keyword'" name="url" label="URL">
+      <UInput
+        v-model="(state as unknown as { url: string }).url"
+        placeholder="https://api.acme.com/health"
+        class="w-full"
+      />
+    </UFormField>
+
+    <UFormField v-if="state.type === 'keyword'" name="keyword" label="Keyword">
+      <UInput v-model="(state as unknown as { keyword: string }).keyword" class="w-full" />
+    </UFormField>
+
+    <UFormField
+      v-if="['tcp', 'protocol', 'dns', 'icmp'].includes(state.type as string)"
+      name="host"
+      label="Host"
+    >
+      <UInput
+        v-model="(state as unknown as { host: string }).host"
+        placeholder="db.acme.com"
+        class="w-full"
+      />
+    </UFormField>
+
+    <UFormField v-if="state.type === 'tcp' || state.type === 'protocol'" name="port" label="Port">
+      <UInput
+        v-model.number="(state as unknown as { port: number }).port"
+        type="number"
+        :min="1"
+        :max="65535"
+        class="w-full"
+      />
+    </UFormField>
+
+    <UFormField v-if="state.type === 'dns'" name="record_type" label="Record type">
+      <USelect
+        v-model="(state as unknown as { record_type: string }).record_type"
+        :items="dnsRecordTypes"
+        class="w-full"
+      />
+    </UFormField>
+
+    <UFormField v-if="state.type === 'protocol'" name="protocol" label="Protocol">
+      <USelect
+        v-model="(state as unknown as { protocol: string }).protocol"
+        :items="protocols"
+        class="w-full"
+      />
+    </UFormField>
+
+    <UFormField
+      v-if="state.type === 'heartbeat'"
+      name="grace_seconds"
+      label="Grace period (seconds)"
+    >
+      <UInput
+        v-model.number="(state as unknown as { grace_seconds: number }).grace_seconds"
+        type="number"
+        :min="30"
+        :max="86400"
+        class="w-full"
+      />
+    </UFormField>
+
+    <UCollapsible v-model:open="showAdvanced">
+      <UButton
+        variant="ghost"
+        color="neutral"
+        size="xs"
+        :trailing-icon="showAdvanced ? 'i-lucide-chevron-down' : 'i-lucide-chevron-right'"
+        class="font-medium"
+      >
+        Advanced
+      </UButton>
+      <template #content>
+        <div class="space-y-4 pt-2 pl-4 border-l border-slate-200">
+          <UFormField name="interval" label="Check interval (seconds)">
+            <UInput
+              v-model.number="(state as unknown as { interval: number }).interval"
+              type="number"
+              :min="30"
+              :max="86400"
+              class="w-full"
+            />
+          </UFormField>
+          <template v-if="state.type === 'http'">
+            <UFormField label="Method">
+              <USelect
+                v-model="(state as unknown as { method: string }).method"
+                :items="methodOptions"
+                class="w-full"
+              />
+            </UFormField>
+            <UFormField label="Expected status">
+              <UInput
+                v-model.number="(state as unknown as { expected_status: number }).expected_status"
+                type="number"
+                :min="100"
+                :max="599"
+                class="w-full"
+              />
+            </UFormField>
+            <UFormField label="Headers">
+              <HeadersEditor
+                v-model="(state as unknown as { headers: Record<string, string> }).headers"
+              />
+            </UFormField>
+          </template>
         </div>
       </template>
-    </div>
+    </UCollapsible>
 
-    <button
-      type="button"
-      class="text-xs font-medium text-slate-700 hover:text-slate-900 flex items-center gap-1"
-      @click="toggleTags"
-    >
-      <UIcon
-        :name="showTags ? 'i-lucide-chevron-down' : 'i-lucide-chevron-right'"
-        class="size-3.5"
-      />
-      Tags
-    </button>
-    <div v-if="showTags" class="space-y-2 pl-4 border-l border-slate-200">
-      <div class="flex flex-wrap gap-1.5">
-        <span
-          v-for="id in (state as unknown as { tags?: string[] }).tags ?? []"
-          :key="id"
-          class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-slate-100 text-xs text-slate-700"
-        >
-          {{ tagName(id) }}
-          <button type="button" class="text-slate-400 hover:text-slate-700" @click="removeTag(id)">
-            <UIcon name="i-lucide-x" class="size-3" />
-          </button>
-        </span>
-      </div>
-      <div class="flex items-center gap-2">
-        <UInput
-          v-model="tagInput"
-          placeholder="Type a tag name and press Enter"
-          size="sm"
-          class="flex-1"
-          @keydown.enter.prevent="addTagFromInput"
-        />
-        <UButton color="neutral" variant="outline" size="xs" @click="addTagFromInput">
-          + Add
-        </UButton>
-      </div>
-    </div>
+    <UCollapsible v-model:open="showTags" @update:open="onTagsToggle">
+      <UButton
+        variant="ghost"
+        color="neutral"
+        size="xs"
+        :trailing-icon="showTags ? 'i-lucide-chevron-down' : 'i-lucide-chevron-right'"
+        class="font-medium"
+      >
+        Tags
+      </UButton>
+      <template #content>
+        <div class="space-y-2 pt-2 pl-4 border-l border-slate-200">
+          <div class="flex flex-wrap gap-1.5">
+            <UBadge
+              v-for="id in (state as unknown as { tags?: string[] }).tags ?? []"
+              :key="id"
+              variant="subtle"
+              color="neutral"
+              size="md"
+            >
+              {{ tagName(id) }}
+              <UButton
+                variant="ghost"
+                color="neutral"
+                size="2xs"
+                icon="i-lucide-x"
+                :aria-label="`Remove tag ${tagName(id)}`"
+                class="-mr-1"
+                @click="removeTag(id)"
+              />
+            </UBadge>
+          </div>
+          <div class="flex items-center gap-2">
+            <UInput
+              v-model="tagInput"
+              placeholder="Type a tag name and press Enter"
+              size="sm"
+              class="flex-1"
+              @keydown.enter.prevent="addTagFromInput"
+            />
+            <UButton
+              color="neutral"
+              variant="outline"
+              size="xs"
+              icon="i-lucide-plus"
+              @click="addTagFromInput"
+            >
+              Add
+            </UButton>
+          </div>
+        </div>
+      </template>
+    </UCollapsible>
 
     <div class="flex justify-end gap-2 pt-4 border-t border-slate-200">
       <UButton color="neutral" variant="ghost" @click="emit('cancel')">Cancel</UButton>

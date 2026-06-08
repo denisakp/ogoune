@@ -16,13 +16,38 @@ const visibleIncidents = computed(() => {
 })
 
 const hiddenCount = computed(() => Math.max(0, props.month.incidents.length - PREVIEW_COUNT))
-function toggle() { expanded.value = !expanded.value }
+function toggle() {
+  expanded.value = !expanded.value
+}
 
 const MONTHS = [
-  'January', 'February', 'March', 'April', 'May', 'June',
-  'July', 'August', 'September', 'October', 'November', 'December',
+  'January',
+  'February',
+  'March',
+  'April',
+  'May',
+  'June',
+  'July',
+  'August',
+  'September',
+  'October',
+  'November',
+  'December',
 ]
-const MONTHS_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+const MONTHS_SHORT = [
+  'Jan',
+  'Feb',
+  'Mar',
+  'Apr',
+  'May',
+  'Jun',
+  'Jul',
+  'Aug',
+  'Sep',
+  'Oct',
+  'Nov',
+  'Dec',
+]
 
 const heading = computed(() => {
   const [year, m] = props.month.year_month.split('-')
@@ -70,9 +95,12 @@ function severityClass(s: PublicIncidentSummary['severity']) {
 
 function severityDot(s: PublicIncidentSummary['severity']) {
   switch (s) {
-    case 'critical': return 'bg-red-600'
-    case 'major': return 'bg-red-500'
-    default: return 'bg-yellow-400'
+    case 'critical':
+      return 'bg-red-600'
+    case 'major':
+      return 'bg-red-500'
+    default:
+      return 'bg-yellow-400'
   }
 }
 
@@ -84,11 +112,11 @@ function componentLabel(inc: PublicIncidentSummary): string | null {
 
 <template>
   <section :data-year-month="month.year_month" class="space-y-0">
-    <header
-      class="flex items-center gap-3 px-4 py-2 bg-gray-50 rounded-md"
-    >
+    <header class="flex items-center gap-3 px-4 py-2 bg-gray-50 rounded-md">
       <h2 class="text-sm font-semibold text-gray-900">{{ heading }}</h2>
-      <span class="text-xs text-gray-500">{{ month.count }} incident{{ month.count === 1 ? '' : 's' }}</span>
+      <span class="text-xs text-gray-500"
+        >{{ month.count }} incident{{ month.count === 1 ? '' : 's' }}</span
+      >
     </header>
     <div class="border-l border-r border-b border-gray-200 rounded-b-md overflow-hidden">
       <a
@@ -99,8 +127,12 @@ function componentLabel(inc: PublicIncidentSummary): string | null {
         :data-incident-id="inc.id"
       >
         <div class="text-center w-10 shrink-0">
-          <p class="text-xl font-semibold leading-none text-gray-900">{{ dayParts(inc.started_at).day }}</p>
-          <p class="text-[10px] uppercase tracking-wider text-gray-500 mt-0.5">{{ dayParts(inc.started_at).month }}</p>
+          <p class="text-xl font-semibold leading-none text-gray-900">
+            {{ dayParts(inc.started_at).day }}
+          </p>
+          <p class="text-[10px] uppercase tracking-wider text-gray-500 mt-0.5">
+            {{ dayParts(inc.started_at).month }}
+          </p>
         </div>
         <div class="min-w-0 flex-1">
           <div class="flex items-center gap-2 mb-1">
@@ -109,7 +141,11 @@ function componentLabel(inc: PublicIncidentSummary): string | null {
               class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-emerald-50 text-emerald-700"
             >
               <svg class="size-3" viewBox="0 0 20 20" fill="currentColor">
-                <path fill-rule="evenodd" d="M16.7 5.3a1 1 0 0 1 0 1.4l-7.5 7.5a1 1 0 0 1-1.4 0L4.3 10.7a1 1 0 0 1 1.4-1.4l2.8 2.8 6.8-6.8a1 1 0 0 1 1.4 0z" clip-rule="evenodd" />
+                <path
+                  fill-rule="evenodd"
+                  d="M16.7 5.3a1 1 0 0 1 0 1.4l-7.5 7.5a1 1 0 0 1-1.4 0L4.3 10.7a1 1 0 0 1 1.4-1.4l2.8 2.8 6.8-6.8a1 1 0 0 1 1.4 0z"
+                  clip-rule="evenodd"
+                />
               </svg>
               Resolved
             </span>
@@ -127,25 +163,56 @@ function componentLabel(inc: PublicIncidentSummary): string | null {
               v-if="componentLabel(inc)"
               class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-indigo-50 text-indigo-700 font-medium"
             >
-              <svg class="size-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
+              <svg
+                class="size-3"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <path
+                  d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"
+                />
               </svg>
               {{ componentLabel(inc) }}
             </span>
             <span class="font-mono inline-flex items-center gap-1">
-              <svg class="size-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <svg
+                class="size-3"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
                 <circle cx="12" cy="12" r="10" />
                 <polyline points="12 6 12 12 16 14" />
               </svg>
               {{ duration(inc) }}
             </span>
-            <span :class="['inline-flex items-center gap-1 font-semibold uppercase tracking-wider', severityClass(inc.severity)]">
+            <span
+              :class="[
+                'inline-flex items-center gap-1 font-semibold uppercase tracking-wider',
+                severityClass(inc.severity),
+              ]"
+            >
               <span :class="['size-1.5 rounded-full', severityDot(inc.severity)]" />
               {{ inc.severity }}
             </span>
           </div>
         </div>
-        <svg class="size-4 text-gray-300 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <svg
+          class="size-4 text-gray-300 shrink-0"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
           <polyline points="9 18 15 12 9 6" />
         </svg>
       </a>
@@ -156,7 +223,9 @@ function componentLabel(inc: PublicIncidentSummary): string | null {
         data-testid="toggle-more"
         @click="toggle"
       >
-        <span v-if="!expanded">Show {{ hiddenCount }} more incident{{ hiddenCount === 1 ? '' : 's' }}</span>
+        <span v-if="!expanded"
+          >Show {{ hiddenCount }} more incident{{ hiddenCount === 1 ? '' : 's' }}</span
+        >
         <span v-else>Show less</span>
       </button>
     </div>

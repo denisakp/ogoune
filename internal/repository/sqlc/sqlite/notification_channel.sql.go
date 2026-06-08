@@ -53,7 +53,7 @@ func (q *Queries) DeleteNotificationChannel(ctx context.Context, id string) (int
 }
 
 const findDefaultNotificationChannels = `-- name: FindDefaultNotificationChannels :many
-SELECT id, created_at, updated_at, name, type, config, enabled_by_default FROM notification_channels WHERE enabled_by_default = 1
+SELECT id, created_at, updated_at, name, type, config, enabled_by_default, last_sent_at, last_failure_at, failures_24h FROM notification_channels WHERE enabled_by_default = 1
 `
 
 func (q *Queries) FindDefaultNotificationChannels(ctx context.Context) ([]NotificationChannel, error) {
@@ -73,6 +73,9 @@ func (q *Queries) FindDefaultNotificationChannels(ctx context.Context) ([]Notifi
 			&i.Type,
 			&i.Config,
 			&i.EnabledByDefault,
+			&i.LastSentAt,
+			&i.LastFailureAt,
+			&i.Failures24h,
 		); err != nil {
 			return nil, err
 		}
@@ -88,7 +91,7 @@ func (q *Queries) FindDefaultNotificationChannels(ctx context.Context) ([]Notifi
 }
 
 const findNotificationChannelByID = `-- name: FindNotificationChannelByID :one
-SELECT id, created_at, updated_at, name, type, config, enabled_by_default FROM notification_channels WHERE id = ?
+SELECT id, created_at, updated_at, name, type, config, enabled_by_default, last_sent_at, last_failure_at, failures_24h FROM notification_channels WHERE id = ?
 `
 
 func (q *Queries) FindNotificationChannelByID(ctx context.Context, id string) (NotificationChannel, error) {
@@ -102,12 +105,15 @@ func (q *Queries) FindNotificationChannelByID(ctx context.Context, id string) (N
 		&i.Type,
 		&i.Config,
 		&i.EnabledByDefault,
+		&i.LastSentAt,
+		&i.LastFailureAt,
+		&i.Failures24h,
 	)
 	return i, err
 }
 
 const findNotificationChannelsByComponentID = `-- name: FindNotificationChannelsByComponentID :many
-SELECT nc.id, nc.created_at, nc.updated_at, nc.name, nc.type, nc.config, nc.enabled_by_default FROM notification_channels nc
+SELECT nc.id, nc.created_at, nc.updated_at, nc.name, nc.type, nc.config, nc.enabled_by_default, nc.last_sent_at, nc.last_failure_at, nc.failures_24h FROM notification_channels nc
 JOIN component_notification_channels cnc
     ON cnc.notification_channel_id = nc.id
 WHERE cnc.component_id = ?
@@ -130,6 +136,9 @@ func (q *Queries) FindNotificationChannelsByComponentID(ctx context.Context, com
 			&i.Type,
 			&i.Config,
 			&i.EnabledByDefault,
+			&i.LastSentAt,
+			&i.LastFailureAt,
+			&i.Failures24h,
 		); err != nil {
 			return nil, err
 		}
@@ -145,7 +154,7 @@ func (q *Queries) FindNotificationChannelsByComponentID(ctx context.Context, com
 }
 
 const findNotificationChannelsByResourceID = `-- name: FindNotificationChannelsByResourceID :many
-SELECT nc.id, nc.created_at, nc.updated_at, nc.name, nc.type, nc.config, nc.enabled_by_default FROM notification_channels nc
+SELECT nc.id, nc.created_at, nc.updated_at, nc.name, nc.type, nc.config, nc.enabled_by_default, nc.last_sent_at, nc.last_failure_at, nc.failures_24h FROM notification_channels nc
 JOIN resource_notification_channels rnc
     ON rnc.notification_channel_id = nc.id
 WHERE rnc.resource_id = ?
@@ -168,6 +177,9 @@ func (q *Queries) FindNotificationChannelsByResourceID(ctx context.Context, reso
 			&i.Type,
 			&i.Config,
 			&i.EnabledByDefault,
+			&i.LastSentAt,
+			&i.LastFailureAt,
+			&i.Failures24h,
 		); err != nil {
 			return nil, err
 		}
@@ -183,7 +195,7 @@ func (q *Queries) FindNotificationChannelsByResourceID(ctx context.Context, reso
 }
 
 const findNotificationChannelsByType = `-- name: FindNotificationChannelsByType :many
-SELECT id, created_at, updated_at, name, type, config, enabled_by_default FROM notification_channels WHERE type = ?
+SELECT id, created_at, updated_at, name, type, config, enabled_by_default, last_sent_at, last_failure_at, failures_24h FROM notification_channels WHERE type = ?
 `
 
 func (q *Queries) FindNotificationChannelsByType(ctx context.Context, type_ string) ([]NotificationChannel, error) {
@@ -203,6 +215,9 @@ func (q *Queries) FindNotificationChannelsByType(ctx context.Context, type_ stri
 			&i.Type,
 			&i.Config,
 			&i.EnabledByDefault,
+			&i.LastSentAt,
+			&i.LastFailureAt,
+			&i.Failures24h,
 		); err != nil {
 			return nil, err
 		}
@@ -218,7 +233,7 @@ func (q *Queries) FindNotificationChannelsByType(ctx context.Context, type_ stri
 }
 
 const listNotificationChannels = `-- name: ListNotificationChannels :many
-SELECT id, created_at, updated_at, name, type, config, enabled_by_default FROM notification_channels
+SELECT id, created_at, updated_at, name, type, config, enabled_by_default, last_sent_at, last_failure_at, failures_24h FROM notification_channels
 ORDER BY created_at DESC
 LIMIT ? OFFSET ?
 `
@@ -245,6 +260,9 @@ func (q *Queries) ListNotificationChannels(ctx context.Context, arg ListNotifica
 			&i.Type,
 			&i.Config,
 			&i.EnabledByDefault,
+			&i.LastSentAt,
+			&i.LastFailureAt,
+			&i.Failures24h,
 		); err != nil {
 			return nil, err
 		}
@@ -257,6 +275,45 @@ func (q *Queries) ListNotificationChannels(ctx context.Context, arg ListNotifica
 		return nil, err
 	}
 	return items, nil
+}
+
+const markNotificationChannelFailure = `-- name: MarkNotificationChannelFailure :exec
+UPDATE notification_channels
+SET failures_24h    = CASE
+    WHEN last_failure_at IS NULL OR last_failure_at < ?1 THEN 1
+    ELSE failures_24h + 1
+END,
+    last_failure_at = ?2,
+    updated_at      = ?2
+WHERE id = ?3
+`
+
+type MarkNotificationChannelFailureParams struct {
+	CutoffAt interface{} `json:"cutoff_at"`
+	At       interface{} `json:"at"`
+	ID       string      `json:"id"`
+}
+
+func (q *Queries) MarkNotificationChannelFailure(ctx context.Context, arg MarkNotificationChannelFailureParams) error {
+	_, err := q.db.ExecContext(ctx, markNotificationChannelFailure, arg.CutoffAt, arg.At, arg.ID)
+	return err
+}
+
+const markNotificationChannelSent = `-- name: MarkNotificationChannelSent :exec
+UPDATE notification_channels
+SET last_sent_at = ?1,
+    updated_at   = ?1
+WHERE id = ?2
+`
+
+type MarkNotificationChannelSentParams struct {
+	At interface{} `json:"at"`
+	ID string      `json:"id"`
+}
+
+func (q *Queries) MarkNotificationChannelSent(ctx context.Context, arg MarkNotificationChannelSentParams) error {
+	_, err := q.db.ExecContext(ctx, markNotificationChannelSent, arg.At, arg.ID)
+	return err
 }
 
 const updateNotificationChannel = `-- name: UpdateNotificationChannel :execrows

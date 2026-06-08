@@ -8,14 +8,24 @@
  * Search + filter tabs (All / Active / Scheduled / Finished) + strategy + resource filter.
  * Table: Title / Strategy / Status / Schedule / Resources / Actions.
  */
-import { computed, onMounted, ref } from 'vue'
-import { fetchMaintenances, createMaintenance } from '@/services/maintenanceService'
+import { computed, h, onMounted, ref, resolveComponent } from 'vue'
+import type { TableColumn } from '@nuxt/ui'
+import {
+  fetchMaintenances,
+  createMaintenance,
+  updateMaintenance,
+  deleteMaintenance,
+} from '@/services/maintenanceService'
+import { fetchResources } from '@/services/resourceService'
 import type { Maintenance, CreateMaintenance } from '@/types'
+import { useConfirm } from '@/composables/useConfirm'
 import MaintenanceModal from '@/components/maintenance/MaintenanceModal.vue'
 
 const maintenances = ref<Maintenance[]>([])
+const resourceNamesById = ref<Record<string, string>>({})
 const loading = ref(true)
 const modalOpen = ref(false)
+const editingMaintenance = ref<Maintenance | null>(null)
 
 const search = ref<string>('')
 const preset = ref<'all' | 'active' | 'scheduled' | 'finished'>('all')
@@ -93,13 +103,30 @@ const filtered = computed(() => {
 
 const allResourcesSeen = computed(() => {
   const map = new Map<string, string>()
+
+  for (const [id, name] of Object.entries(resourceNamesById.value)) {
+    map.set(id, name)
+  }
+
   for (const m of maintenances.value) {
     for (const r of m.resources ?? []) {
-      if (r.id) map.set(r.id, r.name ?? r.id)
+      if (!r.id) continue
+      const label = resolveResourceLabel(r.id, r.name)
+      map.set(r.id, label)
     }
   }
   return Array.from(map.entries()).map(([id, name]) => ({ id, name }))
 })
+
+function resolveResourceLabel(id: string, rawName?: string | null): string {
+  const fromRow = rawName?.trim()
+  if (fromRow) return fromRow
+
+  const fromCache = resourceNamesById.value[id]?.trim()
+  if (fromCache) return fromCache
+
+  return id.slice(0, 8)
+}
 
 function statusColor(s: string) {
   if (s === 'active') return 'success'
@@ -128,24 +155,138 @@ function formatSchedule(m: Maintenance): string {
 async function reload() {
   loading.value = true
   try {
-    maintenances.value = await fetchMaintenances()
+    const [list, allResources] = await Promise.all([
+      fetchMaintenances(),
+      fetchResources().catch(() => []),
+    ])
+
+    maintenances.value = list
+    resourceNamesById.value = allResources.reduce<Record<string, string>>((acc, r) => {
+      if (r.id && r.name?.trim()) acc[r.id] = r.name.trim()
+      return acc
+    }, {})
   } finally {
     loading.value = false
   }
 }
 
 async function onSubmit(payload: CreateMaintenance) {
-  await createMaintenance(payload)
+  if (editingMaintenance.value?.id) {
+    await updateMaintenance(editingMaintenance.value.id, payload)
+  } else {
+    await createMaintenance(payload)
+  }
   modalOpen.value = false
+  editingMaintenance.value = null
   await reload()
 }
 
-function viewMaintenance(m: Maintenance) {
-  // Detail page lands in a follow-up.
-  void m
+function openCreate() {
+  editingMaintenance.value = null
+  modalOpen.value = true
+}
+
+function onEdit(m: Maintenance) {
+  editingMaintenance.value = m
+  modalOpen.value = true
+}
+
+async function onDeleteMaintenance(m: Maintenance) {
+  const ok = await useConfirm({
+    kind: 'destructive',
+    title: `Delete ${m.title}?`,
+    body: 'This will remove the maintenance window.',
+    ctaLabel: 'Delete maintenance',
+  })
+  if (!ok) return
+  await deleteMaintenance(m.id)
+  await reload()
 }
 
 onMounted(reload)
+
+const columns: TableColumn<Maintenance>[] = [
+  {
+    id: 'title',
+    header: 'Title',
+    cell: ({ row }) => h('span', { class: 'font-medium text-default' }, row.original.title),
+  },
+  {
+    id: 'strategy',
+    header: 'Strategy',
+    cell: ({ row }) =>
+      h(
+        resolveComponent('UBadge'),
+        { color: strategyColor(row.original.strategy), variant: 'subtle', size: 'sm' },
+        () => (row.original.strategy === 'one_time' ? 'One-time' : 'Cron'),
+      ),
+  },
+  {
+    id: 'status',
+    header: 'Status',
+    cell: ({ row }) => {
+      const s = row.original.status
+      const dotClass = s === 'active' ? 'bg-success' : s === 'scheduled' ? 'bg-warning' : 'bg-muted'
+      const label = s === 'active' ? 'Active' : s === 'scheduled' ? 'Scheduled' : 'Finished'
+      return h(
+        resolveComponent('UBadge'),
+        { color: statusColor(s), variant: 'subtle', size: 'sm' },
+        () => [h('span', { class: `inline-block size-1.5 rounded-full mr-1 ${dotClass}` }), label],
+      )
+    },
+  },
+  {
+    id: 'schedule',
+    header: 'Schedule',
+    cell: ({ row }) =>
+      h('span', { class: 'text-default whitespace-nowrap' }, formatSchedule(row.original)),
+  },
+  {
+    id: 'resources',
+    header: 'Resources',
+    cell: ({ row }) => {
+      const rs = row.original.resources ?? []
+      const label =
+        rs.length === 0
+          ? 'All resources'
+          : rs.length === 1
+            ? resolveResourceLabel(rs[0].id, rs[0].name)
+            : `${rs.length} resources`
+      const toneClass = rs.length === 0 ? 'text-muted' : 'text-default'
+      return h(
+        'code',
+        { class: `font-mono text-[11px] bg-elevated px-2 py-0.5 rounded ${toneClass}` },
+        label,
+      )
+    },
+  },
+  {
+    id: 'actions',
+    header: '',
+    cell: ({ row }) => {
+      const m = row.original
+      return h(
+        resolveComponent('UDropdownMenu'),
+        {
+          items: [
+            { label: 'Edit', icon: 'i-lucide-pencil', onSelect: () => onEdit(m) },
+            {
+              label: 'Delete maintenance',
+              icon: 'i-lucide-trash-2',
+              onSelect: () => onDeleteMaintenance(m),
+            },
+          ],
+        },
+        () =>
+          h(resolveComponent('UButton'), {
+            variant: 'ghost',
+            size: 'xs',
+            icon: 'i-lucide-more-vertical',
+          }),
+      )
+    },
+  },
+]
 
 defineExpose({
   maintenances,
@@ -157,6 +298,7 @@ defineExpose({
   search,
   load: reload,
   onSubmit,
+  columns,
 })
 </script>
 
@@ -167,9 +309,7 @@ defineExpose({
         <h1 class="text-2xl font-bold text-default">Maintenance</h1>
         <p class="text-sm text-muted">Schedule and review maintenance windows.</p>
       </div>
-      <UButton color="primary" icon="i-lucide-plus" @click="modalOpen = true">
-        New maintenance
-      </UButton>
+      <UButton color="primary" icon="i-lucide-plus" @click="openCreate"> New maintenance </UButton>
     </header>
 
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -197,27 +337,19 @@ defineExpose({
         class="flex-1 min-w-64"
       />
 
-      <div class="inline-flex rounded-md bg-elevated p-0.5">
-        <button
-          v-for="p in [
-            { value: 'all', label: 'All' },
-            { value: 'active', label: 'Active' },
-            { value: 'scheduled', label: 'Scheduled' },
-            { value: 'finished', label: 'Finished' },
-          ]"
-          :key="p.value"
-          type="button"
-          class="px-3 py-1.5 text-xs rounded-md transition-colors"
-          :class="
-            preset === p.value
-              ? 'bg-primary text-inverted font-medium'
-              : 'text-muted hover:text-default'
-          "
-          @click="preset = p.value as 'all' | 'active' | 'scheduled' | 'finished'"
-        >
-          {{ p.label }}
-        </button>
-      </div>
+      <UTabs
+        v-model="preset"
+        variant="pill"
+        size="xs"
+        :items="[
+          { label: 'All', value: 'all' },
+          { label: 'Active', value: 'active' },
+          { label: 'Scheduled', value: 'scheduled' },
+          { label: 'Finished', value: 'finished' },
+        ]"
+        :content="false"
+        :ui="{ root: 'inline-flex' }"
+      />
 
       <USelect
         v-model="strategyFilter"
@@ -250,81 +382,14 @@ defineExpose({
       description="Plan one to silence alerts during deploys or upgrades."
     >
       <template #actions>
-        <UButton color="primary" @click="modalOpen = true">Schedule one</UButton>
+        <UButton color="primary" @click="openCreate">Schedule one</UButton>
       </template>
     </UEmpty>
 
     <div v-else class="overflow-hidden rounded-xl border border-default/40 bg-default">
-      <table class="w-full text-sm">
-        <thead class="bg-elevated text-xs uppercase tracking-wide text-muted">
-          <tr>
-            <th class="px-4 py-2 text-left font-medium">Title</th>
-            <th class="px-4 py-2 text-left font-medium">Strategy</th>
-            <th class="px-4 py-2 text-left font-medium">Status</th>
-            <th class="px-4 py-2 text-left font-medium">Schedule</th>
-            <th class="px-4 py-2 text-left font-medium">Resources</th>
-            <th class="px-4 py-2 text-right font-medium">Actions</th>
-          </tr>
-        </thead>
-        <tbody class="divide-y divide-default/40">
-          <tr v-for="m in filtered" :key="m.id" class="hover:bg-elevated/40 transition-colors">
-            <td class="px-4 py-3 font-medium text-default">{{ m.title }}</td>
-            <td class="px-4 py-3">
-              <UBadge :color="strategyColor(m.strategy)" variant="subtle" size="sm">
-                {{ m.strategy === 'one_time' ? 'One-time' : 'Cron' }}
-              </UBadge>
-            </td>
-            <td class="px-4 py-3">
-              <UBadge :color="statusColor(m.status)" variant="subtle" size="sm">
-                <span
-                  class="inline-block size-1.5 rounded-full mr-1"
-                  :class="
-                    m.status === 'active'
-                      ? 'bg-success'
-                      : m.status === 'scheduled'
-                        ? 'bg-warning'
-                        : 'bg-muted'
-                  "
-                />
-                {{
-                  m.status === 'active'
-                    ? 'Active'
-                    : m.status === 'scheduled'
-                      ? 'Scheduled'
-                      : 'Finished'
-                }}
-              </UBadge>
-            </td>
-            <td class="px-4 py-3 text-default whitespace-nowrap">{{ formatSchedule(m) }}</td>
-            <td class="px-4 py-3">
-              <code
-                v-if="(m.resources?.length ?? 0) > 0"
-                class="font-mono text-[11px] text-default bg-elevated px-2 py-0.5 rounded"
-              >
-                {{
-                  m.resources!.length === 1
-                    ? m.resources![0].name
-                    : `${m.resources!.length} resources`
-                }}
-              </code>
-              <code v-else class="font-mono text-[11px] text-muted bg-elevated px-2 py-0.5 rounded">
-                All resources
-              </code>
-            </td>
-            <td class="px-4 py-3 text-right">
-              <button
-                type="button"
-                class="text-primary hover:underline text-sm font-medium"
-                @click="viewMaintenance(m)"
-              >
-                View
-              </button>
-            </td>
-          </tr>
-        </tbody>
-      </table>
+      <UTable :data="filtered" :columns="columns" />
     </div>
 
-    <MaintenanceModal v-model:open="modalOpen" @submit="onSubmit" />
+    <MaintenanceModal v-model:open="modalOpen" :initial="editingMaintenance" @submit="onSubmit" />
   </div>
 </template>

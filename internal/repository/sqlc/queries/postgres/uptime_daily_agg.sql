@@ -28,3 +28,14 @@ ORDER BY day ASC;
 
 -- name: FindEarliestUptimeDailyAggDay :one
 SELECT MIN(day) AS earliest FROM uptime_daily_agg;
+
+-- name: SumUptimeAggByResourcesSince :many
+-- One round-trip bulk aggregation grouped by resource. Used by the list path
+-- to enrich each resource with its uptime ratio over a sliding window (30d).
+SELECT
+    resource_id,
+    SUM(up)::bigint      AS up_sum,
+    SUM(samples)::bigint AS samples_sum
+FROM uptime_daily_agg
+WHERE day >= $1 AND resource_id = ANY($2::text[])
+GROUP BY resource_id;

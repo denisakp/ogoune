@@ -49,3 +49,13 @@ if (!window.matchMedia) {
 config.global.config = config.global.config || {}
 config.global.config.compilerOptions = config.global.config.compilerOptions || {}
 config.global.config.compilerOptions.isCustomElement = (tag) => tag.startsWith('a-icon-')
+
+// NuxtUI overlays that require a TooltipProvider / PopoverProvider via reka-ui.
+// In tests we don't render the full <UApp> wrapper, so stub them as
+// pass-through containers. Specs that need to assert tooltip content can
+// override these stubs locally.
+config.global.stubs = {
+  ...(config.global.stubs as Record<string, unknown>),
+  UTooltip: { template: '<div><slot /></div>' },
+  UPopover: { template: '<div><slot name="trigger" /><slot name="content" /></div>' },
+}

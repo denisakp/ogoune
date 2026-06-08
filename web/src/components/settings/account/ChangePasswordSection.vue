@@ -55,19 +55,29 @@ defineExpose({ state, lastResult, submit: (data: PasswordChangeInput) => onSubmi
       ref="formRef"
       :schema="passwordChangeSchema"
       :state="state"
-      class="space-y-3"
+      class="space-y-4"
       @submit="onSubmit"
     >
       <UFormField label="Current Password" name="current">
-        <UInput v-model="state.current" type="password" autocomplete="current-password" />
+        <UInput
+          v-model="state.current"
+          type="password"
+          autocomplete="current-password"
+          class="w-full"
+        />
       </UFormField>
 
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
         <UFormField label="New Password" name="new">
-          <UInput v-model="state.new" type="password" autocomplete="new-password" />
+          <UInput v-model="state.new" type="password" autocomplete="new-password" class="w-full" />
         </UFormField>
         <UFormField label="Confirm Password" name="confirm">
-          <UInput v-model="state.confirm" type="password" autocomplete="new-password" />
+          <UInput
+            v-model="state.confirm"
+            type="password"
+            autocomplete="new-password"
+            class="w-full"
+          />
         </UFormField>
       </div>
 

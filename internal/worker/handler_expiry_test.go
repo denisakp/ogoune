@@ -54,6 +54,8 @@ func (m *mockExpiryChannelRepo) FindByResourceID(_ context.Context, _ string) ([
 func (m *mockExpiryChannelRepo) FindByComponentID(_ context.Context, _ string) ([]*domain.NotificationChannel, error) {
 	return nil, nil
 }
+func (m *mockExpiryChannelRepo) MarkSent(_ context.Context, _ string, _ time.Time) error    { return nil }
+func (m *mockExpiryChannelRepo) MarkFailure(_ context.Context, _ string, _ time.Time) error { return nil }
 
 // mockEnricher is a simple enricher implementation.
 type mockEnricher struct {

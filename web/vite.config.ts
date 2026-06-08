@@ -5,12 +5,8 @@ import { defineConfig } from 'vitest/config'
 import vue from '@vitejs/plugin-vue'
 import tailwindcss from '@tailwindcss/vite'
 import ui from '@nuxt/ui/vite'
-import { AntDesignVueResolver } from 'unplugin-vue-components/resolvers'
 
 // Local resolver: `U*` components in `src/components/ui/` win over NuxtUI built-ins.
-// Only resolves when the file actually exists — otherwise NuxtUI's built-in
-// auto-import takes over for unknown `U*` names.
-// Contract: specs/053-slice-nuxtui-foundation/contracts/component-resolver.md
 const LocalUiResolver = () => ({
   type: 'component' as const,
   resolve(name: string) {
@@ -25,12 +21,7 @@ export default defineConfig({
   plugins: [
     vue(),
     tailwindcss(),
-    // NuxtUI v3 bundles `unplugin-vue-components` internally — we pass extra
-    // resolvers (local `U*` shadow + AntDV cohabitation) via its `components`
-    // option rather than mounting a second `Components(...)` plugin.
     ui({
-      // Slate neutral palette per .prds/frontend/000-design-identity.md §Neutres
-      // (PR-3 / spec 055 Annex F2 carry-over).
       ui: {
         colors: {
           primary: 'indigo',
@@ -38,12 +29,7 @@ export default defineConfig({
         },
       },
       components: {
-        resolvers: [
-          LocalUiResolver(),
-          AntDesignVueResolver({
-            importStyle: 'less',
-          }),
-        ],
+        resolvers: [LocalUiResolver()],
         dts: false,
       },
     }),
@@ -51,9 +37,6 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),
-      'ant-design-vue/es/time-picker/style': fileURLToPath(
-        new URL('./src/antdv-timepicker-style-shim.ts', import.meta.url),
-      ),
     },
   },
   server: {

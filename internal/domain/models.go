@@ -102,6 +102,10 @@ type Resource struct {
 	ExpiryAlertThresholds   *string                `json:"expiry_alert_thresholds"`
 	Metadata                *ResourceMetaData      `json:"metadata"`
 	Incidents               []Incident             `json:"incidents"`
+	IncidentCount30d        *int                   `json:"incident_count_30d,omitempty"`
+	Uptime7d                *float64               `json:"uptime_7d,omitempty"`
+	Uptime30d               *float64               `json:"uptime_30d,omitempty"`
+	ResponseTimeAvg         *int                   `json:"response_time,omitempty"`
 	Tags                    []*Tags                `json:"tags"`
 	NotificationChannels    []*NotificationChannel `json:"notification_channels"`
 	ComponentID             *string                `json:"component_id"`
@@ -429,6 +433,9 @@ type NotificationChannel struct {
 	Type             NotificationChannelType `json:"type"`
 	Config           []byte                  `json:"config"` // JSON configuration specific to channel type
 	EnabledByDefault bool                    `json:"enabled_by_default"`
+	LastSentAt       *time.Time              `json:"last_sent_at,omitempty"`
+	LastFailureAt    *time.Time              `json:"last_failure_at,omitempty"`
+	Failures24h      int                     `json:"failures_24h"`
 }
 
 
@@ -481,7 +488,8 @@ type StatusPageSettings struct {
 	Name                 string          `json:"name"`
 	HomepageURL          string          `json:"homepage_url"`
 	CustomDomain         string          `json:"custom_domain"`
-	GoogleAnalyticsID    string          `json:"google_analytics_id"`
+	UmamiWebsiteID       string          `json:"umami_website_id"`
+	UmamiScriptURL       string          `json:"umami_script_url"`
 	EnableDetailsPage    bool            `json:"enable_details_page"`
 	ShowUptimePercentage bool            `json:"show_uptime_percentage"`
 	HidePausedMonitors   bool            `json:"hide_paused_monitors"`

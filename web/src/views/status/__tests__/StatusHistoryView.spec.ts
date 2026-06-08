@@ -25,7 +25,12 @@ vi.mock('@/composables/useRuntimeConfig', () => ({
 
 import * as svc from '@/services/statusPublicService'
 
-function mkIncident(id: string, started: string, resolved: string | null = null, severity: 'minor' | 'major' | 'critical' = 'minor'): PublicIncidentSummary {
+function mkIncident(
+  id: string,
+  started: string,
+  resolved: string | null = null,
+  severity: 'minor' | 'major' | 'critical' = 'minor',
+): PublicIncidentSummary {
   return { id, title: `inc ${id}`, started_at: started, resolved_at: resolved, severity }
 }
 
@@ -61,11 +66,19 @@ describe('StatusHistoryView — US2', () => {
       generated_at: '2026-06-04T12:00:00Z',
       total: 3,
       months: [
-        { year_month: '2026-06', count: 1, incidents: [mkIncident('a', '2026-06-01T09:00:00Z', '2026-06-01T10:00:00Z')] },
-        { year_month: '2026-05', count: 2, incidents: [
-          mkIncident('b', '2026-05-12T09:00:00Z', '2026-05-12T10:00:00Z'),
-          mkIncident('c', '2026-05-03T09:00:00Z', '2026-05-03T10:00:00Z'),
-        ] },
+        {
+          year_month: '2026-06',
+          count: 1,
+          incidents: [mkIncident('a', '2026-06-01T09:00:00Z', '2026-06-01T10:00:00Z')],
+        },
+        {
+          year_month: '2026-05',
+          count: 2,
+          incidents: [
+            mkIncident('b', '2026-05-12T09:00:00Z', '2026-05-12T10:00:00Z'),
+            mkIncident('c', '2026-05-03T09:00:00Z', '2026-05-03T10:00:00Z'),
+          ],
+        },
       ],
     }
     const w = await render(incidents)
@@ -99,10 +112,14 @@ describe('StatusHistoryView — US2', () => {
       generated_at: 'x',
       total: 2,
       months: [
-        { year_month: '2026-06', count: 2, incidents: [
-          mkIncident('a', '2026-06-01T09:00:00Z', '2026-06-01T10:00:00Z'),
-          mkIncident('b', '2026-06-02T09:00:00Z', '2026-06-02T10:00:00Z'),
-        ] },
+        {
+          year_month: '2026-06',
+          count: 2,
+          incidents: [
+            mkIncident('a', '2026-06-01T09:00:00Z', '2026-06-01T10:00:00Z'),
+            mkIncident('b', '2026-06-02T09:00:00Z', '2026-06-02T10:00:00Z'),
+          ],
+        },
       ],
     }
     const w = await render(archive)

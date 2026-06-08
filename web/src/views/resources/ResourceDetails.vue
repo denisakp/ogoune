@@ -14,146 +14,117 @@ const hasMetadata = computed(
       props.resource.metadata.domain_expiration_date ||
       props.resource.metadata.domain_registrar),
 )
+
+function expiryColor(type: 'success' | 'warning' | string): 'success' | 'warning' | 'error' {
+  if (type === 'success') return 'success'
+  if (type === 'warning') return 'warning'
+  return 'error'
+}
+
+function expiryIcon(type: 'success' | 'warning' | string): string {
+  if (type === 'success') return 'i-lucide-check-circle'
+  if (type === 'warning') return 'i-lucide-alert-triangle'
+  return 'i-lucide-clock'
+}
 </script>
 
 <template>
   <!-- Monitor Details -->
-  <a-card style="margin-bottom: 16px">
-    <template #title><div style="font-size: 14px; font-weight: 600">Monitor details</div></template>
-    <div style="display: flex; flex-direction: column; gap: 16px">
+  <UCard class="mb-4">
+    <template #header><div class="text-sm font-semibold">Monitor details</div></template>
+    <div class="flex flex-col gap-4">
       <div>
-        <div style="font-size: 12px; color: rgba(0, 0, 0, 0.45); margin-bottom: 4px">Type</div>
-        <a-tag color="blue">{{ resource.type.toUpperCase() }}</a-tag>
+        <div class="text-xs text-muted mb-1">Type</div>
+        <UBadge color="info" variant="subtle">{{ resource.type.toUpperCase() }}</UBadge>
       </div>
       <div>
-        <div style="font-size: 12px; color: rgba(0, 0, 0, 0.45); margin-bottom: 4px">Target</div>
-        <div style="font-size: 14px; word-break: break-all">{{ resource.target }}</div>
+        <div class="text-xs text-muted mb-1">Target</div>
+        <div class="text-sm break-all">{{ resource.target }}</div>
       </div>
       <div v-if="resource.type !== 'heartbeat'">
-        <div style="font-size: 12px; color: rgba(0, 0, 0, 0.45); margin-bottom: 4px">
-          Check interval
-        </div>
-        <div style="font-size: 14px">Every {{ resource.interval }} seconds</div>
+        <div class="text-xs text-muted mb-1">Check interval</div>
+        <div class="text-sm">Every {{ resource.interval }} seconds</div>
       </div>
       <template v-if="resource.type === 'heartbeat'">
         <div>
-          <div style="font-size: 12px; color: rgba(0, 0, 0, 0.45); margin-bottom: 4px">
-            Ping interval
-          </div>
-          <div style="font-size: 14px">Every {{ resource.heartbeat_interval }} seconds</div>
+          <div class="text-xs text-muted mb-1">Ping interval</div>
+          <div class="text-sm">Every {{ resource.heartbeat_interval }} seconds</div>
         </div>
         <div>
-          <div style="font-size: 12px; color: rgba(0, 0, 0, 0.45); margin-bottom: 4px">
-            Grace period
-          </div>
-          <div style="font-size: 14px">{{ resource.heartbeat_grace }} seconds</div>
+          <div class="text-xs text-muted mb-1">Grace period</div>
+          <div class="text-sm">{{ resource.heartbeat_grace }} seconds</div>
         </div>
       </template>
       <div v-if="resource.type !== 'heartbeat'">
-        <div style="font-size: 12px; color: rgba(0, 0, 0, 0.45); margin-bottom: 4px">Timeout</div>
-        <div style="font-size: 14px">{{ resource.timeout }} seconds</div>
+        <div class="text-xs text-muted mb-1">Timeout</div>
+        <div class="text-sm">{{ resource.timeout }} seconds</div>
       </div>
       <div>
-        <div style="font-size: 12px; color: rgba(0, 0, 0, 0.45); margin-bottom: 4px">Created</div>
-        <div style="font-size: 14px">{{ formatDate(resource.created_at) }}</div>
+        <div class="text-xs text-muted mb-1">Created</div>
+        <div class="text-sm">{{ formatDate(resource.created_at) }}</div>
       </div>
       <div>
-        <div style="font-size: 12px; color: rgba(0, 0, 0, 0.45); margin-bottom: 4px">
-          Last updated
-        </div>
-        <div style="font-size: 14px">{{ formatDate(resource.updated_at) }}</div>
+        <div class="text-xs text-muted mb-1">Last updated</div>
+        <div class="text-sm">{{ formatDate(resource.updated_at) }}</div>
       </div>
     </div>
-  </a-card>
+  </UCard>
 
   <!-- Tags -->
-  <a-card style="margin-bottom: 16px">
-    <template #title><div style="font-size: 14px; font-weight: 600">Tags</div></template>
-    <div style="display: flex; flex-wrap: gap; gap: 8px">
-      <a-tag
+  <UCard class="mb-4">
+    <template #header><div class="text-sm font-semibold">Tags</div></template>
+    <div class="flex flex-wrap gap-2">
+      <UBadge
         v-for="tag in resource.tags"
         :key="tag.id"
-        :style="{
-          margin: '0',
-          backgroundColor: tag.color || '#f0f0f0',
-          color: '#000',
-          borderColor: 'transparent',
-        }"
+        variant="subtle"
+        color="neutral"
+        :style="{ backgroundColor: tag.color || undefined, color: tag.color ? '#000' : undefined }"
       >
         {{ tag.name }}
-      </a-tag>
-      <a-tag v-if="!resource.tags || resource.tags.length === 0" style="margin: 0">No tags</a-tag>
+      </UBadge>
+      <UBadge v-if="!resource.tags || resource.tags.length === 0" color="neutral" variant="soft"
+        >No tags</UBadge
+      >
     </div>
-  </a-card>
+  </UCard>
 
   <!-- Additional Info -->
-  <a-card>
-    <template #title><div style="font-size: 14px; font-weight: 600">Additional info</div></template>
+  <UCard>
+    <template #header><div class="text-sm font-semibold">Additional info</div></template>
     <template v-if="hasMetadata">
-      <div style="display: flex; flex-direction: column; gap: 20px">
+      <div class="flex flex-col gap-5">
         <!-- SSL -->
         <div
           v-if="resource.metadata?.ssl_expiration_date || resource.metadata?.ssl_issuer"
-          style="
-            padding: 16px;
-            background: rgba(24, 144, 255, 0.05);
-            border-radius: 8px;
-            border-left: 3px solid #1890ff;
-          "
+          class="p-4 rounded-lg border-l-4"
+          style="background: rgba(24, 144, 255, 0.05); border-left-color: #1890ff"
         >
-          <div
-            style="
-              display: flex;
-              align-items: center;
-              gap: 8px;
-              margin-bottom: 12px;
-              font-weight: 600;
-              color: #1890ff;
-            "
-          >
-            <UIcon name="i-lucide-shield-check" style="font-size: 18px" /><span
-              >SSL Certificate</span
-            >
+          <div class="flex items-center gap-2 mb-3 font-semibold" style="color: #1890ff">
+            <UIcon name="i-lucide-shield-check" class="size-5" /><span>SSL Certificate</span>
           </div>
-          <div v-if="resource.metadata?.ssl_issuer" style="margin-bottom: 12px">
-            <div style="font-size: 12px; color: rgba(0, 0, 0, 0.45); margin-bottom: 4px">
-              Issuer
-            </div>
-            <div style="font-size: 14px; color: rgba(0, 0, 0, 0.85)">
-              {{ resource.metadata.ssl_issuer }}
-            </div>
+          <div v-if="resource.metadata?.ssl_issuer" class="mb-3">
+            <div class="text-xs text-muted mb-1">Issuer</div>
+            <div class="text-sm">{{ resource.metadata.ssl_issuer }}</div>
           </div>
           <div v-if="resource.metadata?.ssl_expiration_date">
-            <div style="font-size: 12px; color: rgba(0, 0, 0, 0.45); margin-bottom: 4px">
-              Expiration Date
-            </div>
-            <div style="display: flex; align-items: center; gap: 8px">
-              <UIcon name="i-lucide-calendar" style="font-size: 14px; color: rgba(0, 0, 0, 0.45)" />
-              <span style="font-size: 14px; color: rgba(0, 0, 0, 0.85)">{{
+            <div class="text-xs text-muted mb-1">Expiration Date</div>
+            <div class="flex items-center gap-2">
+              <UIcon name="i-lucide-calendar" class="size-4 text-muted" />
+              <span class="text-sm">{{
                 formatExpirationDate(resource.metadata.ssl_expiration_date)
               }}</span>
             </div>
-            <div
-              style="margin-top: 8px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap"
-            >
-              <a-tag :color="getExpirationStatus(resource.metadata.ssl_expiration_date).color">
-                <template #icon>
-                  <UIcon
-                    name="i-lucide-check-circle"
-                    v-if="
-                      getExpirationStatus(resource.metadata.ssl_expiration_date).type === 'success'
-                    "
-                  />
-                  <UIcon
-                    name="i-lucide-alert-triangle"
-                    v-else-if="
-                      getExpirationStatus(resource.metadata.ssl_expiration_date).type === 'warning'
-                    "
-                  />
-                  <UIcon name="i-lucide-clock" v-else />
-                </template>
+            <div class="mt-2 flex items-center gap-2 flex-wrap">
+              <UBadge
+                :color="
+                  expiryColor(getExpirationStatus(resource.metadata.ssl_expiration_date).type)
+                "
+                variant="subtle"
+                :icon="expiryIcon(getExpirationStatus(resource.metadata.ssl_expiration_date).type)"
+              >
                 {{ getExpirationStatus(resource.metadata.ssl_expiration_date).text }}
-              </a-tag>
+              </UBadge>
               <ExpiryBadge
                 v-if="
                   resource.expiry_status &&
@@ -170,66 +141,36 @@ const hasMetadata = computed(
         <!-- Domain -->
         <div
           v-if="resource.metadata?.domain_expiration_date || resource.metadata?.domain_registrar"
-          style="
-            padding: 16px;
-            background: rgba(82, 196, 26, 0.05);
-            border-radius: 8px;
-            border-left: 3px solid #52c41a;
-          "
+          class="p-4 rounded-lg border-l-4"
+          style="background: rgba(82, 196, 26, 0.05); border-left-color: #52c41a"
         >
-          <div
-            style="
-              display: flex;
-              align-items: center;
-              gap: 8px;
-              margin-bottom: 12px;
-              font-weight: 600;
-              color: #52c41a;
-            "
-          >
-            <UIcon name="i-lucide-globe" style="font-size: 18px" /><span>Domain</span>
+          <div class="flex items-center gap-2 mb-3 font-semibold" style="color: #52c41a">
+            <UIcon name="i-lucide-globe" class="size-5" /><span>Domain</span>
           </div>
-          <div v-if="resource.metadata?.domain_registrar" style="margin-bottom: 12px">
-            <div style="font-size: 12px; color: rgba(0, 0, 0, 0.45); margin-bottom: 4px">
-              Registrar
-            </div>
-            <div style="font-size: 14px; color: rgba(0, 0, 0, 0.85)">
-              {{ resource.metadata.domain_registrar }}
-            </div>
+          <div v-if="resource.metadata?.domain_registrar" class="mb-3">
+            <div class="text-xs text-muted mb-1">Registrar</div>
+            <div class="text-sm">{{ resource.metadata.domain_registrar }}</div>
           </div>
           <div v-if="resource.metadata?.domain_expiration_date">
-            <div style="font-size: 12px; color: rgba(0, 0, 0, 0.45); margin-bottom: 4px">
-              Expiration Date
-            </div>
-            <div style="display: flex; align-items: center; gap: 8px">
-              <UIcon name="i-lucide-calendar" style="font-size: 14px; color: rgba(0, 0, 0, 0.45)" />
-              <span style="font-size: 14px; color: rgba(0, 0, 0, 0.85)">{{
+            <div class="text-xs text-muted mb-1">Expiration Date</div>
+            <div class="flex items-center gap-2">
+              <UIcon name="i-lucide-calendar" class="size-4 text-muted" />
+              <span class="text-sm">{{
                 formatExpirationDate(resource.metadata.domain_expiration_date)
               }}</span>
             </div>
-            <div
-              style="margin-top: 8px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap"
-            >
-              <a-tag :color="getExpirationStatus(resource.metadata.domain_expiration_date).color">
-                <template #icon>
-                  <UIcon
-                    name="i-lucide-check-circle"
-                    v-if="
-                      getExpirationStatus(resource.metadata.domain_expiration_date).type ===
-                      'success'
-                    "
-                  />
-                  <UIcon
-                    name="i-lucide-alert-triangle"
-                    v-else-if="
-                      getExpirationStatus(resource.metadata.domain_expiration_date).type ===
-                      'warning'
-                    "
-                  />
-                  <UIcon name="i-lucide-clock" v-else />
-                </template>
+            <div class="mt-2 flex items-center gap-2 flex-wrap">
+              <UBadge
+                :color="
+                  expiryColor(getExpirationStatus(resource.metadata.domain_expiration_date).type)
+                "
+                variant="subtle"
+                :icon="
+                  expiryIcon(getExpirationStatus(resource.metadata.domain_expiration_date).type)
+                "
+              >
                 {{ getExpirationStatus(resource.metadata.domain_expiration_date).text }}
-              </a-tag>
+              </UBadge>
               <ExpiryBadge
                 v-if="
                   resource.expiry_status &&
@@ -246,13 +187,11 @@ const hasMetadata = computed(
       </div>
     </template>
     <template v-else>
-      <div style="text-align: center; padding: 32px 24px; color: rgba(0, 0, 0, 0.45)">
-        <a-icon-info-circle style="font-size: 40px; margin-bottom: 12px; opacity: 0.5" />
-        <div style="font-size: 14px; margin-bottom: 4px">No metadata available</div>
-        <div style="font-size: 12px">
-          SSL and domain information will appear here when available
-        </div>
+      <div class="text-center py-8 px-6 text-muted">
+        <UIcon name="i-lucide-info" class="size-10 mb-3 opacity-50" />
+        <div class="text-sm mb-1">No metadata available</div>
+        <div class="text-xs">SSL and domain information will appear here when available</div>
       </div>
     </template>
-  </a-card>
+  </UCard>
 </template>

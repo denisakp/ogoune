@@ -66,10 +66,11 @@ const stubs = {
   UButton: { template: '<button><slot /></button>' },
   UAlert: { template: '<div />' },
   UStatusBadge: { template: '<span><slot /></span>' },
-  UDataTable: {
-    name: 'UDataTable',
-    template: '<div data-testid="dt" />',
-    props: ['columns', 'rows', 'loading', 'filters', 'pagination', 'rowActions'],
+  UFilterChip: { template: '<span />' },
+  UTable: {
+    name: 'UTable',
+    template: '<div data-testid="table" />',
+    props: ['columns', 'data', 'loading'],
   },
 }
 
@@ -88,10 +89,9 @@ beforeEach(() => {
 })
 
 describe('MonitorsView', () => {
-  it('mounts and passes 6 columns to UDataTable', () => {
+  it('exposes 6 columns with the expected ids', () => {
     const w = build()
-    const dt = w.findComponent({ name: 'UDataTable' })
-    const cols = (dt.props('columns') as Array<{ key: string }>).map((c) => c.key)
+    const cols = (w.vm as unknown as { columns: Array<{ id: string }> }).columns.map((c) => c.id)
     expect(cols).toEqual(['status', 'name', 'target', 'uptime', 'last_checked', 'actions'])
   })
 

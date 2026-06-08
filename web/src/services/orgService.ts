@@ -1,6 +1,11 @@
 import { getAuthenticatedClient, request } from '@/core/http/client'
 
-const SKIP_SUCCESS = { headers: { 'x-skip-success-toast': '1' } }
+// org/general may legitimately 404 on a fresh install — silence both
+// toasts so the page doesn't flash an error modal on every reload.
+// The catch below already returns safe defaults.
+const SKIP_BOTH = {
+  headers: { 'x-skip-success-toast': '1', 'x-skip-error-toast': '1' },
+}
 
 export interface OrgGeneral {
   name: string
@@ -21,7 +26,7 @@ const orgService = {
       const r = await request<Envelope<OrgGeneral>>(
         getAuthenticatedClient(),
         'org/general',
-        SKIP_SUCCESS,
+        SKIP_BOTH,
       )
       return r.data
     } catch {

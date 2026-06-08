@@ -43,6 +43,14 @@ WHERE resource_id = ?
 ORDER BY started_at DESC
 LIMIT ? OFFSET ?;
 
+-- name: CountIncidentsPerResourceSince :many
+-- One round-trip count grouped by resource. Used by the list path to enrich
+-- each resource with its incident count over a sliding window (e.g. 30d).
+SELECT resource_id, COUNT(*) AS incident_count
+FROM incidents
+WHERE started_at >= ? AND resource_id IN (sqlc.slice('resource_ids'))
+GROUP BY resource_id;
+
 -- name: FindActiveIncidentByResourceID :one
 SELECT * FROM incidents
 WHERE resource_id = ? AND resolved_at IS NULL

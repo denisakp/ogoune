@@ -70,12 +70,14 @@ type PublicIncidentSummary struct {
 }
 
 type PublicBranding struct {
-	Name         string `json:"name"`
-	HomepageURL  string `json:"homepage_url,omitempty"`
-	LogoURLLight string `json:"logo_url_light,omitempty"`
-	LogoURLDark  string `json:"logo_url_dark,omitempty"`
-	FaviconURL   string `json:"favicon_url,omitempty"`
-	PrimaryColor string `json:"primary_color,omitempty"`
+	Name           string `json:"name"`
+	HomepageURL    string `json:"homepage_url,omitempty"`
+	LogoURLLight   string `json:"logo_url_light,omitempty"`
+	LogoURLDark    string `json:"logo_url_dark,omitempty"`
+	FaviconURL     string `json:"favicon_url,omitempty"`
+	PrimaryColor   string `json:"primary_color,omitempty"`
+	UmamiWebsiteID string `json:"umami_website_id,omitempty"`
+	UmamiScriptURL string `json:"umami_script_url,omitempty"`
 }
 
 type PublicUptimeWindow struct {

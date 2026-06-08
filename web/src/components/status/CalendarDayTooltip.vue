@@ -7,8 +7,18 @@ const props = defineProps<{
 }>()
 
 const MONTHS = [
-  'January', 'February', 'March', 'April', 'May', 'June',
-  'July', 'August', 'September', 'October', 'November', 'December',
+  'January',
+  'February',
+  'March',
+  'April',
+  'May',
+  'June',
+  'July',
+  'August',
+  'September',
+  'October',
+  'November',
+  'December',
 ]
 
 const heading = computed(() => {
@@ -31,31 +41,44 @@ const band = computed<Band>(() => {
 
 const statusLabel = computed(() => {
   switch (band.value) {
-    case 'operational': return 'Fully operational'
-    case 'minor': return 'Minor disruption'
-    case 'major': return 'Partial outage'
-    case 'outage': return 'Major outage'
-    default: return 'No data'
+    case 'operational':
+      return 'Fully operational'
+    case 'minor':
+      return 'Minor disruption'
+    case 'major':
+      return 'Partial outage'
+    case 'outage':
+      return 'Major outage'
+    default:
+      return 'No data'
   }
 })
 
 const statusIconClass = computed(() => {
   switch (band.value) {
-    case 'operational': return 'text-emerald-500'
-    case 'minor': return 'text-yellow-500'
+    case 'operational':
+      return 'text-emerald-500'
+    case 'minor':
+      return 'text-yellow-500'
     case 'major':
-    case 'outage': return 'text-orange-500'
-    default: return 'text-gray-400'
+    case 'outage':
+      return 'text-orange-500'
+    default:
+      return 'text-gray-400'
   }
 })
 
 const statusBgClass = computed(() => {
   switch (band.value) {
-    case 'operational': return 'bg-emerald-50'
-    case 'minor': return 'bg-yellow-50'
+    case 'operational':
+      return 'bg-emerald-50'
+    case 'minor':
+      return 'bg-yellow-50'
     case 'major':
-    case 'outage': return 'bg-orange-50'
-    default: return 'bg-gray-50'
+    case 'outage':
+      return 'bg-orange-50'
+    default:
+      return 'bg-gray-50'
   }
 })
 
@@ -80,9 +103,7 @@ const related = computed(() => props.day.related_incidents ?? [])
   >
     <h4 class="text-sm font-semibold text-gray-900">{{ heading }}</h4>
 
-    <div
-      :class="['flex items-center justify-between gap-2 rounded-md px-3 py-2', statusBgClass]"
-    >
+    <div :class="['flex items-center justify-between gap-2 rounded-md px-3 py-2', statusBgClass]">
       <span class="flex items-center gap-2 text-sm font-medium text-gray-900">
         <svg
           v-if="band !== 'operational' && band !== 'unknown'"
@@ -90,7 +111,11 @@ const related = computed(() => props.day.related_incidents ?? [])
           viewBox="0 0 20 20"
           fill="currentColor"
         >
-          <path fill-rule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.88c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 5a1 1 0 011 1v3a1 1 0 11-2 0V6a1 1 0 011-1zm0 7a1 1 0 100 2 1 1 0 000-2z" clip-rule="evenodd" />
+          <path
+            fill-rule="evenodd"
+            d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.88c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 5a1 1 0 011 1v3a1 1 0 11-2 0V6a1 1 0 011-1zm0 7a1 1 0 100 2 1 1 0 000-2z"
+            clip-rule="evenodd"
+          />
         </svg>
         <svg
           v-else-if="band === 'operational'"
@@ -98,7 +123,11 @@ const related = computed(() => props.day.related_incidents ?? [])
           viewBox="0 0 20 20"
           fill="currentColor"
         >
-          <path fill-rule="evenodd" d="M16.7 5.3a1 1 0 0 1 0 1.4l-7.5 7.5a1 1 0 0 1-1.4 0L4.3 10.7a1 1 0 0 1 1.4-1.4l2.8 2.8 6.8-6.8a1 1 0 0 1 1.4 0z" clip-rule="evenodd" />
+          <path
+            fill-rule="evenodd"
+            d="M16.7 5.3a1 1 0 0 1 0 1.4l-7.5 7.5a1 1 0 0 1-1.4 0L4.3 10.7a1 1 0 0 1 1.4-1.4l2.8 2.8 6.8-6.8a1 1 0 0 1 1.4 0z"
+            clip-rule="evenodd"
+          />
         </svg>
         {{ statusLabel }}
       </span>

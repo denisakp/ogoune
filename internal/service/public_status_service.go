@@ -548,12 +548,14 @@ func (s *PublicStatusService) loadBranding(ctx context.Context) dto.PublicBrandi
 		name = "Status Page"
 	}
 	return dto.PublicBranding{
-		Name:         name,
-		HomepageURL:  cfg.HomepageURL,
-		LogoURLLight: cfg.LogoURLLight,
-		LogoURLDark:  cfg.LogoURLDark,
-		FaviconURL:   cfg.FaviconURL,
-		PrimaryColor: cfg.PrimaryColor,
+		Name:           name,
+		HomepageURL:    cfg.HomepageURL,
+		LogoURLLight:   cfg.LogoURLLight,
+		LogoURLDark:    cfg.LogoURLDark,
+		FaviconURL:     cfg.FaviconURL,
+		PrimaryColor:   cfg.PrimaryColor,
+		UmamiWebsiteID: cfg.UmamiWebsiteID,
+		UmamiScriptURL: cfg.UmamiScriptURL,
 	}
 }
 

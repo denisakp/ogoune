@@ -28,9 +28,7 @@ const summary: PublicStatusSummary = {
   // new bounds clamp.
   uptime_window: { earliest_day: '2020-01-01', latest_day: '2026-06-04' },
   verdict: { status: 'operational', label: 'OK', color: 'green' },
-  components: [
-    { id: 'c-api', name: 'API', aggregated_state: 'up', resources: [] },
-  ],
+  components: [{ id: 'c-api', name: 'API', aggregated_state: 'up', resources: [] }],
   standalone_resources: [],
   current_month_incidents: [],
 }

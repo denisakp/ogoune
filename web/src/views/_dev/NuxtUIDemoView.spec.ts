@@ -17,7 +17,6 @@ describe('NuxtUIDemoView', () => {
           UButton: { template: '<button><slot /></button>' },
           UInput: { template: '<input />' },
           UIcon: { template: '<span class="uicon" />' },
-          UDatePicker: { template: '<div class="udatepicker" />' },
         },
       },
     })

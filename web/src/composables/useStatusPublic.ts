@@ -33,9 +33,7 @@ export function useStatusPublic() {
     onUnmounted(() => clearInterval(tickHandle))
   }
 
-  const generatedAt = computed(() =>
-    summary.value ? new Date(summary.value.generated_at) : null,
-  )
+  const generatedAt = computed(() => (summary.value ? new Date(summary.value.generated_at) : null))
   const secondsAgo = computed(() => {
     if (!generatedAt.value) return null
     return Math.max(0, Math.floor((nowTick.value - generatedAt.value.getTime()) / 1000))

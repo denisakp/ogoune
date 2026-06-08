@@ -119,7 +119,8 @@ func (s *StatusPageService) GetData(ctx context.Context) (*dto.StatusPageData, e
 		settingsDTO = &dto.StatusPageSettings{
 			Name:                 settings.Name,
 			HomepageURL:          settings.HomepageURL,
-			GoogleAnalyticsID:    settings.GoogleAnalyticsID,
+			UmamiWebsiteID:       settings.UmamiWebsiteID,
+			UmamiScriptURL:       settings.UmamiScriptURL,
 			EnableDetailsPage:    settings.EnableDetailsPage,
 			ShowUptimePercentage: settings.ShowUptimePercentage,
 		}

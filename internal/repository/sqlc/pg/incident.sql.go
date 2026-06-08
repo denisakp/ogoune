@@ -22,6 +22,45 @@ func (q *Queries) CountIncidentsByResourceID(ctx context.Context, resourceID str
 	return count, err
 }
 
+const countIncidentsPerResourceSince = `-- name: CountIncidentsPerResourceSince :many
+SELECT resource_id, COUNT(*)::bigint AS incident_count
+FROM incidents
+WHERE started_at >= $1 AND resource_id = ANY($2::text[])
+GROUP BY resource_id
+`
+
+type CountIncidentsPerResourceSinceParams struct {
+	StartedAt pgtype.Timestamptz `json:"started_at"`
+	Column2   []string           `json:"column_2"`
+}
+
+type CountIncidentsPerResourceSinceRow struct {
+	ResourceID    string `json:"resource_id"`
+	IncidentCount int64  `json:"incident_count"`
+}
+
+// One round-trip count grouped by resource. Used by the list path to enrich
+// each resource with its incident count over a sliding window (e.g. 30d).
+func (q *Queries) CountIncidentsPerResourceSince(ctx context.Context, arg CountIncidentsPerResourceSinceParams) ([]CountIncidentsPerResourceSinceRow, error) {
+	rows, err := q.db.Query(ctx, countIncidentsPerResourceSince, arg.StartedAt, arg.Column2)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []CountIncidentsPerResourceSinceRow{}
+	for rows.Next() {
+		var i CountIncidentsPerResourceSinceRow
+		if err := rows.Scan(&i.ResourceID, &i.IncidentCount); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const createIncident = `-- name: CreateIncident :exec
 
 INSERT INTO incidents (

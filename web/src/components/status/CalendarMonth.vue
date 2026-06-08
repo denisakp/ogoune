@@ -113,7 +113,9 @@ const tooltipPosition = computed(() => {
         :class="[
           'h-6 w-full rounded-md',
           cell.blank ? 'bg-transparent' : BAND_CLASS[cell.band as Band],
-          !cell.blank && cell.data ? 'cursor-pointer hover:ring-2 hover:ring-offset-1 hover:ring-gray-300' : '',
+          !cell.blank && cell.data
+            ? 'cursor-pointer hover:ring-2 hover:ring-offset-1 hover:ring-gray-300'
+            : '',
         ]"
         :data-blank="cell.blank ? '1' : undefined"
         :data-band="cell.band"

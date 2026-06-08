@@ -258,6 +258,9 @@ func NewRouter(
 			r.With(middleware.RequireReadWrite).Post("/{id}/test", notificationHandler.TestNotificationChannelConfig)  // POST /notification-channels/{id}/test - test channel config
 		})
 
+		// Notification events stats (header counters in the admin dashboard).
+		r.Get("/notifications/stats", notificationHandler.GetStats)
+
 		// Maintenances API
 		r.Route("/maintenances", func(r chi.Router) {
 			r.Get("/", maintenanceHandler.ListMaintenances)                                                // GET /maintenances

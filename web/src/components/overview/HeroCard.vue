@@ -13,7 +13,9 @@ const router = useRouter()
 const rangeInj = inject<{ range: Ref<OverviewRange> } | null>('overview.range', null)
 const range = computed<OverviewRange>(() => rangeInj?.range.value ?? '24h')
 
-interface MetricsShape { uptimePct: ComputedRef<number | null> }
+interface MetricsShape {
+  uptimePct: ComputedRef<number | null>
+}
 const metrics = inject<MetricsShape | null>('overview.metrics', null)
 
 const RANGE_LABEL: Record<OverviewRange, string> = {

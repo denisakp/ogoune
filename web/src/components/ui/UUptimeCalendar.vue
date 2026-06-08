@@ -42,8 +42,18 @@ const bandClass: Record<Band, string> = {
 }
 
 const MONTHS = [
-  'January', 'February', 'March', 'April', 'May', 'June',
-  'July', 'August', 'September', 'October', 'November', 'December',
+  'January',
+  'February',
+  'March',
+  'April',
+  'May',
+  'June',
+  'July',
+  'August',
+  'September',
+  'October',
+  'November',
+  'December',
 ]
 
 const monthLabel = computed(() => `${MONTHS[props.month - 1]} ${props.year}`)

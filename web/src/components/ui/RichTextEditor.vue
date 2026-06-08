@@ -77,8 +77,7 @@ const editor = useEditor({
   ],
   editorProps: {
     attributes: {
-      class:
-        'prose prose-sm max-w-none focus:outline-none px-3 py-2 text-slate-900',
+      class: 'prose prose-sm max-w-none focus:outline-none px-3 py-2 text-slate-900',
     },
   },
   onUpdate({ editor }) {
@@ -105,14 +104,30 @@ function isActive(name: string, attrs?: Record<string, unknown>) {
   return editor.value?.isActive(name, attrs) ?? false
 }
 
-function toggleBold() { editor.value?.chain().focus().toggleBold().run() }
-function toggleItalic() { editor.value?.chain().focus().toggleItalic().run() }
-function toggleCode() { editor.value?.chain().focus().toggleCode().run() }
-function toggleBullet() { editor.value?.chain().focus().toggleBulletList().run() }
-function toggleOrdered() { editor.value?.chain().focus().toggleOrderedList().run() }
-function toggleTaskList() { editor.value?.chain().focus().toggleTaskList().run() }
-function toggleH1() { editor.value?.chain().focus().toggleHeading({ level: 1 }).run() }
-function toggleH2() { editor.value?.chain().focus().toggleHeading({ level: 2 }).run() }
+function toggleBold() {
+  editor.value?.chain().focus().toggleBold().run()
+}
+function toggleItalic() {
+  editor.value?.chain().focus().toggleItalic().run()
+}
+function toggleCode() {
+  editor.value?.chain().focus().toggleCode().run()
+}
+function toggleBullet() {
+  editor.value?.chain().focus().toggleBulletList().run()
+}
+function toggleOrdered() {
+  editor.value?.chain().focus().toggleOrderedList().run()
+}
+function toggleTaskList() {
+  editor.value?.chain().focus().toggleTaskList().run()
+}
+function toggleH1() {
+  editor.value?.chain().focus().toggleHeading({ level: 1 }).run()
+}
+function toggleH2() {
+  editor.value?.chain().focus().toggleHeading({ level: 2 }).run()
+}
 
 function setLink() {
   if (!editor.value) return
@@ -126,12 +141,39 @@ function setLink() {
   editor.value.chain().focus().extendMarkRange('link').setLink({ href: url }).run()
 }
 
-function togglePreview() { preview.value = !preview.value }
+function togglePreview() {
+  preview.value = !preview.value
+}
 
 const sanitizedHtml = computed(() =>
   DOMPurify.sanitize(props.modelValue || '', {
-    ALLOWED_TAGS: ['p', 'br', 'strong', 'em', 'code', 'a', 'ul', 'ol', 'li', 'h1', 'h2', 'input', 'label', 'div'],
-    ALLOWED_ATTR: ['href', 'rel', 'target', 'type', 'checked', 'disabled', 'data-checked', 'data-type', 'class'],
+    ALLOWED_TAGS: [
+      'p',
+      'br',
+      'strong',
+      'em',
+      'code',
+      'a',
+      'ul',
+      'ol',
+      'li',
+      'h1',
+      'h2',
+      'input',
+      'label',
+      'div',
+    ],
+    ALLOWED_ATTR: [
+      'href',
+      'rel',
+      'target',
+      'type',
+      'checked',
+      'disabled',
+      'data-checked',
+      'data-type',
+      'class',
+    ],
   }),
 )
 
@@ -146,10 +188,38 @@ interface TbItem {
 }
 
 const items: TbItem[] = [
-  { key: 'bold', title: 'Bold', testid: 'rt-bold', isText: 'B', active: () => isActive('bold'), onClick: toggleBold },
-  { key: 'italic', title: 'Italic', testid: 'rt-italic', isText: 'I', active: () => isActive('italic'), onClick: toggleItalic },
-  { key: 'h1', title: 'Heading 1', testid: 'rt-h1', isText: 'H₁', active: () => isActive('heading', { level: 1 }), onClick: toggleH1 },
-  { key: 'h2', title: 'Heading 2', testid: 'rt-h2', isText: 'H₂', active: () => isActive('heading', { level: 2 }), onClick: toggleH2 },
+  {
+    key: 'bold',
+    title: 'Bold',
+    testid: 'rt-bold',
+    isText: 'B',
+    active: () => isActive('bold'),
+    onClick: toggleBold,
+  },
+  {
+    key: 'italic',
+    title: 'Italic',
+    testid: 'rt-italic',
+    isText: 'I',
+    active: () => isActive('italic'),
+    onClick: toggleItalic,
+  },
+  {
+    key: 'h1',
+    title: 'Heading 1',
+    testid: 'rt-h1',
+    isText: 'H₁',
+    active: () => isActive('heading', { level: 1 }),
+    onClick: toggleH1,
+  },
+  {
+    key: 'h2',
+    title: 'Heading 2',
+    testid: 'rt-h2',
+    isText: 'H₂',
+    active: () => isActive('heading', { level: 2 }),
+    onClick: toggleH2,
+  },
 ]
 </script>
 
@@ -185,7 +255,15 @@ const items: TbItem[] = [
         data-testid="rt-bullet"
         @click="toggleBullet"
       >
-        <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <svg
+          class="size-4"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
           <line x1="8" y1="6" x2="21" y2="6" />
           <line x1="8" y1="12" x2="21" y2="12" />
           <line x1="8" y1="18" x2="21" y2="18" />
@@ -204,7 +282,15 @@ const items: TbItem[] = [
         data-testid="rt-ordered"
         @click="toggleOrdered"
       >
-        <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <svg
+          class="size-4"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
           <line x1="10" y1="6" x2="21" y2="6" />
           <line x1="10" y1="12" x2="21" y2="12" />
           <line x1="10" y1="18" x2="21" y2="18" />
@@ -223,7 +309,15 @@ const items: TbItem[] = [
         data-testid="rt-tasks"
         @click="toggleTaskList"
       >
-        <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <svg
+          class="size-4"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
           <polyline points="3 7 5 9 9 5" />
           <line x1="13" y1="6" x2="21" y2="6" />
           <polyline points="3 14 5 16 9 12" />
@@ -242,7 +336,15 @@ const items: TbItem[] = [
         data-testid="rt-link"
         @click="setLink"
       >
-        <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <svg
+          class="size-4"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
           <path d="M10 13a5 5 0 0 0 7.07 0l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
           <path d="M14 11a5 5 0 0 0-7.07 0l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
         </svg>
@@ -257,7 +359,15 @@ const items: TbItem[] = [
         data-testid="rt-code"
         @click="toggleCode"
       >
-        <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <svg
+          class="size-4"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
           <polyline points="16 18 22 12 16 6" />
           <polyline points="8 6 2 12 8 18" />
         </svg>
@@ -272,7 +382,15 @@ const items: TbItem[] = [
         data-testid="rt-preview"
         @click="togglePreview"
       >
-        <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <svg
+          class="size-4"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
           <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
           <circle cx="12" cy="12" r="3" />
         </svg>
@@ -355,7 +473,7 @@ li.rt-task-item > label {
   margin-top: 0.2rem;
   flex-shrink: 0;
 }
-li.rt-task-item > label > input[type="checkbox"] {
+li.rt-task-item > label > input[type='checkbox'] {
   width: 1rem;
   height: 1rem;
   accent-color: #4f46e5;
@@ -368,7 +486,7 @@ li.rt-task-item > div {
 li.rt-task-item > div > p {
   margin: 0;
 }
-li.rt-task-item[data-checked="true"] > div {
+li.rt-task-item[data-checked='true'] > div {
   color: #94a3b8;
   text-decoration: line-through;
 }

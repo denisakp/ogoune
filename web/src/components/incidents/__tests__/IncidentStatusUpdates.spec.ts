@@ -45,7 +45,10 @@ function mkUpdate(overrides: Partial<IncidentUpdate> = {}): IncidentUpdate {
 
 async function render(initial: IncidentUpdate[] = []) {
   vi.mocked(svc.listIncidentUpdates).mockResolvedValue(initial)
-  const w = mount(IncidentStatusUpdates, { props: { incidentId: 'inc-1' }, attachTo: document.body })
+  const w = mount(IncidentStatusUpdates, {
+    props: { incidentId: 'inc-1' },
+    attachTo: document.body,
+  })
   await flushPromises()
   return w
 }
@@ -54,7 +57,10 @@ describe('IncidentStatusUpdates — admin US7', () => {
   beforeEach(() => vi.clearAllMocks())
 
   it('lists existing updates on mount', async () => {
-    const w = await render([mkUpdate({ id: 'u-1' }), mkUpdate({ id: 'u-2', status: 'resolved', message: '<p>fixed</p>' })])
+    const w = await render([
+      mkUpdate({ id: 'u-1' }),
+      mkUpdate({ id: 'u-2', status: 'resolved', message: '<p>fixed</p>' }),
+    ])
     expect(w.findAll('[data-update-id]')).toHaveLength(2)
     expect(svc.listIncidentUpdates).toHaveBeenCalledWith('inc-1')
   })

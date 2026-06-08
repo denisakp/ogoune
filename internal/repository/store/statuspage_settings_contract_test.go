@@ -57,7 +57,8 @@ func runStatusPageSettingsContract(t *testing.T, repo port.StatusPageSettingsRep
 			Name:                 "Renamed Status Page",
 			HomepageURL:          "https://renamed.example.com",
 			CustomDomain:         "status.example.com",
-			GoogleAnalyticsID:    "UA-XXXXX",
+			UmamiWebsiteID:       "72383dde-ac51-470e-991e-66d4b657adc2",
+			UmamiScriptURL:       "https://cloud.umami.is/script.js",
 			EnableDetailsPage:    true,
 			ShowUptimePercentage: true,
 			HidePausedMonitors:   true,
@@ -70,7 +71,8 @@ func runStatusPageSettingsContract(t *testing.T, repo port.StatusPageSettingsRep
 		assert.Equal(t, "Renamed Status Page", got.Name)
 		assert.Equal(t, "https://renamed.example.com", got.HomepageURL)
 		assert.Equal(t, "status.example.com", got.CustomDomain)
-		assert.Equal(t, "UA-XXXXX", got.GoogleAnalyticsID)
+		assert.Equal(t, "72383dde-ac51-470e-991e-66d4b657adc2", got.UmamiWebsiteID)
+		assert.Equal(t, "https://cloud.umami.is/script.js", got.UmamiScriptURL)
 
 		// Still singleton — second Get returns the SAME row.
 		got2, err := repo.Get(ctx)

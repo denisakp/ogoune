@@ -23,6 +23,59 @@ func (q *Queries) CountIncidentsByResourceID(ctx context.Context, resourceID str
 	return count, err
 }
 
+const countIncidentsPerResourceSince = `-- name: CountIncidentsPerResourceSince :many
+SELECT resource_id, COUNT(*) AS incident_count
+FROM incidents
+WHERE started_at >= ? AND resource_id IN (/*SLICE:resource_ids*/?)
+GROUP BY resource_id
+`
+
+type CountIncidentsPerResourceSinceParams struct {
+	StartedAt   time.Time `json:"started_at"`
+	ResourceIds []string  `json:"resource_ids"`
+}
+
+type CountIncidentsPerResourceSinceRow struct {
+	ResourceID    string `json:"resource_id"`
+	IncidentCount int64  `json:"incident_count"`
+}
+
+// One round-trip count grouped by resource. Used by the list path to enrich
+// each resource with its incident count over a sliding window (e.g. 30d).
+func (q *Queries) CountIncidentsPerResourceSince(ctx context.Context, arg CountIncidentsPerResourceSinceParams) ([]CountIncidentsPerResourceSinceRow, error) {
+	query := countIncidentsPerResourceSince
+	var queryParams []interface{}
+	queryParams = append(queryParams, arg.StartedAt)
+	if len(arg.ResourceIds) > 0 {
+		for _, v := range arg.ResourceIds {
+			queryParams = append(queryParams, v)
+		}
+		query = strings.Replace(query, "/*SLICE:resource_ids*/?", strings.Repeat(",?", len(arg.ResourceIds))[1:], 1)
+	} else {
+		query = strings.Replace(query, "/*SLICE:resource_ids*/?", "NULL", 1)
+	}
+	rows, err := q.db.QueryContext(ctx, query, queryParams...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []CountIncidentsPerResourceSinceRow{}
+	for rows.Next() {
+		var i CountIncidentsPerResourceSinceRow
+		if err := rows.Scan(&i.ResourceID, &i.IncidentCount); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const createIncident = `-- name: CreateIncident :exec
 
 INSERT INTO incidents (

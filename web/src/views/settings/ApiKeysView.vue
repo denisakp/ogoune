@@ -5,7 +5,8 @@
  * API keys view — design fidelity v2.
  * Header + reveal banner (green) + 4 KPI cards + table.
  */
-import { computed, onMounted, ref } from 'vue'
+import { computed, h, onMounted, ref, resolveComponent } from 'vue'
+import type { TableColumn } from '@nuxt/ui'
 import accountService, { type APIKey } from '@/services/accountService'
 import { useApiKeyStore } from '@/stores/useApiKeyStore'
 import { useConfirm } from '@/composables/useConfirm'
@@ -127,7 +128,121 @@ function dismissBanner() {
 
 onMounted(reload)
 
-defineExpose({ keys, stats, store, onSubmit, onRevoke, dismissBanner })
+const columns: TableColumn<APIKey>[] = [
+  {
+    id: 'key',
+    header: 'Key',
+    cell: ({ row }) => {
+      const k = row.original
+      return h('div', { class: 'flex items-center gap-3' }, [
+        h(
+          'div',
+          {
+            class:
+              'size-9 shrink-0 rounded-md flex items-center justify-center bg-primary/10 text-primary',
+          },
+          [
+            h(resolveComponent('UIcon'), {
+              name: !k.is_active ? 'i-lucide-ban' : 'i-lucide-key-round',
+              class: 'size-4',
+            }),
+          ],
+        ),
+        h('div', { class: 'min-w-0 space-y-0.5' }, [
+          h('div', { class: 'flex items-center gap-2' }, [
+            h('span', { class: 'font-semibold text-default' }, k.name),
+            !k.is_active
+              ? h(
+                  resolveComponent('UBadge'),
+                  { color: 'neutral', variant: 'subtle', size: 'xs' },
+                  () => 'revoked',
+                )
+              : null,
+          ]),
+          h('p', { class: 'text-xs text-muted font-mono' }, maskedPrefix(k)),
+        ]),
+      ])
+    },
+  },
+  {
+    id: 'scope',
+    header: 'Scope',
+    cell: ({ row }) => {
+      const k = row.original
+      const UBadge = resolveComponent('UBadge')
+      if (!k.is_active) {
+        return h(
+          UBadge,
+          { color: 'neutral', variant: 'subtle', size: 'sm', icon: 'i-lucide-ban' },
+          () => 'revoked',
+        )
+      }
+      if (k.scope === 'read_write') {
+        return h(
+          UBadge,
+          { color: 'warning', variant: 'subtle', size: 'sm', icon: 'i-lucide-key' },
+          () => 'read_write',
+        )
+      }
+      return h(
+        UBadge,
+        { color: 'info', variant: 'subtle', size: 'sm', icon: 'i-lucide-eye' },
+        () => 'read',
+      )
+    },
+  },
+  {
+    id: 'created',
+    header: 'Created',
+    cell: ({ row }) =>
+      h('div', [
+        h('p', { class: 'text-default' }, relativeTime(row.original.created_at)),
+        h('p', { class: 'text-xs text-muted' }, 'by you'),
+      ]),
+  },
+  {
+    id: 'last_used',
+    header: 'Last used',
+    cell: ({ row }) =>
+      h(
+        'span',
+        { class: 'text-default' },
+        row.original.last_used_at ? relativeTime(row.original.last_used_at) : 'never',
+      ),
+  },
+  {
+    id: 'expires',
+    header: 'Expires',
+    cell: ({ row }) => {
+      const { label, tone } = expiresLabel(row.original)
+      const toneClass =
+        tone === 'warn' ? 'text-warning' : tone === 'muted' ? 'text-muted' : 'text-default'
+      return h('span', { class: toneClass }, label)
+    },
+  },
+  {
+    id: 'actions',
+    header: '',
+    cell: ({ row }) => {
+      const k = row.original
+      if (!k.is_active) return null
+      return h(
+        resolveComponent('UDropdownMenu'),
+        {
+          items: [{ label: 'Revoke', icon: 'i-lucide-trash-2', onSelect: () => onRevoke(k) }],
+        },
+        () =>
+          h(resolveComponent('UButton'), {
+            variant: 'ghost',
+            size: 'xs',
+            icon: 'i-lucide-more-horizontal',
+          }),
+      )
+    },
+  },
+]
+
+defineExpose({ keys, stats, store, onSubmit, onRevoke, dismissBanner, columns })
 </script>
 
 <template>
@@ -172,102 +287,7 @@ defineExpose({ keys, stats, store, onSubmit, onRevoke, dismissBanner })
     </UEmpty>
 
     <div v-else class="overflow-hidden rounded-xl border border-default bg-default">
-      <table class="w-full text-sm">
-        <thead class="bg-elevated text-xs uppercase tracking-wide text-muted">
-          <tr>
-            <th class="px-4 py-2 text-left font-medium">Key</th>
-            <th class="px-4 py-2 text-left font-medium">Scope</th>
-            <th class="px-4 py-2 text-left font-medium">Created</th>
-            <th class="px-4 py-2 text-left font-medium">Last used</th>
-            <th class="px-4 py-2 text-left font-medium">Expires</th>
-            <th class="px-4 py-2"></th>
-          </tr>
-        </thead>
-        <tbody class="divide-y divide-default">
-          <tr
-            v-for="k in keys"
-            :key="k.id"
-            class="hover:bg-elevated/40 transition-colors"
-            :class="!k.is_active ? 'opacity-60' : ''"
-          >
-            <td class="px-4 py-3">
-              <div class="flex items-center gap-3">
-                <div
-                  class="size-9 shrink-0 rounded-md flex items-center justify-center bg-primary/10 text-primary"
-                >
-                  <UIcon
-                    :name="!k.is_active ? 'i-lucide-ban' : 'i-lucide-key-round'"
-                    class="size-4"
-                  />
-                </div>
-                <div class="min-w-0 space-y-0.5">
-                  <div class="flex items-center gap-2">
-                    <span class="font-semibold text-default">{{ k.name }}</span>
-                    <UBadge v-if="!k.is_active" color="neutral" variant="subtle" size="xs">
-                      revoked
-                    </UBadge>
-                  </div>
-                  <p class="text-xs text-muted font-mono">{{ maskedPrefix(k) }}</p>
-                </div>
-              </div>
-            </td>
-            <td class="px-4 py-3">
-              <UBadge
-                v-if="!k.is_active"
-                color="neutral"
-                variant="subtle"
-                size="sm"
-                icon="i-lucide-ban"
-              >
-                revoked
-              </UBadge>
-              <UBadge
-                v-else-if="k.scope === 'read_write'"
-                color="warning"
-                variant="subtle"
-                size="sm"
-                icon="i-lucide-key"
-              >
-                read_write
-              </UBadge>
-              <UBadge v-else color="info" variant="subtle" size="sm" icon="i-lucide-eye">
-                read
-              </UBadge>
-            </td>
-            <td class="px-4 py-3">
-              <p class="text-default">{{ relativeTime(k.created_at) }}</p>
-              <p class="text-xs text-muted">by you</p>
-            </td>
-            <td class="px-4 py-3 text-default">
-              {{ k.last_used_at ? relativeTime(k.last_used_at) : 'never' }}
-            </td>
-            <td
-              class="px-4 py-3"
-              :class="{
-                'text-warning': expiresLabel(k).tone === 'warn',
-                'text-muted': expiresLabel(k).tone === 'muted',
-                'text-default': expiresLabel(k).tone === 'default',
-              }"
-            >
-              {{ expiresLabel(k).label }}
-            </td>
-            <td class="px-4 py-3 text-right">
-              <UDropdownMenu
-                v-if="k.is_active"
-                :items="[
-                  {
-                    label: 'Revoke',
-                    icon: 'i-lucide-trash-2',
-                    onSelect: () => onRevoke(k),
-                  },
-                ]"
-              >
-                <UButton variant="ghost" size="xs" icon="i-lucide-more-horizontal" />
-              </UDropdownMenu>
-            </td>
-          </tr>
-        </tbody>
-      </table>
+      <UTable :data="keys" :columns="columns" />
     </div>
 
     <CreateKeyModal v-model:open="modalOpen" @submit="onSubmit" />

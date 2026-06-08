@@ -65,16 +65,24 @@ func (h *StaticStatusHandler) serveTemplated(w http.ResponseWriter, r *http.Requ
 	_, _ = w.Write(rendered)
 }
 
-// inject mutates status.html to set the title and the license meta tag.
+// inject mutates status.html to set the title, the license meta tag, and
+// (when configured) the Umami analytics script tag.
 func (h *StaticStatusHandler) inject(ctx context.Context, raw []byte) []byte {
 	title := h.computeTitle(ctx)
 	meta := licenseMetaTag()
+	umamiTag := h.computeUmamiScript(ctx)
 	out := raw
 
 	out = replaceTag(out, []byte("<title>"), []byte("</title>"), []byte(title))
 
 	// Inject (or replace) the license meta tag right after <head>.
 	out = ensureLicenseMeta(out, meta)
+
+	// Inject the Umami <script> tag right before </head> when the operator
+	// has set umami_website_id on the status page settings.
+	if umamiTag != "" {
+		out = insertBeforeHeadClose(out, umamiTag)
+	}
 	return out
 }
 
@@ -110,6 +118,43 @@ func verdictLabel(v dto.PublicVerdict) string {
 		return "Major Outage"
 	}
 	return ""
+}
+
+// computeUmamiScript returns the analytics script tag to inject, or empty
+// when the website id is not configured.
+func (h *StaticStatusHandler) computeUmamiScript(ctx context.Context) string {
+	if h.svc == nil {
+		return ""
+	}
+	snapshot, err := h.svc.GetCurrent(ctx)
+	if err != nil || snapshot == nil {
+		return ""
+	}
+	id := strings.TrimSpace(snapshot.Branding.UmamiWebsiteID)
+	if id == "" {
+		return ""
+	}
+	src := strings.TrimSpace(snapshot.Branding.UmamiScriptURL)
+	if src == "" {
+		src = "https://cloud.umami.is/script.js"
+	}
+	return `<script defer src="` + html.EscapeString(src) +
+		`" data-website-id="` + html.EscapeString(id) + `"></script>`
+}
+
+// insertBeforeHeadClose appends the supplied tag just before </head>.
+func insertBeforeHeadClose(in []byte, tag string) []byte {
+	idx := bytes.Index(in, []byte("</head>"))
+	if idx < 0 {
+		return in
+	}
+	var buf bytes.Buffer
+	buf.Write(in[:idx])
+	buf.WriteString("\n  ")
+	buf.WriteString(tag)
+	buf.WriteString("\n")
+	buf.Write(in[idx:])
+	return buf.Bytes()
 }
 
 func licenseMetaTag() string {

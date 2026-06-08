@@ -5,63 +5,60 @@ import StatusBadge from '@/components/StatusBadge.vue'
 /**
  * SC-007: Exhaustive status badge component tests.
  *
- * Each test asserts the correct Ant Design color prop and label text for
- * all four named monitor states: waiting, up, down, paused.
- *
- * Also verifies that no named state produces an "ERROR" label or an
- * unintended badge color (FR-007 through FR-012).
+ * UBadge is auto-imported from NuxtUI which renders to a <span> with utility
+ * classes such as `text-success` / `bg-error/10`. We assert label text and
+ * presence of a color-named class to verify the semantic mapping without
+ * depending on the exact CSS layout.
  */
-describe('StatusBadge — exhaustive state rendering (SC-007)', () => {
-  // Ant Design renders color as CSS class: color="green" → ant-tag-green, color="default" → ant-tag-default
+const includesColorClass = (wrapper: ReturnType<typeof mount>, color: string): boolean =>
+  wrapper.html().includes(`text-${color}`)
 
+describe('StatusBadge — exhaustive state rendering (SC-007)', () => {
   it('renders waiting state with neutral color and WAITING label', () => {
-    // FR-007: waiting → grey/neutral badge (ant-tag-default) + "WAITING" label
     const wrapper = mount(StatusBadge, { props: { status: 'waiting' } })
     expect(wrapper.text()).toBe('WAITING')
-    expect(wrapper.html()).toContain('ant-tag-default')
+    // neutral renders without a semantic color class; assert none of the
+    // semantic colors leak into a neutral state
+    expect(includesColorClass(wrapper, 'success')).toBe(false)
+    expect(includesColorClass(wrapper, 'warning')).toBe(false)
+    expect(includesColorClass(wrapper, 'error')).toBe(false)
     wrapper.unmount()
   })
 
-  it('renders up state with green color and UP label', () => {
-    // FR-009: green badge (ant-tag-green) exclusively for up state
+  it('renders up state with success color and UP label', () => {
     const wrapper = mount(StatusBadge, { props: { status: 'up' } })
     expect(wrapper.text()).toBe('UP')
-    expect(wrapper.html()).toContain('ant-tag-green')
+    expect(includesColorClass(wrapper, 'success')).toBe(true)
     wrapper.unmount()
   })
 
-  it('renders down state with red color and DOWN label', () => {
-    // FR-010: red badge (ant-tag-red) exclusively for down state
+  it('renders down state with error color and DOWN label', () => {
     const wrapper = mount(StatusBadge, { props: { status: 'down' } })
     expect(wrapper.text()).toBe('DOWN')
-    expect(wrapper.html()).toContain('ant-tag-red')
+    expect(includesColorClass(wrapper, 'error')).toBe(true)
     wrapper.unmount()
   })
 
-  it('renders paused state with orange color and PAUSED label', () => {
-    // FR-012: paused badge behavior unchanged (ant-tag-orange)
+  it('renders paused state with warning color and PAUSED label', () => {
     const wrapper = mount(StatusBadge, { props: { status: 'paused' } })
     expect(wrapper.text()).toBe('PAUSED')
-    expect(wrapper.html()).toContain('ant-tag-orange')
+    expect(includesColorClass(wrapper, 'warning')).toBe(true)
     wrapper.unmount()
   })
 
-  it('waiting badge is NOT green (ant-tag-green must not appear)', () => {
-    // FR-007: waiting must never display a green badge
+  it('waiting badge does NOT use the success color', () => {
     const wrapper = mount(StatusBadge, { props: { status: 'waiting' } })
-    expect(wrapper.html()).not.toContain('ant-tag-green')
+    expect(includesColorClass(wrapper, 'success')).toBe(false)
     wrapper.unmount()
   })
 
   it('waiting badge label is NOT ERROR', () => {
-    // FR-008: waiting must never display "ERROR" as its label
     const wrapper = mount(StatusBadge, { props: { status: 'waiting' } })
     expect(wrapper.text()).not.toBe('ERROR')
     wrapper.unmount()
   })
 
   it('no named state produces an ERROR label', () => {
-    // FR-008 / FR-011: exhaustive check — none of the four named states renders "ERROR"
     const namedStates = ['waiting', 'up', 'down', 'paused'] as const
     for (const status of namedStates) {
       const wrapper = mount(StatusBadge, { props: { status } })
@@ -70,22 +67,20 @@ describe('StatusBadge — exhaustive state rendering (SC-007)', () => {
     }
   })
 
-  it('green badge is exclusively for the up state', () => {
-    // FR-009: ant-tag-green must not appear for waiting, down, or paused
+  it('success color is exclusively for the up state', () => {
     const nonUpStates = ['waiting', 'down', 'paused'] as const
     for (const status of nonUpStates) {
       const wrapper = mount(StatusBadge, { props: { status } })
-      expect(wrapper.html()).not.toContain('ant-tag-green')
+      expect(includesColorClass(wrapper, 'success')).toBe(false)
       wrapper.unmount()
     }
   })
 
-  it('red badge is exclusively for the down state', () => {
-    // FR-010: ant-tag-red must not appear for waiting, up, or paused
+  it('error color is exclusively for the down state', () => {
     const nonDownStates = ['waiting', 'up', 'paused'] as const
     for (const status of nonDownStates) {
       const wrapper = mount(StatusBadge, { props: { status } })
-      expect(wrapper.html()).not.toContain('ant-tag-red')
+      expect(includesColorClass(wrapper, 'error')).toBe(false)
       wrapper.unmount()
     }
   })

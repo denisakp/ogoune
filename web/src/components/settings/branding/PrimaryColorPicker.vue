@@ -8,18 +8,30 @@ const props = defineProps<{
 const emit = defineEmits<{ (e: 'update:modelValue', value: string): void }>()
 
 const SWATCHES = [
-  '#4f46e5', '#6366f1', '#8b5cf6', '#ec4899',
-  '#f43f5e', '#f97316', '#f59e0b', '#84cc16',
-  '#10b981', '#14b8a6', '#06b6d4', '#0ea5e9',
+  '#4f46e5',
+  '#6366f1',
+  '#8b5cf6',
+  '#ec4899',
+  '#f43f5e',
+  '#f97316',
+  '#f59e0b',
+  '#84cc16',
+  '#10b981',
+  '#14b8a6',
+  '#06b6d4',
+  '#0ea5e9',
 ]
 
 const HEX_RE = /^#[0-9a-fA-F]{6}$/
 
 const localHex = ref(props.modelValue || '')
 
-watch(() => props.modelValue, (v) => {
-  if (v !== localHex.value) localHex.value = v || ''
-})
+watch(
+  () => props.modelValue,
+  (v) => {
+    if (v !== localHex.value) localHex.value = v || ''
+  },
+)
 
 const isValid = computed(() => localHex.value === '' || HEX_RE.test(localHex.value))
 
@@ -33,6 +45,11 @@ function onHexInput() {
     emit('update:modelValue', localHex.value)
   }
 }
+
+function onCustomPicked(hex: string) {
+  localHex.value = hex
+  if (HEX_RE.test(hex)) emit('update:modelValue', hex)
+}
 </script>
 
 <template>
@@ -42,17 +59,28 @@ function onHexInput() {
       Used for accents on the public status page (Subscribe button, links, focus rings).
     </p>
 
-    <div class="grid grid-cols-12 gap-1.5">
-      <button
+    <div class="flex flex-wrap gap-1.5 items-center">
+      <UButton
         v-for="hex in SWATCHES"
         :key="hex"
         type="button"
-        class="size-7 rounded-full border-2 transition-transform hover:scale-110"
-        :class="modelValue === hex ? 'border-slate-900' : 'border-slate-200'"
+        size="xs"
+        variant="outline"
+        :color="modelValue === hex ? 'primary' : 'neutral'"
         :style="{ backgroundColor: hex }"
-        :title="hex"
         :data-testid="`swatch-${hex}`"
+        class="size-7 rounded-full p-0! border-2"
+        :class="modelValue === hex ? 'ring-2 ring-offset-1 ring-slate-900' : ''"
         @click="pickSwatch(hex)"
+      />
+
+      <input
+        type="color"
+        :value="HEX_RE.test(localHex) ? localHex : '#4f46e5'"
+        class="size-7 rounded-full border-2 border-slate-200 cursor-pointer"
+        data-testid="custom-color-trigger"
+        :aria-label="'Pick custom color'"
+        @input="onCustomPicked(($event.target as HTMLInputElement).value)"
       />
     </div>
 

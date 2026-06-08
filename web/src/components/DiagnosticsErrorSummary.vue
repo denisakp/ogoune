@@ -13,27 +13,26 @@ const props = withDefaults(defineProps<Props>(), {
   rootCauseHint: null,
 })
 
-// Get icon and color based on failure type or ICMP root cause hint
 const getFailureIcon = (
   failureType: string | null | undefined,
   hint: string | null | undefined,
 ) => {
-  // ICMP root-cause hints take priority
-  if (hint === 'host_unreachable') return { icon: 'disconnect', color: 'red' }
-  if (hint === 'service_down') return { icon: 'alert', color: 'orange' }
-  if (hint === 'icmp_unavailable') return { icon: 'exclamation-circle', color: 'default' }
+  if (hint === 'host_unreachable') return { icon: 'i-lucide-unplug', color: '#ff4d4f' }
+  if (hint === 'service_down') return { icon: 'i-lucide-triangle-alert', color: '#faad14' }
+  if (hint === 'icmp_unavailable') return { icon: 'i-lucide-circle-alert', color: '#8c8c8c' }
 
-  if (!failureType) return { icon: 'exclamation-circle', color: 'red' }
+  if (!failureType) return { icon: 'i-lucide-circle-alert', color: '#ff4d4f' }
 
   const type = failureType.toLowerCase()
-  if (type.includes('timeout')) return { icon: 'clock-circle', color: 'orange' }
+  if (type.includes('timeout')) return { icon: 'i-lucide-clock', color: '#faad14' }
   if (type.includes('connection') || type.includes('refused'))
-    return { icon: 'disconnect', color: 'red' }
-  if (type.includes('dns')) return { icon: 'global', color: 'volcano' }
+    return { icon: 'i-lucide-unplug', color: '#ff4d4f' }
+  if (type.includes('dns')) return { icon: 'i-lucide-globe', color: '#fa541c' }
   if (type.includes('ssl') || type.includes('certificate'))
-    return { icon: 'lock', color: 'volcano' }
-  if (type.includes('http') || type.includes('status')) return { icon: 'alert', color: 'orange' }
-  return { icon: 'exclamation-circle', color: 'red' }
+    return { icon: 'i-lucide-lock', color: '#fa541c' }
+  if (type.includes('http') || type.includes('status'))
+    return { icon: 'i-lucide-triangle-alert', color: '#faad14' }
+  return { icon: 'i-lucide-circle-alert', color: '#ff4d4f' }
 }
 
 const failureIcon = getFailureIcon(props.failureType, props.rootCauseHint)
@@ -41,48 +40,23 @@ const failureIcon = getFailureIcon(props.failureType, props.rootCauseHint)
 
 <template>
   <div>
-    <div style="display: flex; gap: 12px; align-items: flex-start">
-      <!-- Icon -->
-      <div style="flex-shrink: 0; margin-top: 2px">
-        <a-icon :type="failureIcon.icon" :style="{ fontSize: '20px', color: failureIcon.color }" />
+    <div class="flex gap-3 items-start">
+      <div class="shrink-0 mt-0.5">
+        <UIcon :name="failureIcon.icon" :style="{ color: failureIcon.color }" class="size-5" />
       </div>
 
-      <!-- Content -->
-      <div style="flex: 1">
-        <!-- Error Summary (prominent) -->
-        <div
-          v-if="errorSummary"
-          style="
-            font-size: 14px;
-            font-weight: 500;
-            margin-bottom: 12px;
-            line-height: 1.5;
-            color: #262626;
-          "
-        >
+      <div class="flex-1">
+        <div v-if="errorSummary" class="text-sm font-medium mb-3 leading-relaxed text-default">
           {{ errorSummary }}
         </div>
 
-        <!-- Failure Type -->
-        <div
-          v-if="failureType"
-          style="font-size: 12px; color: rgba(0, 0, 0, 0.65); margin-bottom: 8px"
-        >
+        <div v-if="failureType" class="text-xs text-muted mb-2">
           <strong>Type:</strong> {{ failureType }}
         </div>
 
-        <!-- Raw Error Message (secondary) -->
         <div
           v-if="errorMessage"
-          style="
-            font-size: 12px;
-            color: rgba(0, 0, 0, 0.45);
-            font-family: monospace;
-            padding: 8px;
-            background-color: #fafafa;
-            border-left: 3px solid #ff4d4f;
-            border-radius: 2px;
-          "
+          class="text-xs text-muted font-mono p-2 bg-slate-50 dark:bg-slate-900 border-l-4 border-red-500 rounded-sm"
         >
           {{ errorMessage }}
         </div>

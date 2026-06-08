@@ -230,8 +230,8 @@ describe('FR-036 destructive flows route through useConfirm', () => {
       uploadStatusPageLogo: vi.fn(),
       deleteStatusPageLogo: vi.fn(),
     }))
-    vi.doMock('ant-design-vue', () => ({
-      message: { success: vi.fn(), error: vi.fn() },
+    vi.doMock('@nuxt/ui/composables/useToast', () => ({
+      useToast: () => ({ add: vi.fn() }),
     }))
     const { default: BrandingSection } = await import(
       '@/components/settings/branding/BrandingSection.vue'
@@ -244,7 +244,7 @@ describe('FR-036 destructive flows route through useConfirm', () => {
           name: 'Acme',
           homepage_url: '',
           custom_domain: '',
-          google_analytics_id: '',
+          umami_website_id: '',
           enable_details_page: true,
           show_uptime_percentage: true,
           hide_paused_monitors: true,

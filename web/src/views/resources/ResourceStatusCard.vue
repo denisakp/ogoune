@@ -66,64 +66,57 @@ const statusTexts: Record<string, string> = {
 </script>
 
 <template>
-  <a-card style="margin-bottom: 16px">
-    <template #title>
-      <div style="font-size: 14px; font-weight: 600">Current status</div>
+  <UCard class="mb-4">
+    <template #header>
+      <div class="text-sm font-semibold">Current status</div>
     </template>
-    <a-alert
+    <UAlert
       v-if="isConfirming"
-      style="margin-bottom: 16px"
-      type="warning"
-      show-icon
-      :message="`Confirming outage: ${confirmationProgress}`"
+      color="warning"
+      variant="soft"
+      icon="i-lucide-triangle-alert"
+      class="mb-4"
+      :title="`Confirming outage: ${confirmationProgress}`"
       :description="`Next confirmation check in ${nextConfirmationCountdown}`"
     />
-    <a-alert
+    <UAlert
       v-if="isFlapping"
-      style="margin-bottom: 16px"
-      type="warning"
-      show-icon
-      message="Service is flapping"
+      color="warning"
+      variant="soft"
+      icon="i-lucide-triangle-alert"
+      class="mb-4"
+      title="Service is flapping"
       :description="`${flappingTransitionText}${flappingDuration ? ` over ${flappingDuration}` : ''}. Alerts suppressed until service stabilizes.`"
     />
-    <a-alert
+    <UAlert
       v-if="isHeartbeat && resource.waiting"
-      style="margin-bottom: 16px"
-      type="info"
-      show-icon
+      color="info"
+      variant="soft"
+      icon="i-lucide-info"
+      class="mb-4"
       data-testid="heartbeat-waiting-alert"
-      message="Waiting for first ping"
+      title="Waiting for first ping"
       description="This monitor will transition to UP as soon as it receives its first ping."
     />
-    <a-row :gutter="16">
-      <a-col :xs="12" :sm="8">
-        <div style="text-align: center">
-          <div style="font-size: 28px; font-weight: bold" :style="{ color: statusColor }">
-            {{ statusTexts[effectiveStatus] || effectiveStatus }}
-          </div>
-          <div style="font-size: 12px; color: rgba(0, 0, 0, 0.65); margin-top: 8px">
-            Currently {{ resource.is_active ? 'active' : 'inactive' }}
-          </div>
+    <div class="grid grid-cols-2 sm:grid-cols-3 gap-4">
+      <div class="text-center">
+        <div class="text-3xl font-bold" :style="{ color: statusColor }">
+          {{ statusTexts[effectiveStatus] || effectiveStatus }}
         </div>
-      </a-col>
-      <a-col :xs="12" :sm="8">
-        <div style="text-align: center">
-          <div style="font-size: 24px; font-weight: bold; color: #faad14">
-            {{ resource.failure_count }}
-          </div>
-          <div style="font-size: 12px; color: rgba(0, 0, 0, 0.65); margin-top: 8px">Failures</div>
+        <div class="text-xs text-muted mt-2">
+          Currently {{ resource.is_active ? 'active' : 'inactive' }}
         </div>
-      </a-col>
-      <a-col :xs="24" :sm="8">
-        <div style="text-align: center">
-          <div style="font-size: 12px; color: rgba(0, 0, 0, 0.65); margin-bottom: 8px">
-            Last checked
-          </div>
-          <div style="font-size: 12px; font-weight: 600">
-            {{ resource.last_checked ? formatDate(resource.last_checked) : 'Never' }}
-          </div>
+      </div>
+      <div class="text-center">
+        <div class="text-2xl font-bold text-amber-500">{{ resource.failure_count }}</div>
+        <div class="text-xs text-muted mt-2">Failures</div>
+      </div>
+      <div class="text-center col-span-2 sm:col-span-1">
+        <div class="text-xs text-muted mb-2">Last checked</div>
+        <div class="text-xs font-semibold">
+          {{ resource.last_checked ? formatDate(resource.last_checked) : 'Never' }}
         </div>
-      </a-col>
-    </a-row>
-  </a-card>
+      </div>
+    </div>
+  </UCard>
 </template>

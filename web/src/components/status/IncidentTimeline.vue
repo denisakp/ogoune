@@ -5,8 +5,33 @@ import type { PublicIncidentUpdate } from '@/types'
 
 function sanitize(html: string): string {
   return DOMPurify.sanitize(html, {
-    ALLOWED_TAGS: ['p', 'br', 'strong', 'em', 'code', 'a', 'ul', 'ol', 'li', 'h1', 'h2', 'input', 'label', 'div'],
-    ALLOWED_ATTR: ['href', 'rel', 'target', 'type', 'checked', 'disabled', 'data-checked', 'data-type', 'class'],
+    ALLOWED_TAGS: [
+      'p',
+      'br',
+      'strong',
+      'em',
+      'code',
+      'a',
+      'ul',
+      'ol',
+      'li',
+      'h1',
+      'h2',
+      'input',
+      'label',
+      'div',
+    ],
+    ALLOWED_ATTR: [
+      'href',
+      'rel',
+      'target',
+      'type',
+      'checked',
+      'disabled',
+      'data-checked',
+      'data-type',
+      'class',
+    ],
   })
 }
 
@@ -110,7 +135,7 @@ li.rt-task-item > label {
   flex-shrink: 0;
   pointer-events: none;
 }
-li.rt-task-item > label > input[type="checkbox"] {
+li.rt-task-item > label > input[type='checkbox'] {
   width: 1rem;
   height: 1rem;
   accent-color: #4f46e5;
@@ -119,7 +144,7 @@ li.rt-task-item > label > input[type="checkbox"] {
 li.rt-task-item > div > p {
   margin: 0;
 }
-li.rt-task-item[data-checked="true"] > div {
+li.rt-task-item[data-checked='true'] > div {
   color: #94a3b8;
   text-decoration: line-through;
 }

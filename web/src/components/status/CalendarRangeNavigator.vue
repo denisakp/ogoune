@@ -13,11 +13,23 @@ const emit = defineEmits<{
   (e: 'shift', delta: number): void
 }>()
 
-const MONTHS_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+const MONTHS_SHORT = [
+  'Jan',
+  'Feb',
+  'Mar',
+  'Apr',
+  'May',
+  'Jun',
+  'Jul',
+  'Aug',
+  'Sep',
+  'Oct',
+  'Nov',
+  'Dec',
+]
 
 function shiftMonth(year: number, month: number, delta: number) {
-  const idx = (month - 1) + delta
+  const idx = month - 1 + delta
   const y = year + Math.floor(idx / 12)
   let m = idx % 12
   if (m < 0) m += 12

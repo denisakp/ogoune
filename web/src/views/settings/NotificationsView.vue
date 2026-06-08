@@ -5,7 +5,9 @@
  * Notification channels — design fidelity v2.
  * Page-level h1 + tagline + info alert + 4 KPI cards + table with Default toggle.
  */
-import { computed, onMounted, ref } from 'vue'
+import { computed, h, onMounted, ref, resolveComponent } from 'vue'
+import type { TableColumn } from '@nuxt/ui'
+
 import {
   fetchChannels,
   createChannel,
@@ -13,6 +15,7 @@ import {
   deleteChannel,
   setDefault,
 } from '@/services/notificationChannelService'
+import { fetchNotificationStats } from '@/services/notificationStatsService'
 import type { NotificationChannel, CreateNotificationChannel } from '@/types'
 import type { NotificationChannelInput } from '@/schemas/notification-channel.schema'
 import { useConfirm } from '@/composables/useConfirm'
@@ -23,10 +26,30 @@ const loading = ref(true)
 const modalOpen = ref(false)
 const editing = ref<NotificationChannel | null>(null)
 
+const notifStats = ref<{
+  sent_30d: number
+  pending: number
+  failed_24h: number
+} | null>(null)
+
+function lastSentLabel(iso: string | null | undefined): string {
+  if (!iso) return '—'
+  try {
+    const ms = Date.now() - new Date(iso).getTime()
+    if (ms < 60_000) return 'just now'
+    if (ms < 3_600_000) return `${Math.round(ms / 60_000)}m ago`
+    if (ms < 86_400_000) return `${Math.round(ms / 3_600_000)}h ago`
+    return `${Math.round(ms / 86_400_000)}d ago`
+  } catch {
+    return '—'
+  }
+}
+
 const stats = computed(() => {
   const total = channels.value.length
   const defaultCount = channels.value.filter((c) => c.enabled_by_default).length
   const scopedCount = total - defaultCount
+  const fmt = (v: number | undefined | null) => (typeof v === 'number' ? v.toLocaleString() : '—')
   return [
     {
       key: 'channels',
@@ -34,9 +57,24 @@ const stats = computed(() => {
       value: String(total),
       meta: total > 0 ? `${defaultCount} default, ${scopedCount} scoped` : 'no channels yet',
     },
-    { key: 'sent', label: 'ALERTS SENT (30d)', value: '—', meta: 'Backend metric pending' },
-    { key: 'pending', label: 'PENDING RETRY', value: '—', meta: 'Backend metric pending' },
-    { key: 'failed', label: 'FAILED (24h)', value: '—', meta: 'Backend metric pending' },
+    {
+      key: 'sent',
+      label: 'ALERTS SENT (30d)',
+      value: fmt(notifStats.value?.sent_30d),
+      meta: '',
+    },
+    {
+      key: 'pending',
+      label: 'PENDING RETRY',
+      value: fmt(notifStats.value?.pending),
+      meta: '',
+    },
+    {
+      key: 'failed',
+      label: 'FAILED (24h)',
+      value: fmt(notifStats.value?.failed_24h),
+      meta: '',
+    },
   ]
 })
 
@@ -69,17 +107,55 @@ function typeMeta(t: string) {
 
 function recipientPreview(c: NotificationChannel): string {
   const cfg = (c.config as unknown as Record<string, unknown>) ?? {}
-  if (c.type === 'smtp' && typeof cfg.recipient === 'string') return cfg.recipient
-  if (c.type === 'slack' && typeof cfg.channel === 'string')
-    return cfg.channel.startsWith('#') ? cfg.channel : `#${cfg.channel}`
-  if (c.type === 'webhook' && typeof cfg.url === 'string') return cfg.url
+  if (c.type === 'smtp') {
+    if (Array.isArray(cfg.recipients) && cfg.recipients.length > 0) {
+      const first = String(cfg.recipients[0])
+      const extra = cfg.recipients.length - 1
+      return extra > 0 ? `${first} +${extra}` : first
+    }
+    if (typeof cfg.recipient === 'string') return cfg.recipient
+    if (typeof cfg.sender === 'string') return cfg.sender
+  }
+  if (c.type === 'slack') {
+    if (typeof cfg.channel === 'string')
+      return cfg.channel.startsWith('#') ? cfg.channel : `#${cfg.channel}`
+    if (typeof cfg.webhook_url === 'string') return truncateUrl(cfg.webhook_url)
+  }
+  if (c.type === 'discord') {
+    if (typeof cfg.channel === 'string')
+      return cfg.channel.startsWith('#') ? cfg.channel : `#${cfg.channel}`
+    if (typeof cfg.webhook_url === 'string') return truncateUrl(cfg.webhook_url)
+  }
+  if (c.type === 'teams') {
+    if (typeof cfg.channel === 'string') return String(cfg.channel)
+    if (typeof cfg.webhook_url === 'string') return truncateUrl(cfg.webhook_url)
+  }
+  if (c.type === 'webhook' && typeof cfg.url === 'string') return truncateUrl(cfg.url)
   return ''
+}
+
+function truncateUrl(u: string): string {
+  if (u.length <= 32) return u
+  return u.slice(0, 30) + '…'
+}
+
+function lastSentForChannel(c: NotificationChannel): string {
+  return lastSentLabel(c.last_sent_at ?? null)
+}
+
+function failuresClass(n: number | undefined): string {
+  return n && n > 0 ? 'text-red-600 font-semibold' : 'text-muted'
 }
 
 async function reload() {
   loading.value = true
   try {
-    channels.value = await fetchChannels()
+    const [list, s] = await Promise.all([
+      fetchChannels(),
+      fetchNotificationStats().catch(() => null),
+    ])
+    channels.value = list
+    notifStats.value = s
   } finally {
     loading.value = false
   }
@@ -151,7 +227,99 @@ const initialForModal = computed(() => {
 
 onMounted(reload)
 
-defineExpose({ channels, stats, openCreate, onSubmit, onToggleDefault, onDelete })
+const columns: TableColumn<NotificationChannel>[] = [
+  {
+    id: 'channel',
+    header: 'Channel',
+    cell: ({ row }) => {
+      const c = row.original
+      const tm = typeMeta(c.type)
+      const recipient = recipientPreview(c)
+      return h('div', { class: 'flex items-center gap-3' }, [
+        h(
+          'div',
+          {
+            class: ['size-9 shrink-0 rounded-md flex items-center justify-center', tm.iconBg],
+          },
+          [h(resolveComponent('UIcon'), { name: tm.icon, class: 'size-4' })],
+        ),
+        h('div', { class: 'min-w-0' }, [
+          h('p', { class: 'font-semibold text-default' }, c.name),
+          recipient ? h('p', { class: 'text-xs text-muted font-mono truncate' }, recipient) : null,
+        ]),
+      ])
+    },
+  },
+  {
+    id: 'type',
+    header: 'Type',
+    cell: ({ row }) => {
+      const tm = typeMeta(row.original.type)
+      return h(
+        resolveComponent('UBadge'),
+        { color: tm.badge, variant: 'subtle', size: 'sm' },
+        () => tm.label,
+      )
+    },
+  },
+  {
+    id: 'status',
+    header: 'Status',
+    cell: () =>
+      h(resolveComponent('UBadge'), { color: 'success', variant: 'subtle', size: 'sm' }, () => [
+        h('span', { class: 'inline-block size-1.5 rounded-full mr-1 bg-success' }),
+        'Verified',
+      ]),
+  },
+  {
+    id: 'default',
+    header: 'Default',
+    cell: ({ row }) =>
+      h(resolveComponent('USwitch'), {
+        modelValue: row.original.enabled_by_default,
+        onClick: () => onToggleDefault(row.original),
+      }),
+  },
+  {
+    id: 'last_sent',
+    header: 'Last sent',
+    cell: ({ row }) => h('span', { class: 'text-muted' }, lastSentForChannel(row.original)),
+  },
+  {
+    id: 'failures',
+    header: 'Failures (24h)',
+    cell: ({ row }) =>
+      h(
+        'span',
+        { class: failuresClass(row.original.failures_24h) },
+        String(row.original.failures_24h ?? 0),
+      ),
+  },
+  {
+    id: 'actions',
+    header: '',
+    cell: ({ row }) => {
+      const c = row.original
+      return h(
+        resolveComponent('UDropdownMenu'),
+        {
+          items: [
+            { label: 'Edit', icon: 'i-lucide-pencil', onSelect: () => openEdit(c) },
+            { label: 'Delete', icon: 'i-lucide-trash-2', onSelect: () => onDelete(c) },
+          ],
+        },
+        () =>
+          h(resolveComponent('UButton'), {
+            variant: 'ghost',
+            size: 'xs',
+            icon: 'i-lucide-more-horizontal',
+          }),
+      )
+    },
+  },
+]
+
+defineExpose({ channels, stats, openCreate, onSubmit, onToggleDefault, onDelete, columns })
 </script>
 
 <template>
@@ -201,65 +369,7 @@ defineExpose({ channels, stats, openCreate, onSubmit, onToggleDefault, onDelete 
     </UEmpty>
 
     <div v-else class="overflow-hidden rounded-xl border border-default bg-default">
-      <table class="w-full text-sm">
-        <thead class="bg-elevated text-xs uppercase tracking-wide text-muted">
-          <tr>
-            <th class="px-4 py-2 text-left font-medium">Channel</th>
-            <th class="px-4 py-2 text-left font-medium">Type</th>
-            <th class="px-4 py-2 text-left font-medium">Status</th>
-            <th class="px-4 py-2 text-left font-medium">Default</th>
-            <th class="px-4 py-2 text-left font-medium">Last sent</th>
-            <th class="px-4 py-2 text-left font-medium">Failures (24h)</th>
-            <th class="px-4 py-2"></th>
-          </tr>
-        </thead>
-        <tbody class="divide-y divide-default">
-          <tr v-for="c in channels" :key="c.id" class="hover:bg-elevated/40 transition-colors">
-            <td class="px-4 py-3">
-              <div class="flex items-center gap-3">
-                <div
-                  class="size-9 shrink-0 rounded-md flex items-center justify-center"
-                  :class="typeMeta(c.type).iconBg"
-                >
-                  <UIcon :name="typeMeta(c.type).icon" class="size-4" />
-                </div>
-                <div class="min-w-0">
-                  <p class="font-semibold text-default">{{ c.name }}</p>
-                  <p v-if="recipientPreview(c)" class="text-xs text-muted font-mono truncate">
-                    {{ recipientPreview(c) }}
-                  </p>
-                </div>
-              </div>
-            </td>
-            <td class="px-4 py-3">
-              <UBadge :color="typeMeta(c.type).badge" variant="subtle" size="sm">
-                {{ typeMeta(c.type).label }}
-              </UBadge>
-            </td>
-            <td class="px-4 py-3">
-              <UBadge color="success" variant="subtle" size="sm">
-                <span class="inline-block size-1.5 rounded-full mr-1 bg-success" />
-                Verified
-              </UBadge>
-            </td>
-            <td class="px-4 py-3">
-              <USwitch :model-value="c.enabled_by_default" @click="onToggleDefault(c)" />
-            </td>
-            <td class="px-4 py-3 text-muted">—</td>
-            <td class="px-4 py-3 text-muted">0</td>
-            <td class="px-4 py-3 text-right">
-              <UDropdownMenu
-                :items="[
-                  { label: 'Edit', icon: 'i-lucide-pencil', onSelect: () => openEdit(c) },
-                  { label: 'Delete', icon: 'i-lucide-trash-2', onSelect: () => onDelete(c) },
-                ]"
-              >
-                <UButton variant="ghost" size="xs" icon="i-lucide-more-horizontal" />
-              </UDropdownMenu>
-            </td>
-          </tr>
-        </tbody>
-      </table>
+      <UTable :data="channels" :columns="columns" />
     </div>
 
     <ChannelModal

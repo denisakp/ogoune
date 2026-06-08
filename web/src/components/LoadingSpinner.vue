@@ -5,10 +5,8 @@ defineProps<{
 </script>
 
 <template>
-  <div style="text-align: center; padding: 48px">
-    <a-spin size="large" />
-    <p v-if="message" style="margin-top: 16px; color: rgba(0, 0, 0, 0.45)">{{ message }}</p>
+  <div class="text-center py-12">
+    <UIcon name="i-lucide-loader-circle" class="size-8 animate-spin text-primary-500" />
+    <p v-if="message" class="mt-4 text-sm text-muted">{{ message }}</p>
   </div>
 </template>
-
-<style scoped></style>

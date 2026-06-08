@@ -26,7 +26,7 @@ describe('AppAvatarDropdown', () => {
     expect(wrapper.text()).toContain('US')
   })
 
-  it('declares the 6 menu entries in documented order', () => {
+  it('declares the menu entries in documented order', () => {
     setActivePinia(createPinia())
     const wrapper = mount(AppAvatarDropdown, {
       global: { stubs: { UDropdownMenu: { template: '<div />' } } },
@@ -40,7 +40,6 @@ describe('AppAvatarDropdown', () => {
       .map((i) => i.label)
     expect(labels).toEqual([
       'Profile',
-      'Theme',
       'Keyboard shortcuts',
       'Documentation',
       "What's new",

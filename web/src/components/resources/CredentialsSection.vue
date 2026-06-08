@@ -3,16 +3,6 @@ import { computed } from 'vue'
 
 import type { CredentialCreatePayload } from '@/types'
 
-/**
- * Auth-credentials section for protocol-aware resources.
- *
- * Visible only when `protocolType ∈ {redis, mysql, postgres}`. For other types
- * it renders nothing — there is no concept of credentials at the byte/TCP layer.
- *
- * The plaintext password is held in `modelValue.password` only during the
- * lifetime of the form; it is sent once over HTTPS via `setCredential()` and
- * never returned by any subsequent read.
- */
 const props = defineProps<{
   protocolType?: string
   modelValue: CredentialCreatePayload | null
@@ -54,57 +44,58 @@ function update(patch: Partial<CredentialCreatePayload>) {
 </script>
 
 <template>
-  <div v-if="supported" data-testid="credentials-section" class="credentials-section">
-    <a-divider orientation="left">Authentication (optional)</a-divider>
+  <div v-if="supported" data-testid="credentials-section" class="mb-4">
+    <USeparator label="Authentication (optional)" class="my-3" />
 
-    <a-alert
+    <UAlert
       v-if="hasExistingCredential"
-      type="info"
-      show-icon
-      style="margin-bottom: 12px"
-      message="Credentials are configured for this monitor."
+      color="info"
+      variant="soft"
+      icon="i-lucide-info"
+      class="mb-3"
+      title="Credentials are configured for this monitor."
       description="Fill the fields to replace them, or click 'Remove credentials' to revert to the no-auth path."
     />
 
-    <a-row :gutter="16">
-      <a-col :xs="24" :sm="12">
-        <a-form-item :label="usernameLabel">
-          <a-input
-            :value="currentValue.username ?? ''"
-            placeholder="e.g. monitor"
-            :maxlength="128"
-            data-testid="credentials-username"
-            @update:value="(v: string) => update({ username: v })"
-          />
-        </a-form-item>
-      </a-col>
-      <a-col :xs="24" :sm="12">
-        <a-form-item label="Password" :required="!hasExistingCredential">
-          <a-input-password
-            :value="currentValue.password"
-            :placeholder="hasExistingCredential ? 'Leave empty to keep current' : 'Required'"
-            :maxlength="256"
-            data-testid="credentials-password"
-            @update:value="(v: string) => update({ password: v })"
-          />
-        </a-form-item>
-      </a-col>
-    </a-row>
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <div>
+        <label class="block text-sm font-medium mb-1">{{ usernameLabel }}</label>
+        <UInput
+          :model-value="currentValue.username ?? ''"
+          placeholder="e.g. monitor"
+          :maxlength="128"
+          data-testid="credentials-username"
+          class="w-full"
+          @update:model-value="(v: string | number) => update({ username: String(v) })"
+        />
+      </div>
+      <div>
+        <label class="block text-sm font-medium mb-1">
+          Password
+          <span v-if="!hasExistingCredential" class="text-red-500">*</span>
+        </label>
+        <UInput
+          :model-value="currentValue.password"
+          type="password"
+          :placeholder="hasExistingCredential ? 'Leave empty to keep current' : 'Required'"
+          :maxlength="256"
+          data-testid="credentials-password"
+          class="w-full"
+          @update:model-value="(v: string | number) => update({ password: String(v) })"
+        />
+      </div>
+    </div>
 
-    <a-button
+    <UButton
       v-if="hasExistingCredential"
-      danger
-      size="small"
+      color="error"
+      variant="soft"
+      size="xs"
       data-testid="credentials-clear"
+      class="mt-2"
       @click="emit('clear')"
     >
       Remove credentials
-    </a-button>
+    </UButton>
   </div>
 </template>
-
-<style scoped>
-.credentials-section {
-  margin-bottom: 16px;
-}
-</style>

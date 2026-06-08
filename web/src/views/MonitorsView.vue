@@ -1,17 +1,16 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, h, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import type { TableColumn } from '@nuxt/ui'
 import { useResourceStore } from '@/stores/resourceStore'
 import { useComponentStore } from '@/stores/componentStore'
 import { useConfirm } from '@/composables/useConfirm'
 import { timeAgo } from '@/libs/date-time.helper'
 import ResourceModal from '@/components/resources/ResourceModal.vue'
+import UStatusBadge from '@/components/ui/UStatusBadge.vue'
+import UFilterChip from '@/components/ui/UFilterChip.vue'
 import type { Resource } from '@/types'
 
-interface TableColumn {
-  key: string
-  label: string
-}
 interface FilterChipDescriptor {
   kind: 'tag' | 'component' | 'type' | 'status'
   value: string
@@ -83,19 +82,7 @@ const pagedRows = computed(() => {
   return filteredRows.value.slice(start, start + perPage.value)
 })
 
-const columns: TableColumn[] = [
-  { key: 'status', label: 'Status' },
-  { key: 'name', label: 'Name' },
-  { key: 'target', label: 'Target' },
-  { key: 'uptime', label: 'Uptime' },
-  { key: 'last_checked', label: 'Last checked' },
-  { key: 'actions', label: '' },
-]
-
-const viewAction: RowAction = { label: 'View', icon: 'i-lucide-eye' }
-const editAction: RowAction = { label: 'Edit', icon: 'i-lucide-pencil' }
-const deleteAction: RowAction = { label: 'Delete', icon: 'i-lucide-trash-2' }
-const rowActions: RowAction[] = [viewAction, editAction, deleteAction]
+const totalPages = computed(() => Math.max(1, Math.ceil(filteredRows.value.length / perPage.value)))
 
 function targetOf(r: Resource): string {
   return (
@@ -106,6 +93,11 @@ function targetOf(r: Resource): string {
     '—'
   )
 }
+
+const viewAction: RowAction = { label: 'View', icon: 'i-lucide-eye' }
+const editAction: RowAction = { label: 'Edit', icon: 'i-lucide-pencil' }
+const deleteAction: RowAction = { label: 'Delete', icon: 'i-lucide-trash-2' }
+const rowActions: RowAction[] = [viewAction, editAction, deleteAction]
 
 async function onAction(p: { action: RowAction; row: unknown }) {
   const row = p.row as Resource
@@ -125,6 +117,65 @@ async function onAction(p: { action: RowAction; row: unknown }) {
   }
 }
 
+// Columns exposed for test contract + UTable consumption (TanStack ColumnDef shape).
+// `id` is asserted by the spec under the same keys the legacy UDataTable used.
+const columns: TableColumn<Resource>[] = [
+  {
+    id: 'status',
+    accessorKey: 'status',
+    header: 'Status',
+    cell: ({ row }) => h(UStatusBadge, { status: row.original.status }),
+  },
+  { id: 'name', accessorKey: 'name', header: 'Name' },
+  {
+    id: 'target',
+    header: 'Target',
+    cell: ({ row }) => h('span', { class: 'text-sm font-mono' }, targetOf(row.original)),
+  },
+  { id: 'uptime', accessorKey: 'uptime', header: 'Uptime' },
+  {
+    id: 'last_checked',
+    accessorKey: 'last_checked',
+    header: 'Last checked',
+    cell: ({ row }) => {
+      const v = row.original.last_checked
+      return v
+        ? h('span', { class: 'text-xs text-muted' }, timeAgo(v))
+        : h('span', { class: 'text-muted' }, '—')
+    },
+  },
+  {
+    id: 'actions',
+    header: '',
+    cell: ({ row }) =>
+      h(
+        'div',
+        { class: 'flex gap-1 justify-end' },
+        rowActions.map((a) =>
+          h(
+            resolveButton(),
+            {
+              icon: a.icon,
+              color: 'neutral',
+              variant: 'ghost',
+              size: 'xs',
+              'aria-label': a.label,
+              onClick: () => onAction({ action: a, row: row.original }),
+            },
+            () => a.label,
+          ),
+        ),
+      ),
+  },
+]
+
+// Resolve UButton lazily so the cell render functions don't crash at module-eval time
+// when the global resolver isn't wired (e.g., in vitest stubs).
+function resolveButton() {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return (globalThis as any).UButton ?? 'UButton'
+}
+
 function openCreate() {
   editingResource.value = null
   showModal.value = true
@@ -141,6 +192,7 @@ onMounted(async () => {
 
 defineExpose({
   filters,
+  columns,
   removeFilter,
   onAction,
   filterStatus,
@@ -161,30 +213,26 @@ defineExpose({
 
     <UAlert v-if="resourceStore.error" color="error" :title="resourceStore.error" class="mb-4" />
 
-    <UDataTable
+    <div v-if="filters.length > 0" class="flex flex-wrap gap-2 mb-3">
+      <UFilterChip
+        v-for="f in filters"
+        :key="`${f.kind}:${f.value}`"
+        :kind="f.kind"
+        :value="f.value"
+        @remove="removeFilter(f)"
+      />
+    </div>
+
+    <UTable
       :columns="columns"
-      :rows="pagedRows"
+      :data="pagedRows"
       :loading="resourceStore.loading"
-      :filters="filters"
-      :pagination="{ page, perPage, total: filteredRows.length }"
-      :row-actions="rowActions"
-      @page="(p: number) => (page = p)"
-      @filter-remove="removeFilter"
-      @action="onAction"
-    >
-      <template #cell-status="{ row }: { row: Resource }">
-        <UStatusBadge :status="row.status" />
-      </template>
-      <template #cell-target="{ row }: { row: Resource }">
-        <span class="text-sm font-mono">{{ targetOf(row) }}</span>
-      </template>
-      <template #cell-last_checked="{ row }: { row: Resource }">
-        <span v-if="row.last_checked" class="text-xs text-muted">
-          {{ timeAgo(row.last_checked) }}
-        </span>
-        <span v-else class="text-muted">—</span>
-      </template>
-    </UDataTable>
+      empty="No monitors yet"
+    />
+
+    <div v-if="totalPages > 1" class="flex justify-center mt-3">
+      <UPagination v-model:page="page" :items-per-page="perPage" :total="filteredRows.length" />
+    </div>
 
     <ResourceModal v-model:open="showModal" :resource="editingResource" @submit="onFormSubmit" />
   </div>

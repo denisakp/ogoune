@@ -5,7 +5,11 @@ defineProps<{ incidents: PublicIncidentSummary[] }>()
 
 function fmtDate(iso: string) {
   try {
-    return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+    return new Date(iso).toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+    })
   } catch {
     return iso
   }
@@ -56,14 +60,23 @@ function statusLabel(inc: PublicIncidentSummary) {
         <div class="flex items-start justify-between gap-3 mb-1">
           <div class="flex items-center gap-2 min-w-0">
             <h3 class="text-sm font-semibold text-gray-900 truncate">{{ inc.title }}</h3>
-            <span :class="['inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium shrink-0', statusPillClass(inc)]">
+            <span
+              :class="[
+                'inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium shrink-0',
+                statusPillClass(inc),
+              ]"
+            >
               <span :class="['size-1.5 rounded-full', statusDot(inc)]" />
               {{ statusLabel(inc) }}
             </span>
           </div>
-          <span class="text-xs text-gray-500 font-mono shrink-0">{{ fmtDate(inc.started_at) }}</span>
+          <span class="text-xs text-gray-500 font-mono shrink-0">{{
+            fmtDate(inc.started_at)
+          }}</span>
         </div>
-        <p v-if="duration(inc)" class="text-xs text-gray-500 font-mono">Duration: {{ duration(inc) }}</p>
+        <p v-if="duration(inc)" class="text-xs text-gray-500 font-mono">
+          Duration: {{ duration(inc) }}
+        </p>
       </a>
     </div>
   </section>

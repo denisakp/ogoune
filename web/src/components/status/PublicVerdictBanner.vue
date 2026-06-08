@@ -61,7 +61,10 @@ const updatedLabel = computed(() => {
     data-testid="verdict-banner"
   >
     <div
-      :class="['inline-flex items-center gap-2 rounded-2xl border px-5 py-3 text-base font-semibold shadow-sm', palette.pill]"
+      :class="[
+        'inline-flex items-center gap-2 rounded-2xl border px-5 py-3 text-base font-semibold shadow-sm',
+        palette.pill,
+      ]"
     >
       <svg
         v-if="verdict.status === 'operational'"
@@ -76,13 +79,7 @@ const updatedLabel = computed(() => {
           clip-rule="evenodd"
         />
       </svg>
-      <svg
-        v-else
-        class="size-5"
-        :class="palette.dot"
-        viewBox="0 0 20 20"
-        fill="currentColor"
-      >
+      <svg v-else class="size-5" :class="palette.dot" viewBox="0 0 20 20" fill="currentColor">
         <path
           fill-rule="evenodd"
           d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.88c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 5a1 1 0 011 1v3a1 1 0 11-2 0V6a1 1 0 011-1zm0 7a1 1 0 100 2 1 1 0 000-2z"

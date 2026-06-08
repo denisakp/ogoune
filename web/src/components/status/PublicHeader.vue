@@ -15,12 +15,7 @@ const logoLight = computed(() => props.branding?.logo_url_light || '')
   <header class="border-b border-gray-200">
     <div class="max-w-5xl mx-auto px-6 h-16 flex items-center justify-between">
       <a :href="homepage" class="flex items-center gap-2 group">
-        <img
-          v-if="logoLight"
-          :src="logoLight"
-          :alt="name"
-          class="h-7 w-auto"
-        />
+        <img v-if="logoLight" :src="logoLight" :alt="name" class="h-7 w-auto" />
         <svg
           v-else
           class="h-7 w-7 text-indigo-500"

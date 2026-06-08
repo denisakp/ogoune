@@ -7,19 +7,21 @@ vi.mock('@/services/statusPageSettingsService', () => ({
   uploadStatusPageLogo: vi.fn(),
   deleteStatusPageLogo: vi.fn(),
 }))
-vi.mock('ant-design-vue', () => ({
-  message: { success: vi.fn(), error: vi.fn() },
+vi.mock('@nuxt/ui/composables/useToast', () => ({
+  useToast: () => ({ add: vi.fn() }),
 }))
 
 import * as svc from '@/services/statusPageSettingsService'
 
-function mkSettings(overrides: Partial<StatusPageSettingsResponse> = {}): StatusPageSettingsResponse {
+function mkSettings(
+  overrides: Partial<StatusPageSettingsResponse> = {},
+): StatusPageSettingsResponse {
   return {
     id: 'sp-1',
     name: 'Acme',
     homepage_url: '',
     custom_domain: '',
-    google_analytics_id: '',
+    umami_website_id: '',
     enable_details_page: true,
     show_uptime_percentage: true,
     hide_paused_monitors: true,
@@ -54,7 +56,7 @@ describe('BrandingSection — US5', () => {
 
   it('renders 3 logo slots, primary color picker, and theme overrides editor', () => {
     const w = render()
-    expect(w.findAll('[data-slot]')).toHaveLength(3)
+    expect(w.findAll('[data-logo-slot]')).toHaveLength(3)
     expect(w.find('[data-testid="primary-color-picker"]').exists()).toBe(true)
     expect(w.find('[data-testid="theme-overrides-editor"]').exists()).toBe(true)
   })
@@ -71,7 +73,7 @@ describe('BrandingSection — US5', () => {
     vi.mocked(svc.uploadStatusPageLogo).mockResolvedValue(next)
     const w = render()
     const file = new File([new Uint8Array([1, 2, 3])], 'logo.png', { type: 'image/png' })
-    const lightInput = w.findAll('[data-slot]')[0]?.find('[data-testid="file-input"]')
+    const lightInput = w.findAll('[data-logo-slot]')[0]?.find('[data-testid="file-input"]')
     Object.defineProperty(lightInput!.element, 'files', { value: [file] })
     await lightInput!.trigger('change')
     await flushPromises()

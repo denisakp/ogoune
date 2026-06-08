@@ -7,7 +7,8 @@ import PublicPageFooter from '@/components/status/PublicPageFooter.vue'
 import IncidentTimeline from '@/components/status/IncidentTimeline.vue'
 
 const route = useRoute()
-const { summary, incidentDetail, loading, error, loadSummary, loadIncidentDetail } = useStatusPublic()
+const { summary, incidentDetail, loading, error, loadSummary, loadIncidentDetail } =
+  useStatusPublic()
 
 const incidentId = computed(() => String(route.params.id || ''))
 
@@ -21,7 +22,9 @@ onMounted(async () => {
   await refresh()
 })
 
-watch(incidentId, () => { refresh() })
+watch(incidentId, () => {
+  refresh()
+})
 
 const branding = computed(() => summary.value?.branding ?? null)
 const brandName = computed(() => branding.value?.name ?? 'Status Page')
@@ -80,7 +83,8 @@ const subtitle = computed(() => `Incident Report for ${brandName.value}`)
           data-section="affected"
         >
           This incident affected resource
-          <code class="font-mono text-gray-800">{{ incidentDetail.resource_id }}</code>.
+          <code class="font-mono text-gray-800">{{ incidentDetail.resource_id }}</code
+          >.
         </section>
       </template>
     </main>

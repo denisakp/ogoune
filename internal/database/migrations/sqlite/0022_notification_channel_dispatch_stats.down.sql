@@ -1,0 +1,1 @@
+-- SQLite cannot drop columns inline; the rollback is a no-op.

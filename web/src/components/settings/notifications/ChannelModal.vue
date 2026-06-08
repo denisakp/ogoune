@@ -45,9 +45,39 @@ const submitting = ref(false)
 const testResult = ref<ChannelTestResult | null>(null)
 const testing = ref(false)
 
+// Internal flag — when set, suppress the type-watcher's config wipe so the
+// initial-driven resync below is not clobbered by an interactive tab swap.
+let resyncing = false
+
+// Resync local refs when the parent passes a new `initial` (Edit/Create switch)
+// or when the modal reopens. Without this, the refs only capture initial at first mount.
+watch(
+  () => [props.open, props.initial] as const,
+  ([open]) => {
+    if (!open) return
+    resyncing = true
+    type.value = (props.initial?.type as ChannelType) ?? 'smtp'
+    name.value = props.initial?.name ?? ''
+    isDefault.value = Boolean(props.initial?.is_default)
+    isActive.value = props.initial?.is_active !== false
+    config.value =
+      (props.initial?.config as NotificationChannelInput['config']) ??
+      emptyConfigForType(type.value)
+    fieldError.value = {}
+    testResult.value = null
+    // release the guard after the type-watcher has had a chance to fire
+    queueMicrotask(() => {
+      resyncing = false
+    })
+  },
+  { immediate: true, deep: true },
+)
+
 // Tab swap clears the form payload so previous-type config never leaks.
+// Skipped while a resync is in flight (Edit/Create swap should keep its config).
 watch(type, (next, prev) => {
   if (next === prev) return
+  if (resyncing) return
   config.value = emptyConfigForType(next)
   fieldError.value = {}
   testResult.value = null
@@ -122,37 +152,71 @@ defineExpose({
 </script>
 
 <template>
-  <UModal :open="open" title="Notification channel" @update:open="emit('update:open', $event)">
+  <UModal
+    :open="open"
+    :title="initial?.id ? 'Edit notification channel' : 'New notification channel'"
+    :description="
+      initial?.id
+        ? 'Update credentials or recipient.'
+        : 'Pick a channel type and fill the destination details.'
+    "
+    :ui="{
+      content: 'sm:max-w-2xl !bg-white dark:!bg-gray-900 !divide-y-0',
+      header: '!border-b-0',
+      body: '!bg-white dark:!bg-gray-900 !border-y-0',
+      footer: '!border-t-0',
+    }"
+    @update:open="emit('update:open', $event)"
+  >
     <template #body>
-      <div class="space-y-4">
-        <UTabs
-          v-model="type"
-          :items="CHANNEL_TYPES.map((t) => ({ label: t.label, value: t.value, icon: t.icon }))"
-        />
-
-        <UFormField label="Name" :error="fieldError['name']">
-          <UInput v-model="name" placeholder="Ops mailbox" />
+      <div class="space-y-5 bg-white dark:bg-gray-900 relative isolate">
+        <UFormField label="Channel type">
+          <UTabs
+            v-model="type"
+            variant="pill"
+            size="sm"
+            :items="
+              CHANNEL_TYPES.map((t) => ({
+                label: t.label,
+                value: t.value,
+                icon: t.icon,
+                disabled: !!initial?.id && t.value !== initial?.type,
+              }))
+            "
+            :content="false"
+            class="w-full"
+          />
+          <p v-if="initial?.id" class="text-xs text-muted mt-1.5">
+            Channel type is locked in edit mode. Create a new channel to use a different type.
+          </p>
         </UFormField>
 
-        <component :is="formComponent" v-model="config" />
+        <UFormField label="Name" required :error="fieldError['name']">
+          <UInput v-model="name" placeholder="Ops mailbox" class="w-full" />
+        </UFormField>
 
-        <div class="flex items-center gap-4 pt-2">
+        <div class="rounded-md border border-default/60 bg-default p-4 space-y-3">
+          <h3 class="text-xs font-semibold text-muted uppercase tracking-wide">
+            Channel configuration
+          </h3>
+          <component :is="formComponent" v-model="config" :field-errors="fieldError" />
+        </div>
+
+        <div class="flex flex-wrap items-center gap-x-6 gap-y-2 pt-1">
           <UCheckbox v-model="isDefault" label="Set as default" />
           <UCheckbox v-model="isActive" label="Active" />
         </div>
 
-        <div v-if="Object.keys(fieldError).length > 0" class="text-xs text-error">
-          {{ Object.values(fieldError)[0] }}
-        </div>
-
-        <div v-if="testResult" class="text-xs">
-          <span v-if="testResult.delivered" class="text-success">
-            Test delivered · {{ testResult.latency_ms }} ms
-          </span>
-          <span v-else class="text-error">
-            Test failed{{ testResult.error ? `: ${testResult.error}` : '' }}
-          </span>
-        </div>
+        <UAlert
+          v-if="testResult"
+          :color="testResult.delivered ? 'success' : 'error'"
+          variant="subtle"
+          :icon="testResult.delivered ? 'i-lucide-check-circle' : 'i-lucide-alert-triangle'"
+          :title="
+            testResult.delivered ? `Test delivered in ${testResult.latency_ms} ms` : 'Test failed'
+          "
+          :description="!testResult.delivered && testResult.error ? testResult.error : undefined"
+        />
       </div>
     </template>
 

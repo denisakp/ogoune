@@ -1,7 +1,6 @@
 <script setup lang="ts">
-import { onMounted, computed, watch } from 'vue'
+import { onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
-import { useGtag } from 'vue-gtag-next'
 import StatusPage from '@/components/status-page/StatusPage.vue'
 import { storeToRefs } from 'pinia'
 import { useStatusPageStore } from '@/stores/statusPageStore'
@@ -9,9 +8,7 @@ import { useStatusPageStore } from '@/stores/statusPageStore'
 const router = useRouter()
 const store = useStatusPageStore()
 const { statusPageData, loadLoading: loading } = storeToRefs(store)
-const gtag = useGtag()
 
-// Load status page data on mount
 onMounted(async () => {
   try {
     await store.loadStatusPageData()
@@ -20,29 +17,13 @@ onMounted(async () => {
   }
 })
 
-// Watch for settings and initialize Google Analytics if configured
-watch(
-  () => statusPageData.value?.settings?.google_analytics_id,
-  (gaId) => {
-    if (gaId && gtag?.event) {
-      // Track pageview
-      gtag.event('page_view', {
-        page_path: window.location.pathname,
-      })
-    }
-  },
-  { immediate: true },
-)
-
 const handleServiceClick = (serviceId: string) => {
-  // Check if details page is enabled
   const enableDetailsPage = statusPageData.value?.settings?.enable_details_page ?? true
   if (enableDetailsPage) {
     router.push(`/status/${serviceId}`)
   }
 }
 
-// Page configuration from settings
 const pageConfig = computed(() => ({
   showLogo: true,
   companyName: statusPageData.value?.settings?.name || 'Status Page',
@@ -88,10 +69,13 @@ const pageConfig = computed(() => ({
           @service-click="handleServiceClick"
         />
         <div v-else-if="loading" class="loading-container">
-          <a-spin size="large" />
+          <UIcon name="i-lucide-loader-circle" class="size-8 animate-spin text-primary-500" />
         </div>
         <div v-else class="error-container">
-          <a-empty description="Failed to load status page data. Please try again later." />
+          <UEmpty
+            icon="i-lucide-circle-alert"
+            title="Failed to load status page data. Please try again later."
+          />
         </div>
       </div>
     </div>
@@ -236,11 +220,5 @@ const pageConfig = computed(() => ({
     text-align: center;
     gap: 8px;
   }
-}
-
-/* Remove any default layout styling */
-:deep(.ant-layout),
-:deep(.ant-layout-content) {
-  background: transparent !important;
 }
 </style>

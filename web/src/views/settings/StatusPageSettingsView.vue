@@ -23,7 +23,8 @@ const state = ref<StatusPageSettingsResponse>({
   name: '',
   homepage_url: '',
   custom_domain: '',
-  google_analytics_id: '',
+  umami_website_id: '',
+  umami_script_url: '',
   enable_details_page: true,
   show_uptime_percentage: true,
   hide_paused_monitors: true,
@@ -42,7 +43,9 @@ const state = ref<StatusPageSettingsResponse>({
 
 const sslProvider = computed<string>(() => useRuntimeConfig().ssl_provider ?? 'external')
 
-function normalizeOverrides(m: Record<string, string | undefined> | null | undefined): Record<string, string> {
+function normalizeOverrides(
+  m: Record<string, string | undefined> | null | undefined,
+): Record<string, string> {
   if (!m) return {}
   const out: Record<string, string> = {}
   for (const k of Object.keys(m).sort()) {
@@ -67,7 +70,8 @@ const dirty = computed(() => {
     s(a.name) !== s(c.name) ||
     s(a.homepage_url) !== s(c.homepage_url) ||
     s(a.custom_domain) !== s(c.custom_domain) ||
-    s(a.google_analytics_id) !== s(c.google_analytics_id) ||
+    s(a.umami_website_id) !== s(c.umami_website_id) ||
+    s(a.umami_script_url) !== s(c.umami_script_url) ||
     b(a.enable_details_page) !== b(c.enable_details_page) ||
     b(a.show_uptime_percentage) !== b(c.show_uptime_percentage) ||
     b(a.hide_paused_monitors) !== b(c.hide_paused_monitors) ||
@@ -115,7 +119,8 @@ async function save() {
       name: state.value.name,
       homepage_url: state.value.homepage_url,
       custom_domain: state.value.custom_domain,
-      google_analytics_id: state.value.google_analytics_id,
+      umami_website_id: state.value.umami_website_id,
+      umami_script_url: state.value.umami_script_url,
       enable_details_page: state.value.enable_details_page,
       show_uptime_percentage: state.value.show_uptime_percentage,
       hide_paused_monitors: state.value.hide_paused_monitors,
@@ -162,8 +167,12 @@ function onBrandingRefreshed(next: StatusPageSettingsResponse) {
   state.value = { ...next, custom_domain_dns_records: [...next.custom_domain_dns_records] }
 }
 
-function setPrimaryColor(value: string) { state.value.primary_color = value }
-function setThemeOverrides(value: StatusPageThemeOverrides) { state.value.theme_overrides = value }
+function setPrimaryColor(value: string) {
+  state.value.primary_color = value
+}
+function setThemeOverrides(value: StatusPageThemeOverrides) {
+  state.value.theme_overrides = value
+}
 
 onMounted(load)
 
@@ -190,8 +199,20 @@ defineExpose({ state, initial, dirty, load, save, reset, verify, sslPanelLabel }
         <UFormField label="Homepage URL" help="Where your brand logo links to.">
           <UInput v-model="state.homepage_url" placeholder="https://acme.com" />
         </UFormField>
-        <UFormField label="Google Analytics ID (optional)">
-          <UInput v-model="state.google_analytics_id" placeholder="G-XXXXXXXX" />
+        <UFormField
+          label="Umami website ID (optional)"
+          help="Find the UUID under your Umami dashboard → Settings → Websites."
+        >
+          <UInput
+            v-model="state.umami_website_id"
+            placeholder="72383dde-ac51-470e-991e-66d4b657adc2"
+          />
+        </UFormField>
+        <UFormField
+          label="Umami script URL (optional)"
+          help="Defaults to https://cloud.umami.is/script.js. Set this when you self-host."
+        >
+          <UInput v-model="state.umami_script_url" placeholder="https://cloud.umami.is/script.js" />
         </UFormField>
       </section>
 

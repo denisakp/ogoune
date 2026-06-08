@@ -204,9 +204,16 @@ const chartBars = computed(() => {
   })
 })
 
-const failureCount = computed(
-  () => (resource.value as unknown as { failure_count?: number } | null)?.failure_count ?? 0,
-)
+const incidentCount30d = computed(() => {
+  const incidents =
+    (resource.value as unknown as { incidents?: { started_at?: string }[] } | null)?.incidents ?? []
+  const cutoff = Date.now() - 30 * 24 * 3_600_000
+  return incidents.filter((i) => {
+    if (!i?.started_at) return false
+    const ts = new Date(i.started_at).getTime()
+    return !Number.isNaN(ts) && ts >= cutoff
+  }).length
+})
 
 const uptimeWindows = computed(() => {
   const stats = hourlyStats.value
@@ -218,15 +225,33 @@ const uptimeWindows = computed(() => {
     { key: '30d', hours: 24 * 30 },
     { key: '90d', hours: 24 * 90 },
   ]
+  const fmt = (pct: number, key: string) => {
+    const tone: 'good' | 'warning' | 'bad' = pct >= 99.9 ? 'good' : pct >= 99 ? 'warning' : 'bad'
+    return { key, value: `${pct.toFixed(2)}%`, tone }
+  }
+  const blank = (key: string) => ({ key, value: '—', tone: 'neutral' as const })
+
+  // Show "—" when the resource is younger than the window. Avoids the
+  // "is this 5d or 90d?" ambiguity and keeps list and detail consistent.
+  const created = resource.value?.created_at
+  const ageHours = created ? (now - new Date(created).getTime()) / 3_600_000 : Infinity
+
+  // 30d comes from the backend (uptime_daily_agg) so detail and list views
+  // agree on the same number. hourlyStats only covers the last 24h, so
+  // computing 30d/90d locally from it would silently report the 24h value.
+  const backendUptime30d = resource.value?.uptime_30d
+
   return ranges.map((r) => {
+    if (ageHours < r.hours) return blank(r.key)
+    if (r.key === '30d' && typeof backendUptime30d === 'number') {
+      return fmt(backendUptime30d * 100, '30d')
+    }
     const cutoff = now - r.hours * 3_600_000
     const inWindow = stats.filter((s) => new Date(s.hour).getTime() >= cutoff)
     const total = inWindow.reduce((s, x) => s + x.total_count, 0)
     const success = inWindow.reduce((s, x) => s + x.successful_count, 0)
-    if (total === 0) return { key: r.key, value: '—', tone: 'neutral' as const }
-    const pct = (success / total) * 100
-    const tone: 'good' | 'warning' | 'bad' = pct >= 99.9 ? 'good' : pct >= 99 ? 'warning' : 'bad'
-    return { key: r.key, value: `${pct.toFixed(2)}%`, tone }
+    if (total === 0) return blank(r.key)
+    return fmt((success / total) * 100, r.key)
   })
 })
 
@@ -338,6 +363,43 @@ function formatDate(iso?: string): string {
     month: 'short',
     day: 'numeric',
   })
+}
+
+function formatInterval(seconds?: number | null): string {
+  if (!seconds || seconds <= 0) return '—'
+  if (seconds < 60) return `${seconds} s`
+  if (seconds < 3600) {
+    const m = Math.round(seconds / 60)
+    return `${m} min`
+  }
+  if (seconds < 86400) {
+    const h = Math.round((seconds / 3600) * 10) / 10
+    return `${h} h`
+  }
+  const d = Math.round((seconds / 86400) * 10) / 10
+  return `${d} d`
+}
+
+function displayTarget(r: Resource | null): string {
+  if (!r) return '—'
+  switch (r.type) {
+    case 'http':
+    case 'keyword':
+      return r.target || '—'
+    case 'tcp':
+    case 'protocol': {
+      const t = r.target ?? ''
+      if (t.includes(':')) return t
+      return r.protocol_port ? `${t}:${r.protocol_port}` : t
+    }
+    case 'dns':
+    case 'icmp':
+      return r.target || '—'
+    case 'heartbeat':
+      return r.heartbeat_slug || '—'
+    default:
+      return r.target || '—'
+  }
 }
 
 async function onModalSubmit() {
@@ -471,8 +533,8 @@ defineExpose({ resource, activeTab, loadDetail, loadActivity, togglePause, onDel
               </div>
             </div>
             <div class="bg-white rounded-lg border border-slate-200 p-4">
-              <div class="text-xs text-slate-500 mb-1">Failures (30d)</div>
-              <div class="text-xl font-semibold text-slate-900">{{ failureCount }}</div>
+              <div class="text-xs text-slate-500 mb-1">Incidents (30d)</div>
+              <div class="text-xl font-semibold text-slate-900">{{ incidentCount30d }}</div>
             </div>
             <div class="bg-white rounded-lg border border-slate-200 p-4">
               <div class="text-xs text-slate-500 mb-1">Last Checked</div>
@@ -745,13 +807,13 @@ defineExpose({ resource, activeTab, loadDetail, loadActivity, togglePause, onDel
               <div
                 v-for="a in g.items"
                 :key="a.id"
-                class="relative -ml-[27px] flex items-center gap-3 py-2 pl-6 pr-2 rounded-md hover:bg-slate-50"
+                class="relative -ml-6.75 flex items-center gap-3 py-2 pl-6 pr-2 rounded-md hover:bg-slate-50"
               >
                 <span
                   class="absolute left-0 size-2 rounded-full ring-2 ring-white shrink-0"
                   :style="{ backgroundColor: a.success ? '#10B981' : '#EF4444' }"
                 />
-                <span class="text-xs font-mono text-slate-500 w-[80px] shrink-0">
+                <span class="text-xs font-mono text-slate-500 w-20 shrink-0">
                   {{ timeOfDay(a.created_at) }}
                 </span>
                 <span
@@ -799,7 +861,7 @@ defineExpose({ resource, activeTab, loadDetail, loadActivity, togglePause, onDel
               v-for="b in stripBuckets"
               :key="b.index"
               type="button"
-              class="flex-1 min-w-[3px] rounded-sm transition-opacity"
+              class="flex-1 min-w-0.75 rounded-sm transition-opacity"
               :class="{
                 'opacity-100': selectedBucketIndex === b.index,
                 'opacity-90 hover:opacity-100': selectedBucketIndex !== b.index,
@@ -889,7 +951,7 @@ defineExpose({ resource, activeTab, loadDetail, loadActivity, togglePause, onDel
                   class="size-1.5 rounded-full shrink-0"
                   :style="{ backgroundColor: a.success ? '#10B981' : '#EF4444' }"
                 />
-                <span class="font-mono text-slate-600 w-[80px] shrink-0">
+                <span class="font-mono text-slate-600 w-20 shrink-0">
                   {{ timeOfDay(a.created_at) }}
                 </span>
                 <span class="text-slate-700 flex-1 truncate min-w-0">
@@ -954,25 +1016,199 @@ defineExpose({ resource, activeTab, loadDetail, loadActivity, togglePause, onDel
         />
       </div>
 
-      <div v-else class="bg-white rounded-lg border border-slate-200 p-6">
-        <div class="flex items-center justify-between mb-4">
-          <h3 class="text-base font-semibold text-slate-900">Configuration</h3>
-          <UButton color="primary" size="sm" icon="i-lucide-pencil" @click="showModal = true">
-            Edit
-          </UButton>
-        </div>
-        <dl class="space-y-2 text-sm">
-          <div
-            v-for="(value, key) in resource"
-            :key="String(key)"
-            class="flex items-baseline justify-between py-2 border-b border-slate-100 last:border-0"
-          >
-            <dt class="text-slate-500 capitalize">{{ String(key).replace(/_/g, ' ') }}</dt>
-            <dd class="text-slate-900 font-mono text-xs max-w-[60%] truncate">
-              {{ typeof value === 'object' ? JSON.stringify(value) : String(value ?? '—') }}
-            </dd>
+      <div v-else class="space-y-4">
+        <!-- TARGET -->
+        <section class="bg-white rounded-lg border border-slate-200 p-6">
+          <div class="flex items-center justify-between mb-4">
+            <div class="flex items-center gap-2">
+              <UIcon name="i-lucide-target" class="size-4 text-slate-500" />
+              <h3 class="text-base font-semibold text-slate-900">Target</h3>
+            </div>
           </div>
-        </dl>
+          <dl class="grid grid-cols-1 md:grid-cols-3 gap-y-3 text-sm">
+            <dt class="text-slate-500">Type</dt>
+            <dd class="md:col-span-2">
+              <UBadge variant="subtle" color="primary" size="sm">
+                {{ resource.type.toUpperCase() }}
+              </UBadge>
+            </dd>
+
+            <dt class="text-slate-500">
+              {{
+                resource.type === 'http' || resource.type === 'keyword'
+                  ? 'URL'
+                  : resource.type === 'heartbeat'
+                    ? 'Heartbeat slug'
+                    : 'Target'
+              }}
+            </dt>
+            <dd class="md:col-span-2 font-mono text-xs text-slate-900 break-all">
+              {{ displayTarget(resource) }}
+            </dd>
+
+            <template v-if="resource.type === 'keyword'">
+              <dt class="text-slate-500">Keyword</dt>
+              <dd class="md:col-span-2 font-mono text-xs text-slate-900">
+                {{ resource.keyword || '—' }}
+                <span v-if="resource.keyword_mode" class="ml-2 text-slate-500">
+                  ({{ resource.keyword_mode }})
+                </span>
+              </dd>
+            </template>
+
+            <template v-if="resource.type === 'protocol'">
+              <dt class="text-slate-500">Protocol</dt>
+              <dd class="md:col-span-2 text-slate-900">
+                {{ resource.protocol_type ?? '—' }}
+              </dd>
+            </template>
+          </dl>
+        </section>
+
+        <!-- SCHEDULE -->
+        <section class="bg-white rounded-lg border border-slate-200 p-6">
+          <div class="flex items-center justify-between mb-4">
+            <div class="flex items-center gap-2">
+              <UIcon name="i-lucide-clock" class="size-4 text-slate-500" />
+              <h3 class="text-base font-semibold text-slate-900">Schedule</h3>
+            </div>
+          </div>
+          <dl class="grid grid-cols-1 md:grid-cols-3 gap-y-3 text-sm">
+            <dt class="text-slate-500">Check interval</dt>
+            <dd class="md:col-span-2 text-slate-900">{{ formatInterval(resource.interval) }}</dd>
+
+            <dt class="text-slate-500">Timeout</dt>
+            <dd class="md:col-span-2 text-slate-900">{{ formatInterval(resource.timeout) }}</dd>
+
+            <dt class="text-slate-500">Confirmation</dt>
+            <dd class="md:col-span-2 text-slate-900">
+              {{ resource.confirmation_checks }} consecutive failures
+              <span class="text-slate-500">
+                · every {{ formatInterval(resource.confirmation_interval) }}
+              </span>
+            </dd>
+
+            <dt class="text-slate-500">Active</dt>
+            <dd class="md:col-span-2">
+              <UBadge
+                v-if="resource.is_active"
+                variant="subtle"
+                color="success"
+                size="sm"
+                icon="i-lucide-check"
+              >
+                Enabled
+              </UBadge>
+              <UBadge
+                v-else
+                variant="subtle"
+                color="neutral"
+                size="sm"
+                icon="i-lucide-pause"
+              >
+                Paused
+              </UBadge>
+            </dd>
+          </dl>
+        </section>
+
+        <!-- FLAP DETECTION -->
+        <section
+          v-if="resource.flap_detection_enabled"
+          class="bg-white rounded-lg border border-slate-200 p-6"
+        >
+          <div class="flex items-center justify-between mb-4">
+            <div class="flex items-center gap-2">
+              <UIcon name="i-lucide-activity" class="size-4 text-slate-500" />
+              <h3 class="text-base font-semibold text-slate-900">Flap detection</h3>
+            </div>
+          </div>
+          <dl class="grid grid-cols-1 md:grid-cols-3 gap-y-3 text-sm">
+            <dt class="text-slate-500">Threshold</dt>
+            <dd class="md:col-span-2 text-slate-900">
+              {{ resource.flap_threshold ?? '—' }} transitions
+            </dd>
+            <dt class="text-slate-500">Window</dt>
+            <dd class="md:col-span-2 text-slate-900">
+              {{ formatInterval(resource.flap_window_seconds) }}
+            </dd>
+            <dt class="text-slate-500">Max duration</dt>
+            <dd class="md:col-span-2 text-slate-900">
+              {{ resource.flap_max_duration_minutes ?? '—' }} min
+            </dd>
+          </dl>
+        </section>
+
+        <!-- TAGS -->
+        <section class="bg-white rounded-lg border border-slate-200 p-6">
+          <div class="flex items-center justify-between mb-4">
+            <div class="flex items-center gap-2">
+              <UIcon name="i-lucide-tag" class="size-4 text-slate-500" />
+              <h3 class="text-base font-semibold text-slate-900">Tags</h3>
+            </div>
+          </div>
+          <div
+            v-if="(resource.tags?.length ?? 0) > 0"
+            class="flex flex-wrap gap-2"
+          >
+            <UBadge
+              v-for="tag in resource.tags ?? []"
+              :key="tag.id"
+              variant="subtle"
+              color="neutral"
+              size="md"
+            >
+              {{ tag.name }}
+            </UBadge>
+          </div>
+          <p v-else class="text-sm text-slate-500">
+            No tags. Add tags to group monitors and target alerts.
+          </p>
+        </section>
+
+        <!-- META (footer, low-vis) -->
+        <section class="bg-slate-50 rounded-lg border border-slate-100 p-4">
+          <dl class="grid grid-cols-1 md:grid-cols-3 gap-y-2 text-xs text-slate-500">
+            <dt>Resource ID</dt>
+            <dd class="md:col-span-2 font-mono break-all">{{ resource.id }}</dd>
+            <dt>Created</dt>
+            <dd class="md:col-span-2">{{ formatDate(resource.created_at) }}</dd>
+            <dt>Last updated</dt>
+            <dd class="md:col-span-2">{{ formatDate(resource.updated_at) }}</dd>
+          </dl>
+        </section>
+
+        <!-- DANGER ZONE -->
+        <section class="bg-red-50 rounded-lg border border-red-200 p-6">
+          <div class="flex items-start justify-between gap-4">
+            <div>
+              <h3 class="text-base font-semibold text-red-700">Danger Zone</h3>
+              <p class="text-xs text-red-600/80 mt-1">
+                Pause monitoring to stop checks without losing history. Delete removes the monitor
+                and all its data.
+              </p>
+            </div>
+            <div class="flex items-center gap-2 shrink-0">
+              <UButton
+                variant="outline"
+                color="neutral"
+                size="sm"
+                :icon="isPaused ? 'i-lucide-play' : 'i-lucide-pause'"
+                @click="togglePause"
+              >
+                {{ isPaused ? 'Resume' : 'Pause' }}
+              </UButton>
+              <UButton
+                color="error"
+                size="sm"
+                icon="i-lucide-trash-2"
+                @click="onDelete"
+              >
+                Delete
+              </UButton>
+            </div>
+          </div>
+        </section>
       </div>
 
       <ResourceModal v-model:open="showModal" :resource="resource" @submit="onModalSubmit" />

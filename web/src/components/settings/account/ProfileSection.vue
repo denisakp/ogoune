@@ -121,31 +121,30 @@ defineExpose({ state, lastResult, submit: (data: AccountInput) => onSubmit({ dat
       ref="formRef"
       :schema="accountSchema"
       :state="state"
-      class="space-y-3"
+      class="space-y-4"
       @submit="onSubmit"
     >
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
         <UFormField label="First Name" name="first_name">
-          <UInput v-model="state.first_name" placeholder="Ada" />
+          <UInput v-model="state.first_name" placeholder="Ada" class="w-full" />
         </UFormField>
         <UFormField label="Last Name" name="last_name">
-          <UInput v-model="state.last_name" placeholder="Lovelace" />
+          <UInput v-model="state.last_name" placeholder="Lovelace" class="w-full" />
+        </UFormField>
+        <UFormField label="Email" name="email">
+          <UInput v-model="state.email" type="email" placeholder="you@example.com" class="w-full" />
+        </UFormField>
+        <UFormField label="Timezone" name="timezone">
+          <USelectMenu
+            v-model="state.timezone"
+            :items="timezones"
+            value-key="value"
+            label-key="label"
+            searchable
+            class="w-full"
+          />
         </UFormField>
       </div>
-
-      <UFormField label="Email" name="email">
-        <UInput v-model="state.email" type="email" placeholder="you@example.com" />
-      </UFormField>
-
-      <UFormField label="Timezone" name="timezone">
-        <USelectMenu
-          v-model="state.timezone"
-          :items="timezones"
-          value-key="value"
-          label-key="label"
-          searchable
-        />
-      </UFormField>
 
       <div class="flex items-center gap-3 pt-2">
         <UButton type="submit" color="primary" :loading="submitting">Save Changes</UButton>

@@ -1,14 +1,12 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { message as antMessage } from 'ant-design-vue'
+import { useToast } from '@nuxt/ui/composables/useToast'
+
 import { useConfirm } from '@/composables/useConfirm'
 import LogoUploadField from './LogoUploadField.vue'
 import PrimaryColorPicker from './PrimaryColorPicker.vue'
 import ThemeOverridesEditor from './ThemeOverridesEditor.vue'
-import {
-  uploadStatusPageLogo,
-  deleteStatusPageLogo,
-} from '@/services/statusPageSettingsService'
+import { uploadStatusPageLogo, deleteStatusPageLogo } from '@/services/statusPageSettingsService'
 import type {
   StatusPageLogoSlot,
   StatusPageSettingsResponse,
@@ -28,16 +26,17 @@ const emit = defineEmits<{
 }>()
 
 const uploading = ref<StatusPageLogoSlot | null>(null)
+const toast = useToast()
 
 async function onUpload(payload: { slot: StatusPageLogoSlot; file: File }) {
   uploading.value = payload.slot
   try {
     const updated = await uploadStatusPageLogo(payload.slot, payload.file)
     emit('settings-refreshed', updated)
-    antMessage.success(`${payload.slot} logo uploaded.`)
+    toast.add({ title: `${payload.slot} logo uploaded.`, color: 'success' })
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e)
-    antMessage.error(`Upload failed: ${msg}`)
+    toast.add({ title: `Upload failed: ${msg}`, color: 'error' })
   } finally {
     uploading.value = null
   }
@@ -61,23 +60,27 @@ async function onDelete(slot: StatusPageLogoSlot) {
       else next.favicon_url = ''
       emit('settings-refreshed', next)
     }
-    antMessage.success(`${slot} logo removed.`)
+    toast.add({ title: `${slot} logo removed.`, color: 'success' })
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e)
-    antMessage.error(`Remove failed: ${msg}`)
+    toast.add({ title: `Remove failed: ${msg}`, color: 'error' })
   }
 }
 
 function onUploadError(msg: string) {
-  antMessage.error(msg)
+  toast.add({ title: msg, color: 'error' })
 }
 
 const logoLight = computed(() => props.settings?.logo_url_light ?? '')
 const logoDark = computed(() => props.settings?.logo_url_dark ?? '')
 const favicon = computed(() => props.settings?.favicon_url ?? '')
 
-function setPrimary(v: string) { emit('update:primaryColor', v) }
-function setOverrides(v: StatusPageThemeOverrides) { emit('update:themeOverrides', v) }
+function setPrimary(v: string) {
+  emit('update:primaryColor', v)
+}
+function setOverrides(v: StatusPageThemeOverrides) {
+  emit('update:themeOverrides', v)
+}
 </script>
 
 <template>
@@ -87,9 +90,7 @@ function setOverrides(v: StatusPageThemeOverrides) { emit('update:themeOverrides
   >
     <header>
       <h2 class="text-base font-semibold text-slate-900">Branding</h2>
-      <p class="text-sm text-slate-500">
-        Customize the look and feel of your public status page.
-      </p>
+      <p class="text-sm text-slate-500">Customize the look and feel of your public status page.</p>
     </header>
 
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">

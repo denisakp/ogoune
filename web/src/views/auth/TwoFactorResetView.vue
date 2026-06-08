@@ -6,6 +6,7 @@
 import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import twoFactorService from '@/services/twoFactorService'
+import AuthLayout from '@/components/layout/AuthLayout.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -22,7 +23,6 @@ async function run() {
   }
   try {
     const r = await twoFactorService.confirmReset(token)
-    // Persist token + redirect to re-setup flow.
     localStorage.setItem('ogoune_auth_token', r.token)
     state.value = 'success'
     router.replace('/settings/security/2fa?action=re-setup')
@@ -38,27 +38,29 @@ defineExpose({ state, errorMessage, run })
 </script>
 
 <template>
-  <div class="min-h-screen flex items-center justify-center bg-default p-6">
-    <div class="w-full max-w-md space-y-4">
-      <USkeleton v-if="state === 'pending'" class="h-32" />
+  <AuthLayout>
+    <template #title>
+      <h1 class="text-[22px] font-bold text-slate-900 leading-tight">Two-factor reset</h1>
+    </template>
 
-      <UAlert
-        v-else-if="state === 'error'"
-        color="error"
-        variant="soft"
-        icon="i-lucide-triangle-alert"
-        title="Reset link no longer valid"
-        :description="errorMessage ?? ''"
-      />
+    <USkeleton v-if="state === 'pending'" class="h-32" />
 
-      <div v-if="state === 'error'" class="text-center">
-        <RouterLink
-          to="/auth/2fa-recover"
-          class="text-xs text-muted hover:text-default underline underline-offset-4"
-        >
-          Request a new reset link
-        </RouterLink>
-      </div>
-    </div>
-  </div>
+    <UAlert
+      v-else-if="state === 'error'"
+      color="error"
+      variant="soft"
+      icon="i-lucide-triangle-alert"
+      title="Reset link no longer valid"
+      :description="errorMessage ?? ''"
+    />
+
+    <template v-if="state === 'error'" #footer>
+      <RouterLink
+        to="/auth/2fa-recover"
+        class="text-slate-600 hover:text-default underline underline-offset-4"
+      >
+        Request a new reset link
+      </RouterLink>
+    </template>
+  </AuthLayout>
 </template>

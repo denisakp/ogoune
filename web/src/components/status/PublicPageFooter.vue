@@ -32,10 +32,7 @@ const year = new Date().getUTCFullYear()
 </script>
 
 <template>
-  <footer
-    class="border-t border-gray-200 mt-12"
-    data-testid="public-footer"
-  >
+  <footer class="border-t border-gray-200 mt-12" data-testid="public-footer">
     <div
       class="max-w-5xl mx-auto px-6 py-4 flex items-center justify-between text-xs text-gray-500"
     >

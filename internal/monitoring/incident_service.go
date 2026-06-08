@@ -189,9 +189,15 @@ func (s *IncidentService) CreateIncident(ctx context.Context, r *domain.Resource
 				if markErr := s.notifications.MarkAsFailed(ctx, notificationEvent.ID, err.Error(), processedAt); markErr != nil {
 					slog.Warn("failed to mark notification event as failed", "notification_id", notificationEvent.ID, "error", markErr)
 				}
+				if markErr := s.notificationChannels.MarkFailure(ctx, channel.ID, processedAt); markErr != nil {
+					slog.Warn("failed to bump channel failure counter", "channel_id", channel.ID, "error", markErr)
+				}
 			} else {
 				if markErr := s.notifications.MarkAsSent(ctx, notificationEvent.ID, processedAt); markErr != nil {
 					slog.Warn("failed to mark notification event as sent", "notification_id", notificationEvent.ID, "error", markErr)
+				}
+				if markErr := s.notificationChannels.MarkSent(ctx, channel.ID, processedAt); markErr != nil {
+					slog.Warn("failed to bump channel last_sent_at", "channel_id", channel.ID, "error", markErr)
 				}
 			}
 		}
@@ -279,13 +285,21 @@ func (s *IncidentService) SendReminderIfDue(ctx context.Context, r *domain.Resou
 		}}, channel); err != nil {
 			slog.Warn("failed to dispatch reminder notification", "channel_id", channel.ID, "channel_type", channel.Type, "incident_id", activeIncident.ID, "error", err)
 			if eventCreated {
-				if markErr := s.notifications.MarkAsFailed(ctx, notificationEvent.ID, err.Error(), time.Now()); markErr != nil {
+				now := time.Now()
+				if markErr := s.notifications.MarkAsFailed(ctx, notificationEvent.ID, err.Error(), now); markErr != nil {
 					slog.Warn("failed to mark reminder notification event as failed", "notification_id", notificationEvent.ID, "error", markErr)
+				}
+				if markErr := s.notificationChannels.MarkFailure(ctx, channel.ID, now); markErr != nil {
+					slog.Warn("failed to bump channel failure counter", "channel_id", channel.ID, "error", markErr)
 				}
 			}
 		} else if eventCreated {
-			if markErr := s.notifications.MarkAsSent(ctx, notificationEvent.ID, time.Now()); markErr != nil {
+			now := time.Now()
+			if markErr := s.notifications.MarkAsSent(ctx, notificationEvent.ID, now); markErr != nil {
 				slog.Warn("failed to mark reminder notification event as sent", "notification_id", notificationEvent.ID, "error", markErr)
+			}
+			if markErr := s.notificationChannels.MarkSent(ctx, channel.ID, now); markErr != nil {
+				slog.Warn("failed to bump channel last_sent_at", "channel_id", channel.ID, "error", markErr)
 			}
 		}
 	}
@@ -430,9 +444,15 @@ func (s *IncidentService) ResolveIncident(ctx context.Context, r *domain.Resourc
 				if markErr := s.notifications.MarkAsFailed(ctx, notificationEvent.ID, err.Error(), processedAt); markErr != nil {
 					slog.Warn("failed to mark notification event as failed", "notification_id", notificationEvent.ID, "error", markErr)
 				}
+				if markErr := s.notificationChannels.MarkFailure(ctx, channel.ID, processedAt); markErr != nil {
+					slog.Warn("failed to bump channel failure counter", "channel_id", channel.ID, "error", markErr)
+				}
 			} else {
 				if markErr := s.notifications.MarkAsSent(ctx, notificationEvent.ID, processedAt); markErr != nil {
 					slog.Warn("failed to mark notification event as sent", "notification_id", notificationEvent.ID, "error", markErr)
+				}
+				if markErr := s.notificationChannels.MarkSent(ctx, channel.ID, processedAt); markErr != nil {
+					slog.Warn("failed to bump channel last_sent_at", "channel_id", channel.ID, "error", markErr)
 				}
 			}
 		}

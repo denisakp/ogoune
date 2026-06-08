@@ -4,8 +4,17 @@ import ResponseTimeChart from '@/components/ResponseTimeChart.vue'
 import type { Resource } from '@/types'
 import { getTimeRangeCutoff } from '@/libs/date-time.helper'
 
+type Range = '24h' | '7d' | '30d' | '365d'
+
 const props = defineProps<{ resource: Resource }>()
-const timeRange = defineModel<'24h' | '7d' | '30d' | '365d'>('timeRange', { required: true })
+const timeRange = defineModel<Range>('timeRange', { required: true })
+
+const ranges: { value: Range; label: string }[] = [
+  { value: '24h', label: '24h' },
+  { value: '7d', label: '7d' },
+  { value: '30d', label: '30d' },
+  { value: '365d', label: '1y' },
+]
 
 const filteredIncidents = computed(() => {
   if (!props.resource.incidents) return []
@@ -41,59 +50,38 @@ const currentStats = computed(() => ({
 </script>
 
 <template>
-  <a-card style="margin-bottom: 16px">
-    <template #title>
-      <div style="display: flex; justify-content: space-between; align-items: center">
-        <span style="font-size: 14px; font-weight: 600">Performance</span>
-        <a-radio-group v-model:value="timeRange" button-style="solid" size="small">
-          <a-radio-button value="24h">24h</a-radio-button>
-          <a-radio-button value="7d">7d</a-radio-button>
-          <a-radio-button value="30d">30d</a-radio-button>
-          <a-radio-button value="365d">1y</a-radio-button>
-        </a-radio-group>
+  <UCard class="mb-4">
+    <template #header>
+      <div class="flex justify-between items-center">
+        <span class="text-sm font-semibold">Performance</span>
+        <UTabs v-model="timeRange" :items="ranges" variant="pill" size="xs" />
       </div>
     </template>
-    <a-row :gutter="24" style="margin-bottom: 24px">
-      <a-col :xs="24" :sm="12">
-        <div style="text-align: center; padding: 24px">
-          <div
-            style="font-size: 48px; font-weight: bold"
-            :style="{ color: currentStats.uptime === null ? '#d9d9d9' : '#52c41a' }"
-          >
-            {{ currentStats.uptime !== null ? currentStats.uptime + '%' : 'Pending' }}
-          </div>
-          <div style="font-size: 14px; color: rgba(0, 0, 0, 0.65); margin-top: 8px">
-            {{ currentStats.uptime === null ? 'Waiting for first check' : 'Uptime' }}
-          </div>
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-6 mb-6">
+      <div class="text-center py-6">
+        <div
+          class="text-5xl font-bold"
+          :style="{ color: currentStats.uptime === null ? '#d9d9d9' : '#52c41a' }"
+        >
+          {{ currentStats.uptime !== null ? currentStats.uptime + '%' : 'Pending' }}
         </div>
-      </a-col>
-      <a-col :xs="24" :sm="12">
-        <div style="text-align: center; padding: 24px">
-          <div style="font-size: 48px; font-weight: bold; color: #f5222d">
-            {{ currentStats.incidents }}
-          </div>
-          <div style="font-size: 14px; color: rgba(0, 0, 0, 0.65); margin-top: 8px">Incidents</div>
+        <div class="text-sm text-muted mt-2">
+          {{ currentStats.uptime === null ? 'Waiting for first check' : 'Uptime' }}
         </div>
-      </a-col>
-    </a-row>
+      </div>
+      <div class="text-center py-6">
+        <div class="text-5xl font-bold text-red-500">{{ currentStats.incidents }}</div>
+        <div class="text-sm text-muted mt-2">Incidents</div>
+      </div>
+    </div>
     <div
       v-if="resource.response_times && resource.response_times.length > 0"
-      style="
-        display: grid;
-        grid-template-columns: repeat(3, 1fr);
-        gap: 16px;
-        padding: 16px;
-        background: rgba(0, 0, 0, 0.02);
-        border-radius: 8px;
-        margin-bottom: 16px;
-      "
+      class="grid grid-cols-3 gap-4 p-4 rounded-lg mb-4"
+      style="background: rgba(0, 0, 0, 0.02)"
     >
-      <div style="text-align: center">
-        <UIcon
-          name="i-lucide-layout-dashboard"
-          style="font-size: 24px; color: #1890ff; margin-bottom: 8px"
-        />
-        <div style="font-size: 20px; font-weight: 600; color: #1890ff; margin-bottom: 4px">
+      <div class="text-center">
+        <UIcon name="i-lucide-layout-dashboard" class="size-6 mb-2" style="color: #1890ff" />
+        <div class="text-xl font-semibold mb-1" style="color: #1890ff">
           {{
             (
               resource.response_times.reduce((sum, r) => sum + r.response_time, 0) /
@@ -101,29 +89,23 @@ const currentStats = computed(() => ({
             ).toFixed(0)
           }}ms
         </div>
-        <div style="font-size: 12px; color: rgba(0, 0, 0, 0.45)">Average</div>
+        <div class="text-xs text-muted">Average</div>
       </div>
-      <div style="text-align: center">
-        <UIcon
-          name="i-lucide-trending-up"
-          style="font-size: 24px; color: #52c41a; margin-bottom: 8px"
-        />
-        <div style="font-size: 20px; font-weight: 600; color: #52c41a; margin-bottom: 4px">
+      <div class="text-center">
+        <UIcon name="i-lucide-trending-up" class="size-6 mb-2" style="color: #52c41a" />
+        <div class="text-xl font-semibold mb-1" style="color: #52c41a">
           {{ Math.min(...resource.response_times.map((r) => r.response_time)) }}ms
         </div>
-        <div style="font-size: 12px; color: rgba(0, 0, 0, 0.45)">Min</div>
+        <div class="text-xs text-muted">Min</div>
       </div>
-      <div style="text-align: center">
-        <UIcon
-          name="i-lucide-trending-down"
-          style="font-size: 24px; color: #ff4d4f; margin-bottom: 8px"
-        />
-        <div style="font-size: 20px; font-weight: 600; color: #ff4d4f; margin-bottom: 4px">
+      <div class="text-center">
+        <UIcon name="i-lucide-trending-down" class="size-6 mb-2" style="color: #ff4d4f" />
+        <div class="text-xl font-semibold mb-1" style="color: #ff4d4f">
           {{ Math.max(...resource.response_times.map((r) => r.response_time)) }}ms
         </div>
-        <div style="font-size: 12px; color: rgba(0, 0, 0, 0.45)">Max</div>
+        <div class="text-xs text-muted">Max</div>
       </div>
     </div>
     <div><ResponseTimeChart :data="resource.response_times" :height="300" /></div>
-  </a-card>
+  </UCard>
 </template>

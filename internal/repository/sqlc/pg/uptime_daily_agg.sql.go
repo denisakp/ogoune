@@ -108,6 +108,49 @@ func (q *Queries) FindUptimeDailyAggRange(ctx context.Context, arg FindUptimeDai
 	return items, nil
 }
 
+const sumUptimeAggByResourcesSince = `-- name: SumUptimeAggByResourcesSince :many
+SELECT
+    resource_id,
+    SUM(up)::bigint      AS up_sum,
+    SUM(samples)::bigint AS samples_sum
+FROM uptime_daily_agg
+WHERE day >= $1 AND resource_id = ANY($2::text[])
+GROUP BY resource_id
+`
+
+type SumUptimeAggByResourcesSinceParams struct {
+	Day     pgtype.Date `json:"day"`
+	Column2 []string    `json:"column_2"`
+}
+
+type SumUptimeAggByResourcesSinceRow struct {
+	ResourceID string `json:"resource_id"`
+	UpSum      int64  `json:"up_sum"`
+	SamplesSum int64  `json:"samples_sum"`
+}
+
+// One round-trip bulk aggregation grouped by resource. Used by the list path
+// to enrich each resource with its uptime ratio over a sliding window (30d).
+func (q *Queries) SumUptimeAggByResourcesSince(ctx context.Context, arg SumUptimeAggByResourcesSinceParams) ([]SumUptimeAggByResourcesSinceRow, error) {
+	rows, err := q.db.Query(ctx, sumUptimeAggByResourcesSince, arg.Day, arg.Column2)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []SumUptimeAggByResourcesSinceRow{}
+	for rows.Next() {
+		var i SumUptimeAggByResourcesSinceRow
+		if err := rows.Scan(&i.ResourceID, &i.UpSum, &i.SamplesSum); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const upsertUptimeDailyAgg = `-- name: UpsertUptimeDailyAgg :exec
 INSERT INTO uptime_daily_agg (
     resource_id, day, samples, up, degraded, down, uptime_ratio, computed_at
