@@ -109,6 +109,29 @@ When deployed with the backend:
 - Frontend requests go to `/api/...` on the same origin
 - Backend serves both static files and API
 
+#### Maintenance mode (spec 069)
+
+The SPA ships a built-in maintenance screen, forced dark mode, that short-circuits every authenticated and anonymous route when enabled. Activation is **build-time** (no runtime backend signal), so toggling it requires a frontend redeploy.
+
+```bash
+VITE_MAINTENANCE_MODE=true
+VITE_MAINTENANCE_ETA="est. 30 min"          # optional free-text ETA pill
+VITE_MAINTENANCE_MESSAGE="Upgrading DB"     # optional free-text message
+```
+
+Leave `VITE_MAINTENANCE_MODE` unset or set to `false` for normal operation. Unplanned API downtime is covered by the global 500 error boundary, not by this flag.
+
+#### Notification feed mode (spec 069)
+
+The in-app bell dropdown reads its feed through a `NotificationFeed` interface. The default mode is `mock` (fixture-driven, session-local read state).
+
+```bash
+VITE_NOTIFICATION_FEED_MODE=mock     # default — fixture
+# VITE_NOTIFICATION_FEED_MODE=remote # reserved for a future real backend
+```
+
+`remote` mode is intentionally not implemented in this PRD; selecting it throws at fetch time. A dedicated follow-up PRD will introduce the real backend.
+
 ---
 
 ## 📚 Development
@@ -154,6 +177,10 @@ The frontend follows a strict separation of concerns:
 - Never call Axios directly from components
 
 For detailed architectural information, see [Frontend Architecture](./ARCHITECTURE.md).
+
+### Shared UI patterns
+
+Before reaching for raw HTML + Tailwind, check the [pattern catalog](./docs/patterns/README.md) — empty states, loading skeletons, confirm modals, form banners, toasts. Each pattern documents props, variants, and "when to use" with copy-paste snippets.
 
 ### Adding a New Feature
 

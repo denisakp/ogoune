@@ -843,3 +843,18 @@ export interface TestConnectionResponse {
   cause?: string
   latency_ms: number
 }
+
+// ─── Spec 069: Cross-cutting UI ─────────────────────────────────────────────
+
+export type {
+  NotificationCategory,
+  NotificationSeverity,
+  NotificationFeedItem,
+  NotificationReadState,
+} from './notifications'
+export type { SearchResultCategory, SearchResult } from './searchPalette'
+export type {
+  KeyboardShortcutSection,
+  KeyboardShortcutKind,
+  KeyboardShortcut,
+} from './keyboard'
