@@ -229,11 +229,20 @@ const uptimeWindows = computed(() => {
     const tone: 'good' | 'warning' | 'bad' = pct >= 99.9 ? 'good' : pct >= 99 ? 'warning' : 'bad'
     return { key, value: `${pct.toFixed(2)}%`, tone }
   }
+  const blank = (key: string) => ({ key, value: '—', tone: 'neutral' as const })
+
+  // Show "—" when the resource is younger than the window. Avoids the
+  // "is this 5d or 90d?" ambiguity and keeps list and detail consistent.
+  const created = resource.value?.created_at
+  const ageHours = created ? (now - new Date(created).getTime()) / 3_600_000 : Infinity
+
   // 30d comes from the backend (uptime_daily_agg) so detail and list views
   // agree on the same number. hourlyStats only covers the last 24h, so
   // computing 30d/90d locally from it would silently report the 24h value.
   const backendUptime30d = resource.value?.uptime_30d
+
   return ranges.map((r) => {
+    if (ageHours < r.hours) return blank(r.key)
     if (r.key === '30d' && typeof backendUptime30d === 'number') {
       return fmt(backendUptime30d * 100, '30d')
     }
@@ -241,7 +250,7 @@ const uptimeWindows = computed(() => {
     const inWindow = stats.filter((s) => new Date(s.hour).getTime() >= cutoff)
     const total = inWindow.reduce((s, x) => s + x.total_count, 0)
     const success = inWindow.reduce((s, x) => s + x.successful_count, 0)
-    if (total === 0) return { key: r.key, value: '—', tone: 'neutral' as const }
+    if (total === 0) return blank(r.key)
     return fmt((success / total) * 100, r.key)
   })
 })

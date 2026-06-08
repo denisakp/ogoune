@@ -34,7 +34,8 @@ export interface Resource {
   tags?: Tag[]
   incidents?: Incident[]
   incident_count_30d?: number
-  uptime_30d?: number // 0..1 ratio over last 30 days (or since creation if younger)
+  uptime_7d?: number // 0..1 ratio over last 7 days
+  uptime_30d?: number // 0..1 ratio over last 30 days
   response_time?: number // avg response time in ms over the same window
   uptime?: number // Overall uptime percentage
   hourly_uptime?: HourlyUptimeStat[] // Hourly uptime data for sparklines

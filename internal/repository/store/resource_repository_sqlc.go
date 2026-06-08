@@ -1091,23 +1091,37 @@ func (r *ResourceRepositorySQLC) attachUptimeStats(ctx context.Context, resource
 	}
 	now := time.Now().UTC()
 	since := now.Add(-30 * 24 * time.Hour)
-	fromDay := now.AddDate(0, 0, -29) // inclusive 30-day window
+	fromDay30 := now.AddDate(0, 0, -29) // inclusive 30-day window
+	fromDay7 := now.AddDate(0, 0, -6)   // inclusive 7-day window
 
-	uptime := make(map[string]float64, len(resources))
+	uptime30 := make(map[string]float64, len(resources))
+	uptime7 := make(map[string]float64, len(resources))
 	resp := make(map[string]int, len(resources))
 
 	switch {
 	case r.pgQ != nil:
-		uRows, err := r.pgQ.SumUptimeAggByResourcesSince(ctx, pgsqlc.SumUptimeAggByResourcesSinceParams{
-			Day:     pgtype.Date{Time: fromDay, Valid: true},
+		rows30, err := r.pgQ.SumUptimeAggByResourcesSince(ctx, pgsqlc.SumUptimeAggByResourcesSinceParams{
+			Day:     pgtype.Date{Time: fromDay30, Valid: true},
 			Column2: ids,
 		})
 		if err != nil {
-			return fmt.Errorf("sqlc: sum uptime agg per resource: %w", err)
+			return fmt.Errorf("sqlc: sum uptime agg 30d: %w", err)
 		}
-		for _, row := range uRows {
+		for _, row := range rows30 {
 			if row.SamplesSum > 0 {
-				uptime[row.ResourceID] = float64(row.UpSum) / float64(row.SamplesSum)
+				uptime30[row.ResourceID] = float64(row.UpSum) / float64(row.SamplesSum)
+			}
+		}
+		rows7, err := r.pgQ.SumUptimeAggByResourcesSince(ctx, pgsqlc.SumUptimeAggByResourcesSinceParams{
+			Day:     pgtype.Date{Time: fromDay7, Valid: true},
+			Column2: ids,
+		})
+		if err != nil {
+			return fmt.Errorf("sqlc: sum uptime agg 7d: %w", err)
+		}
+		for _, row := range rows7 {
+			if row.SamplesSum > 0 {
+				uptime7[row.ResourceID] = float64(row.UpSum) / float64(row.SamplesSum)
 			}
 		}
 		aRows, err := r.pgQ.AvgResponseTimeByResourcesSince(ctx, pgsqlc.AvgResponseTimeByResourcesSinceParams{
@@ -1121,16 +1135,28 @@ func (r *ResourceRepositorySQLC) attachUptimeStats(ctx context.Context, resource
 			resp[row.ResourceID] = int(row.AvgMs + 0.5)
 		}
 	case r.sqliteQ != nil:
-		uRows, err := r.sqliteQ.SumUptimeAggByResourcesSince(ctx, sqlitesqlc.SumUptimeAggByResourcesSinceParams{
-			FromDay:     fromDay.Format("2006-01-02"),
+		rows30, err := r.sqliteQ.SumUptimeAggByResourcesSince(ctx, sqlitesqlc.SumUptimeAggByResourcesSinceParams{
+			FromDay:     fromDay30.Format("2006-01-02"),
 			ResourceIds: ids,
 		})
 		if err != nil {
-			return fmt.Errorf("sqlc: sum uptime agg per resource: %w", err)
+			return fmt.Errorf("sqlc: sum uptime agg 30d: %w", err)
 		}
-		for _, row := range uRows {
+		for _, row := range rows30 {
 			if row.SamplesSum.Valid && row.SamplesSum.Float64 > 0 && row.UpSum.Valid {
-				uptime[row.ResourceID] = row.UpSum.Float64 / row.SamplesSum.Float64
+				uptime30[row.ResourceID] = row.UpSum.Float64 / row.SamplesSum.Float64
+			}
+		}
+		rows7, err := r.sqliteQ.SumUptimeAggByResourcesSince(ctx, sqlitesqlc.SumUptimeAggByResourcesSinceParams{
+			FromDay:     fromDay7.Format("2006-01-02"),
+			ResourceIds: ids,
+		})
+		if err != nil {
+			return fmt.Errorf("sqlc: sum uptime agg 7d: %w", err)
+		}
+		for _, row := range rows7 {
+			if row.SamplesSum.Valid && row.SamplesSum.Float64 > 0 && row.UpSum.Valid {
+				uptime7[row.ResourceID] = row.UpSum.Float64 / row.SamplesSum.Float64
 			}
 		}
 		aRows, err := r.sqliteQ.AvgResponseTimeByResourcesSince(ctx, sqlitesqlc.AvgResponseTimeByResourcesSinceParams{
@@ -1153,8 +1179,11 @@ func (r *ResourceRepositorySQLC) attachUptimeStats(ctx context.Context, resource
 		if res == nil {
 			continue
 		}
-		if v, ok := uptime[res.ID]; ok {
+		if v, ok := uptime30[res.ID]; ok {
 			res.Uptime30d = &v
+		}
+		if v, ok := uptime7[res.ID]; ok {
+			res.Uptime7d = &v
 		}
 		if v, ok := resp[res.ID]; ok {
 			res.ResponseTimeAvg = &v

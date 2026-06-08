@@ -30,25 +30,19 @@ const statusColor = computed(() => {
 
 const target = computed(() => {
   const r = props.resource as unknown as { target?: string }
-  return r.target?.trim() || '—'
+  return r.target?.trim() || ''
 })
 
-const uptimeWindowDays = computed(() => {
-  if (!props.resource.created_at) return 30
-  const ageMs = Date.now() - new Date(props.resource.created_at).getTime()
-  const days = Math.floor(ageMs / 86_400_000)
-  return Math.min(30, Math.max(1, days))
+const ageDays = computed(() => {
+  if (!props.resource.created_at) return Infinity
+  return Math.floor((Date.now() - new Date(props.resource.created_at).getTime()) / 86_400_000)
 })
 
-const uptimePct = computed(() => {
-  const u = props.resource.uptime_30d
+const uptime7dPct = computed(() => {
+  const u = props.resource.uptime_7d
   if (typeof u !== 'number') return '—'
-  return `${(u * 100).toFixed(1)}% (${uptimeWindowDays.value}d)`
-})
-
-const responseTime = computed(() => {
-  const rt = props.resource.response_time
-  return typeof rt === 'number' ? `${rt}ms` : '—'
+  if (ageDays.value < 7) return '—'
+  return `${(u * 100).toFixed(1)}%`
 })
 
 const incidentCount30d = computed(() => {
@@ -61,7 +55,7 @@ const isPaused = computed(() => props.resource.status === 'paused')
 
 <template>
   <div
-    class="grid grid-cols-[28px_1fr_80px_90px_90px_90px_90px_100px_120px_140px_40px] gap-2 px-4 py-2.5 items-center border-t border-slate-200 hover:bg-slate-50 cursor-pointer"
+    class="grid grid-cols-[28px_1fr_80px_90px_90px_90px_140px_40px] gap-2 px-4 py-2.5 items-center border-t border-slate-200 hover:bg-slate-50 cursor-pointer"
     :class="{ 'bg-primary-50': selected }"
     @click="emit('action', { kind: 'view', resource })"
   >
@@ -73,9 +67,12 @@ const isPaused = computed(() => props.resource.status === 'paused')
         @change="emit('toggle-select')"
       />
     </div>
-    <div class="flex items-center gap-2 min-w-0">
-      <span class="size-2 rounded-full shrink-0" :style="{ backgroundColor: statusColor }" />
-      <span class="text-sm text-slate-900 truncate font-medium">{{ resource.name }}</span>
+    <div class="flex flex-col min-w-0">
+      <div class="flex items-center gap-2 min-w-0">
+        <span class="size-2 rounded-full shrink-0" :style="{ backgroundColor: statusColor }" />
+        <span class="text-sm text-slate-900 truncate font-medium">{{ resource.name }}</span>
+      </div>
+      <span v-if="target" class="text-xs text-slate-500 truncate pl-4">{{ target }}</span>
     </div>
     <span
       class="text-[10px] font-semibold uppercase text-slate-600 bg-slate-100 rounded-md px-1.5 py-0.5 inline-block"
@@ -88,10 +85,8 @@ const isPaused = computed(() => props.resource.status === 'paused')
     >
       {{ resource.status }}
     </span>
-    <span class="text-xs font-mono text-slate-600">{{ uptimePct }}</span>
-    <span class="text-xs font-mono text-slate-600">{{ responseTime }}</span>
+    <span class="text-xs font-mono text-slate-600">{{ uptime7dPct }}</span>
     <span class="text-xs font-mono text-slate-600">{{ incidentCount30d }}</span>
-    <span class="text-xs text-slate-500 truncate">{{ target }}</span>
     <span class="text-xs text-slate-500">
       {{ resource.last_checked ? timeAgo(resource.last_checked) : '—' }}
     </span>

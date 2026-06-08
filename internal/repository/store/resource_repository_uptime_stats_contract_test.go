@@ -68,12 +68,15 @@ func TestResourceRepository_List_AttachesUptimeStats(t *testing.T) {
 		require.NotNil(t, got)
 		require.NotNil(t, got.Uptime30d, "uptime_30d should be populated")
 		assert.InDelta(t, 0.95, *got.Uptime30d, 1e-6)
+		require.NotNil(t, got.Uptime7d, "uptime_7d should be populated")
+		assert.InDelta(t, 0.95, *got.Uptime7d, 1e-6)
 		require.NotNil(t, got.ResponseTimeAvg, "response_time avg should be populated")
 		assert.Equal(t, 200, *got.ResponseTimeAvg)
 
 		empty := byID[noStats.ID]
 		require.NotNil(t, empty)
 		assert.Nil(t, empty.Uptime30d, "uptime_30d should be nil when no agg rows")
+		assert.Nil(t, empty.Uptime7d, "uptime_7d should be nil when no agg rows")
 		assert.Nil(t, empty.ResponseTimeAvg, "response_time should be nil when no activities")
 	})
 }

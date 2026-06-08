@@ -103,6 +103,7 @@ type Resource struct {
 	Metadata                *ResourceMetaData      `json:"metadata"`
 	Incidents               []Incident             `json:"incidents"`
 	IncidentCount30d        *int                   `json:"incident_count_30d,omitempty"`
+	Uptime7d                *float64               `json:"uptime_7d,omitempty"`
 	Uptime30d               *float64               `json:"uptime_30d,omitempty"`
 	ResponseTimeAvg         *int                   `json:"response_time,omitempty"`
 	Tags                    []*Tags                `json:"tags"`
