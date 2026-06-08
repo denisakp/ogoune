@@ -12,10 +12,16 @@ import (
 
 type Querier interface {
 	AvgResponseTimeByResourceInWindow(ctx context.Context, arg AvgResponseTimeByResourceInWindowParams) (sql.NullFloat64, error)
+	// One round-trip bulk avg grouped by resource. Used by the list path to
+	// enrich each resource with its avg response time over a sliding window (30d).
+	AvgResponseTimeByResourcesSince(ctx context.Context, arg AvgResponseTimeByResourcesSinceParams) ([]AvgResponseTimeByResourcesSinceRow, error)
 	ClaimNotificationEvent(ctx context.Context, arg ClaimNotificationEventParams) (int64, error)
 	CountAPIKeysByUserID(ctx context.Context, userID string) (int64, error)
 	CountExpiryNotificationLogsByKey(ctx context.Context, arg CountExpiryNotificationLogsByKeyParams) (int64, error)
 	CountIncidentsByResourceID(ctx context.Context, resourceID string) (int64, error)
+	// One round-trip count grouped by resource. Used by the list path to enrich
+	// each resource with its incident count over a sliding window (e.g. 30d).
+	CountIncidentsPerResourceSince(ctx context.Context, arg CountIncidentsPerResourceSinceParams) ([]CountIncidentsPerResourceSinceRow, error)
 	CountMonitoringActivityByResourceSuccess(ctx context.Context, arg CountMonitoringActivityByResourceSuccessParams) (int64, error)
 	CountMonitoringActivityByResourceTotal(ctx context.Context, arg CountMonitoringActivityByResourceTotalParams) (int64, error)
 	CountMonitoringActivitySinceSuccess(ctx context.Context, createdAt time.Time) (int64, error)
@@ -154,6 +160,9 @@ type Querier interface {
 	SelectMonitoringActivitySuccessInWindow(ctx context.Context, arg SelectMonitoringActivitySuccessInWindowParams) ([]int64, error)
 	SetEscalationPolicyPriority(ctx context.Context, arg SetEscalationPolicyPriorityParams) (int64, error)
 	SoftDeleteResource(ctx context.Context, id string) (int64, error)
+	// One round-trip bulk aggregation grouped by resource. Used by the list path
+	// to enrich each resource with its uptime ratio over a sliding window (30d).
+	SumUptimeAggByResourcesSince(ctx context.Context, arg SumUptimeAggByResourcesSinceParams) ([]SumUptimeAggByResourcesSinceRow, error)
 	UnlinkMaintenanceResource(ctx context.Context, arg UnlinkMaintenanceResourceParams) error
 	UnlinkResourceChannel(ctx context.Context, arg UnlinkResourceChannelParams) error
 	UnlinkResourceTag(ctx context.Context, arg UnlinkResourceTagParams) error

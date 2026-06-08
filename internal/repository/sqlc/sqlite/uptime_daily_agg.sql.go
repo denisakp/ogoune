@@ -7,6 +7,8 @@ package sqlitesqlc
 
 import (
 	"context"
+	"database/sql"
+	"strings"
 	"time"
 )
 
@@ -55,6 +57,64 @@ func (q *Queries) FindUptimeDailyAggForResource(ctx context.Context, arg FindUpt
 			&i.UptimeRatio,
 			&i.ComputedAt,
 		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const sumUptimeAggByResourcesSince = `-- name: SumUptimeAggByResourcesSince :many
+SELECT
+    resource_id,
+    SUM(up)      AS up_sum,
+    SUM(samples) AS samples_sum
+FROM uptime_daily_agg
+WHERE day >= ?1
+  AND resource_id IN (/*SLICE:resource_ids*/?)
+GROUP BY resource_id
+`
+
+type SumUptimeAggByResourcesSinceParams struct {
+	FromDay     string   `json:"from_day"`
+	ResourceIds []string `json:"resource_ids"`
+}
+
+type SumUptimeAggByResourcesSinceRow struct {
+	ResourceID string          `json:"resource_id"`
+	UpSum      sql.NullFloat64 `json:"up_sum"`
+	SamplesSum sql.NullFloat64 `json:"samples_sum"`
+}
+
+// One round-trip bulk aggregation grouped by resource. Used by the list path
+// to enrich each resource with its uptime ratio over a sliding window (30d).
+func (q *Queries) SumUptimeAggByResourcesSince(ctx context.Context, arg SumUptimeAggByResourcesSinceParams) ([]SumUptimeAggByResourcesSinceRow, error) {
+	query := sumUptimeAggByResourcesSince
+	var queryParams []interface{}
+	queryParams = append(queryParams, arg.FromDay)
+	if len(arg.ResourceIds) > 0 {
+		for _, v := range arg.ResourceIds {
+			queryParams = append(queryParams, v)
+		}
+		query = strings.Replace(query, "/*SLICE:resource_ids*/?", strings.Repeat(",?", len(arg.ResourceIds))[1:], 1)
+	} else {
+		query = strings.Replace(query, "/*SLICE:resource_ids*/?", "NULL", 1)
+	}
+	rows, err := q.db.QueryContext(ctx, query, queryParams...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []SumUptimeAggByResourcesSinceRow{}
+	for rows.Next() {
+		var i SumUptimeAggByResourcesSinceRow
+		if err := rows.Scan(&i.ResourceID, &i.UpSum, &i.SamplesSum); err != nil {
 			return nil, err
 		}
 		items = append(items, i)

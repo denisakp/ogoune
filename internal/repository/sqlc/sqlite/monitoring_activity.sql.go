@@ -8,6 +8,7 @@ package sqlitesqlc
 import (
 	"context"
 	"database/sql"
+	"strings"
 	"time"
 )
 
@@ -26,6 +27,61 @@ func (q *Queries) AvgResponseTimeByResourceInWindow(ctx context.Context, arg Avg
 	var avg sql.NullFloat64
 	err := row.Scan(&avg)
 	return avg, err
+}
+
+const avgResponseTimeByResourcesSince = `-- name: AvgResponseTimeByResourcesSince :many
+SELECT resource_id, AVG(response_time) AS avg_ms
+FROM monitoring_activities
+WHERE created_at >= ?1
+  AND success = 1
+  AND resource_id IN (/*SLICE:resource_ids*/?)
+GROUP BY resource_id
+`
+
+type AvgResponseTimeByResourcesSinceParams struct {
+	Since       time.Time `json:"since"`
+	ResourceIds []string  `json:"resource_ids"`
+}
+
+type AvgResponseTimeByResourcesSinceRow struct {
+	ResourceID string          `json:"resource_id"`
+	AvgMs      sql.NullFloat64 `json:"avg_ms"`
+}
+
+// One round-trip bulk avg grouped by resource. Used by the list path to
+// enrich each resource with its avg response time over a sliding window (30d).
+func (q *Queries) AvgResponseTimeByResourcesSince(ctx context.Context, arg AvgResponseTimeByResourcesSinceParams) ([]AvgResponseTimeByResourcesSinceRow, error) {
+	query := avgResponseTimeByResourcesSince
+	var queryParams []interface{}
+	queryParams = append(queryParams, arg.Since)
+	if len(arg.ResourceIds) > 0 {
+		for _, v := range arg.ResourceIds {
+			queryParams = append(queryParams, v)
+		}
+		query = strings.Replace(query, "/*SLICE:resource_ids*/?", strings.Repeat(",?", len(arg.ResourceIds))[1:], 1)
+	} else {
+		query = strings.Replace(query, "/*SLICE:resource_ids*/?", "NULL", 1)
+	}
+	rows, err := q.db.QueryContext(ctx, query, queryParams...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []AvgResponseTimeByResourcesSinceRow{}
+	for rows.Next() {
+		var i AvgResponseTimeByResourcesSinceRow
+		if err := rows.Scan(&i.ResourceID, &i.AvgMs); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const countMonitoringActivityByResourceSuccess = `-- name: CountMonitoringActivityByResourceSuccess :one

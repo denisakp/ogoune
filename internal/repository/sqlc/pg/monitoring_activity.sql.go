@@ -28,6 +28,47 @@ func (q *Queries) AvgResponseTimeByResourceInWindow(ctx context.Context, arg Avg
 	return column_1, err
 }
 
+const avgResponseTimeByResourcesSince = `-- name: AvgResponseTimeByResourcesSince :many
+SELECT resource_id, AVG(response_time)::float8 AS avg_ms
+FROM monitoring_activities
+WHERE created_at >= $1
+  AND success = true
+  AND resource_id = ANY($2::text[])
+GROUP BY resource_id
+`
+
+type AvgResponseTimeByResourcesSinceParams struct {
+	CreatedAt pgtype.Timestamptz `json:"created_at"`
+	Column2   []string           `json:"column_2"`
+}
+
+type AvgResponseTimeByResourcesSinceRow struct {
+	ResourceID string  `json:"resource_id"`
+	AvgMs      float64 `json:"avg_ms"`
+}
+
+// One round-trip bulk avg grouped by resource. Used by the list path to
+// enrich each resource with its avg response time over a sliding window (30d).
+func (q *Queries) AvgResponseTimeByResourcesSince(ctx context.Context, arg AvgResponseTimeByResourcesSinceParams) ([]AvgResponseTimeByResourcesSinceRow, error) {
+	rows, err := q.db.Query(ctx, avgResponseTimeByResourcesSince, arg.CreatedAt, arg.Column2)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []AvgResponseTimeByResourcesSinceRow{}
+	for rows.Next() {
+		var i AvgResponseTimeByResourcesSinceRow
+		if err := rows.Scan(&i.ResourceID, &i.AvgMs); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const countMonitoringActivityByResourceSuccess = `-- name: CountMonitoringActivityByResourceSuccess :one
 SELECT COUNT(*) FROM monitoring_activities
 WHERE resource_id = $1 AND created_at >= $2 AND success = true

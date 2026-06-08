@@ -226,6 +226,12 @@ func (r *ResourceRepositorySQLC) List(ctx context.Context, limit, offset int) ([
 	if err := r.attachTagsOnly(ctx, out); err != nil {
 		return nil, err
 	}
+	if err := r.attachIncidentCounts(ctx, out); err != nil {
+		return nil, err
+	}
+	if err := r.attachUptimeStats(ctx, out); err != nil {
+		return nil, err
+	}
 	return out, nil
 }
 
@@ -1005,6 +1011,155 @@ func (r *ResourceRepositorySQLC) attachTagsOnly(ctx context.Context, resources [
 	return r.attachTagsToResources(ctx, resources)
 }
 
+// attachIncidentCounts populates Resource.IncidentCount30d with the number of
+// incidents whose started_at falls within the last 30 days. One round-trip
+// total (GROUP BY resource_id). Resources with zero incidents in the window
+// get a non-nil pointer to 0 so the JSON field is always present.
+func (r *ResourceRepositorySQLC) attachIncidentCounts(ctx context.Context, resources []*domain.Resource) error {
+	if len(resources) == 0 {
+		return nil
+	}
+	ids := make([]string, 0, len(resources))
+	for _, res := range resources {
+		if res != nil {
+			ids = append(ids, res.ID)
+		}
+	}
+	if len(ids) == 0 {
+		return nil
+	}
+	since := time.Now().Add(-30 * 24 * time.Hour)
+
+	counts := make(map[string]int, len(resources))
+	switch {
+	case r.pgQ != nil:
+		rows, err := r.pgQ.CountIncidentsPerResourceSince(ctx, pgsqlc.CountIncidentsPerResourceSinceParams{
+			StartedAt: pgtype.Timestamptz{Time: since, Valid: true},
+			Column2:   ids,
+		})
+		if err != nil {
+			return fmt.Errorf("sqlc: count incidents per resource: %w", err)
+		}
+		for _, row := range rows {
+			counts[row.ResourceID] = int(row.IncidentCount)
+		}
+	case r.sqliteQ != nil:
+		rows, err := r.sqliteQ.CountIncidentsPerResourceSince(ctx, sqlitesqlc.CountIncidentsPerResourceSinceParams{
+			StartedAt:   since,
+			ResourceIds: ids,
+		})
+		if err != nil {
+			return fmt.Errorf("sqlc: count incidents per resource: %w", err)
+		}
+		for _, row := range rows {
+			counts[row.ResourceID] = int(row.IncidentCount)
+		}
+	default:
+		return r.unconfigured()
+	}
+
+	for _, res := range resources {
+		if res == nil {
+			continue
+		}
+		c := counts[res.ID]
+		res.IncidentCount30d = &c
+	}
+	return nil
+}
+
+// attachUptimeStats populates Resource.Uptime30d and Resource.ResponseTimeAvg
+// using two bulk round-trips: SUM(up)/SUM(samples) over uptime_daily_agg for
+// the last 30 days, and AVG(response_time) over successful monitoring_activities
+// for the same window. Resources with no data leave both pointers nil so the
+// JSON fields omit and the frontend renders `-`.
+func (r *ResourceRepositorySQLC) attachUptimeStats(ctx context.Context, resources []*domain.Resource) error {
+	if len(resources) == 0 {
+		return nil
+	}
+	ids := make([]string, 0, len(resources))
+	for _, res := range resources {
+		if res != nil {
+			ids = append(ids, res.ID)
+		}
+	}
+	if len(ids) == 0 {
+		return nil
+	}
+	now := time.Now().UTC()
+	since := now.Add(-30 * 24 * time.Hour)
+	fromDay := now.AddDate(0, 0, -29) // inclusive 30-day window
+
+	uptime := make(map[string]float64, len(resources))
+	resp := make(map[string]int, len(resources))
+
+	switch {
+	case r.pgQ != nil:
+		uRows, err := r.pgQ.SumUptimeAggByResourcesSince(ctx, pgsqlc.SumUptimeAggByResourcesSinceParams{
+			Day:     pgtype.Date{Time: fromDay, Valid: true},
+			Column2: ids,
+		})
+		if err != nil {
+			return fmt.Errorf("sqlc: sum uptime agg per resource: %w", err)
+		}
+		for _, row := range uRows {
+			if row.SamplesSum > 0 {
+				uptime[row.ResourceID] = float64(row.UpSum) / float64(row.SamplesSum)
+			}
+		}
+		aRows, err := r.pgQ.AvgResponseTimeByResourcesSince(ctx, pgsqlc.AvgResponseTimeByResourcesSinceParams{
+			CreatedAt: pgtype.Timestamptz{Time: since, Valid: true},
+			Column2:   ids,
+		})
+		if err != nil {
+			return fmt.Errorf("sqlc: avg response time per resource: %w", err)
+		}
+		for _, row := range aRows {
+			resp[row.ResourceID] = int(row.AvgMs + 0.5)
+		}
+	case r.sqliteQ != nil:
+		uRows, err := r.sqliteQ.SumUptimeAggByResourcesSince(ctx, sqlitesqlc.SumUptimeAggByResourcesSinceParams{
+			FromDay:     fromDay.Format("2006-01-02"),
+			ResourceIds: ids,
+		})
+		if err != nil {
+			return fmt.Errorf("sqlc: sum uptime agg per resource: %w", err)
+		}
+		for _, row := range uRows {
+			if row.SamplesSum.Valid && row.SamplesSum.Float64 > 0 && row.UpSum.Valid {
+				uptime[row.ResourceID] = row.UpSum.Float64 / row.SamplesSum.Float64
+			}
+		}
+		aRows, err := r.sqliteQ.AvgResponseTimeByResourcesSince(ctx, sqlitesqlc.AvgResponseTimeByResourcesSinceParams{
+			Since:       since,
+			ResourceIds: ids,
+		})
+		if err != nil {
+			return fmt.Errorf("sqlc: avg response time per resource: %w", err)
+		}
+		for _, row := range aRows {
+			if row.AvgMs.Valid {
+				resp[row.ResourceID] = int(row.AvgMs.Float64 + 0.5)
+			}
+		}
+	default:
+		return r.unconfigured()
+	}
+
+	for _, res := range resources {
+		if res == nil {
+			continue
+		}
+		if v, ok := uptime[res.ID]; ok {
+			res.Uptime30d = &v
+		}
+		if v, ok := resp[res.ID]; ok {
+			res.ResponseTimeAvg = &v
+		}
+	}
+	return nil
+}
+
 // ---------- M2M (resource_tags) helpers ----------
 
 func tagIDsFromResource(r *domain.Resource) []string {
@@ -1518,6 +1673,12 @@ func (r *ResourceRepositorySQLC) ListResourcesByFilter(ctx context.Context, f dy
 		if err := r.attachTagsOnly(ctx, out); err != nil {
 			return nil, 0, err
 		}
+		if err := r.attachIncidentCounts(ctx, out); err != nil {
+			return nil, 0, err
+		}
+		if err := r.attachUptimeStats(ctx, out); err != nil {
+			return nil, 0, err
+		}
 		return out, int(total), nil
 	case r.sqliteQ != nil:
 		rows, err := r.sqliteDB.QueryContext(ctx, idSQL, idArgs...)
@@ -1545,6 +1706,12 @@ func (r *ResourceRepositorySQLC) ListResourcesByFilter(ctx context.Context, f dy
 		}
 		out := resourcesInOrder(resourcesFromSQLite(rrows), ids)
 		if err := r.attachTagsOnly(ctx, out); err != nil {
+			return nil, 0, err
+		}
+		if err := r.attachIncidentCounts(ctx, out); err != nil {
+			return nil, 0, err
+		}
+		if err := r.attachUptimeStats(ctx, out); err != nil {
 			return nil, 0, err
 		}
 		return out, int(total), nil

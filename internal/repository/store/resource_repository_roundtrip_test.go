@@ -124,11 +124,13 @@ func TestResourceRepository_ListPreloads_RoundTripBound(t *testing.T) {
 			}
 		}
 
-		// Cases. As of spec 050 the bound is always 1 + 1 = 2 round-trips
-		// for List (1 principal + 1 Tags). Channels / Component / Credential
-		// presence on seeded rows is irrelevant to the count — those preloads
-		// are no longer issued on the list path. The test runs for two N
-		// values to prove invariance.
+		// Cases. As of spec 050 the bound was 1 + 1 = 2 round-trips for List
+		// (principal + Tags). Spec 067 adds the IncidentCount30d preload
+		// (1 GROUP BY query). Spec 068 adds the Uptime30d + ResponseTimeAvg
+		// preload (2 bulk GROUP BY queries), bringing the bound to 5.
+		// Channels / Component / Credential presence on seeded rows is
+		// irrelevant — those preloads are not issued on the list path. The
+		// test runs for two N values to prove invariance.
 		type tc struct {
 			name             string
 			withTags         bool
@@ -137,10 +139,10 @@ func TestResourceRepository_ListPreloads_RoundTripBound(t *testing.T) {
 			expectedRoundTrip int64
 		}
 		cases := []tc{
-			{name: "no_relations", expectedRoundTrip: 2},
-			{name: "tags_channels_only", withTags: true, withCh: true, expectedRoundTrip: 2},
-			{name: "with_component", withTags: true, withCh: true, withComp: true, expectedRoundTrip: 2},
-			{name: "component_only", withComp: true, expectedRoundTrip: 2},
+			{name: "no_relations", expectedRoundTrip: 5},
+			{name: "tags_channels_only", withTags: true, withCh: true, expectedRoundTrip: 5},
+			{name: "with_component", withTags: true, withCh: true, withComp: true, expectedRoundTrip: 5},
+			{name: "component_only", withComp: true, expectedRoundTrip: 5},
 		}
 
 		for _, n := range []int{10, 100} {

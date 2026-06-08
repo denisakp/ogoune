@@ -22,3 +22,15 @@ ORDER BY day ASC;
 
 -- name: FindEarliestUptimeDailyAggDay :one
 SELECT MIN(day) AS earliest FROM uptime_daily_agg;
+
+-- name: SumUptimeAggByResourcesSince :many
+-- One round-trip bulk aggregation grouped by resource. Used by the list path
+-- to enrich each resource with its uptime ratio over a sliding window (30d).
+SELECT
+    resource_id,
+    SUM(up)      AS up_sum,
+    SUM(samples) AS samples_sum
+FROM uptime_daily_agg
+WHERE day >= sqlc.arg(from_day)
+  AND resource_id IN (sqlc.slice('resource_ids'))
+GROUP BY resource_id;

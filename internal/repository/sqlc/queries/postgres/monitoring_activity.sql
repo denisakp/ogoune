@@ -43,6 +43,16 @@ WHERE resource_id = $1 AND created_at >= $2 AND success = true;
 SELECT AVG(response_time)::float8 FROM monitoring_activities
 WHERE resource_id = $1 AND created_at >= $2 AND success = true;
 
+-- name: AvgResponseTimeByResourcesSince :many
+-- One round-trip bulk avg grouped by resource. Used by the list path to
+-- enrich each resource with its avg response time over a sliding window (30d).
+SELECT resource_id, AVG(response_time)::float8 AS avg_ms
+FROM monitoring_activities
+WHERE created_at >= $1
+  AND success = true
+  AND resource_id = ANY($2::text[])
+GROUP BY resource_id;
+
 -- name: GetRecentResponseTimes :many
 SELECT created_at, response_time FROM monitoring_activities
 WHERE resource_id = $1 AND success = true

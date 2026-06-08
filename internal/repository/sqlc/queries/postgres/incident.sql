@@ -71,6 +71,14 @@ SELECT
     COUNT(DISTINCT resource_id)::bigint    AS affected_monitors
 FROM window_inc;
 
+-- name: CountIncidentsPerResourceSince :many
+-- One round-trip count grouped by resource. Used by the list path to enrich
+-- each resource with its incident count over a sliding window (e.g. 30d).
+SELECT resource_id, COUNT(*)::bigint AS incident_count
+FROM incidents
+WHERE started_at >= $1 AND resource_id = ANY($2::text[])
+GROUP BY resource_id;
+
 -- name: ListIncidentDiagnosticsByIncidentIDs :many
 SELECT * FROM incident_diagnostics
 WHERE incident_id = ANY($1::text[]);

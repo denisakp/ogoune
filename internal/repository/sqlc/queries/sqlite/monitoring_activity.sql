@@ -43,6 +43,16 @@ WHERE resource_id = ? AND created_at >= ? AND success = 1;
 SELECT AVG(response_time) FROM monitoring_activities
 WHERE resource_id = ? AND created_at >= ? AND success = 1;
 
+-- name: AvgResponseTimeByResourcesSince :many
+-- One round-trip bulk avg grouped by resource. Used by the list path to
+-- enrich each resource with its avg response time over a sliding window (30d).
+SELECT resource_id, AVG(response_time) AS avg_ms
+FROM monitoring_activities
+WHERE created_at >= sqlc.arg(since)
+  AND success = 1
+  AND resource_id IN (sqlc.slice('resource_ids'))
+GROUP BY resource_id;
+
 -- name: GetRecentResponseTimes :many
 SELECT created_at, response_time FROM monitoring_activities
 WHERE resource_id = ? AND success = 1

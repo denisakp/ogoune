@@ -102,6 +102,9 @@ type Resource struct {
 	ExpiryAlertThresholds   *string                `json:"expiry_alert_thresholds"`
 	Metadata                *ResourceMetaData      `json:"metadata"`
 	Incidents               []Incident             `json:"incidents"`
+	IncidentCount30d        *int                   `json:"incident_count_30d,omitempty"`
+	Uptime30d               *float64               `json:"uptime_30d,omitempty"`
+	ResponseTimeAvg         *int                   `json:"response_time,omitempty"`
 	Tags                    []*Tags                `json:"tags"`
 	NotificationChannels    []*NotificationChannel `json:"notification_channels"`
 	ComponentID             *string                `json:"component_id"`
