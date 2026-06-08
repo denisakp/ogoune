@@ -35,7 +35,7 @@ func InitRouter(app *App) {
 	slog.Info("initializing API server")
 
 	// Initialize API services used only by handlers
-	activityService := service.NewMonitoringActivityService(app.MonitoringActivityRepo)
+	activityService := service.NewMonitoringActivityService(app.MonitoringActivityRepo, app.UptimeDailyAggRepo)
 	tagService := service.NewTagService(app.TagsRepo)
 	statusPageSettingsService := service.NewStatusPageSettingsService(app.StatusPageSettingsRepo)
 	statusPageSettingsService.Configure("status.ogoune.app", cfg.SSLProvider)

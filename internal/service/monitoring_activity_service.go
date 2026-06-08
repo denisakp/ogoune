@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/denisakp/ogoune/internal/domain"
 	"github.com/denisakp/ogoune/internal/dto"
@@ -11,12 +12,15 @@ import (
 
 // MonitoringActivityService handles business logic for monitoring activities.
 type MonitoringActivityService struct {
-	repo port.MonitoringActivityRepository
+	repo    port.MonitoringActivityRepository
+	aggRepo port.UptimeDailyAggRepository
 }
 
 // NewMonitoringActivityService creates a new monitoring activity service.
-func NewMonitoringActivityService(repo port.MonitoringActivityRepository) *MonitoringActivityService {
-	return &MonitoringActivityService{repo: repo}
+// aggRepo may be nil; when nil, the 30d Uptime falls back to the per-hour
+// monitoring_activities path (legacy behavior, kept for tests).
+func NewMonitoringActivityService(repo port.MonitoringActivityRepository, aggRepo port.UptimeDailyAggRepository) *MonitoringActivityService {
+	return &MonitoringActivityService{repo: repo, aggRepo: aggRepo}
 }
 
 // ListAll retrieves all monitoring activities with pagination.
@@ -139,7 +143,9 @@ func (s *MonitoringActivityService) GetResourceUptimeStats(ctx context.Context, 
 	if v, err := s.repo.GetUptimeByWindow(ctx, resourceID, 168); err == nil {
 		stats.Uptime7d = v
 	}
-	if v, err := s.repo.GetUptimeByWindow(ctx, resourceID, 720); err == nil {
+	if v, err := s.uptime30dFromAgg(ctx, resourceID); err == nil && v != nil {
+		stats.Uptime30d = v
+	} else if v, err := s.repo.GetUptimeByWindow(ctx, resourceID, 720); err == nil {
 		stats.Uptime30d = v
 	}
 	if v, err := s.repo.GetAvgResponseTimeByWindow(ctx, resourceID, 24); err == nil {
@@ -147,4 +153,33 @@ func (s *MonitoringActivityService) GetResourceUptimeStats(ctx context.Context, 
 	}
 
 	return stats, nil
+}
+
+// uptime30dFromAgg computes the 30-day uptime ratio from uptime_daily_agg,
+// matching the list view's enrichment so both surfaces show the same number.
+// Returns (nil, nil) when no aggregate rows exist (resource has not yet been
+// rolled up — caller can fall back to the activity-based path).
+func (s *MonitoringActivityService) uptime30dFromAgg(ctx context.Context, resourceID string) (*float64, error) {
+	if s.aggRepo == nil {
+		return nil, nil
+	}
+	now := time.Now().UTC()
+	from := now.AddDate(0, 0, -29)
+	rows, err := s.aggRepo.FindForResource(ctx, resourceID, from, now)
+	if err != nil {
+		return nil, err
+	}
+	var up, samples int
+	for _, r := range rows {
+		if r == nil {
+			continue
+		}
+		up += r.Up
+		samples += r.Samples
+	}
+	if samples == 0 {
+		return nil, nil
+	}
+	ratio := float64(up) / float64(samples)
+	return &ratio, nil
 }
