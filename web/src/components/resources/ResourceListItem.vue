@@ -33,14 +33,27 @@ const target = computed(() => {
   return r.target?.trim() || '—'
 })
 
+const uptimeWindowDays = computed(() => {
+  if (!props.resource.created_at) return 30
+  const ageMs = Date.now() - new Date(props.resource.created_at).getTime()
+  const days = Math.floor(ageMs / 86_400_000)
+  return Math.min(30, Math.max(1, days))
+})
+
 const uptimePct = computed(() => {
-  const u = (props.resource as unknown as { uptime_30d?: number }).uptime_30d
-  return typeof u === 'number' ? `${u.toFixed(2)}%` : '—'
+  const u = props.resource.uptime_30d
+  if (typeof u !== 'number') return '—'
+  return `${(u * 100).toFixed(1)}% (${uptimeWindowDays.value}d)`
 })
 
 const responseTime = computed(() => {
-  const rt = (props.resource as unknown as { response_time?: number }).response_time
+  const rt = props.resource.response_time
   return typeof rt === 'number' ? `${rt}ms` : '—'
+})
+
+const incidentCount30d = computed(() => {
+  const n = props.resource.incident_count_30d
+  return typeof n === 'number' ? String(n) : '—'
 })
 
 const isPaused = computed(() => props.resource.status === 'paused')
@@ -48,7 +61,7 @@ const isPaused = computed(() => props.resource.status === 'paused')
 
 <template>
   <div
-    class="grid grid-cols-[28px_1fr_80px_90px_90px_100px_120px_140px_40px] gap-2 px-4 py-2.5 items-center border-t border-slate-200 hover:bg-slate-50 cursor-pointer"
+    class="grid grid-cols-[28px_1fr_80px_90px_90px_90px_90px_100px_120px_140px_40px] gap-2 px-4 py-2.5 items-center border-t border-slate-200 hover:bg-slate-50 cursor-pointer"
     :class="{ 'bg-primary-50': selected }"
     @click="emit('action', { kind: 'view', resource })"
   >
@@ -77,6 +90,7 @@ const isPaused = computed(() => props.resource.status === 'paused')
     </span>
     <span class="text-xs font-mono text-slate-600">{{ uptimePct }}</span>
     <span class="text-xs font-mono text-slate-600">{{ responseTime }}</span>
+    <span class="text-xs font-mono text-slate-600">{{ incidentCount30d }}</span>
     <span class="text-xs text-slate-500 truncate">{{ target }}</span>
     <span class="text-xs text-slate-500">
       {{ resource.last_checked ? timeAgo(resource.last_checked) : '—' }}
