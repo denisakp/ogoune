@@ -7,6 +7,10 @@
 import { onMounted, ref } from 'vue'
 import AppBreadcrumb from './AppBreadcrumb.vue'
 import AppAvatarDropdown from './AppAvatarDropdown.vue'
+import UNotificationDropdown from '@/components/overlays/UNotificationDropdown.vue'
+import { useSearchPalette } from '@/composables/useSearchPalette'
+
+const palette = useSearchPalette()
 
 // Minimal color-mode handle — Annex F3 carry-over from PR-1 demo.
 // Persists under the same `nuxt-color-mode` localStorage key so the public
@@ -49,30 +53,19 @@ onMounted(() => {
       <AppBreadcrumb />
     </div>
 
-    <UTooltip text="Available in Slice 5">
-      <UButton
-        color="neutral"
-        variant="ghost"
-        icon="i-lucide-search"
-        size="sm"
-        disabled
-        aria-label="Search (disabled)"
-      >
-        <UKbd>⌘</UKbd>
-        <UKbd>K</UKbd>
-      </UButton>
-    </UTooltip>
+    <UButton
+      color="neutral"
+      variant="ghost"
+      icon="i-lucide-search"
+      size="sm"
+      aria-label="Open search (⌘K)"
+      @click="palette.setOpen(true)"
+    >
+      <UKbd>⌘</UKbd>
+      <UKbd>K</UKbd>
+    </UButton>
 
-    <UTooltip text="Available in Slice 5">
-      <UButton
-        color="neutral"
-        variant="ghost"
-        icon="i-lucide-bell"
-        size="sm"
-        disabled
-        aria-label="Notifications (disabled)"
-      />
-    </UTooltip>
+    <UNotificationDropdown />
 
     <UButton
       color="neutral"
