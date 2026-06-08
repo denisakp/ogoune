@@ -132,12 +132,7 @@ defineExpose({ state, lastResult, submit: (data: AccountInput) => onSubmit({ dat
           <UInput v-model="state.last_name" placeholder="Lovelace" class="w-full" />
         </UFormField>
         <UFormField label="Email" name="email">
-          <UInput
-            v-model="state.email"
-            type="email"
-            placeholder="you@example.com"
-            class="w-full"
-          />
+          <UInput v-model="state.email" type="email" placeholder="you@example.com" class="w-full" />
         </UFormField>
         <UFormField label="Timezone" name="timezone">
           <USelectMenu

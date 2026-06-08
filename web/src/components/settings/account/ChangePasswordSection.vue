@@ -69,12 +69,7 @@ defineExpose({ state, lastResult, submit: (data: PasswordChangeInput) => onSubmi
 
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
         <UFormField label="New Password" name="new">
-          <UInput
-            v-model="state.new"
-            type="password"
-            autocomplete="new-password"
-            class="w-full"
-          />
+          <UInput v-model="state.new" type="password" autocomplete="new-password" class="w-full" />
         </UFormField>
         <UFormField label="Confirm Password" name="confirm">
           <UInput

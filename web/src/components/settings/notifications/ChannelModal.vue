@@ -155,28 +155,47 @@ defineExpose({
   <UModal
     :open="open"
     :title="initial?.id ? 'Edit notification channel' : 'New notification channel'"
-    :description="initial?.id ? 'Update credentials or recipient.' : 'Pick a channel type and fill the destination details.'"
-    :ui="{ content: 'sm:max-w-2xl' }"
+    :description="
+      initial?.id
+        ? 'Update credentials or recipient.'
+        : 'Pick a channel type and fill the destination details.'
+    "
+    :ui="{
+      content: 'sm:max-w-2xl !bg-white dark:!bg-gray-900 !divide-y-0',
+      header: '!border-b-0',
+      body: '!bg-white dark:!bg-gray-900 !border-y-0',
+      footer: '!border-t-0',
+    }"
     @update:open="emit('update:open', $event)"
   >
     <template #body>
-      <div class="space-y-5">
+      <div class="space-y-5 bg-white dark:bg-gray-900 relative isolate">
         <UFormField label="Channel type">
           <UTabs
             v-model="type"
             variant="pill"
             size="sm"
-            :items="CHANNEL_TYPES.map((t) => ({ label: t.label, value: t.value, icon: t.icon }))"
+            :items="
+              CHANNEL_TYPES.map((t) => ({
+                label: t.label,
+                value: t.value,
+                icon: t.icon,
+                disabled: !!initial?.id && t.value !== initial?.type,
+              }))
+            "
             :content="false"
             class="w-full"
           />
+          <p v-if="initial?.id" class="text-xs text-muted mt-1.5">
+            Channel type is locked in edit mode. Create a new channel to use a different type.
+          </p>
         </UFormField>
 
         <UFormField label="Name" required :error="fieldError['name']">
           <UInput v-model="name" placeholder="Ops mailbox" class="w-full" />
         </UFormField>
 
-        <div class="rounded-md border border-default/60 bg-elevated/40 p-4 space-y-3">
+        <div class="rounded-md border border-default/60 bg-default p-4 space-y-3">
           <h3 class="text-xs font-semibold text-muted uppercase tracking-wide">
             Channel configuration
           </h3>
@@ -193,7 +212,9 @@ defineExpose({
           :color="testResult.delivered ? 'success' : 'error'"
           variant="subtle"
           :icon="testResult.delivered ? 'i-lucide-check-circle' : 'i-lucide-alert-triangle'"
-          :title="testResult.delivered ? `Test delivered in ${testResult.latency_ms} ms` : 'Test failed'"
+          :title="
+            testResult.delivered ? `Test delivered in ${testResult.latency_ms} ms` : 'Test failed'
+          "
           :description="!testResult.delivered && testResult.error ? testResult.error : undefined"
         />
       </div>

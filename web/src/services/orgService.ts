@@ -1,6 +1,5 @@
 import { getAuthenticatedClient, request } from '@/core/http/client'
 
-const SKIP_SUCCESS = { headers: { 'x-skip-success-toast': '1' } }
 // org/general may legitimately 404 on a fresh install — silence both
 // toasts so the page doesn't flash an error modal on every reload.
 // The catch below already returns safe defaults.

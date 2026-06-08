@@ -238,11 +238,7 @@ defineExpose({ state, onSubmit, formRef, stripExtras })
       />
     </UFormField>
 
-    <UFormField
-      v-if="state.type === 'http' || state.type === 'keyword'"
-      name="url"
-      label="URL"
-    >
+    <UFormField v-if="state.type === 'http' || state.type === 'keyword'" name="url" label="URL">
       <UInput
         v-model="(state as unknown as { url: string }).url"
         placeholder="https://api.acme.com/health"
@@ -266,11 +262,7 @@ defineExpose({ state, onSubmit, formRef, stripExtras })
       />
     </UFormField>
 
-    <UFormField
-      v-if="state.type === 'tcp' || state.type === 'protocol'"
-      name="port"
-      label="Port"
-    >
+    <UFormField v-if="state.type === 'tcp' || state.type === 'protocol'" name="port" label="Port">
       <UInput
         v-model.number="(state as unknown as { port: number }).port"
         type="number"

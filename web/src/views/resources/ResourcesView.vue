@@ -259,7 +259,7 @@ defineExpose({
 
     <div class="bg-white rounded-lg border border-slate-200 overflow-hidden">
       <div
-        class="grid grid-cols-[28px_1fr_80px_90px_90px_100px_120px_140px_40px] gap-2 px-4 py-2.5 bg-slate-50 text-xs font-medium text-slate-600 border-b border-slate-200"
+        class="grid grid-cols-[28px_1fr_80px_90px_90px_90px_90px_100px_120px_140px_40px] gap-2 px-4 py-2.5 bg-slate-50 text-xs font-medium text-slate-600 border-b border-slate-200"
       >
         <span />
         <span>Name</span>
@@ -267,6 +267,7 @@ defineExpose({
         <span>Status</span>
         <span>Uptime 30d</span>
         <span>Resp time</span>
+        <span>Incidents 30d</span>
         <span>Target</span>
         <span>Last check</span>
         <span />

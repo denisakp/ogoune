@@ -155,7 +155,10 @@ defineExpose({ activeStep, next, back, finish, skip })
                 { label: 'Slack', value: 'slack', icon: 'i-lucide-slack' },
                 { label: 'Webhook', value: 'webhook', icon: 'i-lucide-webhook' },
               ]"
-              :ui="{ root: 'space-y-2', item: 'flex items-center gap-3 px-3.5 py-3 rounded-md border border-slate-200' }"
+              :ui="{
+                root: 'space-y-2',
+                item: 'flex items-center gap-3 px-3.5 py-3 rounded-md border border-slate-200',
+              }"
             />
           </div>
 

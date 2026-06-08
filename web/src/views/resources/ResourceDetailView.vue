@@ -204,9 +204,16 @@ const chartBars = computed(() => {
   })
 })
 
-const failureCount = computed(
-  () => (resource.value as unknown as { failure_count?: number } | null)?.failure_count ?? 0,
-)
+const incidentCount30d = computed(() => {
+  const incidents =
+    (resource.value as unknown as { incidents?: { started_at?: string }[] } | null)?.incidents ?? []
+  const cutoff = Date.now() - 30 * 24 * 3_600_000
+  return incidents.filter((i) => {
+    if (!i?.started_at) return false
+    const ts = new Date(i.started_at).getTime()
+    return !Number.isNaN(ts) && ts >= cutoff
+  }).length
+})
 
 const uptimeWindows = computed(() => {
   const stats = hourlyStats.value
@@ -340,6 +347,43 @@ function formatDate(iso?: string): string {
   })
 }
 
+function formatInterval(seconds?: number | null): string {
+  if (!seconds || seconds <= 0) return '—'
+  if (seconds < 60) return `${seconds} s`
+  if (seconds < 3600) {
+    const m = Math.round(seconds / 60)
+    return `${m} min`
+  }
+  if (seconds < 86400) {
+    const h = Math.round((seconds / 3600) * 10) / 10
+    return `${h} h`
+  }
+  const d = Math.round((seconds / 86400) * 10) / 10
+  return `${d} d`
+}
+
+function displayTarget(r: Resource | null): string {
+  if (!r) return '—'
+  switch (r.type) {
+    case 'http':
+    case 'keyword':
+      return r.target || '—'
+    case 'tcp':
+    case 'protocol': {
+      const t = r.target ?? ''
+      if (t.includes(':')) return t
+      return r.protocol_port ? `${t}:${r.protocol_port}` : t
+    }
+    case 'dns':
+    case 'icmp':
+      return r.target || '—'
+    case 'heartbeat':
+      return r.heartbeat_slug || '—'
+    default:
+      return r.target || '—'
+  }
+}
+
 async function onModalSubmit() {
   showModal.value = false
   await loadDetail()
@@ -471,8 +515,8 @@ defineExpose({ resource, activeTab, loadDetail, loadActivity, togglePause, onDel
               </div>
             </div>
             <div class="bg-white rounded-lg border border-slate-200 p-4">
-              <div class="text-xs text-slate-500 mb-1">Failures (30d)</div>
-              <div class="text-xl font-semibold text-slate-900">{{ failureCount }}</div>
+              <div class="text-xs text-slate-500 mb-1">Incidents (30d)</div>
+              <div class="text-xl font-semibold text-slate-900">{{ incidentCount30d }}</div>
             </div>
             <div class="bg-white rounded-lg border border-slate-200 p-4">
               <div class="text-xs text-slate-500 mb-1">Last Checked</div>
@@ -954,25 +998,199 @@ defineExpose({ resource, activeTab, loadDetail, loadActivity, togglePause, onDel
         />
       </div>
 
-      <div v-else class="bg-white rounded-lg border border-slate-200 p-6">
-        <div class="flex items-center justify-between mb-4">
-          <h3 class="text-base font-semibold text-slate-900">Configuration</h3>
-          <UButton color="primary" size="sm" icon="i-lucide-pencil" @click="showModal = true">
-            Edit
-          </UButton>
-        </div>
-        <dl class="space-y-2 text-sm">
-          <div
-            v-for="(value, key) in resource"
-            :key="String(key)"
-            class="flex items-baseline justify-between py-2 border-b border-slate-100 last:border-0"
-          >
-            <dt class="text-slate-500 capitalize">{{ String(key).replace(/_/g, ' ') }}</dt>
-            <dd class="text-slate-900 font-mono text-xs max-w-[60%] truncate">
-              {{ typeof value === 'object' ? JSON.stringify(value) : String(value ?? '—') }}
-            </dd>
+      <div v-else class="space-y-4">
+        <!-- TARGET -->
+        <section class="bg-white rounded-lg border border-slate-200 p-6">
+          <div class="flex items-center justify-between mb-4">
+            <div class="flex items-center gap-2">
+              <UIcon name="i-lucide-target" class="size-4 text-slate-500" />
+              <h3 class="text-base font-semibold text-slate-900">Target</h3>
+            </div>
           </div>
-        </dl>
+          <dl class="grid grid-cols-1 md:grid-cols-3 gap-y-3 text-sm">
+            <dt class="text-slate-500">Type</dt>
+            <dd class="md:col-span-2">
+              <UBadge variant="subtle" color="primary" size="sm">
+                {{ resource.type.toUpperCase() }}
+              </UBadge>
+            </dd>
+
+            <dt class="text-slate-500">
+              {{
+                resource.type === 'http' || resource.type === 'keyword'
+                  ? 'URL'
+                  : resource.type === 'heartbeat'
+                    ? 'Heartbeat slug'
+                    : 'Target'
+              }}
+            </dt>
+            <dd class="md:col-span-2 font-mono text-xs text-slate-900 break-all">
+              {{ displayTarget(resource) }}
+            </dd>
+
+            <template v-if="resource.type === 'keyword'">
+              <dt class="text-slate-500">Keyword</dt>
+              <dd class="md:col-span-2 font-mono text-xs text-slate-900">
+                {{ resource.keyword || '—' }}
+                <span v-if="resource.keyword_mode" class="ml-2 text-slate-500">
+                  ({{ resource.keyword_mode }})
+                </span>
+              </dd>
+            </template>
+
+            <template v-if="resource.type === 'protocol'">
+              <dt class="text-slate-500">Protocol</dt>
+              <dd class="md:col-span-2 text-slate-900">
+                {{ resource.protocol_type ?? '—' }}
+              </dd>
+            </template>
+          </dl>
+        </section>
+
+        <!-- SCHEDULE -->
+        <section class="bg-white rounded-lg border border-slate-200 p-6">
+          <div class="flex items-center justify-between mb-4">
+            <div class="flex items-center gap-2">
+              <UIcon name="i-lucide-clock" class="size-4 text-slate-500" />
+              <h3 class="text-base font-semibold text-slate-900">Schedule</h3>
+            </div>
+          </div>
+          <dl class="grid grid-cols-1 md:grid-cols-3 gap-y-3 text-sm">
+            <dt class="text-slate-500">Check interval</dt>
+            <dd class="md:col-span-2 text-slate-900">{{ formatInterval(resource.interval) }}</dd>
+
+            <dt class="text-slate-500">Timeout</dt>
+            <dd class="md:col-span-2 text-slate-900">{{ formatInterval(resource.timeout) }}</dd>
+
+            <dt class="text-slate-500">Confirmation</dt>
+            <dd class="md:col-span-2 text-slate-900">
+              {{ resource.confirmation_checks }} consecutive failures
+              <span class="text-slate-500">
+                · every {{ formatInterval(resource.confirmation_interval) }}
+              </span>
+            </dd>
+
+            <dt class="text-slate-500">Active</dt>
+            <dd class="md:col-span-2">
+              <UBadge
+                v-if="resource.is_active"
+                variant="subtle"
+                color="success"
+                size="sm"
+                icon="i-lucide-check"
+              >
+                Enabled
+              </UBadge>
+              <UBadge
+                v-else
+                variant="subtle"
+                color="neutral"
+                size="sm"
+                icon="i-lucide-pause"
+              >
+                Paused
+              </UBadge>
+            </dd>
+          </dl>
+        </section>
+
+        <!-- FLAP DETECTION -->
+        <section
+          v-if="resource.flap_detection_enabled"
+          class="bg-white rounded-lg border border-slate-200 p-6"
+        >
+          <div class="flex items-center justify-between mb-4">
+            <div class="flex items-center gap-2">
+              <UIcon name="i-lucide-activity" class="size-4 text-slate-500" />
+              <h3 class="text-base font-semibold text-slate-900">Flap detection</h3>
+            </div>
+          </div>
+          <dl class="grid grid-cols-1 md:grid-cols-3 gap-y-3 text-sm">
+            <dt class="text-slate-500">Threshold</dt>
+            <dd class="md:col-span-2 text-slate-900">
+              {{ resource.flap_threshold ?? '—' }} transitions
+            </dd>
+            <dt class="text-slate-500">Window</dt>
+            <dd class="md:col-span-2 text-slate-900">
+              {{ formatInterval(resource.flap_window_seconds) }}
+            </dd>
+            <dt class="text-slate-500">Max duration</dt>
+            <dd class="md:col-span-2 text-slate-900">
+              {{ resource.flap_max_duration_minutes ?? '—' }} min
+            </dd>
+          </dl>
+        </section>
+
+        <!-- TAGS -->
+        <section class="bg-white rounded-lg border border-slate-200 p-6">
+          <div class="flex items-center justify-between mb-4">
+            <div class="flex items-center gap-2">
+              <UIcon name="i-lucide-tag" class="size-4 text-slate-500" />
+              <h3 class="text-base font-semibold text-slate-900">Tags</h3>
+            </div>
+          </div>
+          <div
+            v-if="(resource.tags?.length ?? 0) > 0"
+            class="flex flex-wrap gap-2"
+          >
+            <UBadge
+              v-for="tag in resource.tags ?? []"
+              :key="tag.id"
+              variant="subtle"
+              color="neutral"
+              size="md"
+            >
+              {{ tag.name }}
+            </UBadge>
+          </div>
+          <p v-else class="text-sm text-slate-500">
+            No tags. Add tags to group monitors and target alerts.
+          </p>
+        </section>
+
+        <!-- META (footer, low-vis) -->
+        <section class="bg-slate-50 rounded-lg border border-slate-100 p-4">
+          <dl class="grid grid-cols-1 md:grid-cols-3 gap-y-2 text-xs text-slate-500">
+            <dt>Resource ID</dt>
+            <dd class="md:col-span-2 font-mono break-all">{{ resource.id }}</dd>
+            <dt>Created</dt>
+            <dd class="md:col-span-2">{{ formatDate(resource.created_at) }}</dd>
+            <dt>Last updated</dt>
+            <dd class="md:col-span-2">{{ formatDate(resource.updated_at) }}</dd>
+          </dl>
+        </section>
+
+        <!-- DANGER ZONE -->
+        <section class="bg-red-50 rounded-lg border border-red-200 p-6">
+          <div class="flex items-start justify-between gap-4">
+            <div>
+              <h3 class="text-base font-semibold text-red-700">Danger Zone</h3>
+              <p class="text-xs text-red-600/80 mt-1">
+                Pause monitoring to stop checks without losing history. Delete removes the monitor
+                and all its data.
+              </p>
+            </div>
+            <div class="flex items-center gap-2 shrink-0">
+              <UButton
+                variant="outline"
+                color="neutral"
+                size="sm"
+                :icon="isPaused ? 'i-lucide-play' : 'i-lucide-pause'"
+                @click="togglePause"
+              >
+                {{ isPaused ? 'Resume' : 'Pause' }}
+              </UButton>
+              <UButton
+                color="error"
+                size="sm"
+                icon="i-lucide-trash-2"
+                @click="onDelete"
+              >
+                Delete
+              </UButton>
+            </div>
+          </div>
+        </section>
       </div>
 
       <ResourceModal v-model:open="showModal" :resource="resource" @submit="onModalSubmit" />

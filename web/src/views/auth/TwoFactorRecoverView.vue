@@ -56,13 +56,14 @@ defineExpose({ email, submitted, onSubmit })
           class="w-full"
         />
       </UFormField>
-      <UButton type="submit" color="primary" block :loading="submitting">
-        Send reset link
-      </UButton>
+      <UButton type="submit" color="primary" block :loading="submitting"> Send reset link </UButton>
     </form>
 
     <template #footer>
-      <RouterLink to="/login" class="text-slate-600 hover:text-default underline underline-offset-4">
+      <RouterLink
+        to="/login"
+        class="text-slate-600 hover:text-default underline underline-offset-4"
+      >
         Back to login
       </RouterLink>
     </template>

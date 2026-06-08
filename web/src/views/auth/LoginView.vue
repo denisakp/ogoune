@@ -49,13 +49,7 @@ defineExpose({ state, onSubmit, formRef })
   <AuthLayout brand-variant="hero">
     <template #subtitle>Monitor your infrastructure with confidence</template>
 
-    <UForm
-      ref="formRef"
-      :schema="loginSchema"
-      :state="state"
-      class="space-y-4"
-      @submit="onSubmit"
-    >
+    <UForm ref="formRef" :schema="loginSchema" :state="state" class="space-y-4" @submit="onSubmit">
       <UFormField name="email" label="Email">
         <UInput
           v-model="state.email"

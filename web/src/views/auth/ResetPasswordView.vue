@@ -95,9 +95,7 @@ defineExpose({ state, onSubmit, formRef, expiredOrUsed, strength })
     <template #title>
       <h1 class="text-[22px] font-bold text-slate-900 leading-tight">Set a new password</h1>
     </template>
-    <template #subtitle>
-      Choose something only you would know. Min 12 chars + 1 digit.
-    </template>
+    <template #subtitle> Choose something only you would know. Min 12 chars + 1 digit. </template>
 
     <div
       v-if="expiredOrUsed"

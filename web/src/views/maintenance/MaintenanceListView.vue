@@ -10,13 +10,22 @@
  */
 import { computed, h, onMounted, ref, resolveComponent } from 'vue'
 import type { TableColumn } from '@nuxt/ui'
-import { fetchMaintenances, createMaintenance } from '@/services/maintenanceService'
+import {
+  fetchMaintenances,
+  createMaintenance,
+  updateMaintenance,
+  deleteMaintenance,
+} from '@/services/maintenanceService'
+import { fetchResources } from '@/services/resourceService'
 import type { Maintenance, CreateMaintenance } from '@/types'
+import { useConfirm } from '@/composables/useConfirm'
 import MaintenanceModal from '@/components/maintenance/MaintenanceModal.vue'
 
 const maintenances = ref<Maintenance[]>([])
+const resourceNamesById = ref<Record<string, string>>({})
 const loading = ref(true)
 const modalOpen = ref(false)
+const editingMaintenance = ref<Maintenance | null>(null)
 
 const search = ref<string>('')
 const preset = ref<'all' | 'active' | 'scheduled' | 'finished'>('all')
@@ -94,13 +103,30 @@ const filtered = computed(() => {
 
 const allResourcesSeen = computed(() => {
   const map = new Map<string, string>()
+
+  for (const [id, name] of Object.entries(resourceNamesById.value)) {
+    map.set(id, name)
+  }
+
   for (const m of maintenances.value) {
     for (const r of m.resources ?? []) {
-      if (r.id) map.set(r.id, r.name ?? r.id)
+      if (!r.id) continue
+      const label = resolveResourceLabel(r.id, r.name)
+      map.set(r.id, label)
     }
   }
   return Array.from(map.entries()).map(([id, name]) => ({ id, name }))
 })
+
+function resolveResourceLabel(id: string, rawName?: string | null): string {
+  const fromRow = rawName?.trim()
+  if (fromRow) return fromRow
+
+  const fromCache = resourceNamesById.value[id]?.trim()
+  if (fromCache) return fromCache
+
+  return id.slice(0, 8)
+}
 
 function statusColor(s: string) {
   if (s === 'active') return 'success'
@@ -129,21 +155,52 @@ function formatSchedule(m: Maintenance): string {
 async function reload() {
   loading.value = true
   try {
-    maintenances.value = await fetchMaintenances()
+    const [list, allResources] = await Promise.all([
+      fetchMaintenances(),
+      fetchResources().catch(() => []),
+    ])
+
+    maintenances.value = list
+    resourceNamesById.value = allResources.reduce<Record<string, string>>((acc, r) => {
+      if (r.id && r.name?.trim()) acc[r.id] = r.name.trim()
+      return acc
+    }, {})
   } finally {
     loading.value = false
   }
 }
 
 async function onSubmit(payload: CreateMaintenance) {
-  await createMaintenance(payload)
+  if (editingMaintenance.value?.id) {
+    await updateMaintenance(editingMaintenance.value.id, payload)
+  } else {
+    await createMaintenance(payload)
+  }
   modalOpen.value = false
+  editingMaintenance.value = null
   await reload()
 }
 
-function viewMaintenance(m: Maintenance) {
-  // Detail page lands in a follow-up.
-  void m
+function openCreate() {
+  editingMaintenance.value = null
+  modalOpen.value = true
+}
+
+function onEdit(m: Maintenance) {
+  editingMaintenance.value = m
+  modalOpen.value = true
+}
+
+async function onDeleteMaintenance(m: Maintenance) {
+  const ok = await useConfirm({
+    kind: 'destructive',
+    title: `Delete ${m.title}?`,
+    body: 'This will remove the maintenance window.',
+    ctaLabel: 'Delete maintenance',
+  })
+  if (!ok) return
+  await deleteMaintenance(m.id)
+  await reload()
 }
 
 onMounted(reload)
@@ -190,7 +247,11 @@ const columns: TableColumn<Maintenance>[] = [
     cell: ({ row }) => {
       const rs = row.original.resources ?? []
       const label =
-        rs.length === 0 ? 'All resources' : rs.length === 1 ? rs[0].name : `${rs.length} resources`
+        rs.length === 0
+          ? 'All resources'
+          : rs.length === 1
+            ? resolveResourceLabel(rs[0].id, rs[0].name)
+            : `${rs.length} resources`
       const toneClass = rs.length === 0 ? 'text-muted' : 'text-default'
       return h(
         'code',
@@ -202,17 +263,28 @@ const columns: TableColumn<Maintenance>[] = [
   {
     id: 'actions',
     header: '',
-    cell: ({ row }) =>
-      h(
-        resolveComponent('UButton'),
+    cell: ({ row }) => {
+      const m = row.original
+      return h(
+        resolveComponent('UDropdownMenu'),
         {
-          variant: 'link',
-          color: 'primary',
-          size: 'xs',
-          onClick: () => viewMaintenance(row.original),
+          items: [
+            { label: 'Edit', icon: 'i-lucide-pencil', onSelect: () => onEdit(m) },
+            {
+              label: 'Delete maintenance',
+              icon: 'i-lucide-trash-2',
+              onSelect: () => onDeleteMaintenance(m),
+            },
+          ],
         },
-        () => 'View',
-      ),
+        () =>
+          h(resolveComponent('UButton'), {
+            variant: 'ghost',
+            size: 'xs',
+            icon: 'i-lucide-more-vertical',
+          }),
+      )
+    },
   },
 ]
 
@@ -237,9 +309,7 @@ defineExpose({
         <h1 class="text-2xl font-bold text-default">Maintenance</h1>
         <p class="text-sm text-muted">Schedule and review maintenance windows.</p>
       </div>
-      <UButton color="primary" icon="i-lucide-plus" @click="modalOpen = true">
-        New maintenance
-      </UButton>
+      <UButton color="primary" icon="i-lucide-plus" @click="openCreate"> New maintenance </UButton>
     </header>
 
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -312,7 +382,7 @@ defineExpose({
       description="Plan one to silence alerts during deploys or upgrades."
     >
       <template #actions>
-        <UButton color="primary" @click="modalOpen = true">Schedule one</UButton>
+        <UButton color="primary" @click="openCreate">Schedule one</UButton>
       </template>
     </UEmpty>
 
@@ -320,6 +390,6 @@ defineExpose({
       <UTable :data="filtered" :columns="columns" />
     </div>
 
-    <MaintenanceModal v-model:open="modalOpen" @submit="onSubmit" />
+    <MaintenanceModal v-model:open="modalOpen" :initial="editingMaintenance" @submit="onSubmit" />
   </div>
 </template>

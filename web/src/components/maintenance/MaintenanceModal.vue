@@ -13,13 +13,14 @@
 import { computed, ref, watch } from 'vue'
 import cronstrue from 'cronstrue'
 import { CronExpressionParser } from 'cron-parser'
-import type { Resource, CreateMaintenance } from '@/types'
+import type { Resource, CreateMaintenance, Maintenance } from '@/types'
 import { fetchResources } from '@/services/resourceService'
 
 interface Props {
   open: boolean
+  initial?: Maintenance | null
 }
-defineProps<Props>()
+const props = defineProps<Props>()
 const emit = defineEmits<{
   (e: 'update:open', v: boolean): void
   (e: 'submit', v: CreateMaintenance): void
@@ -50,6 +51,8 @@ const showAdvanced = ref<boolean>(false)
 const effectiveFrom = ref<string>('')
 const effectiveUntil = ref<string>('')
 
+const isEdit = computed<boolean>(() => Boolean(props.initial?.id))
+
 const timezones = computed<string[]>(() => {
   type IntlMaybe = typeof Intl & { supportedValuesOf?: (k: string) => string[] }
   const I = Intl as IntlMaybe
@@ -68,9 +71,8 @@ const weekdayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 
 // PRD-015 R2: UCheckboxGroup operates on string[]; underlying state stays boolean[7] (FR-003).
 const selectedWeekdays = computed<string[]>({
-  get: () => weekdays.value
-    .map((b, i) => (b ? weekdayLabels[i] : null))
-    .filter((x): x is string => !!x),
+  get: () =>
+    weekdays.value.map((b, i) => (b ? weekdayLabels[i] : null)).filter((x): x is string => !!x),
   set: (selected) => {
     weekdays.value = weekdayLabels.map((l) => selected.includes(l))
   },
@@ -174,8 +176,73 @@ function close() {
   emit('update:open', false)
 }
 
+function toDateTimeLocal(iso?: string | null): string {
+  if (!iso) return ''
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return ''
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
+
+function toDateOnly(iso?: string | null): string {
+  if (!iso) return ''
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return ''
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
+}
+
+function hydrateFromInitial() {
+  const initial = props.initial
+  if (!initial) {
+    reset()
+    return
+  }
+
+  title.value = initial.title ?? ''
+  description.value = initial.description ?? ''
+  strategy.value = initial.strategy === 'cron' ? 'cron' : 'one_time'
+  selectedResourceIds.value = (initial.resources ?? []).map((r) => r.id).filter(Boolean)
+
+  if (strategy.value === 'one_time') {
+    startAt.value = toDateTimeLocal(initial.start_at)
+    endAt.value = toDateTimeLocal(initial.end_at)
+    return
+  }
+
+  cronExpr.value = initial.cron_expr ?? '0 2 * * *'
+  cronTimezone.value = initial.timezone ?? 'UTC'
+  durationMinutes.value = Number(initial.window_minutes ?? 60)
+  effectiveFrom.value = toDateOnly(initial.effective_from)
+  effectiveUntil.value = toDateOnly(initial.effective_until)
+  editingCronManually.value = true
+}
+
+watch(
+  () => [props.open, props.initial] as const,
+  ([open]) => {
+    if (!open) return
+    hydrateFromInitial()
+  },
+  { immediate: true, deep: true },
+)
+
+function normalizeResourceIds(values: unknown[]): string[] {
+  return values
+    .map((v) => {
+      if (typeof v === 'string') return v
+      if (v && typeof v === 'object' && 'value' in v) {
+        const value = (v as { value?: unknown }).value
+        return typeof value === 'string' ? value : ''
+      }
+      return ''
+    })
+    .filter((id): id is string => id.length > 0)
+}
+
 function onSubmit() {
   if (!canSubmit.value) return
+  const resourceIds = normalizeResourceIds(selectedResourceIds.value as unknown[])
   if (strategy.value === 'one_time') {
     emit('submit', {
       title: title.value.trim(),
@@ -183,7 +250,7 @@ function onSubmit() {
       strategy: 'one_time',
       start_at: new Date(startAt.value).toISOString(),
       end_at: new Date(endAt.value).toISOString(),
-      resource_ids: selectedResourceIds.value,
+      resource_ids: resourceIds,
     })
   } else {
     emit('submit', {
@@ -197,7 +264,7 @@ function onSubmit() {
       effective_until: effectiveUntil.value
         ? new Date(effectiveUntil.value).toISOString()
         : undefined,
-      resource_ids: selectedResourceIds.value,
+      resource_ids: resourceIds,
     })
   }
   reset()
@@ -222,7 +289,11 @@ defineExpose({
 </script>
 
 <template>
-  <UModal :open="open" title="New maintenance" @update:open="emit('update:open', $event)">
+  <UModal
+    :open="open"
+    :title="isEdit ? 'Edit maintenance' : 'New maintenance'"
+    @update:open="emit('update:open', $event)"
+  >
     <template #body>
       <div class="space-y-5">
         <!-- Title + Strategy row -->
@@ -247,7 +318,9 @@ defineExpose({
           <UTextarea
             v-model="description"
             placeholder="Short description of the maintenance"
-            :rows="3"
+            :rows="8"
+            autoresize
+            class="w-full min-h-40 resize-y"
           />
         </UFormField>
 
@@ -390,10 +463,18 @@ defineExpose({
                 </p>
                 <div class="grid grid-cols-2 gap-5">
                   <UFormField label="Effective from">
-                    <UInput v-model="effectiveFrom" type="date" placeholder="Start date (optional)" />
+                    <UInput
+                      v-model="effectiveFrom"
+                      type="date"
+                      placeholder="Start date (optional)"
+                    />
                   </UFormField>
                   <UFormField label="Effective until">
-                    <UInput v-model="effectiveUntil" type="date" placeholder="End date (optional)" />
+                    <UInput
+                      v-model="effectiveUntil"
+                      type="date"
+                      placeholder="End date (optional)"
+                    />
                   </UFormField>
                 </div>
               </div>
@@ -407,6 +488,8 @@ defineExpose({
             multiple
             placeholder="Select impacted resources"
             :items="resources.map((r) => ({ label: r.name, value: r.id }))"
+            value-key="value"
+            label-key="label"
           />
         </UFormField>
       </div>
@@ -415,7 +498,9 @@ defineExpose({
     <template #footer>
       <div class="flex justify-end gap-2 w-full">
         <UButton variant="outline" color="neutral" @click="close">Cancel</UButton>
-        <UButton color="primary" :disabled="!canSubmit" @click="onSubmit">Create</UButton>
+        <UButton color="primary" :disabled="!canSubmit" @click="onSubmit">
+          {{ isEdit ? 'Save changes' : 'Create' }}
+        </UButton>
       </div>
     </template>
   </UModal>

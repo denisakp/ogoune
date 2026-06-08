@@ -73,13 +73,7 @@ defineExpose({ state, onSubmit, formRef, showAdminNote })
       <template v-else>Join your team on Ogoune.</template>
     </template>
 
-    <UForm
-      ref="formRef"
-      :schema="signupSchema"
-      :state="state"
-      class="space-y-4"
-      @submit="onSubmit"
-    >
+    <UForm ref="formRef" :schema="signupSchema" :state="state" class="space-y-4" @submit="onSubmit">
       <UFormField name="email" label="Email">
         <UInput
           v-model="state.email"
