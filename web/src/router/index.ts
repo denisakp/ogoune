@@ -25,6 +25,9 @@ const ForgotPasswordView = () => import('@/views/auth/ForgotPasswordView.vue')
 const ResetPasswordView = () => import('@/views/auth/ResetPasswordView.vue')
 const InitializePasswordView = () => import('@/views/auth/InitializePasswordView.vue')
 const MaintenanceView = () => import('@/views/maintenance/MaintenanceListView.vue')
+const ReportsView = () => import('@/views/reports/ReportsView.vue')
+const DashboardsView = () => import('@/views/dashboards/DashboardsView.vue')
+const DashboardDetailView = () => import('@/views/dashboards/DashboardDetailView.vue')
 
 const routes: RouteRecordRaw[] = [
   {
@@ -192,6 +195,34 @@ const routes: RouteRecordRaw[] = [
   { path: '/settings/notifications', redirect: '/notifications' },
   { path: '/settings/escalation', redirect: '/escalation' },
   { path: '/settings/api-keys', redirect: '/api-keys' },
+
+  // Spec 070 — Reports + Dashboards (REPORT sidebar group).
+  {
+    path: '/reports',
+    name: 'Reports',
+    component: ReportsView,
+    meta: { requiresAuth: true, requiresLayout: true, breadcrumbLabel: 'Reports' },
+  },
+  {
+    path: '/dashboards',
+    name: 'Dashboards',
+    component: DashboardsView,
+    meta: { requiresAuth: true, requiresLayout: true, breadcrumbLabel: 'Dashboards' },
+  },
+  {
+    path: '/dashboards/:id',
+    name: 'DashboardDetail',
+    component: DashboardDetailView,
+    props: true,
+    meta: { requiresAuth: true, requiresLayout: true, breadcrumbLabel: 'Dashboard' },
+  },
+  {
+    path: '/dashboards/:id/edit',
+    name: 'DashboardEdit',
+    component: DashboardDetailView,
+    props: (route) => ({ id: route.params.id, editMode: true }),
+    meta: { requiresAuth: true, requiresLayout: true, breadcrumbLabel: 'Edit dashboard' },
+  },
   // NB: the public status page lives in its own bundle (status.html → status-main.ts).
   // In dev: http://localhost:5173/status.html (and /status.html/uptime, /status.html/history).
   // In prod: served at status.<domain> or the custom_domain set in status page settings.

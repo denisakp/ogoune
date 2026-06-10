@@ -843,3 +843,41 @@ export interface TestConnectionResponse {
   cause?: string
   latency_ms: number
 }
+
+// ─── Spec 070: Reports + Dashboards ─────────────────────────────────────────
+
+export type {
+  MonthlyReport,
+  ReportStatus,
+  ReportResourceBreakdown,
+  ReportHistoryEntry,
+} from './reports'
+export type {
+  WidgetTypeId,
+  WidgetArchetype,
+  WidgetDefinition,
+  WidgetInstance,
+  DashboardScopeMode,
+  DashboardScope,
+  DashboardTimeRange,
+  DashboardRefreshInterval,
+  DashboardVisibility,
+  Dashboard,
+  DashboardHealthStatus,
+  DashboardHealth,
+} from './dashboards'
+
+// ─── Spec 069: Cross-cutting UI ─────────────────────────────────────────────
+
+export type {
+  NotificationCategory,
+  NotificationSeverity,
+  NotificationFeedItem,
+  NotificationReadState,
+} from './notifications'
+export type { SearchResultCategory, SearchResult } from './searchPalette'
+export type {
+  KeyboardShortcutSection,
+  KeyboardShortcutKind,
+  KeyboardShortcut,
+} from './keyboard'
