@@ -8,9 +8,11 @@ import { computed } from 'vue'
 import { useRouter } from 'vue-router'
 
 import { useAuthStore } from '@/stores/authStore'
+import { useKeyboardShortcuts } from '@/composables/useKeyboardShortcuts'
 
 const router = useRouter()
 const authStore = useAuthStore()
+const shortcutsOverlay = useKeyboardShortcuts()
 
 const initials = computed(() => {
   const email = authStore.email ?? ''
@@ -35,9 +37,7 @@ const items = [
       label: 'Keyboard shortcuts',
       icon: 'i-lucide-keyboard',
       kbds: ['⌘', '?'],
-      onSelect: () => {
-        // Stub modal — full catalog arrives in later slices.
-      },
+      onSelect: () => shortcutsOverlay.open(),
     },
   ],
   [

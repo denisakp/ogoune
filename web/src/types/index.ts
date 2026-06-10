@@ -844,6 +844,21 @@ export interface TestConnectionResponse {
   latency_ms: number
 }
 
+// ─── Spec 069: Cross-cutting UI ─────────────────────────────────────────────
+
+export type {
+  NotificationCategory,
+  NotificationSeverity,
+  NotificationFeedItem,
+  NotificationReadState,
+} from './notifications'
+export type { SearchResultCategory, SearchResult } from './searchPalette'
+export type {
+  KeyboardShortcutSection,
+  KeyboardShortcutKind,
+  KeyboardShortcut,
+} from './keyboard'
+
 // ─── Spec 070: Reports + Dashboards ─────────────────────────────────────────
 
 export type {
@@ -866,18 +881,3 @@ export type {
   DashboardHealthStatus,
   DashboardHealth,
 } from './dashboards'
-
-// ─── Spec 069: Cross-cutting UI ─────────────────────────────────────────────
-
-export type {
-  NotificationCategory,
-  NotificationSeverity,
-  NotificationFeedItem,
-  NotificationReadState,
-} from './notifications'
-export type { SearchResultCategory, SearchResult } from './searchPalette'
-export type {
-  KeyboardShortcutSection,
-  KeyboardShortcutKind,
-  KeyboardShortcut,
-} from './keyboard'

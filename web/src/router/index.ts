@@ -28,6 +28,9 @@ const MaintenanceView = () => import('@/views/maintenance/MaintenanceListView.vu
 const ReportsView = () => import('@/views/reports/ReportsView.vue')
 const DashboardsView = () => import('@/views/dashboards/DashboardsView.vue')
 const DashboardDetailView = () => import('@/views/dashboards/DashboardDetailView.vue')
+const Error404View = () => import('@/views/errors/Error404View.vue')
+const Error500View = () => import('@/views/errors/Error500View.vue')
+const MaintenanceModeView = () => import('@/views/errors/MaintenanceModeView.vue')
 
 const routes: RouteRecordRaw[] = [
   {
@@ -226,6 +229,21 @@ const routes: RouteRecordRaw[] = [
   // NB: the public status page lives in its own bundle (status.html → status-main.ts).
   // In dev: http://localhost:5173/status.html (and /status.html/uptime, /status.html/history).
   // In prod: served at status.<domain> or the custom_domain set in status page settings.
+
+  // Spec 069 — branded error + maintenance surfaces. All public so anonymous
+  // visitors hit them without an auth redirect (FR-004).
+  {
+    path: '/error-500',
+    name: 'Error500',
+    component: Error500View,
+    meta: { public: true, requiresLayout: false },
+  },
+  {
+    path: '/maintenance-mode',
+    name: 'MaintenanceMode',
+    component: MaintenanceModeView,
+    meta: { public: true, requiresLayout: false },
+  },
 ]
 
 // Dev-only demo routes — build-time tree-shaken in production.
@@ -245,9 +263,31 @@ if (import.meta.env.DEV) {
   })
 }
 
+// Spec 069 — 404 catch-all MUST be the last route declared, otherwise dev
+// demo routes (and any other later push) would never match.
+routes.push({
+  path: '/:pathMatch(.*)*',
+  name: 'Error404',
+  component: Error404View,
+  meta: { public: true, requiresLayout: false },
+})
+
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes,
+})
+
+const MAINTENANCE_MODE_ENABLED =
+  (import.meta.env.VITE_MAINTENANCE_MODE as string | undefined) === 'true'
+
+// Spec 069 — maintenance gate runs BEFORE the auth guard so authenticated and
+// anonymous visitors uniformly land on the branded MaintenanceMode screen.
+router.beforeEach((to, _from, next) => {
+  if (MAINTENANCE_MODE_ENABLED && to.name !== 'MaintenanceMode') {
+    next({ name: 'MaintenanceMode' })
+    return
+  }
+  next()
 })
 
 // Navigation guard for authentication
