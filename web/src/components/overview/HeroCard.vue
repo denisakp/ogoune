@@ -139,7 +139,7 @@ function openStatusPage() {
 </script>
 
 <template>
-  <div class="bg-white rounded-lg border border-slate-200 p-5 flex gap-4 items-start">
+  <div class="bg-default rounded-lg border border-default p-5 flex gap-4 items-start">
     <div class="flex-1 min-w-0 flex flex-col gap-3.5">
       <div class="flex items-center gap-2.5 flex-wrap min-w-0">
         <div
@@ -163,8 +163,8 @@ function openStatusPage() {
           </span>
         </div>
         <template v-if="hasIncidents">
-          <span class="text-slate-400 text-xs">·</span>
-          <span class="text-[13px] text-slate-600">
+          <span class="text-dimmed text-xs">·</span>
+          <span class="text-[13px] text-muted">
             Detected just now, {{ downCount }} resource{{ downCount > 1 ? 's' : '' }} down
           </span>
         </template>
@@ -173,12 +173,12 @@ function openStatusPage() {
       <div class="flex items-end gap-5">
         <div class="shrink-0">
           <div class="flex items-end gap-1">
-            <span class="text-[44px] font-bold text-slate-900 leading-none tracking-tight">
+            <span class="text-[44px] font-bold text-highlighted leading-none tracking-tight">
               {{ uptimeWhole }}.{{ uptimeDecimal }}
             </span>
-            <span class="text-xl font-semibold text-slate-500 leading-none pb-1">%</span>
+            <span class="text-xl font-semibold text-muted leading-none pb-1">%</span>
           </div>
-          <div class="text-[10px] font-medium text-slate-400 uppercase tracking-wider mt-1">
+          <div class="text-[10px] font-medium text-dimmed uppercase tracking-wider mt-1">
             {{ RANGE_LABEL[range] }}
           </div>
         </div>
@@ -197,7 +197,7 @@ function openStatusPage() {
                 }"
               />
             </div>
-            <div class="flex justify-between mt-1 text-[10px] text-slate-400">
+            <div class="flex justify-between mt-1 text-[10px] text-dimmed">
               <span>30 days ago</span>
               <span>now</span>
             </div>
@@ -209,7 +209,7 @@ function openStatusPage() {
     <div class="flex flex-col gap-1.5 shrink-0 w-42.5">
       <button
         type="button"
-        class="inline-flex items-center justify-between gap-1.5 px-2.5 py-1.5 rounded-md border border-slate-200 text-[12px] text-slate-700 hover:bg-slate-50"
+        class="inline-flex items-center justify-between gap-1.5 px-2.5 py-1.5 rounded-md border border-default text-[12px] text-default hover:bg-muted"
         @click="router.push('/incidents')"
       >
         <span class="inline-flex items-center gap-1.5">
@@ -221,7 +221,7 @@ function openStatusPage() {
       </button>
       <button
         type="button"
-        class="inline-flex items-center justify-between gap-1.5 px-2.5 py-1.5 rounded-md border border-slate-200 text-[12px] text-slate-700 hover:bg-slate-50"
+        class="inline-flex items-center justify-between gap-1.5 px-2.5 py-1.5 rounded-md border border-default text-[12px] text-default hover:bg-muted"
         @click="openStatusPage"
       >
         <span class="inline-flex items-center gap-1.5">

@@ -42,7 +42,7 @@ defineExpose({ state, onSubmit, formRef, submitted })
 <template>
   <AuthLayout>
     <template #title>
-      <h1 class="text-[22px] font-bold text-slate-900 leading-tight">
+      <h1 class="text-[22px] font-bold text-highlighted leading-tight">
         {{ submitted ? 'Check your inbox' : 'Forgot your password?' }}
       </h1>
     </template>
@@ -91,7 +91,7 @@ defineExpose({ state, onSubmit, formRef, submitted })
     </UForm>
 
     <template #footer>
-      <span class="text-slate-600">Remembered?</span>
+      <span class="text-muted">Remembered?</span>
       <RouterLink to="/login" class="text-primary-600 font-semibold hover:underline">
         Back to sign in
       </RouterLink>

@@ -64,6 +64,11 @@ const stubs = {
     emits: ['click'],
   },
   UIcon: { template: '<span />', props: ['name'] },
+  UTooltip: { template: '<div><slot /></div>', props: ['text'] },
+  UEditionBadge: {
+    template: '<span data-testid="edition-badge" :data-edition="edition">{{ edition }}</span>',
+    props: ['edition', 'size'],
+  },
   DashboardScopeResolver: {
     template:
       '<button data-testid="scope-resolver-trigger" type="button" @click="emitMatch">Trigger match</button>',

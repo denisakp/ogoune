@@ -40,7 +40,7 @@ Where Community Edition users see EE-gated affordances (per spec 070 US5):
 
 | Surface | Component | Upgrade CTA target |
 |---|---|---|
-| Reports page banner | `web/src/components/reports/ReportsView.vue` (T017) | `/settings/account?tab=plan` (TBD — may change to marketing page pre-launch) |
+| Reports page banner | `web/src/views/reports/ReportsView.vue` (T017) — `data-testid="reports-ee-banner"` + `reports-upgrade-cta` | `/settings/account?tab=plan` (TBD — may change to marketing page pre-launch) |
 | Wizard Step 3 "Team" + "Public" visibility cards | `web/src/components/dashboards/DashboardWizardModal.vue` (T029) | Same target |
 | Gallery "Shared" filter empty state | `web/src/views/dashboards/DashboardsView.vue` (T030) | Same target |
 

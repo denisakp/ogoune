@@ -57,7 +57,7 @@ const handleInitializePassword = async () => {
 <template>
   <AuthLayout>
     <template #title>
-      <h1 class="text-[22px] font-bold text-slate-900 leading-tight">Set Your Password</h1>
+      <h1 class="text-[22px] font-bold text-highlighted leading-tight">Set Your Password</h1>
     </template>
     <template #subtitle>Please set your password before continuing</template>
 

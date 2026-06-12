@@ -71,7 +71,7 @@ onMounted(() => {
 })
 
 function dotFor(s: IncidentUpdateStatus): string {
-  return STATUSES.find((x) => x.value === s)?.dot ?? 'bg-slate-400'
+  return STATUSES.find((x) => x.value === s)?.dot ?? 'bg-dimmed'
 }
 
 function labelFor(s: IncidentUpdateStatus): string {
@@ -133,26 +133,26 @@ async function confirmRemove(id: string) {
 
 <template>
   <section
-    class="bg-white rounded-lg border border-slate-200 p-5 space-y-5"
+    class="bg-default rounded-lg border border-default p-5 space-y-5"
     data-testid="incident-status-updates"
   >
     <header class="flex items-baseline justify-between">
-      <h3 class="text-base font-semibold text-slate-900">Status updates</h3>
-      <span class="text-xs text-slate-500"
+      <h3 class="text-base font-semibold text-highlighted">Status updates</h3>
+      <span class="text-xs text-muted"
         >{{ updates.length }} update{{ updates.length === 1 ? '' : 's' }}</span
       >
     </header>
 
     <form
-      class="space-y-3 rounded-md border border-slate-200 bg-slate-50 p-4"
+      class="space-y-3 rounded-md border border-default bg-muted p-4"
       @submit.prevent="onSubmit"
       data-testid="add-update-form"
     >
       <div class="flex items-center gap-3">
-        <label class="text-xs font-medium text-slate-700 uppercase tracking-wider">Status</label>
+        <label class="text-xs font-medium text-default uppercase tracking-wider">Status</label>
         <select
           v-model="draft.status"
-          class="rounded-md border border-slate-300 bg-white px-2 py-1 text-sm"
+          class="rounded-md border border-default bg-default px-2 py-1 text-sm"
           data-testid="draft-status"
         >
           <option v-for="s in STATUSES" :key="s.value" :value="s.value">{{ s.label }}</option>
@@ -175,9 +175,9 @@ async function confirmRemove(id: string) {
       </div>
     </form>
 
-    <div v-if="loading && updates.length === 0" class="text-sm text-slate-500">Loading…</div>
+    <div v-if="loading && updates.length === 0" class="text-sm text-muted">Loading…</div>
     <div v-else-if="error" class="text-sm text-red-600">{{ error.message }}</div>
-    <div v-else-if="updates.length === 0" class="text-sm text-slate-500 italic">
+    <div v-else-if="updates.length === 0" class="text-sm text-muted italic">
       No updates posted yet.
     </div>
 
@@ -193,7 +193,7 @@ async function confirmRemove(id: string) {
           <div class="space-y-2">
             <select
               v-model="editDraft.status"
-              class="rounded-md border border-slate-300 bg-white px-2 py-1 text-sm"
+              class="rounded-md border border-default bg-default px-2 py-1 text-sm"
             >
               <option v-for="s in STATUSES" :key="s.value" :value="s.value">{{ s.label }}</option>
             </select>
@@ -201,14 +201,14 @@ async function confirmRemove(id: string) {
             <div class="flex justify-end gap-2">
               <button
                 type="button"
-                class="text-sm text-slate-600 hover:text-slate-900 px-2 py-1"
+                class="text-sm text-muted hover:text-highlighted px-2 py-1"
                 @click="cancelEdit"
               >
                 Cancel
               </button>
               <button
                 type="button"
-                class="rounded-md bg-slate-900 hover:bg-slate-800 text-white text-sm px-3 py-1"
+                class="rounded-md bg-inverted hover:opacity-90 text-inverted text-sm px-3 py-1"
                 @click="saveEdit(u.id)"
               >
                 Save
@@ -219,8 +219,8 @@ async function confirmRemove(id: string) {
         <template v-else>
           <div class="flex items-center gap-2 mb-1">
             <span :class="['size-2 rounded-full', dotFor(u.status)]" />
-            <span class="text-sm font-semibold text-slate-900">{{ labelFor(u.status) }}</span>
-            <span class="text-xs text-slate-500 font-mono">· {{ fmtPosted(u.posted_at) }}</span>
+            <span class="text-sm font-semibold text-highlighted">{{ labelFor(u.status) }}</span>
+            <span class="text-xs text-muted font-mono">· {{ fmtPosted(u.posted_at) }}</span>
             <div class="ml-auto flex items-center gap-2">
               <button
                 type="button"
@@ -241,7 +241,7 @@ async function confirmRemove(id: string) {
             </div>
           </div>
           <div
-            class="text-sm text-slate-700 prose prose-sm max-w-none"
+            class="text-sm text-default prose prose-sm max-w-none"
             v-html="sanitize(u.message)"
           />
         </template>

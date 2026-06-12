@@ -67,7 +67,7 @@ const copyPingUrl = async () => {
         <div class="flex items-center gap-2">
           <code
             data-testid="ping-url"
-            class="flex-1 text-xs bg-slate-50 dark:bg-slate-900 px-2.5 py-1.5 rounded break-all"
+            class="flex-1 text-xs bg-muted px-2.5 py-1.5 rounded break-all"
             >{{ pingUrl }}</code
           >
           <UButton size="xs" color="neutral" variant="soft" @click="copyPingUrl">Copy</UButton>
@@ -93,7 +93,7 @@ const copyPingUrl = async () => {
         <div class="text-xs text-muted mb-2">Add to your script</div>
         <div
           data-testid="heartbeat-snippet"
-          class="font-mono text-xs bg-slate-50 dark:bg-slate-900 p-3 rounded break-all"
+          class="font-mono text-xs bg-muted p-3 rounded break-all"
         >
           {{ heartbeatSnippet }}
         </div>

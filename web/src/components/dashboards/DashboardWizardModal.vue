@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
+
 import { useAuthStore } from '@/stores/authStore'
 import { useDashboards } from '@/composables/useDashboards'
 import { useConfirm } from '@/composables/useConfirm'
@@ -291,7 +292,7 @@ const refreshOptions: { value: DashboardRefreshInterval; label: string }[] = [
                 >
                   <span class="flex items-center gap-1.5 w-full">
                     <UIcon name="i-lucide-users" class="size-4 text-muted" />
-                    <span class="ml-auto text-[9px] font-semibold px-1.5 py-0.5 rounded bg-primary/15 text-primary">EE</span>
+                    <UEditionBadge edition="ee" class="ml-auto" />
                   </span>
                   <div class="text-sm font-medium text-muted">Team</div>
                   <div class="text-[11px] text-muted">Shared across orgs.</div>
@@ -306,7 +307,7 @@ const refreshOptions: { value: DashboardRefreshInterval; label: string }[] = [
                 >
                   <span class="flex items-center gap-1.5 w-full">
                     <UIcon name="i-lucide-globe" class="size-4 text-muted" />
-                    <span class="ml-auto text-[9px] font-semibold px-1.5 py-0.5 rounded bg-primary/15 text-primary">EE</span>
+                    <UEditionBadge edition="ee" class="ml-auto" />
                   </span>
                   <div class="text-sm font-medium text-muted">Public</div>
                   <div class="text-[11px] text-muted">Anonymous URL.</div>

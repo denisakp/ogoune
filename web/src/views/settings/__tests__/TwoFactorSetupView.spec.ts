@@ -66,6 +66,11 @@ type Vm = {
   toVerify: () => void
   onVerifySubmit: (code: string) => Promise<void>
   onDisable: () => Promise<void>
+  onDisableConfirm: () => Promise<void>
+  onDisableCancel: () => void
+  disableModalOpen: boolean
+  disableCode: string[]
+  disableError: string | null
 }
 
 beforeEach(() => {
@@ -108,16 +113,20 @@ describe('TwoFactorSetupView', () => {
     expect(vm.codes.length).toBe(3)
   })
 
-  it('onDisable: confirmed + code → service.disable called', async () => {
+  it('onDisable: confirmed → opens modal; onDisableConfirm → service.disable called', async () => {
     confirmMock.mockResolvedValue(true)
     disableMock.mockResolvedValue(undefined)
-    vi.spyOn(window, 'prompt').mockReturnValue('654321')
     const w = mount(TwoFactorSetupView)
     const vm = w.vm as unknown as Vm
     await vm.onDisable()
     await flushPromises()
     expect(confirmMock).toHaveBeenCalled()
+    expect(vm.disableModalOpen).toBe(true)
+    vm.disableCode.splice(0, 6, '6', '5', '4', '3', '2', '1')
+    await vm.onDisableConfirm()
+    await flushPromises()
     expect(disableMock).toHaveBeenCalledWith('654321')
+    expect(vm.disableModalOpen).toBe(false)
   })
 
   it('onDisable: dismissed → service not called', async () => {

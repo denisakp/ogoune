@@ -64,7 +64,7 @@ defineExpose({ state, onSubmit, formRef, showAdminNote })
 <template>
   <AuthLayout>
     <template #title>
-      <h1 class="text-[22px] font-bold text-slate-900 leading-tight">Create your Ogoune</h1>
+      <h1 class="text-[22px] font-bold text-highlighted leading-tight">Create your Ogoune</h1>
     </template>
     <template #subtitle>
       <template v-if="showAdminNote">
@@ -142,7 +142,7 @@ defineExpose({ state, onSubmit, formRef, showAdminNote })
     </UForm>
 
     <template #footer>
-      <span class="text-slate-600">Already have an account?</span>
+      <span class="text-muted">Already have an account?</span>
       <RouterLink to="/login" class="text-primary-600 font-semibold hover:underline">
         Sign in
       </RouterLink>

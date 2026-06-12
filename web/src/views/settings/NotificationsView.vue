@@ -156,6 +156,9 @@ async function reload() {
     ])
     channels.value = list
     notifStats.value = s
+  } catch {
+    channels.value = []
+    notifStats.value = null
   } finally {
     loading.value = false
   }

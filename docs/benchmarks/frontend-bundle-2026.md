@@ -263,3 +263,30 @@ Notable initial-download chunks (`main`):
 - 342 / 342 tests pass (300 baseline post-PR-5 + 42 net new across the 6 new specs + IncidentsView + IncidentView). SC-004 floor 320 PASSED (≥ 320 = MUST).
 - MVP scope: Phase 6 (Postmortem editor + publish) deferred to a follow-up PR. Phase 5 actions reduced to Resolve only (Acknowledge + Reopen absent from backend domain). Spec adaptations documented in PR description.
 - FR-025 closed: ResourceDetailView Incidents tab now renders per-resource incidents via `<IncidentsListBody :filter="{ resource_id }">`. spec 057's `UEmpty` placeholder ("Incidents coming with PRD 006") removed.
+
+## PR-7 (Spec 070 — Reports + Dashboards + Wizard + dedupe fallout)
+
+- **Branch**: `070-reports-dashboards`.
+- **Build command**: `pnpm build-only` (no warnings).
+- **Stack added**: `vuedraggable` for edit-mode reorder. Also: `pnpm.overrides` pinning `@vueuse/core` to `^14.3.0` + `resolve.dedupe` in `vite.config.ts` to fix NuxtUI Table's silent crash (`createRef` was added in @vueuse/core 14; vaul-vue's stale 10.x copy was being pre-bundled by vite).
+- **Surfaces touched (spec 070)**: `ReportsView` (NEW `/reports`) · `DashboardsView` (NEW `/dashboards`) · `DashboardWizardModal` (3-step modal) · `DashboardDetailView` (NEW `/dashboards/:id` with widget grid + edit mode) · `widgetCatalog` (registry) · 4 MVP widgets · cross-cutting EE upsell hygiene.
+
+| Build | `main` initial (gz) | Total (gz) | Status (`status` initial gz) | Note |
+|-------|--------------------:|-----------:|-----------------------------:|------|
+| PR-6 (stale) | 265,965 | 647,800 | — | Pre-spec-069 / 070 baseline |
+| PR-7 | **73,140** | **704,597** | **940** | Better code-splitting + new lazy chunks for spec 070 + `@vueuse/core` dedupe |
+
+### Per-route chunks introduced by spec 070
+
+| Chunk | gz |
+|---|---:|
+| `DashboardDetailView` | 67.01 KB |
+| `DashboardsView` | 7.23 KB |
+| `ReportsView` | 4.34 KB |
+| `widgetCatalog` | 4.29 KB |
+
+### Notes
+
+- `main` initial gz dropped to 73 KB — combination of route-based code-splitting refinements landed between PR-6 / PR-7 + the `@vueuse/core` dedupe that eliminated duplicate copies bundled by vaul-vue (10.x) and transitives (11.x). Authenticated-bundle delta attributable to spec 070 = +82.9 KB gz across four lazy chunks; T060 envelope (+40 KB gz) breached by DashboardDetailView (67 KB gz) alone. Follow-up: dynamic-`import()` each widget on render to reclaim ~30-40 KB gz.
+- Status bundle: 940 B gz initial — unchanged in intent (spec 070 does not touch the public status page).
+- 693 / 693 frontend tests pass (128 files). `pnpm lint` clean.

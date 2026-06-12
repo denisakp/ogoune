@@ -165,6 +165,9 @@ async function reload() {
       if (r.id && r.name?.trim()) acc[r.id] = r.name.trim()
       return acc
     }, {})
+  } catch {
+    maintenances.value = []
+    resourceNamesById.value = {}
   } finally {
     loading.value = false
   }

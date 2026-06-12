@@ -313,7 +313,7 @@ defineExpose({ state, onSubmit, formRef, stripExtras })
         Advanced
       </UButton>
       <template #content>
-        <div class="space-y-4 pt-2 pl-4 border-l border-slate-200">
+        <div class="space-y-4 pt-2 pl-4 border-l border-default">
           <UFormField name="interval" label="Check interval (seconds)">
             <UInput
               v-model.number="(state as unknown as { interval: number }).interval"
@@ -361,7 +361,7 @@ defineExpose({ state, onSubmit, formRef, stripExtras })
         Tags
       </UButton>
       <template #content>
-        <div class="space-y-2 pt-2 pl-4 border-l border-slate-200">
+        <div class="space-y-2 pt-2 pl-4 border-l border-default">
           <div class="flex flex-wrap gap-1.5">
             <UBadge
               v-for="id in (state as unknown as { tags?: string[] }).tags ?? []"
@@ -404,7 +404,7 @@ defineExpose({ state, onSubmit, formRef, stripExtras })
       </template>
     </UCollapsible>
 
-    <div class="flex justify-end gap-2 pt-4 border-t border-slate-200">
+    <div class="flex justify-end gap-2 pt-4 border-t border-default">
       <UButton color="neutral" variant="ghost" @click="emit('cancel')">Cancel</UButton>
       <UButton type="submit" color="primary" :loading="submitting">
         {{ isEdit ? 'Save changes' : 'Create monitor' }}

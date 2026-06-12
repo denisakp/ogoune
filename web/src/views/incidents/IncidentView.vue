@@ -58,7 +58,7 @@ defineExpose({ incident, loadIncident, onAction })
 
 <template>
   <div class="bg-default text-default min-h-full">
-    <div v-if="loading" class="px-6 py-12 text-center text-sm text-slate-500">Loading…</div>
+    <div v-if="loading" class="px-6 py-12 text-center text-sm text-muted">Loading…</div>
     <UEmpty
       v-else-if="!incident"
       icon="i-lucide-search-x"
@@ -78,8 +78,8 @@ defineExpose({ incident, loadIncident, onAction })
 
       <div class="grid grid-cols-[1fr_360px] gap-5 items-start">
         <div class="flex flex-col gap-5">
-          <div class="bg-white rounded-lg border border-slate-200 p-5">
-            <h3 class="text-base font-semibold text-slate-900 mb-4">Timeline</h3>
+          <div class="bg-default rounded-lg border border-default p-5">
+            <h3 class="text-base font-semibold text-highlighted mb-4">Timeline</h3>
             <IncidentTimeline :events="events" />
           </div>
           <IncidentStatusUpdates v-if="incident" :incident-id="incident.id" />

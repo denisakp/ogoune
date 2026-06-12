@@ -21,6 +21,15 @@ const codes = ref<string[]>([])
 const submitting = ref(false)
 const verifyError = ref<string | null>(null)
 
+// Disable 2FA — replaces the native window.prompt with a NuxtUI modal.
+const disableModalOpen = ref(false)
+const disableCode = ref<string[]>(['', '', '', '', '', ''])
+const disableError = ref<string | null>(null)
+const disableJoined = computed(() => disableCode.value.join(''))
+const disableCanSubmit = computed(
+  () => disableJoined.value.length === 6 && /^\d{6}$/.test(disableJoined.value),
+)
+
 const enabled = computed<boolean>(() =>
   Boolean((auth.user as { two_factor_enabled?: boolean } | null)?.two_factor_enabled),
 )
@@ -66,22 +75,51 @@ async function onDisable() {
     kind: 'destructive',
     title: 'Disable two-factor authentication?',
     body: 'Your account will rely only on your password until you re-enable 2FA.',
-    ctaLabel: 'Disable 2FA',
+    ctaLabel: 'Continue',
   })
   if (!ok) return
-  // Ask for current TOTP code via prompt for the MVP — full inline form in follow-up.
-  const code = window.prompt('Enter your current 6-digit authenticator code:') ?? ''
-  if (!code) return
+  disableCode.value = ['', '', '', '', '', '']
+  disableError.value = null
+  disableModalOpen.value = true
+}
+
+async function onDisableConfirm() {
+  if (!disableCanSubmit.value || submitting.value) return
   submitting.value = true
+  disableError.value = null
   try {
-    await twoFactorService.disable(code)
+    await twoFactorService.disable(disableJoined.value)
     await auth.verify()
+    disableModalOpen.value = false
+  } catch (e) {
+    disableError.value = e instanceof Error ? e.message : 'Invalid code'
   } finally {
     submitting.value = false
   }
 }
 
-defineExpose({ step, setup, codes, enabled, start, toVerify, onVerifySubmit, finish, onDisable })
+function onDisableCancel() {
+  disableModalOpen.value = false
+  disableCode.value = ['', '', '', '', '', '']
+  disableError.value = null
+}
+
+defineExpose({
+  step,
+  setup,
+  codes,
+  enabled,
+  start,
+  toVerify,
+  onVerifySubmit,
+  finish,
+  onDisable,
+  onDisableConfirm,
+  onDisableCancel,
+  disableModalOpen,
+  disableCode,
+  disableError,
+})
 </script>
 
 <template>
@@ -131,5 +169,52 @@ defineExpose({ step, setup, codes, enabled, start, toVerify, onVerifySubmit, fin
     <template v-if="step === 'codes'">
       <BackupCodesStep :codes="codes" @done="finish" />
     </template>
+
+    <UModal
+      v-model:open="disableModalOpen"
+      title="Disable two-factor authentication"
+      :ui="{ content: 'sm:max-w-md' }"
+    >
+      <template #content>
+        <div class="p-6 space-y-4">
+          <header>
+            <h2 class="text-base font-semibold text-default">
+              Enter your current 6-digit code
+            </h2>
+            <p class="text-sm text-muted">
+              Open your authenticator app and type the code it shows. This is required to
+              disable 2FA on your account.
+            </p>
+          </header>
+
+          <UPinInput
+            v-model="disableCode"
+            :length="6"
+            type="number"
+            autofocus
+            data-testid="2fa-disable-pin"
+          />
+
+          <p v-if="disableError" class="text-sm text-error" data-testid="2fa-disable-error">
+            {{ disableError }}
+          </p>
+
+          <div class="flex items-center justify-end gap-2 pt-2">
+            <UButton variant="ghost" :disabled="submitting" @click="onDisableCancel">
+              Cancel
+            </UButton>
+            <UButton
+              color="error"
+              :loading="submitting"
+              :disabled="!disableCanSubmit"
+              data-testid="2fa-disable-confirm"
+              @click="onDisableConfirm"
+            >
+              Disable 2FA
+            </UButton>
+          </div>
+        </div>
+      </template>
+    </UModal>
   </div>
 </template>

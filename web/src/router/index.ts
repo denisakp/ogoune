@@ -290,16 +290,39 @@ router.beforeEach((to, _from, next) => {
   next()
 })
 
+// Token-verify cache: bursts of navigations (rapid sidebar clicks, redirects)
+// share a single in-flight `verify()` promise, and a recent OK result is reused
+// for VERIFY_TTL_MS. Without this, every navigation hits `/api/v1/auth/verify`
+// — concurrent calls race and any one rejection bumps the user to /login,
+// which surfaces as "sidebar only works 1-in-5".
+const VERIFY_TTL_MS = 30_000
+let inFlightVerify: Promise<boolean> | null = null
+let lastVerifyOkAt = 0
+
+function verifyOnce(authStore: ReturnType<typeof useAuthStore>): Promise<boolean> {
+  if (Date.now() - lastVerifyOkAt < VERIFY_TTL_MS) {
+    return Promise.resolve(true)
+  }
+  if (inFlightVerify) return inFlightVerify
+  inFlightVerify = authStore
+    .verify()
+    .then((ok) => {
+      if (ok) lastVerifyOkAt = Date.now()
+      return ok
+    })
+    .finally(() => {
+      inFlightVerify = null
+    })
+  return inFlightVerify
+}
+
 // Navigation guard for authentication
-router.beforeEach(async (to, from, next) => {
+router.beforeEach(async (to, _from, next) => {
   const authStore = useAuthStore()
 
-  // Check if route requires authentication
   const requiresAuth = to.matched.some((record) => record.meta.requiresAuth)
 
-  // If route is public, allow access
   if (to.meta.public) {
-    // If already authenticated and trying to access login, redirect to overview
     if (to.path === '/login' && authStore.isAuthenticated) {
       next('/overview')
       return
@@ -308,15 +331,13 @@ router.beforeEach(async (to, from, next) => {
     return
   }
 
-  // If route requires auth and user is not authenticated
   if (requiresAuth && !authStore.isAuthenticated) {
     next('/login')
     return
   }
 
-  // If authenticated but token hasn't been verified yet, verify it
   if (requiresAuth && authStore.isAuthenticated) {
-    const isValid = await authStore.verify()
+    const isValid = await verifyOnce(authStore)
     if (!isValid) {
       next('/login')
       return
