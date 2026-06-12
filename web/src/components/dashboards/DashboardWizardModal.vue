@@ -184,7 +184,7 @@ const refreshOptions: { value: DashboardRefreshInterval; label: string }[] = [
           </button>
         </header>
 
-        <div class="px-5 py-4 min-h-[280px]">
+        <div class="px-5 py-4 min-h-70">
           <section v-if="step === 1" data-testid="wizard-step-1" class="space-y-4">
             <div>
               <label class="block text-xs font-medium text-default mb-1">Name</label>
