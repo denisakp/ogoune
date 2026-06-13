@@ -38,6 +38,12 @@ export default defineConfig({
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),
     },
+    // Force a single resolved instance for libraries that NuxtUI v4 imports
+    // (e.g. createRef was added in @vueuse/core 14; vaul-vue still pins 10).
+    // Without this, vite optimizeDeps may pre-bundle the older copy and
+    // NuxtUI's Table.vue crashes silently — vue-router swallows the
+    // SyntaxError, the page renders blank, no error reaches the user.
+    dedupe: ['@vueuse/core', 'vue', 'vue-router', '@nuxt/ui'],
   },
   server: {
     proxy: {

@@ -101,10 +101,10 @@ defineExpose({ state, onSubmit, formRef })
         Sign In
       </UButton>
 
-      <div class="flex items-center gap-3 text-xs text-slate-400">
-        <div class="flex-1 h-px bg-slate-200" />
+      <div class="flex items-center gap-3 text-xs text-dimmed">
+        <div class="flex-1 h-px bg-elevated" />
         <span>or continue with</span>
-        <div class="flex-1 h-px bg-slate-200" />
+        <div class="flex-1 h-px bg-elevated" />
       </div>
 
       <div class="flex gap-3">
@@ -132,7 +132,7 @@ defineExpose({ state, onSubmit, formRef })
     </UForm>
 
     <template #footer>
-      <span class="text-slate-600">Don't have an account?</span>
+      <span class="text-muted">Don't have an account?</span>
       <RouterLink to="/register" class="text-primary-600 font-medium hover:underline">
         Register
       </RouterLink>

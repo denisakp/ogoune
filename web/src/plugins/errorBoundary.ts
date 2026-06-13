@@ -1,5 +1,6 @@
 import type { App } from 'vue'
 import type { Router } from 'vue-router'
+import { isNavigationFailure } from 'vue-router'
 import { createSyntheticIncident } from '@/views/errors/syntheticIncident'
 
 let isHandlingError = false
@@ -24,6 +25,13 @@ const FALLBACK_HTML = `
  */
 export function installErrorBoundary(app: App, router: Router): void {
   app.config.errorHandler = (err, _instance, info) => {
+    // Vue Router NavigationFailures are expected and benign — they fire when
+    // a navigation is cancelled (rapid clicks, redirect via guard, etc.) or
+    // duplicated. They MUST NOT be treated as crashes; otherwise routing
+    // through the auth guard's async `verify()` lookups becomes flaky on
+    // rapid clicks (only 1-in-5 lands; the rest get routed to /error-500).
+    if (isNavigationFailure(err)) return
+
     const original = err instanceof Error ? err : new Error(String(err))
 
     // Always surface to console — this IS the existing client logger today.

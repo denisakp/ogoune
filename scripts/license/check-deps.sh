@@ -39,7 +39,10 @@ if ! command -v go-licenses >/dev/null 2>&1; then
   if [ -x "${GOPATH:-$HOME/go}/bin/go-licenses" ]; then
     export PATH="${GOPATH:-$HOME/go}/bin:$PATH"
   else
-    printf 'check-deps: missing tool go-licenses. Install: go install github.com/google/go-licenses@v1.6.0\n' >&2
+    # v2 is required for Go 1.24+ (v1.6.0 fails on the stdlib reorg with
+    # "Package runtime/cgo does not have module info" — see
+    # https://github.com/google/go-licenses/issues/128).
+    printf 'check-deps: missing tool go-licenses. Install: go install github.com/google/go-licenses/v2@v2.0.1\n' >&2
     exit 2
   fi
 fi
@@ -126,13 +129,17 @@ rm -f dist/license-report-web.err
 if [ -s dist/license-report-web.json ]; then
   # pnpm output is a map of license -> [{name,version,...}]
   # Flatten + filter for denied regex.
+  # pnpm 10+ returns `{ "<license>": [ { "name", "versions": [..], ... } ] }`.
+  # Older pnpm used `version` (singular); fall back to it for forward-compat.
   bad=$(jq -r --arg re "^(${denied_regex})" '
     to_entries
     | map(
         .key as $lic
         | .value[]?
         | select($lic | test($re))
-        | "\(.name)@\(.version): \($lic)"
+        | . as $pkg
+        | ($pkg.versions // [$pkg.version])[]?
+        | "\($pkg.name)@\(.): \($lic)"
       )
     | .[]?
   ' dist/license-report-web.json 2>/dev/null || true)
@@ -143,20 +150,46 @@ if [ -s dist/license-report-web.json ]; then
     done <<< "$bad"
   fi
 
+  # Manual allowlist for transitive deps that ship a license in their source
+  # repo but forget to declare it in package.json (or omit the LICENSE file
+  # from their published tarball). Each entry MUST cite the upstream source
+  # of truth for audit purposes.
+  WEB_KNOWN_LICENSES=(
+    # vaul-vue@0.4.1 — MIT, repo: https://github.com/unovue/vaul-vue/blob/main/LICENSE
+    # The 0.4.x tarballs omit both the `license` field in package.json AND the
+    # LICENSE file, so `pnpm licenses ls` reports null. Tracked transitively
+    # via @nuxt/ui → vaul-vue.
+    "vaul-vue@0.4.1=MIT"
+  )
+
   # Unknown licenses on the web side
   unknown=$(jq -r '
     to_entries
     | map(
         select(.key == "" or .key == null or (.key | ascii_downcase) == "unknown")
         | .value[]?
-        | "\(.name)@\(.version)"
+        | . as $pkg
+        | ($pkg.versions // [$pkg.version])[]?
+        | "\($pkg.name)@\(.)"
       )
     | .[]?
   ' dist/license-report-web.json 2>/dev/null || true)
   if [ -n "$unknown" ]; then
     while IFS= read -r line; do
-      printf '::error::Web runtime dependency %s has unknown license — clarify upstream or replace\n' "$line"
-      fail=1
+      skip=0
+      for entry in "${WEB_KNOWN_LICENSES[@]}"; do
+        # Strip "=<license>" suffix; match "name@version" exactly.
+        if [ "${entry%%=*}" = "$line" ]; then
+          printf 'check-deps: web dep %s allowlisted as %s (no upstream package.json license field)\n' \
+            "$line" "${entry##*=}" >&2
+          skip=1
+          break
+        fi
+      done
+      if [ "$skip" -eq 0 ]; then
+        printf '::error::Web runtime dependency %s has unknown license — clarify upstream or replace\n' "$line"
+        fail=1
+      fi
     done <<< "$unknown"
   fi
 fi

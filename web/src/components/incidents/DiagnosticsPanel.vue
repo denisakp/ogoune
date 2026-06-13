@@ -100,20 +100,20 @@ const hasImpact = computed(() => !!impactText.value)
 
 <template>
   <div class="space-y-4">
-    <div class="bg-white rounded-lg border border-slate-200 overflow-hidden">
-      <div class="px-5 py-3 border-b border-slate-200">
-        <h3 class="text-sm font-semibold text-slate-900">Diagnostics</h3>
+    <div class="bg-default rounded-lg border border-default overflow-hidden">
+      <div class="px-5 py-3 border-b border-default">
+        <h3 class="text-sm font-semibold text-highlighted">Diagnostics</h3>
       </div>
-      <div v-if="!d" class="px-5 py-6 text-sm text-slate-500 text-center">
+      <div v-if="!d" class="px-5 py-6 text-sm text-muted text-center">
         No diagnostics available.
       </div>
       <div v-else class="divide-y divide-slate-100">
         <div v-if="headerRows.length" class="px-5 py-3 space-y-3">
           <div v-for="row in headerRows" :key="row.label">
-            <div class="text-[10px] uppercase tracking-wider text-slate-500 font-semibold mb-0.5">
+            <div class="text-[10px] uppercase tracking-wider text-muted font-semibold mb-0.5">
               {{ row.label }}
             </div>
-            <div :class="row.mono ? 'font-mono text-xs text-slate-900' : 'text-sm text-slate-700'">
+            <div :class="row.mono ? 'font-mono text-xs text-highlighted' : 'text-sm text-default'">
               {{ row.value }}
             </div>
           </div>
@@ -121,12 +121,12 @@ const hasImpact = computed(() => !!impactText.value)
 
         <div v-if="requestRows.length" class="px-5 py-3 space-y-3">
           <div v-for="row in requestRows" :key="row.label">
-            <div class="text-[10px] uppercase tracking-wider text-slate-500 font-semibold mb-0.5">
+            <div class="text-[10px] uppercase tracking-wider text-muted font-semibold mb-0.5">
               {{ row.label }}
             </div>
             <div
               :class="
-                row.mono ? 'font-mono text-xs text-slate-900 break-all' : 'text-sm text-slate-700'
+                row.mono ? 'font-mono text-xs text-highlighted break-all' : 'text-sm text-default'
               "
             >
               {{ row.value }}
@@ -135,25 +135,25 @@ const hasImpact = computed(() => !!impactText.value)
         </div>
 
         <div v-if="timingRows.length" class="px-5 py-3">
-          <div class="text-[10px] uppercase tracking-wider text-slate-500 font-semibold mb-2">
+          <div class="text-[10px] uppercase tracking-wider text-muted font-semibold mb-2">
             Timing breakdown
           </div>
           <dl class="grid grid-cols-2 gap-y-1.5 gap-x-3 text-xs">
             <template v-for="row in timingRows" :key="row.label">
-              <dt class="text-slate-500">{{ row.label }}</dt>
-              <dd class="font-mono text-slate-900 text-right">{{ row.value }}</dd>
+              <dt class="text-muted">{{ row.label }}</dt>
+              <dd class="font-mono text-highlighted text-right">{{ row.value }}</dd>
             </template>
           </dl>
         </div>
 
         <div v-if="icmpRows.length" class="px-5 py-3">
-          <div class="text-[10px] uppercase tracking-wider text-slate-500 font-semibold mb-2">
+          <div class="text-[10px] uppercase tracking-wider text-muted font-semibold mb-2">
             ICMP probe
           </div>
           <dl class="grid grid-cols-2 gap-y-1.5 gap-x-3 text-xs">
             <template v-for="row in icmpRows" :key="row.label">
-              <dt class="text-slate-500">{{ row.label }}</dt>
-              <dd class="text-slate-900 text-right" :class="row.mono ? 'font-mono' : ''">
+              <dt class="text-muted">{{ row.label }}</dt>
+              <dd class="text-highlighted text-right" :class="row.mono ? 'font-mono' : ''">
                 {{ row.value }}
               </dd>
             </template>
@@ -161,13 +161,13 @@ const hasImpact = computed(() => !!impactText.value)
         </div>
 
         <div v-if="keywordRows.length" class="px-5 py-3">
-          <div class="text-[10px] uppercase tracking-wider text-slate-500 font-semibold mb-2">
+          <div class="text-[10px] uppercase tracking-wider text-muted font-semibold mb-2">
             Keyword check
           </div>
           <dl class="grid grid-cols-2 gap-y-1.5 gap-x-3 text-xs">
             <template v-for="row in keywordRows" :key="row.label">
-              <dt class="text-slate-500">{{ row.label }}</dt>
-              <dd class="text-slate-900 text-right" :class="row.mono ? 'font-mono' : ''">
+              <dt class="text-muted">{{ row.label }}</dt>
+              <dd class="text-highlighted text-right" :class="row.mono ? 'font-mono' : ''">
                 {{ row.value }}
               </dd>
             </template>
@@ -176,7 +176,7 @@ const hasImpact = computed(() => !!impactText.value)
 
         <div v-if="responseBody" class="px-5 py-3">
           <div class="flex items-center justify-between mb-2">
-            <div class="text-[10px] uppercase tracking-wider text-slate-500 font-semibold">
+            <div class="text-[10px] uppercase tracking-wider text-muted font-semibold">
               Response body
             </div>
             <button
@@ -189,7 +189,7 @@ const hasImpact = computed(() => !!impactText.value)
             </button>
           </div>
           <pre
-            class="bg-slate-50 rounded p-2 text-[11px] font-mono text-slate-700 whitespace-pre overflow-x-auto max-h-48"
+            class="bg-muted rounded p-2 text-[11px] font-mono text-default whitespace-pre overflow-x-auto max-h-48"
             >{{ visibleBody }}</pre
           >
         </div>
@@ -204,7 +204,7 @@ const hasImpact = computed(() => !!impactText.value)
       <UIcon name="i-lucide-alert-triangle" class="size-4 shrink-0 mt-0.5" style="color: #b91c1c" />
       <div class="flex-1 min-w-0">
         <div class="text-sm font-semibold mb-1" style="color: #b91c1c">Impact</div>
-        <p class="text-xs text-slate-700">{{ impactText }}</p>
+        <p class="text-xs text-default">{{ impactText }}</p>
       </div>
     </div>
   </div>

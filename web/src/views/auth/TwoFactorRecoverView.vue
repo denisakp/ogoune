@@ -28,7 +28,7 @@ defineExpose({ email, submitted, onSubmit })
 <template>
   <AuthLayout>
     <template #title>
-      <h1 class="text-[22px] font-bold text-slate-900 leading-tight">
+      <h1 class="text-[22px] font-bold text-highlighted leading-tight">
         Reset two-factor authentication
       </h1>
     </template>
@@ -62,7 +62,7 @@ defineExpose({ email, submitted, onSubmit })
     <template #footer>
       <RouterLink
         to="/login"
-        class="text-slate-600 hover:text-default underline underline-offset-4"
+        class="text-muted hover:text-default underline underline-offset-4"
       >
         Back to login
       </RouterLink>

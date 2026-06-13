@@ -81,14 +81,14 @@ defineExpose({ activeCount, resolved30d, mttrSeconds, totalDowntimeSeconds })
     <div
       v-for="c in cards"
       :key="c.label"
-      class="bg-white rounded-lg border border-slate-200 p-4 flex items-center gap-3"
+      class="bg-default rounded-lg border border-default p-4 flex items-center gap-3"
     >
       <span class="size-1.5 rounded-full shrink-0" :style="{ backgroundColor: c.accent }" />
       <div class="flex flex-col min-w-0">
-        <span class="text-[10px] uppercase font-semibold tracking-wider text-slate-500">
+        <span class="text-[10px] uppercase font-semibold tracking-wider text-muted">
           {{ c.label }}
         </span>
-        <span class="text-xl font-bold text-slate-900 leading-tight">{{ c.value }}</span>
+        <span class="text-xl font-bold text-highlighted leading-tight">{{ c.value }}</span>
       </div>
     </div>
   </div>

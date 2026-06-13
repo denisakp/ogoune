@@ -46,7 +46,7 @@ defineExpose({ filtered, loading })
 
 <template>
   <div>
-    <div v-if="loading" class="px-6 py-8 text-center text-sm text-slate-500">Loading…</div>
+    <div v-if="loading" class="px-6 py-8 text-center text-sm text-muted">Loading…</div>
     <UEmpty
       v-else-if="filtered.length === 0"
       variant="naked"
@@ -59,7 +59,7 @@ defineExpose({ filtered, loading })
         v-for="i in filtered"
         :key="i.id"
         type="button"
-        class="w-full grid grid-cols-[90px_1fr_120px_140px] gap-3 items-center px-4 py-3 text-left text-sm hover:bg-slate-50"
+        class="w-full grid grid-cols-[90px_1fr_120px_140px] gap-3 items-center px-4 py-3 text-left text-sm hover:bg-muted"
         @click="emit('row-click', i)"
       >
         <span
@@ -68,9 +68,9 @@ defineExpose({ filtered, loading })
         >
           {{ statusOf(i).label }}
         </span>
-        <span class="text-slate-700 truncate">{{ i.cause || i.reason || '—' }}</span>
-        <span class="text-xs font-mono text-slate-500">{{ timeAgo(i.started_at) }}</span>
-        <UIcon name="i-lucide-chevron-right" class="size-4 text-slate-400 justify-self-end" />
+        <span class="text-default truncate">{{ i.cause || i.reason || '—' }}</span>
+        <span class="text-xs font-mono text-muted">{{ timeAgo(i.started_at) }}</span>
+        <UIcon name="i-lucide-chevron-right" class="size-4 text-dimmed justify-self-end" />
       </button>
     </div>
   </div>

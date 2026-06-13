@@ -55,7 +55,7 @@ const isPaused = computed(() => props.resource.status === 'paused')
 
 <template>
   <div
-    class="grid grid-cols-[28px_1fr_80px_90px_90px_90px_140px_40px] gap-2 px-4 py-2.5 items-center border-t border-slate-200 hover:bg-slate-50 cursor-pointer"
+    class="grid grid-cols-[28px_1fr_80px_90px_90px_90px_140px_40px] gap-2 px-4 py-2.5 items-center border-t border-default hover:bg-muted cursor-pointer"
     :class="{ 'bg-primary-50': selected }"
     @click="emit('action', { kind: 'view', resource })"
   >
@@ -70,12 +70,12 @@ const isPaused = computed(() => props.resource.status === 'paused')
     <div class="flex flex-col min-w-0">
       <div class="flex items-center gap-2 min-w-0">
         <span class="size-2 rounded-full shrink-0" :style="{ backgroundColor: statusColor }" />
-        <span class="text-sm text-slate-900 truncate font-medium">{{ resource.name }}</span>
+        <span class="text-sm text-highlighted truncate font-medium">{{ resource.name }}</span>
       </div>
-      <span v-if="target" class="text-xs text-slate-500 truncate pl-4">{{ target }}</span>
+      <span v-if="target" class="text-xs text-muted truncate pl-4">{{ target }}</span>
     </div>
     <span
-      class="text-[10px] font-semibold uppercase text-slate-600 bg-slate-100 rounded-md px-1.5 py-0.5 inline-block"
+      class="text-[10px] font-semibold uppercase text-muted bg-elevated rounded-md px-1.5 py-0.5 inline-block"
     >
       {{ resource.type }}
     </span>
@@ -85,9 +85,9 @@ const isPaused = computed(() => props.resource.status === 'paused')
     >
       {{ resource.status }}
     </span>
-    <span class="text-xs font-mono text-slate-600">{{ uptime7dPct }}</span>
-    <span class="text-xs font-mono text-slate-600">{{ incidentCount30d }}</span>
-    <span class="text-xs text-slate-500">
+    <span class="text-xs font-mono text-muted">{{ uptime7dPct }}</span>
+    <span class="text-xs font-mono text-muted">{{ incidentCount30d }}</span>
+    <span class="text-xs text-muted">
       {{ resource.last_checked ? timeAgo(resource.last_checked) : '—' }}
     </span>
     <div class="flex justify-end" @click.stop>

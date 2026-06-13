@@ -40,7 +40,7 @@ defineExpose({ state, errorMessage, run })
 <template>
   <AuthLayout>
     <template #title>
-      <h1 class="text-[22px] font-bold text-slate-900 leading-tight">Two-factor reset</h1>
+      <h1 class="text-[22px] font-bold text-highlighted leading-tight">Two-factor reset</h1>
     </template>
 
     <USkeleton v-if="state === 'pending'" class="h-32" />
@@ -57,7 +57,7 @@ defineExpose({ state, errorMessage, run })
     <template v-if="state === 'error'" #footer>
       <RouterLink
         to="/auth/2fa-recover"
-        class="text-slate-600 hover:text-default underline underline-offset-4"
+        class="text-muted hover:text-default underline underline-offset-4"
       >
         Request a new reset link
       </RouterLink>

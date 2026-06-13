@@ -4,6 +4,7 @@
  * Four sections (MONITOR / REPORT / TOOLS / SETTINGS) + footer status pill.
  * Contract: specs/055-slice-shared-components/contracts/app-layout.md
  */
+import { useRoute } from 'vue-router'
 
 interface NavItem {
   label: string
@@ -23,11 +24,6 @@ const report: NavItem[] = [
   { label: 'Dashboards', to: '/dashboards', icon: 'i-lucide-layout-grid' },
 ]
 
-const tools: NavItem[] = [
-  { label: 'Toolbox', to: '/toolbox', icon: 'i-lucide-hammer' },
-  { label: 'Metrics', to: '/metrics', icon: 'i-lucide-line-chart' },
-]
-
 const settings: NavItem[] = [
   { label: 'Notifications', to: '/notifications', icon: 'i-lucide-bell' },
   { label: 'Escalation', to: '/escalation', icon: 'i-lucide-siren' },
@@ -35,8 +31,13 @@ const settings: NavItem[] = [
   { label: 'Preferences', to: '/settings', icon: 'i-lucide-settings' },
 ]
 
-function toMenuItems(items: NavItem[]) {
-  return items.map((i) => ({ label: i.label, icon: i.icon, to: i.to }))
+const route = useRoute()
+
+function linkClass(to: string): string {
+  const active = route.path === to || route.path.startsWith(`${to}/`)
+  return active
+    ? 'bg-elevated text-default font-medium'
+    : 'text-muted hover:bg-elevated hover:text-default'
 }
 </script>
 
@@ -56,19 +57,48 @@ function toMenuItems(items: NavItem[]) {
     <nav class="flex-1 overflow-y-auto px-3 pb-3 space-y-6">
       <section>
         <div class="px-2 py-1 text-xs font-medium text-muted uppercase tracking-wide">Monitor</div>
-        <UNavigationMenu :items="toMenuItems(monitor)" orientation="vertical" />
+        <div class="space-y-1">
+          <RouterLink
+            v-for="item in monitor"
+            :key="item.to"
+            :to="item.to"
+            class="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors"
+            :class="linkClass(item.to)"
+          >
+            <UIcon :name="item.icon" class="size-4" />
+            <span>{{ item.label }}</span>
+          </RouterLink>
+        </div>
       </section>
       <section>
         <div class="px-2 py-1 text-xs font-medium text-muted uppercase tracking-wide">Report</div>
-        <UNavigationMenu :items="toMenuItems(report)" orientation="vertical" />
-      </section>
-      <section>
-        <div class="px-2 py-1 text-xs font-medium text-muted uppercase tracking-wide">Tools</div>
-        <UNavigationMenu :items="toMenuItems(tools)" orientation="vertical" />
+        <div class="space-y-1">
+          <RouterLink
+            v-for="item in report"
+            :key="item.to"
+            :to="item.to"
+            class="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors"
+            :class="linkClass(item.to)"
+          >
+            <UIcon :name="item.icon" class="size-4" />
+            <span>{{ item.label }}</span>
+          </RouterLink>
+        </div>
       </section>
       <section>
         <div class="px-2 py-1 text-xs font-medium text-muted uppercase tracking-wide">Settings</div>
-        <UNavigationMenu :items="toMenuItems(settings)" orientation="vertical" />
+        <div class="space-y-1">
+          <RouterLink
+            v-for="item in settings"
+            :key="item.to"
+            :to="item.to"
+            class="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors"
+            :class="linkClass(item.to)"
+          >
+            <UIcon :name="item.icon" class="size-4" />
+            <span>{{ item.label }}</span>
+          </RouterLink>
+        </div>
       </section>
     </nav>
 

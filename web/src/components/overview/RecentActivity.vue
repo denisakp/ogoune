@@ -45,20 +45,20 @@ function statusBadge(success: boolean) {
 </script>
 
 <template>
-  <div class="bg-white rounded-lg border border-slate-200 overflow-hidden">
+  <div class="bg-default rounded-lg border border-default overflow-hidden">
     <div class="flex items-center justify-between px-6 py-4">
-      <h3 class="text-base font-semibold text-slate-900">Recent Activity</h3>
+      <h3 class="text-base font-semibold text-highlighted">Recent Activity</h3>
       <RouterLink to="/incidents" class="text-[13px] font-medium text-primary-600 hover:underline">
         View all
       </RouterLink>
     </div>
     <div
-      class="border-t border-slate-200 bg-slate-50 px-6 py-2.5 grid grid-cols-[1fr_180px_120px_140px] gap-2"
+      class="border-t border-default bg-muted px-6 py-2.5 grid grid-cols-[1fr_180px_120px_140px] gap-2"
     >
-      <span class="text-xs font-medium text-slate-600">Resource</span>
-      <span class="text-xs font-medium text-slate-600">Event</span>
-      <span class="text-xs font-medium text-slate-600">Status</span>
-      <span class="text-xs font-medium text-slate-600">Time</span>
+      <span class="text-xs font-medium text-muted">Resource</span>
+      <span class="text-xs font-medium text-muted">Event</span>
+      <span class="text-xs font-medium text-muted">Status</span>
+      <span class="text-xs font-medium text-muted">Time</span>
     </div>
 
     <div v-if="loading" class="px-6 py-4 space-y-3">
@@ -75,16 +75,16 @@ function statusBadge(success: boolean) {
       <div
         v-for="a in rows"
         :key="a.id"
-        class="px-6 py-3 grid grid-cols-[1fr_180px_120px_140px] gap-2 items-center border-t border-slate-200 first:border-t-0"
+        class="px-6 py-3 grid grid-cols-[1fr_180px_120px_140px] gap-2 items-center border-t border-default first:border-t-0"
       >
         <div class="flex items-center gap-2 min-w-0">
           <span
             class="size-2 rounded-full shrink-0"
             :style="{ backgroundColor: dotColor(a.success) }"
           />
-          <span class="text-sm text-slate-900 truncate">{{ resourceLabel(a) }}</span>
+          <span class="text-sm text-highlighted truncate">{{ resourceLabel(a) }}</span>
         </div>
-        <span class="text-sm text-slate-600 truncate">{{
+        <span class="text-sm text-muted truncate">{{
           a.message || (a.success ? 'Check passed' : 'Check failed')
         }}</span>
         <div>
@@ -98,7 +98,7 @@ function statusBadge(success: boolean) {
             {{ statusBadge(a.success).text }}
           </span>
         </div>
-        <span class="text-xs text-slate-500">{{ timeAgo(a.created_at) }}</span>
+        <span class="text-xs text-muted">{{ timeAgo(a.created_at) }}</span>
       </div>
     </div>
   </div>

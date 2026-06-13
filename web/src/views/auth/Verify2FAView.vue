@@ -36,11 +36,11 @@ const onComplete = (value: string[]) => {
 <template>
   <AuthLayout :brand="{ name: 'Ogoune', icon: 'i-lucide-shield-check' }">
     <template #title>
-      <h1 class="text-[22px] font-bold text-slate-900 leading-tight">Two-Factor Verification</h1>
+      <h1 class="text-[22px] font-bold text-highlighted leading-tight">Two-Factor Verification</h1>
     </template>
     <template #subtitle>
       Enter the 6-digit code from your authenticator app.
-      <span v-if="pendingEmail" class="block mt-2 text-xs text-slate-500">
+      <span v-if="pendingEmail" class="block mt-2 text-xs text-muted">
         Account: {{ pendingEmail }}
       </span>
     </template>

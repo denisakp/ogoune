@@ -42,14 +42,14 @@ const strength = computed<Strength>(() => {
   if (/[^A-Za-z0-9]/.test(p)) s++
   const labels = ['Too weak', 'Weak', 'Fair', 'Good', 'Strong'] as const
   const textClasses = [
-    'text-slate-400',
+    'text-dimmed',
     'text-red-500',
     'text-amber-500',
     'text-emerald-500',
     'text-emerald-700',
   ] as const
   const fillClasses = [
-    'bg-slate-400',
+    'bg-dimmed',
     'bg-red-500',
     'bg-amber-500',
     'bg-emerald-500',
@@ -58,8 +58,8 @@ const strength = computed<Strength>(() => {
   return {
     score: s as 0 | 1 | 2 | 3 | 4,
     label: labels[s] ?? 'Too weak',
-    textClass: textClasses[s] ?? 'text-slate-400',
-    fillClass: fillClasses[s] ?? 'bg-slate-400',
+    textClass: textClasses[s] ?? 'text-dimmed',
+    fillClass: fillClasses[s] ?? 'bg-dimmed',
   }
 })
 
@@ -93,7 +93,7 @@ defineExpose({ state, onSubmit, formRef, expiredOrUsed, strength })
 <template>
   <AuthLayout>
     <template #title>
-      <h1 class="text-[22px] font-bold text-slate-900 leading-tight">Set a new password</h1>
+      <h1 class="text-[22px] font-bold text-highlighted leading-tight">Set a new password</h1>
     </template>
     <template #subtitle> Choose something only you would know. Min 12 chars + 1 digit. </template>
 
@@ -142,7 +142,7 @@ defineExpose({ state, onSubmit, formRef, expiredOrUsed, strength })
 
       <div v-if="state.password" class="space-y-1.5">
         <div class="flex items-center justify-between text-[11px]">
-          <span class="text-slate-600 font-medium">Password strength</span>
+          <span class="text-muted font-medium">Password strength</span>
           <span class="font-semibold" :class="strength.textClass">{{ strength.label }}</span>
         </div>
         <div class="flex gap-1">
@@ -150,7 +150,7 @@ defineExpose({ state, onSubmit, formRef, expiredOrUsed, strength })
             v-for="i in 5"
             :key="i"
             class="flex-1 h-1 rounded-sm"
-            :class="i <= strength.score + 1 ? strength.fillClass : 'bg-slate-200'"
+            :class="i <= strength.score + 1 ? strength.fillClass : 'bg-elevated'"
           />
         </div>
       </div>

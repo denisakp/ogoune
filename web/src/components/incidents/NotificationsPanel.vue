@@ -19,23 +19,23 @@ function timeOfDay(iso: string): string {
 </script>
 
 <template>
-  <div class="bg-white rounded-lg border border-slate-200 overflow-hidden">
-    <div class="px-5 py-3 border-b border-slate-200 flex items-center justify-between">
-      <h3 class="text-sm font-semibold text-slate-900">Notifications Sent</h3>
-      <span class="text-xs text-slate-500">{{ alertEvents.length }}</span>
+  <div class="bg-default rounded-lg border border-default overflow-hidden">
+    <div class="px-5 py-3 border-b border-default flex items-center justify-between">
+      <h3 class="text-sm font-semibold text-highlighted">Notifications Sent</h3>
+      <span class="text-xs text-muted">{{ alertEvents.length }}</span>
     </div>
-    <div v-if="alertEvents.length === 0" class="px-5 py-6 text-sm text-slate-500 text-center">
+    <div v-if="alertEvents.length === 0" class="px-5 py-6 text-sm text-muted text-center">
       No notifications were dispatched for this incident.
     </div>
     <div v-else>
       <div
         v-for="e in alertEvents"
         :key="e.id"
-        class="flex items-center gap-3 px-5 py-2.5 border-b border-slate-100 last:border-0 text-sm"
+        class="flex items-center gap-3 px-5 py-2.5 border-b border-muted last:border-0 text-sm"
       >
         <UIcon name="i-lucide-send" class="size-3.5 text-blue-500 shrink-0" />
-        <span class="text-slate-700 flex-1 truncate">{{ e.message || 'Alert dispatched' }}</span>
-        <span class="text-xs text-slate-500 font-mono">{{ timeOfDay(e.created_at) }}</span>
+        <span class="text-default flex-1 truncate">{{ e.message || 'Alert dispatched' }}</span>
+        <span class="text-xs text-muted font-mono">{{ timeOfDay(e.created_at) }}</span>
         <span
           class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium"
           style="background-color: #ecfdf5; color: #047857"

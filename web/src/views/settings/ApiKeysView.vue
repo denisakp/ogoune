@@ -93,6 +93,8 @@ async function reload() {
   loading.value = true
   try {
     keys.value = await accountService.listAPIKeys()
+  } catch {
+    keys.value = []
   } finally {
     loading.value = false
   }

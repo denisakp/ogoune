@@ -1,5 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createApp, defineComponent, h } from 'vue'
+
+const isNavigationFailureMock = vi.fn(() => false)
+vi.mock('vue-router', () => ({
+  isNavigationFailure: (e: unknown) => isNavigationFailureMock(e),
+}))
+
 import { installErrorBoundary, __resetErrorBoundaryForTests } from './errorBoundary'
 
 describe('installErrorBoundary (spec 069 / US1)', () => {
@@ -8,6 +14,7 @@ describe('installErrorBoundary (spec 069 / US1)', () => {
   beforeEach(() => {
     __resetErrorBoundaryForTests()
     consoleSpy.mockClear()
+    isNavigationFailureMock.mockReturnValue(false)
   })
 
   afterEach(() => {
@@ -57,5 +64,19 @@ describe('installErrorBoundary (spec 069 / US1)', () => {
     app.config.errorHandler?.(original, null as never, 'lifecycle')
 
     expect(consoleSpy).toHaveBeenCalledWith('[errorBoundary]', original, 'lifecycle')
+  })
+
+  it('IGNORES Vue Router NavigationFailure errors (no Error500 push, no log)', () => {
+    isNavigationFailureMock.mockReturnValue(true)
+    const pushSpy = vi.fn().mockResolvedValue(undefined)
+    const fakeRouter = { push: pushSpy } as never
+    const app = createApp(defineComponent({ render: () => h('div') }))
+    installErrorBoundary(app, fakeRouter)
+
+    const navFailure = new Error('Navigation cancelled')
+    app.config.errorHandler?.(navFailure, null as never, 'router')
+
+    expect(pushSpy).not.toHaveBeenCalled()
+    expect(consoleSpy).not.toHaveBeenCalled()
   })
 })

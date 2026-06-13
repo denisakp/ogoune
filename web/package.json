@@ -8,8 +8,11 @@
     "onlyBuiltDependencies": [
       "core-js",
       "esbuild",
-      "vue-demi"
-    ]
+      "msw"
+    ],
+    "overrides": {
+      "@vueuse/core": "^14.3.0"
+    }
   },
   "author": "Denis AKPAGNONITE",
   "description": "Ogoune ui built with vuejs",
@@ -36,7 +39,7 @@
     "@tiptap/pm": "^3.26.0",
     "@tiptap/starter-kit": "^3.26.0",
     "@tiptap/vue-3": "^3.26.0",
-    "@vueuse/core": "^11.0.0",
+    "@vueuse/core": "^14.3.0",
     "cron-parser": "^5.5.0",
     "cronstrue": "^3.14.0",
     "dayjs": "^1.11.19",
@@ -48,6 +51,7 @@
     "qrcode": "^1.5.4",
     "vue": "^3.5.22",
     "vue-router": "4",
+    "vuedraggable": "^4.1.0",
     "zod": "^3.23.0"
   },
   "devDependencies": {
@@ -73,7 +77,6 @@
     "prettier": "3.6.2",
     "tailwindcss": "^4.3.0",
     "typescript": "~5.9.0",
-    "unplugin-vue-components": "29.1.0",
     "vite": "^7.1.7",
     "vite-plugin-vue-devtools": "^8.0.2",
     "vitest": "^3.2.4",

@@ -1,187 +1,255 @@
-# Frontend Architecture Guide
+# Frontend Architecture
 
-This document provides a comprehensive overview of the Ogoune frontend architecture. It is designed to help developers understand the project structure, data flow, and core principles, enabling them to contribute effectively and maintain code quality.
+How the Ogoune SPA is laid out, how data flows, and what each layer is responsible for. Pair this with the [README](./README.md) (quick start, scripts, env vars) and the [pattern catalog](./docs/patterns/) (which UI primitive to use).
 
-## 1. Core Principles & Data Flow
+## 1. Data flow
 
-The architecture is built on a strict separation of concerns, ensuring that UI, state management, and API communication are decoupled. This makes the codebase easier to understand, test, and scale.
-
-### Data Flow
-
-The application follows a unidirectional data flow pattern:
-
--   **Request Flow**: A user interaction in a `Component` triggers a function in a `Composable`, which in turn calls a `Service` to make an API request.
--   **Response Flow**: The `Service` receives a response from the API, the `Composable` updates its reactive state with the new data, and the `Component` automatically re-renders to reflect the changes.
+The SPA enforces a strict layering: `Component → Composable → Service → HTTP client → Backend`.
 
 ```
-Request:  Component → Composable → Service → API Client → Backend
-Response: Backend → API Client → Service → Composable (updates state) → Component (re-renders)
+Request:  Component → Composable → Service → Ky client → Backend
+Response: Backend → Ky client → Service → Composable (updates state) → Component (re-renders)
 ```
 
-### Guiding Rule: No Direct API Calls from Components
+**The non-negotiable rule:** no HTTP call leaves a component. Components consume composable state and call composable methods; composables call services; services call the Ky client.
 
-Components should never contain direct HTTP requests (e.g., using `axios`). All API interactions must be delegated to the service layer and managed by composables.
+### Anti-pattern
 
--   **Incorrect Practice**:
-    ```vue
-    <script setup>
-    import axios from 'axios'
-    onMounted(async () => {
-      const res = await axios.get('/resources/123')
-      // ...
-    })
-    </script>
-    ```
+```vue
+<!-- Don't -->
+<script setup lang="ts">
+import { ky } from 'ky'
+onMounted(async () => {
+  const r = await ky.get('/api/v1/resources').json()
+})
+</script>
+```
 
--   **Correct Practice**:
-    ```vue
-    <script setup>
-    import { useResources } from '@/composables/useResources'
-    const { resources, loadResources } = useResources()
-    onMounted(() => loadResources())
-    </script>
-    ```
+### Correct
 
-## 2. File Organization
+```vue
+<script setup lang="ts">
+import { useResources } from '@/composables/useResources'
+const { resources, loading, load } = useResources()
+onMounted(load)
+</script>
 
-The project follows a feature-oriented structure within the `src/` directory.
+<template>
+  <USkeleton v-if="loading" class="h-64" />
+  <UEmpty v-else-if="!resources.length" title="No resources yet" />
+  <ul v-else>
+    <li v-for="r in resources" :key="r.id">{{ r.name }}</li>
+  </ul>
+</template>
+```
+
+## 2. File organization
 
 ```
 src/
-├── assets/               # Static assets (images, fonts)
-├── components/           # Reusable, stateless UI components (e.g., buttons, badges)
-├── composables/          # State management and business logic (e.g., useResources.ts)
-├── libs/                 # Third-party library configurations (e.g., axios.helper.ts)
-├── router/               # Vue Router configuration (index.ts)
-├── services/             # API communication layer (e.g., resourceService.ts)
-├── stores/               # Pinia stores for global state (if needed)
-├── types/                # TypeScript interfaces and type definitions (index.ts)
-├── views/                # Page-level components, mapped to routes
-├── App.vue               # Root application component with layout and navigation
-├── main.ts               # Application entry point
-└── style.css             # Global CSS styles
+├── components/            Reusable UI; one subdirectory per feature area
+│   ├── dashboards/        Dashboard cards, wizard, scope resolver
+│   ├── incidents/         Timeline, panels, list bodies
+│   ├── layout/            AppLayout, AppTopbar, AppSidebar, AuthLayout
+│   ├── maintenance/       Maintenance modal + cron generator
+│   ├── overlays/          USearchPalette, UKeyboardShortcutsModal, UNotificationDropdown
+│   ├── overview/          KPI cards on the Overview page
+│   ├── reports/           Monthly report card, history list, inline preview
+│   ├── resources/         Resource form, list items, group headers
+│   ├── settings/          Per-section settings panes (account, notifications, …)
+│   ├── status/            Public status page widgets
+│   ├── ui/                Local wrappers around NuxtUI (UEditionBadge, …)
+│   └── …                  FeedbackModal, IncidentTimeline, UptimeSparkline, …
+├── composables/           State + business logic. ~35 files
+├── core/
+│   ├── http/              Ky client, error interceptor, useHttpClient
+│   └── errors/            Typed HTTP error classes
+├── mocks/                 MSW fixtures + handlers for tests and the mock feed modes
+├── plugins/               Vue plugins (errorBoundary)
+├── router/                vue-router setup, auth guard, maintenance gate, cross-cutting specs
+├── schemas/               Zod schemas for forms
+├── services/              One file per backend domain. ~25 files, ~2.3 KLOC
+├── stores/                Pinia stores for cross-route state
+├── test/                  Vitest setup, MSW server, cross-cutting specs
+├── types/                 Type re-exports (single import surface for consumers)
+├── views/                 Page-level components, lazy-loaded by the router
+├── widgets/               Dashboard widget registry + 4 MVP widgets
+├── App.vue                Root for the authenticated bundle
+├── StatusApp.vue          Root for the public status bundle
+├── main.ts                Authenticated entry — installs Pinia, router, NuxtUI, error boundary, keyboard shortcuts
+└── status-main.ts         Public status entry
 ```
 
-## 3. Architectural Layers
+## 3. Layers
 
-### 3.1. Views (`src/views/`)
+### 3.1 Views (`src/views/`)
 
--   **Purpose**: Page-level components that correspond to a specific route (e.g., `MonitorsView.vue`).
--   **Responsibilities**:
-    -   Compose the page layout using smaller, reusable components from `src/components/`.
-    -   Utilize one or more composables from `src/composables/` to fetch and manage the data required for the page.
-    -   Handle user events by calling methods exposed by the composables.
-    -   Display loading, error, and data states.
+Page-level components mapped 1:1 to routes. Lazy-loaded via `() => import(…)` in `router/index.ts`.
 
-### 3.2. Components (`src/components/`)
+- Compose the page with smaller components.
+- Call composables to fetch + manage state.
+- Display loading/empty/error states from the pattern catalog (`USkeleton`, `UEmpty`, `UAlert`).
 
--   **Purpose**: Small, reusable UI elements (e.g., `StatusBadge.vue`, `ResourceForm.vue`).
--   **Responsibilities**:
-    -   Receive data via `props`.
-    -   Emit events to parent components via `emits`.
-    -   Contain minimal to no business logic.
-    -   Be as stateless as possible.
+### 3.2 Components (`src/components/`)
 
-### 3.3. Composables (`src/composables/`)
+Reusable, mostly stateless UI. Receive props, emit events, contain minimal logic. Each feature area has its own subdirectory; cross-cutting primitives live in `components/ui/`.
 
--   **Purpose**: The core of the state management and business logic. Each composable typically manages a specific piece of domain state (e.g., `useResources` manages the list of monitoring resources).
--   **Responsibilities**:
-    -   Define reactive state variables (`ref`, `reactive`) for data, loading status, and errors.
-    -   Expose functions that orchestrate calls to the `Service` layer to perform CRUD operations.
-    -   Handle the `try/catch/finally` logic for asynchronous operations, updating loading and error states accordingly.
-    -   Return the reactive state and methods for the `View` to consume.
+### 3.3 Composables (`src/composables/`)
 
--   **Example (`useResources.ts`)**:
-    ```typescript
-    import { ref } from 'vue'
-    import * as resourceService from '@/services/resourceService'
-    import type { Resource } from '@/types'
+Where state and business logic live. Each composable typically owns one domain (resources, incidents, reports, dashboards, notifications, …) and exposes:
 
-    export function useResources() {
-      const resources = ref<Resource[]>([])
-      const loading = ref(false)
-      const error = ref<string | null>(null)
+- Reactive state (`ref`/`computed`)
+- Action methods (`load`, `create`, `update`, `delete`, `toggle`, …)
+- Derived getters (filtered/sorted lists)
 
-      const loadResources = async () => {
-        loading.value = true
-        error.value = null
-        try {
-          resources.value = await resourceService.fetchResources()
-        } catch (err) {
-          error.value = err instanceof Error ? err.message : 'Failed to load resources'
-        } finally {
-          loading.value = false
-        }
-      }
+```ts
+// src/composables/useResources.ts (shape)
+export function useResources() {
+  const resources = ref<Resource[]>([])
+  const loading = ref(false)
+  const error = ref<string | null>(null)
 
-      // ... other methods like createResource, deleteResource
-
-      return { resources, loading, error, loadResources }
+  async function load() {
+    loading.value = true
+    error.value = null
+    try {
+      resources.value = await resourceService.fetchResources()
+    } catch (e) {
+      error.value = e instanceof Error ? e.message : 'Failed to load resources'
+    } finally {
+      loading.value = false
     }
-    ```
+  }
 
-### 3.4. Services (`src/services/`)
+  return { resources, loading, error, load }
+}
+```
 
--   **Purpose**: The sole layer responsible for communicating with the backend API.
--   **Responsibilities**:
-    -   Export async functions that correspond to specific API endpoints (e.g., `fetchResources`, `createResource`).
-    -   Use the centralized `apiClient` to make HTTP requests.
-    -   Handle data transformation if the API response needs to be adapted for the frontend.
-    -   Define the expected data types for requests and responses, using types from `src/types/index.ts`.
+Cross-route state that survives navigation (auth token, onboarding state, one-shot API-key reveal) goes in **Pinia stores** under `src/stores/`.
 
--   **Example (`resourceService.ts`)**:
-    ```typescript
-    import apiClient from '@/libs/axios.helper'
-    import type { Resource } from '@/types'
+### 3.4 Services (`src/services/`)
 
-    export const fetchResources = async (): Promise<Resource[]> => {
-      const response = await apiClient.get('/resources')
-      return response.data.data || []
-    }
+Pure HTTP. One file per backend domain. Each exported function maps to one endpoint and returns typed data.
 
-    export const createResource = async (payload: Omit<Resource, 'id'>): Promise<Resource> => {
-      const response = await apiClient.post('/resources', payload)
-      return response.data.data
-    }
-    ```
+```ts
+// src/services/resourceService.ts (shape)
+import { getAuthenticatedClient, request } from '@/core/http/client'
+import type { Resource, CreateResource } from '@/types'
 
-### 3.5. API Client (`src/libs/axios.helper.ts`)
+export const fetchResources = async (): Promise<Resource[]> =>
+  request<Resource[]>(getAuthenticatedClient(), 'resources')
 
--   **Purpose**: A single, pre-configured Axios instance used by all services.
--   **Responsibilities**:
-    -   Set the `baseURL` from the `VITE_API_BASE_URL` environment variable.
-    -   Configure default headers (e.g., `Content-Type: application/json`).
-    -   Set up interceptors for centralized request/response handling (e.g., logging, error transformation, adding auth tokens).
+export const createResource = async (payload: CreateResource): Promise<Resource> =>
+  request<Resource>(getAuthenticatedClient(), 'resources', {
+    method: 'POST',
+    json: payload,
+  })
+```
 
-## 4. Error Handling
+Services do **not** `try/catch` — they propagate errors typed by the Ky error interceptor. The composable above them handles failure.
 
-Error handling is managed consistently across layers:
+### 3.5 HTTP client (`src/core/http/`)
 
-1.  **Service Layer**: API calls made with `apiClient` will throw an error on non-2xx responses. Services do not `try/catch` these errors; they let them propagate up.
-2.  **Composable Layer**: This is where errors are caught. Every async function that calls a service is wrapped in a `try/catch` block.
-    -   On failure, the `error` ref is populated with a user-friendly message.
-    -   The `loading` ref is always set to `false` in a `finally` block to ensure the UI is never stuck in a loading state.
-3.  **View/Component Layer**: The UI uses a `v-if="error"` directive to conditionally render an error message or an alert component, displaying the content of the `error` ref.
+A single Ky instance, configured once.
 
-## 5. Type Safety
+- `client.ts` — base instance + `getAuthenticatedClient()` (adds `Authorization: Bearer <token>` from `authStore`)
+- `erreror-interceptor.ts` — converts Ky `HTTPError` into typed domain errors: `UnauthorizedError`, `ForbiddenError`, `NotFoundError`, `ConflictError`, `ValidationError`, `ServerError`, `NetworkError`. Each carries `code` and (when present) `retryAfterSec`.
+- `use-http-client.ts` — composable accessor
 
-TypeScript is used throughout the project to ensure type safety and improve developer experience.
+Services catch nothing; composables catch the typed errors above and decide what to surface.
 
--   **`src/types/index.ts`**: This file is the single source of truth for all data structures (e.g., `Resource`, `Tag`, `Integration`).
--   **Flow of Types**:
-    1.  Service functions use these types for their arguments and return values.
-    2.  Composables use them to type their reactive state (`ref<Resource[]>([])`).
-    3.  Components and Views use them for `props` and to correctly access data properties.
+### 3.6 Stores (`src/stores/`)
 
-This end-to-end typing prevents common bugs and provides excellent autocompletion in the IDE.
+Pinia for state that crosses route boundaries:
 
-## 6. Development Workflow: Adding a New Feature
+- `authStore` — token, user, login/verify/logout
+- `useApiKeyStore` — one-shot reveal of newly-created API keys
+- `dashboardsStore`, `resourceStore` — list-level filters that should persist across nav
+- `onboardingState` (composable-backed via `composables/useOnboardingState`)
 
-Follow these steps to add a new page or feature (e.g., a "Status Page"):
+If state is only needed within one route, prefer a composable.
 
-1.  **Define Types** (if new data structures are needed) in `src/types/index.ts`.
-2.  **Create Service Function(s)** in a new or existing file in `src/services/` to fetch data from the API.
-3.  **Create a Composable** in `src/composables/` to manage the state and logic for the feature.
-4.  **Create a View** component in `src/views/` that uses the composable and renders the UI.
-5.  **Add a Route** in `src/router/index.ts` to map a URL path to your new view.
-6.  **Update Navigation** (e.g., in `App.vue`) to link to the new page.
+### 3.7 Routing (`src/router/`)
+
+`createWebHistory` SPA router with:
+
+- **Maintenance gate** — `VITE_MAINTENANCE_MODE=true` redirects every route to the branded `MaintenanceMode` view.
+- **Auth guard** — `verifyOnce()` memoizes the in-flight `verify()` promise and caches an OK result for 30 s. Without this, bursts of nav (sidebar clicks) race and any one rejection bumps the user to `/login`.
+- **Public/private split** — every route declares `meta.requiresAuth` and `meta.requiresLayout`. `App.vue` toggles `AppLayout` based on `requiresLayout`.
+- **Catch-all 404** declared last, before maintenance/error routes.
+
+## 4. Forms
+
+Zod schemas in `src/schemas/`, rendered with NuxtUI `UForm`. The schema is the single source of truth:
+
+- Client-side validation (live, on submit)
+- TypeScript type for the form value (`z.infer<typeof schema>`)
+- Shape contract with the service layer
+
+When the backend returns a `ValidationError`, the composable surfaces field-level errors back into the form.
+
+## 5. Errors
+
+Three-layer error contract:
+
+1. **HTTP client** throws typed errors (see §3.5).
+2. **Services** propagate without catching.
+3. **Composables** `try/catch`, populate `error` ref + reset `loading`.
+4. **View** renders `v-if="error"` with `UAlert` or the empty state from the pattern catalog.
+
+For **uncaught render errors** (rare): the global `errorBoundary` plugin (`src/plugins/errorBoundary.ts`) navigates to `/error-500` and renders a synthetic incident card. Re-entrancy is guarded; a second crash during the 500 view degrades to inline HTML. `NavigationFailure` instances are explicitly ignored so the auth guard's rapid nav-cancellation doesn't trigger the boundary.
+
+## 6. Types
+
+`src/types/index.ts` is the single barrel for cross-feature types (`Resource`, `Incident`, `Maintenance`, `NotificationChannel`, `Dashboard`, `Report`, …). Domain-specific types stay alongside their composables (`types/dashboards.ts`, `types/reports.ts`).
+
+Services use them for arguments + returns; composables use them to type reactive state; components/views use them for props.
+
+## 7. Adding a new feature
+
+Same pattern, every time. Example: a new "Postmortems" feature.
+
+1. **Types** — add to `src/types/index.ts` (or a feature-specific file in `src/types/`).
+2. **Service** — `src/services/postmortemService.ts` with one function per endpoint.
+3. **Schemas** — `src/schemas/postmortem.schema.ts` if there's a form.
+4. **Composable** — `src/composables/usePostmortems.ts` for state + actions.
+5. **Components** — `src/components/postmortems/` for the building blocks.
+6. **View** — `src/views/postmortems/PostmortemsView.vue` composes the page.
+7. **Route** — register in `src/router/index.ts` with the right `meta`.
+8. **Navigation** — add a `NavItem` to `src/components/layout/AppSidebar.vue`.
+9. **Tests** — colocated `.spec.ts`. MSW handlers in `src/mocks/` if the spec needs network mocking.
+
+## 8. Testing
+
+- Vitest + jsdom + `@vue/test-utils`.
+- MSW intercepts all HTTP in the test environment (`src/test/setup.ts` calls `server.listen({ onUnhandledRequest: 'error' })` — every request must have a handler).
+- Co-located specs (`*.spec.ts` next to the source) for components, composables, services.
+- Cross-cutting specs (router, EE upsell hygiene, isolation) live in `src/test/` or `src/router/`.
+
+```bash
+pnpm test                 # all suites
+pnpm exec vitest run path/to/file.spec.ts   # single file
+```
+
+## 9. Design system
+
+NuxtUI v4 + Tailwind v4 with semantic tokens. The contract:
+
+- **Backgrounds**: `bg-default` (page), `bg-muted` (subtle surface), `bg-elevated` (card), `bg-inverted` (tooltips/inverted strips)
+- **Text**: `text-highlighted` (titles), `text-default` (body), `text-muted` (secondary), `text-dimmed` (tertiary), `text-inverted` (on inverted bg)
+- **Borders**: `border-default`, `border-muted`, `border-accented`
+
+Never write `bg-white`, `text-slate-*`, or `dark:*` overrides. Tokens flip automatically based on the user's color-mode preference (handled by `AppTopbar`'s theme toggle, persisted under `nuxt-color-mode`).
+
+UI primitives — empty states, skeletons, toasts, confirm modals, form banners — are documented in [docs/patterns/](./docs/patterns/) with "when to use" guidance.
+
+## 10. Editions & EE gating
+
+Edition detection is built-time (`useLicence` composable + `UEditionBadge` component). Pattern for EE-gated affordances on CE:
+
+- Render **disabled, not hidden**.
+- Surface a `UEditionBadge edition="ee"` + a tooltip ("Available on Enterprise").
+- Click is a no-op (no nav, no router push).
+- Upgrade CTA links to `/settings/account?tab=plan`.
+
+Canonical surfaces are catalogued in [docs/dashboards/widget-catalog.md](./docs/dashboards/widget-catalog.md) under "EE upsell targets".

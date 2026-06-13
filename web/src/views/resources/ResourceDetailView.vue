@@ -442,13 +442,13 @@ defineExpose({ resource, activeTab, loadDetail, loadActivity, togglePause, onDel
 
 <template>
   <div class="bg-default text-default min-h-full">
-    <div v-if="!resource" class="px-6 py-12 text-center text-sm text-slate-500">Loading…</div>
+    <div v-if="!resource" class="px-6 py-12 text-center text-sm text-muted">Loading…</div>
     <template v-else>
       <div class="flex items-center justify-between mb-5">
-        <div class="flex items-center gap-2 text-sm text-slate-500">
-          <RouterLink to="/resources" class="hover:text-slate-700">Resources</RouterLink>
-          <UIcon name="i-lucide-chevron-right" class="size-3.5 text-slate-400" />
-          <span class="text-slate-900 font-medium">{{ resource.name }}</span>
+        <div class="flex items-center gap-2 text-sm text-muted">
+          <RouterLink to="/resources" class="hover:text-default">Resources</RouterLink>
+          <UIcon name="i-lucide-chevron-right" class="size-3.5 text-dimmed" />
+          <span class="text-highlighted font-medium">{{ resource.name }}</span>
         </div>
         <div class="flex items-center gap-2">
           <UButton
@@ -493,14 +493,14 @@ defineExpose({ resource, activeTab, loadDetail, loadActivity, togglePause, onDel
       <div class="flex items-center gap-4 mb-5">
         <span class="size-3 rounded-full" :style="{ backgroundColor: statusColor }" />
         <div class="flex flex-col gap-0.5">
-          <h1 class="text-[22px] font-semibold font-mono text-slate-900 leading-tight">
+          <h1 class="text-[22px] font-semibold font-mono text-highlighted leading-tight">
             {{ resource.name }}
           </h1>
-          <p class="text-sm text-slate-600">{{ targetSummary }}</p>
+          <p class="text-sm text-muted">{{ targetSummary }}</p>
         </div>
       </div>
 
-      <div class="flex items-center gap-1 border-b border-slate-200 mb-6">
+      <div class="flex items-center gap-1 border-b border-default mb-6">
         <button
           v-for="t in ['overview', 'activity', 'incidents', 'settings'] as const"
           :key="t"
@@ -509,7 +509,7 @@ defineExpose({ resource, activeTab, loadDetail, loadActivity, togglePause, onDel
           :class="
             activeTab === t
               ? 'border-primary-600 text-primary-600 font-medium'
-              : 'border-transparent text-slate-600 hover:text-slate-900'
+              : 'border-transparent text-muted hover:text-highlighted'
           "
           @click="activeTab = t"
         >
@@ -520,46 +520,46 @@ defineExpose({ resource, activeTab, loadDetail, loadActivity, togglePause, onDel
       <div v-if="activeTab === 'overview'" class="grid grid-cols-[1fr_320px] gap-6 items-start">
         <div class="flex flex-col gap-5 min-w-0">
           <div class="grid grid-cols-4 gap-3">
-            <div class="bg-white rounded-lg border border-slate-200 p-4">
-              <div class="text-xs text-slate-500 mb-1">Status</div>
+            <div class="bg-default rounded-lg border border-default p-4">
+              <div class="text-xs text-muted mb-1">Status</div>
               <div class="text-xl font-semibold capitalize" :style="{ color: statusColor }">
                 {{ resource.status }}
               </div>
             </div>
-            <div class="bg-white rounded-lg border border-slate-200 p-4">
-              <div class="text-xs text-slate-500 mb-1">Uptime (30d)</div>
-              <div class="text-xl font-semibold text-slate-900">
+            <div class="bg-default rounded-lg border border-default p-4">
+              <div class="text-xs text-muted mb-1">Uptime (30d)</div>
+              <div class="text-xl font-semibold text-highlighted">
                 {{ uptime30d?.value ?? '—' }}
               </div>
             </div>
-            <div class="bg-white rounded-lg border border-slate-200 p-4">
-              <div class="text-xs text-slate-500 mb-1">Incidents (30d)</div>
-              <div class="text-xl font-semibold text-slate-900">{{ incidentCount30d }}</div>
+            <div class="bg-default rounded-lg border border-default p-4">
+              <div class="text-xs text-muted mb-1">Incidents (30d)</div>
+              <div class="text-xl font-semibold text-highlighted">{{ incidentCount30d }}</div>
             </div>
-            <div class="bg-white rounded-lg border border-slate-200 p-4">
-              <div class="text-xs text-slate-500 mb-1">Last Checked</div>
-              <div class="text-xl font-semibold text-slate-900">
+            <div class="bg-default rounded-lg border border-default p-4">
+              <div class="text-xs text-muted mb-1">Last Checked</div>
+              <div class="text-xl font-semibold text-highlighted">
                 {{ resource.last_checked ? timeAgo(resource.last_checked) : '—' }}
               </div>
             </div>
           </div>
 
-          <div class="bg-white rounded-lg border border-slate-200 p-5">
-            <h3 class="text-base font-semibold text-slate-900 mb-3">Uptime by Time Window</h3>
+          <div class="bg-default rounded-lg border border-default p-5">
+            <h3 class="text-base font-semibold text-highlighted mb-3">Uptime by Time Window</h3>
             <div class="grid grid-cols-5 gap-3">
               <div
                 v-for="w in uptimeWindows"
                 :key="w.key"
-                class="bg-slate-50 rounded-md p-3 text-center"
+                class="bg-muted rounded-md p-3 text-center"
               >
-                <div class="text-[11px] text-slate-500 mb-1">{{ w.key }}</div>
+                <div class="text-[11px] text-muted mb-1">{{ w.key }}</div>
                 <div
                   class="text-base font-semibold"
                   :class="{
                     'text-emerald-600': w.tone === 'good',
                     'text-amber-600': w.tone === 'warning',
                     'text-red-600': w.tone === 'bad',
-                    'text-slate-400': w.tone === 'neutral',
+                    'text-dimmed': w.tone === 'neutral',
                   }"
                 >
                   {{ w.value }}
@@ -568,10 +568,10 @@ defineExpose({ resource, activeTab, loadDetail, loadActivity, togglePause, onDel
             </div>
           </div>
 
-          <div class="bg-white rounded-lg border border-slate-200 p-5">
+          <div class="bg-default rounded-lg border border-default p-5">
             <div class="flex items-center justify-between mb-3">
-              <h3 class="text-base font-semibold text-slate-900">Response Time</h3>
-              <div class="flex p-0.5 rounded-md bg-slate-50">
+              <h3 class="text-base font-semibold text-highlighted">Response Time</h3>
+              <div class="flex p-0.5 rounded-md bg-muted">
                 <button
                   v-for="r in ['24h', '7d', '30d'] as const"
                   :key="r"
@@ -579,8 +579,8 @@ defineExpose({ resource, activeTab, loadDetail, loadActivity, togglePause, onDel
                   class="px-3 py-1 rounded text-xs font-medium transition-colors"
                   :class="
                     chartRange === r
-                      ? 'bg-white text-slate-900 shadow-sm'
-                      : 'text-slate-500 hover:text-slate-700'
+                      ? 'bg-default text-highlighted shadow-sm'
+                      : 'text-muted hover:text-default'
                   "
                   @click="chartRange = r"
                 >
@@ -590,25 +590,25 @@ defineExpose({ resource, activeTab, loadDetail, loadActivity, togglePause, onDel
             </div>
             <div
               v-if="responseTimeStats"
-              class="flex items-center gap-5 text-xs text-slate-600 mb-3"
+              class="flex items-center gap-5 text-xs text-muted mb-3"
             >
               <span class="inline-flex items-center gap-1.5">
                 <span class="size-2 rounded-full" style="background-color: #4f46e5" />
                 Average
-                <strong class="text-slate-900 font-semibold">{{ responseTimeStats.avg }}ms</strong>
+                <strong class="text-highlighted font-semibold">{{ responseTimeStats.avg }}ms</strong>
               </span>
               <span class="inline-flex items-center gap-1.5">
                 <span class="size-2 rounded-full" style="background-color: #10b981" />
                 Min
-                <strong class="text-slate-900 font-semibold">{{ responseTimeStats.min }}ms</strong>
+                <strong class="text-highlighted font-semibold">{{ responseTimeStats.min }}ms</strong>
               </span>
               <span class="inline-flex items-center gap-1.5">
                 <span class="size-2 rounded-full" style="background-color: #ef4444" />
                 Max
-                <strong class="text-slate-900 font-semibold">{{ responseTimeStats.max }}ms</strong>
+                <strong class="text-highlighted font-semibold">{{ responseTimeStats.max }}ms</strong>
               </span>
             </div>
-            <div v-if="chartBars.length === 0" class="text-sm text-slate-500 text-center py-12">
+            <div v-if="chartBars.length === 0" class="text-sm text-muted text-center py-12">
               No response time data for this window.
             </div>
             <div v-else class="flex items-end gap-1.5 h-44">
@@ -619,10 +619,10 @@ defineExpose({ resource, activeTab, loadDetail, loadActivity, togglePause, onDel
                 :style="{ height: `${b.heightPct}%`, backgroundColor: b.color }"
               >
                 <div
-                  class="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 hidden group-hover:flex flex-col items-center px-2 py-1 rounded bg-slate-900 text-white text-[10px] whitespace-nowrap"
+                  class="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 hidden group-hover:flex flex-col items-center px-2 py-1 rounded bg-inverted text-white text-[10px] whitespace-nowrap"
                 >
                   <span class="font-mono">{{ b.value }}ms</span>
-                  <span class="text-slate-300">{{ new Date(b.timestamp).toLocaleString() }}</span>
+                  <span class="text-dimmed">{{ new Date(b.timestamp).toLocaleString() }}</span>
                 </div>
               </div>
             </div>
@@ -630,60 +630,60 @@ defineExpose({ resource, activeTab, loadDetail, loadActivity, togglePause, onDel
         </div>
 
         <div class="flex flex-col gap-5">
-          <div class="bg-white rounded-lg border border-slate-200 p-5">
-            <h3 class="text-base font-semibold text-slate-900 mb-4">Monitor Details</h3>
+          <div class="bg-default rounded-lg border border-default p-5">
+            <h3 class="text-base font-semibold text-highlighted mb-4">Monitor Details</h3>
             <dl class="space-y-3.5 text-sm">
               <div>
-                <dt class="text-[11px] text-slate-500 uppercase tracking-wide mb-0.5">Type</dt>
-                <dd class="text-slate-900 font-medium">
+                <dt class="text-[11px] text-muted uppercase tracking-wide mb-0.5">Type</dt>
+                <dd class="text-highlighted font-medium">
                   {{ String(resource.type).toUpperCase() }}
                 </dd>
               </div>
               <div>
-                <dt class="text-[11px] text-slate-500 uppercase tracking-wide mb-0.5">Target</dt>
-                <dd class="text-slate-900 font-mono text-xs break-all">
+                <dt class="text-[11px] text-muted uppercase tracking-wide mb-0.5">Target</dt>
+                <dd class="text-highlighted font-mono text-xs break-all">
                   {{ (resource as unknown as { target?: string }).target ?? '—' }}
                 </dd>
               </div>
               <div v-if="resource.type === 'http'">
-                <dt class="text-[11px] text-slate-500 uppercase tracking-wide mb-0.5">Method</dt>
-                <dd class="text-slate-900 font-mono text-xs">
+                <dt class="text-[11px] text-muted uppercase tracking-wide mb-0.5">Method</dt>
+                <dd class="text-highlighted font-mono text-xs">
                   {{ (resource as unknown as { method?: string }).method ?? 'GET' }}
                 </dd>
               </div>
               <div>
-                <dt class="text-[11px] text-slate-500 uppercase tracking-wide mb-0.5">Interval</dt>
-                <dd class="text-slate-900">
+                <dt class="text-[11px] text-muted uppercase tracking-wide mb-0.5">Interval</dt>
+                <dd class="text-highlighted">
                   Every {{ (resource as unknown as { interval?: number }).interval ?? 60 }} seconds
                 </dd>
               </div>
               <div v-if="(resource as unknown as { timeout?: number }).timeout != null">
-                <dt class="text-[11px] text-slate-500 uppercase tracking-wide mb-0.5">Timeout</dt>
-                <dd class="text-slate-900">
+                <dt class="text-[11px] text-muted uppercase tracking-wide mb-0.5">Timeout</dt>
+                <dd class="text-highlighted">
                   {{ (resource as unknown as { timeout: number }).timeout }} seconds
                 </dd>
               </div>
               <div v-if="(resource as unknown as { created_at?: string }).created_at">
-                <dt class="text-[11px] text-slate-500 uppercase tracking-wide mb-0.5">Created</dt>
-                <dd class="text-slate-900">
+                <dt class="text-[11px] text-muted uppercase tracking-wide mb-0.5">Created</dt>
+                <dd class="text-highlighted">
                   {{ formatDate((resource as unknown as { created_at: string }).created_at) }}
                 </dd>
               </div>
               <div v-if="(resource as unknown as { updated_at?: string }).updated_at">
-                <dt class="text-[11px] text-slate-500 uppercase tracking-wide mb-0.5">
+                <dt class="text-[11px] text-muted uppercase tracking-wide mb-0.5">
                   Last Updated
                 </dt>
-                <dd class="text-slate-900">
+                <dd class="text-highlighted">
                   {{ formatDate((resource as unknown as { updated_at: string }).updated_at) }}
                 </dd>
               </div>
               <div v-if="resource.tags && resource.tags.length > 0">
-                <dt class="text-[11px] text-slate-500 uppercase tracking-wide mb-1.5">Tags</dt>
+                <dt class="text-[11px] text-muted uppercase tracking-wide mb-1.5">Tags</dt>
                 <dd class="flex flex-wrap gap-1.5">
                   <span
                     v-for="t in resource.tags"
                     :key="(t as unknown as { id?: string }).id ?? String(t)"
-                    class="inline-block px-2 py-0.5 rounded-md text-xs bg-slate-100 text-slate-700"
+                    class="inline-block px-2 py-0.5 rounded-md text-xs bg-elevated text-default"
                   >
                     {{ (t as unknown as { name?: string }).name ?? String(t) }}
                   </span>
@@ -708,13 +708,13 @@ defineExpose({ resource, activeTab, loadDetail, loadActivity, togglePause, onDel
               </h3>
             </div>
             <div class="space-y-1.5 text-xs">
-              <div v-if="metadata?.ssl_issuer" class="text-slate-700">
+              <div v-if="metadata?.ssl_issuer" class="text-default">
                 Issuer: <span class="font-medium">{{ metadata.ssl_issuer }}</span>
               </div>
-              <div v-if="metadata?.ssl_expiration_date" class="text-slate-700">
+              <div v-if="metadata?.ssl_expiration_date" class="text-default">
                 Expires:
                 <span class="font-medium">{{ formatDate(metadata.ssl_expiration_date) }}</span>
-                <span v-if="metadata.ssl_days_remaining != null" class="text-slate-500">
+                <span v-if="metadata.ssl_days_remaining != null" class="text-muted">
                   ({{ metadata.ssl_days_remaining }} days)
                 </span>
               </div>
@@ -723,20 +723,20 @@ defineExpose({ resource, activeTab, loadDetail, loadActivity, togglePause, onDel
 
           <div
             v-if="metadata?.domain_registrar || metadata?.domain_expiration_date"
-            class="rounded-lg border border-slate-200 bg-white p-5"
+            class="rounded-lg border border-default bg-default p-5"
           >
             <div class="flex items-center gap-2 mb-3">
-              <UIcon name="i-lucide-globe" class="size-4 text-slate-600" />
-              <h3 class="text-sm font-semibold text-slate-900">Domain</h3>
+              <UIcon name="i-lucide-globe" class="size-4 text-muted" />
+              <h3 class="text-sm font-semibold text-highlighted">Domain</h3>
             </div>
             <div class="space-y-1.5 text-xs">
-              <div v-if="metadata?.domain_registrar" class="text-slate-700">
+              <div v-if="metadata?.domain_registrar" class="text-default">
                 Registrar: <span class="font-medium">{{ metadata.domain_registrar }}</span>
               </div>
-              <div v-if="metadata?.domain_expiration_date" class="text-slate-700">
+              <div v-if="metadata?.domain_expiration_date" class="text-default">
                 Expires:
                 <span class="font-medium">{{ formatDate(metadata.domain_expiration_date) }}</span>
-                <span v-if="metadata.domain_days_remaining != null" class="text-slate-500">
+                <span v-if="metadata.domain_days_remaining != null" class="text-muted">
                   ({{ metadata.domain_days_remaining }} days)
                 </span>
               </div>
@@ -747,22 +747,22 @@ defineExpose({ resource, activeTab, loadDetail, loadActivity, togglePause, onDel
 
       <div
         v-else-if="activeTab === 'activity'"
-        class="bg-white rounded-lg border border-slate-200 overflow-hidden"
+        class="bg-default rounded-lg border border-default overflow-hidden"
       >
-        <div class="flex items-center justify-between gap-3 px-6 py-4 border-b border-slate-200">
-          <h3 class="text-base font-semibold text-slate-900">Activity log</h3>
+        <div class="flex items-center justify-between gap-3 px-6 py-4 border-b border-default">
+          <h3 class="text-base font-semibold text-highlighted">Activity log</h3>
           <div class="flex items-center gap-3">
-            <span v-if="activities.length > 0" class="text-xs text-slate-500">
+            <span v-if="activities.length > 0" class="text-xs text-muted">
               {{ activities.length }} check{{ activities.length > 1 ? 's' : '' }}
             </span>
-            <div class="flex p-0.5 rounded-md bg-slate-50">
+            <div class="flex p-0.5 rounded-md bg-muted">
               <button
                 type="button"
                 class="px-2.5 py-1 rounded text-[11px] font-medium inline-flex items-center gap-1.5"
                 :class="
                   activityView === 'timeline'
-                    ? 'bg-white text-slate-900 shadow-sm'
-                    : 'text-slate-500 hover:text-slate-700'
+                    ? 'bg-default text-highlighted shadow-sm'
+                    : 'text-muted hover:text-default'
                 "
                 @click="activityView = 'timeline'"
               >
@@ -774,8 +774,8 @@ defineExpose({ resource, activeTab, loadDetail, loadActivity, togglePause, onDel
                 class="px-2.5 py-1 rounded text-[11px] font-medium inline-flex items-center gap-1.5"
                 :class="
                   activityView === 'strip'
-                    ? 'bg-white text-slate-900 shadow-sm'
-                    : 'text-slate-500 hover:text-slate-700'
+                    ? 'bg-default text-highlighted shadow-sm'
+                    : 'text-muted hover:text-default'
                 "
                 @click="activityView = 'strip'"
               >
@@ -799,21 +799,21 @@ defineExpose({ resource, activeTab, loadDetail, loadActivity, togglePause, onDel
         <div v-else-if="activityView === 'timeline'" class="px-6 py-4">
           <div v-for="g in activityGroups" :key="g.label" class="mb-6 last:mb-0">
             <div
-              class="text-[10px] font-semibold tracking-wider text-slate-400 uppercase mb-2 pl-6"
+              class="text-[10px] font-semibold tracking-wider text-dimmed uppercase mb-2 pl-6"
             >
               {{ g.label }}
             </div>
-            <div class="relative pl-6 border-l border-slate-200">
+            <div class="relative pl-6 border-l border-default">
               <div
                 v-for="a in g.items"
                 :key="a.id"
-                class="relative -ml-6.75 flex items-center gap-3 py-2 pl-6 pr-2 rounded-md hover:bg-slate-50"
+                class="relative -ml-6.75 flex items-center gap-3 py-2 pl-6 pr-2 rounded-md hover:bg-muted"
               >
                 <span
                   class="absolute left-0 size-2 rounded-full ring-2 ring-white shrink-0"
                   :style="{ backgroundColor: a.success ? '#10B981' : '#EF4444' }"
                 />
-                <span class="text-xs font-mono text-slate-500 w-20 shrink-0">
+                <span class="text-xs font-mono text-muted w-20 shrink-0">
                   {{ timeOfDay(a.created_at) }}
                 </span>
                 <span
@@ -826,10 +826,10 @@ defineExpose({ resource, activeTab, loadDetail, loadActivity, togglePause, onDel
                 >
                   {{ a.success ? 'Up' : 'Down' }}
                 </span>
-                <span class="text-sm text-slate-700 flex-1 truncate min-w-0">
+                <span class="text-sm text-default flex-1 truncate min-w-0">
                   {{ a.message || (a.success ? 'Check passed' : 'Check failed') }}
                 </span>
-                <span class="text-xs font-mono text-slate-500 shrink-0">
+                <span class="text-xs font-mono text-muted shrink-0">
                   {{ a.response_time != null ? `${a.response_time}ms` : '—' }}
                 </span>
               </div>
@@ -849,7 +849,7 @@ defineExpose({ resource, activeTab, loadDetail, loadActivity, togglePause, onDel
           </div>
           <div
             v-else-if="activities.length > 0"
-            class="text-center text-[11px] text-slate-400 pt-2 pb-1"
+            class="text-center text-[11px] text-dimmed pt-2 pb-1"
           >
             End of log
           </div>
@@ -872,11 +872,11 @@ defineExpose({ resource, activeTab, loadDetail, loadActivity, togglePause, onDel
               @click="selectedBucketIndex = selectedBucketIndex === b.index ? null : b.index"
             />
           </div>
-          <div class="flex items-center justify-between text-[10px] text-slate-400 mb-4">
+          <div class="flex items-center justify-between text-[10px] text-dimmed mb-4">
             <span v-if="stripBuckets.length > 0">
               {{ new Date(stripBuckets[0]!.startTs).toLocaleString() }}
             </span>
-            <span class="text-slate-500">
+            <span class="text-muted">
               {{ activities.length }} checks
               <template v-if="stripBuckets.length < activities.length">
                 · bucketed into {{ stripBuckets.length }} groups
@@ -889,7 +889,7 @@ defineExpose({ resource, activeTab, loadDetail, loadActivity, togglePause, onDel
 
           <div
             v-if="selectedBucket"
-            class="rounded-md border border-slate-200 bg-slate-50 p-4 space-y-3"
+            class="rounded-md border border-default bg-muted p-4 space-y-3"
           >
             <div class="flex items-center justify-between gap-3">
               <div class="flex items-center gap-2 flex-wrap">
@@ -915,7 +915,7 @@ defineExpose({ resource, activeTab, loadDetail, loadActivity, togglePause, onDel
                         : 'Mixed'
                   }}
                 </span>
-                <span class="text-xs text-slate-600">
+                <span class="text-xs text-muted">
                   {{ selectedBucket.totalCount }} check{{
                     selectedBucket.totalCount > 1 ? 's' : ''
                   }}
@@ -926,13 +926,13 @@ defineExpose({ resource, activeTab, loadDetail, loadActivity, togglePause, onDel
               </div>
               <button
                 type="button"
-                class="text-slate-400 hover:text-slate-700"
+                class="text-dimmed hover:text-default"
                 @click="selectedBucketIndex = null"
               >
                 <UIcon name="i-lucide-x" class="size-4" />
               </button>
             </div>
-            <div class="text-xs text-slate-600">
+            <div class="text-xs text-muted">
               From
               <span class="font-mono">{{ new Date(selectedBucket.startTs).toLocaleString() }}</span>
               to
@@ -943,21 +943,21 @@ defineExpose({ resource, activeTab, loadDetail, loadActivity, togglePause, onDel
                 v-for="a in selectedBucket.items"
                 :key="a.id"
                 type="button"
-                class="w-full text-left flex items-center gap-3 px-2 py-1.5 rounded hover:bg-white text-xs"
-                :class="{ 'bg-white ring-1 ring-primary-200': selectedActivityId === a.id }"
+                class="w-full text-left flex items-center gap-3 px-2 py-1.5 rounded hover:bg-default text-xs"
+                :class="{ 'bg-default ring-1 ring-primary-200': selectedActivityId === a.id }"
                 @click="selectedActivityId = selectedActivityId === a.id ? null : a.id"
               >
                 <span
                   class="size-1.5 rounded-full shrink-0"
                   :style="{ backgroundColor: a.success ? '#10B981' : '#EF4444' }"
                 />
-                <span class="font-mono text-slate-600 w-20 shrink-0">
+                <span class="font-mono text-muted w-20 shrink-0">
                   {{ timeOfDay(a.created_at) }}
                 </span>
-                <span class="text-slate-700 flex-1 truncate min-w-0">
+                <span class="text-default flex-1 truncate min-w-0">
                   {{ a.message || (a.success ? 'Check passed' : 'Check failed') }}
                 </span>
-                <span class="text-slate-500 font-mono shrink-0">
+                <span class="text-muted font-mono shrink-0">
                   {{ a.response_time != null ? `${a.response_time}ms` : '—' }}
                 </span>
               </button>
@@ -969,18 +969,18 @@ defineExpose({ resource, activeTab, loadDetail, loadActivity, togglePause, onDel
               "
               class="text-xs"
             >
-              <div class="text-[10px] text-slate-500 uppercase tracking-wider mb-1">
+              <div class="text-[10px] text-muted uppercase tracking-wider mb-1">
                 Response data
               </div>
               <pre
-                class="bg-white border border-slate-200 rounded p-2 font-mono text-[11px] text-slate-700 max-h-32 overflow-auto"
+                class="bg-default border border-default rounded p-2 font-mono text-[11px] text-default max-h-32 overflow-auto"
                 >{{ (selectedActivity as unknown as { response_data: string }).response_data }}</pre
               >
             </div>
           </div>
           <div
             v-else
-            class="text-xs text-slate-500 text-center py-3 border border-dashed border-slate-200 rounded-md"
+            class="text-xs text-muted text-center py-3 border border-dashed border-default rounded-md"
           >
             Hover a bar for a quick preview · Click for the bucket's check list.
           </div>
@@ -1002,10 +1002,10 @@ defineExpose({ resource, activeTab, loadDetail, loadActivity, togglePause, onDel
 
       <div
         v-else-if="activeTab === 'incidents'"
-        class="bg-white rounded-lg border border-slate-200 overflow-hidden"
+        class="bg-default rounded-lg border border-default overflow-hidden"
       >
-        <div class="px-6 py-4 border-b border-slate-200 flex items-center justify-between">
-          <h3 class="text-base font-semibold text-slate-900">Per-resource incidents</h3>
+        <div class="px-6 py-4 border-b border-default flex items-center justify-between">
+          <h3 class="text-base font-semibold text-highlighted">Per-resource incidents</h3>
           <RouterLink to="/incidents" class="text-xs font-medium text-primary-600 hover:underline">
             See all incidents →
           </RouterLink>
@@ -1018,22 +1018,22 @@ defineExpose({ resource, activeTab, loadDetail, loadActivity, togglePause, onDel
 
       <div v-else class="space-y-4">
         <!-- TARGET -->
-        <section class="bg-white rounded-lg border border-slate-200 p-6">
+        <section class="bg-default rounded-lg border border-default p-6">
           <div class="flex items-center justify-between mb-4">
             <div class="flex items-center gap-2">
-              <UIcon name="i-lucide-target" class="size-4 text-slate-500" />
-              <h3 class="text-base font-semibold text-slate-900">Target</h3>
+              <UIcon name="i-lucide-target" class="size-4 text-muted" />
+              <h3 class="text-base font-semibold text-highlighted">Target</h3>
             </div>
           </div>
           <dl class="grid grid-cols-1 md:grid-cols-3 gap-y-3 text-sm">
-            <dt class="text-slate-500">Type</dt>
+            <dt class="text-muted">Type</dt>
             <dd class="md:col-span-2">
               <UBadge variant="subtle" color="primary" size="sm">
                 {{ resource.type.toUpperCase() }}
               </UBadge>
             </dd>
 
-            <dt class="text-slate-500">
+            <dt class="text-muted">
               {{
                 resource.type === 'http' || resource.type === 'keyword'
                   ? 'URL'
@@ -1042,23 +1042,23 @@ defineExpose({ resource, activeTab, loadDetail, loadActivity, togglePause, onDel
                     : 'Target'
               }}
             </dt>
-            <dd class="md:col-span-2 font-mono text-xs text-slate-900 break-all">
+            <dd class="md:col-span-2 font-mono text-xs text-highlighted break-all">
               {{ displayTarget(resource) }}
             </dd>
 
             <template v-if="resource.type === 'keyword'">
-              <dt class="text-slate-500">Keyword</dt>
-              <dd class="md:col-span-2 font-mono text-xs text-slate-900">
+              <dt class="text-muted">Keyword</dt>
+              <dd class="md:col-span-2 font-mono text-xs text-highlighted">
                 {{ resource.keyword || '—' }}
-                <span v-if="resource.keyword_mode" class="ml-2 text-slate-500">
+                <span v-if="resource.keyword_mode" class="ml-2 text-muted">
                   ({{ resource.keyword_mode }})
                 </span>
               </dd>
             </template>
 
             <template v-if="resource.type === 'protocol'">
-              <dt class="text-slate-500">Protocol</dt>
-              <dd class="md:col-span-2 text-slate-900">
+              <dt class="text-muted">Protocol</dt>
+              <dd class="md:col-span-2 text-highlighted">
                 {{ resource.protocol_type ?? '—' }}
               </dd>
             </template>
@@ -1066,29 +1066,29 @@ defineExpose({ resource, activeTab, loadDetail, loadActivity, togglePause, onDel
         </section>
 
         <!-- SCHEDULE -->
-        <section class="bg-white rounded-lg border border-slate-200 p-6">
+        <section class="bg-default rounded-lg border border-default p-6">
           <div class="flex items-center justify-between mb-4">
             <div class="flex items-center gap-2">
-              <UIcon name="i-lucide-clock" class="size-4 text-slate-500" />
-              <h3 class="text-base font-semibold text-slate-900">Schedule</h3>
+              <UIcon name="i-lucide-clock" class="size-4 text-muted" />
+              <h3 class="text-base font-semibold text-highlighted">Schedule</h3>
             </div>
           </div>
           <dl class="grid grid-cols-1 md:grid-cols-3 gap-y-3 text-sm">
-            <dt class="text-slate-500">Check interval</dt>
-            <dd class="md:col-span-2 text-slate-900">{{ formatInterval(resource.interval) }}</dd>
+            <dt class="text-muted">Check interval</dt>
+            <dd class="md:col-span-2 text-highlighted">{{ formatInterval(resource.interval) }}</dd>
 
-            <dt class="text-slate-500">Timeout</dt>
-            <dd class="md:col-span-2 text-slate-900">{{ formatInterval(resource.timeout) }}</dd>
+            <dt class="text-muted">Timeout</dt>
+            <dd class="md:col-span-2 text-highlighted">{{ formatInterval(resource.timeout) }}</dd>
 
-            <dt class="text-slate-500">Confirmation</dt>
-            <dd class="md:col-span-2 text-slate-900">
+            <dt class="text-muted">Confirmation</dt>
+            <dd class="md:col-span-2 text-highlighted">
               {{ resource.confirmation_checks }} consecutive failures
-              <span class="text-slate-500">
+              <span class="text-muted">
                 · every {{ formatInterval(resource.confirmation_interval) }}
               </span>
             </dd>
 
-            <dt class="text-slate-500">Active</dt>
+            <dt class="text-muted">Active</dt>
             <dd class="md:col-span-2">
               <UBadge
                 v-if="resource.is_active"
@@ -1115,36 +1115,36 @@ defineExpose({ resource, activeTab, loadDetail, loadActivity, togglePause, onDel
         <!-- FLAP DETECTION -->
         <section
           v-if="resource.flap_detection_enabled"
-          class="bg-white rounded-lg border border-slate-200 p-6"
+          class="bg-default rounded-lg border border-default p-6"
         >
           <div class="flex items-center justify-between mb-4">
             <div class="flex items-center gap-2">
-              <UIcon name="i-lucide-activity" class="size-4 text-slate-500" />
-              <h3 class="text-base font-semibold text-slate-900">Flap detection</h3>
+              <UIcon name="i-lucide-activity" class="size-4 text-muted" />
+              <h3 class="text-base font-semibold text-highlighted">Flap detection</h3>
             </div>
           </div>
           <dl class="grid grid-cols-1 md:grid-cols-3 gap-y-3 text-sm">
-            <dt class="text-slate-500">Threshold</dt>
-            <dd class="md:col-span-2 text-slate-900">
+            <dt class="text-muted">Threshold</dt>
+            <dd class="md:col-span-2 text-highlighted">
               {{ resource.flap_threshold ?? '—' }} transitions
             </dd>
-            <dt class="text-slate-500">Window</dt>
-            <dd class="md:col-span-2 text-slate-900">
+            <dt class="text-muted">Window</dt>
+            <dd class="md:col-span-2 text-highlighted">
               {{ formatInterval(resource.flap_window_seconds) }}
             </dd>
-            <dt class="text-slate-500">Max duration</dt>
-            <dd class="md:col-span-2 text-slate-900">
+            <dt class="text-muted">Max duration</dt>
+            <dd class="md:col-span-2 text-highlighted">
               {{ resource.flap_max_duration_minutes ?? '—' }} min
             </dd>
           </dl>
         </section>
 
         <!-- TAGS -->
-        <section class="bg-white rounded-lg border border-slate-200 p-6">
+        <section class="bg-default rounded-lg border border-default p-6">
           <div class="flex items-center justify-between mb-4">
             <div class="flex items-center gap-2">
-              <UIcon name="i-lucide-tag" class="size-4 text-slate-500" />
-              <h3 class="text-base font-semibold text-slate-900">Tags</h3>
+              <UIcon name="i-lucide-tag" class="size-4 text-muted" />
+              <h3 class="text-base font-semibold text-highlighted">Tags</h3>
             </div>
           </div>
           <div
@@ -1161,14 +1161,14 @@ defineExpose({ resource, activeTab, loadDetail, loadActivity, togglePause, onDel
               {{ tag.name }}
             </UBadge>
           </div>
-          <p v-else class="text-sm text-slate-500">
+          <p v-else class="text-sm text-muted">
             No tags. Add tags to group monitors and target alerts.
           </p>
         </section>
 
         <!-- META (footer, low-vis) -->
-        <section class="bg-slate-50 rounded-lg border border-slate-100 p-4">
-          <dl class="grid grid-cols-1 md:grid-cols-3 gap-y-2 text-xs text-slate-500">
+        <section class="bg-muted rounded-lg border border-muted p-4">
+          <dl class="grid grid-cols-1 md:grid-cols-3 gap-y-2 text-xs text-muted">
             <dt>Resource ID</dt>
             <dd class="md:col-span-2 font-mono break-all">{{ resource.id }}</dd>
             <dt>Created</dt>

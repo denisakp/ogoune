@@ -49,15 +49,15 @@ onMounted(() => {
   <div class="bg-default text-default min-h-full">
     <div class="flex items-center justify-between mb-7">
       <div>
-        <h1 class="text-2xl font-semibold text-slate-900">Overview</h1>
-        <p class="text-sm text-slate-600 mt-1">Live view across all resources</p>
+        <h1 class="text-2xl font-semibold text-highlighted">Overview</h1>
+        <p class="text-sm text-muted mt-1">Live view across all resources</p>
       </div>
       <div class="flex items-center gap-3">
         <UDropdownMenu :items="[rangeItems]">
           <UButton color="neutral" variant="outline" size="sm">
-            <UIcon name="i-lucide-calendar" class="size-4 text-slate-500" />
+            <UIcon name="i-lucide-calendar" class="size-4 text-muted" />
             <span>{{ rangeLabel }}</span>
-            <UIcon name="i-lucide-chevron-down" class="size-4 text-slate-500" />
+            <UIcon name="i-lucide-chevron-down" class="size-4 text-muted" />
           </UButton>
         </UDropdownMenu>
         <UButton color="primary" size="sm" icon="i-lucide-plus" @click="router.push('/monitors')">
@@ -72,22 +72,22 @@ onMounted(() => {
     </div>
 
     <div class="grid grid-cols-[1fr_320px] gap-4 mb-7 items-start">
-      <div class="bg-white rounded-lg border border-slate-200 p-6">
+      <div class="bg-default rounded-lg border border-default p-6">
         <div class="flex items-center justify-between mb-4">
-          <h3 class="text-base font-semibold text-slate-900">Response Time</h3>
-          <span class="text-xs text-slate-400">{{ rangeLabel }}</span>
+          <h3 class="text-base font-semibold text-highlighted">Response Time</h3>
+          <span class="text-xs text-dimmed">{{ rangeLabel }}</span>
         </div>
         <div class="relative">
           <ResponseTimeChart :data="metrics.series.value" :range="range" />
           <div
             v-if="!metrics.loading.value && metrics.series.value.length === 0"
-            class="absolute inset-0 flex items-center justify-center text-xs text-slate-400"
+            class="absolute inset-0 flex items-center justify-center text-xs text-dimmed"
           >
             No response time data in this range.
           </div>
           <div
             v-if="metrics.loading.value"
-            class="absolute inset-0 flex items-center justify-center text-xs text-slate-400 bg-white/60"
+            class="absolute inset-0 flex items-center justify-center text-xs text-dimmed bg-default/60"
           >
             Loading…
           </div>

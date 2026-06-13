@@ -98,7 +98,7 @@ const timelineItems = computed<TimelineItem[]>(() =>
             </template>
             <template #content>
               <div
-                class="mt-2 text-xs font-mono p-3 rounded bg-slate-50 dark:bg-slate-900 break-words"
+                class="mt-2 text-xs font-mono p-3 rounded bg-muted break-words"
               >
                 {{ decodeDetails(item.incident.details) }}
               </div>
@@ -108,7 +108,7 @@ const timelineItems = computed<TimelineItem[]>(() =>
       </UTimeline>
       <div
         v-if="hasMoreIncidents"
-        class="text-center mt-4 pt-4 border-t border-slate-100 dark:border-slate-800"
+        class="text-center mt-4 pt-4 border-t border-muted"
       >
         <UButton
           color="neutral"

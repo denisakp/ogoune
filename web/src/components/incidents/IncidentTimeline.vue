@@ -51,8 +51,8 @@ const ordered = computed(() =>
 </script>
 
 <template>
-  <div v-if="ordered.length === 0" class="text-sm text-slate-500 py-4">No events yet.</div>
-  <div v-else class="relative pl-6 border-l-2 border-slate-200">
+  <div v-if="ordered.length === 0" class="text-sm text-muted py-4">No events yet.</div>
+  <div v-else class="relative pl-6 border-l-2 border-default">
     <div
       v-for="(e, i) in ordered"
       :key="e.id"
@@ -68,8 +68,8 @@ const ordered = computed(() =>
       </span>
       <div class="flex-1 min-w-0">
         <div class="flex items-baseline gap-2 flex-wrap">
-          <span class="text-sm font-medium text-slate-900">{{ styleFor(e.step).label }}</span>
-          <span class="text-xs font-mono text-slate-500" :title="fullDate(e.created_at)">
+          <span class="text-sm font-medium text-highlighted">{{ styleFor(e.step).label }}</span>
+          <span class="text-xs font-mono text-muted" :title="fullDate(e.created_at)">
             {{ timeOfDay(e.created_at) }}
           </span>
           <span
@@ -79,7 +79,7 @@ const ordered = computed(() =>
             latest
           </span>
         </div>
-        <p v-if="!compact && e.message" class="text-xs text-slate-600 mt-0.5">{{ e.message }}</p>
+        <p v-if="!compact && e.message" class="text-xs text-muted mt-0.5">{{ e.message }}</p>
       </div>
     </div>
   </div>

@@ -858,3 +858,26 @@ export type {
   KeyboardShortcutKind,
   KeyboardShortcut,
 } from './keyboard'
+
+// ─── Spec 070: Reports + Dashboards ─────────────────────────────────────────
+
+export type {
+  MonthlyReport,
+  ReportStatus,
+  ReportResourceBreakdown,
+  ReportHistoryEntry,
+} from './reports'
+export type {
+  WidgetTypeId,
+  WidgetArchetype,
+  WidgetDefinition,
+  WidgetInstance,
+  DashboardScopeMode,
+  DashboardScope,
+  DashboardTimeRange,
+  DashboardRefreshInterval,
+  DashboardVisibility,
+  Dashboard,
+  DashboardHealthStatus,
+  DashboardHealth,
+} from './dashboards'

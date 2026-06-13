@@ -86,8 +86,8 @@ defineExpose({ filtered, filters })
 <template>
   <div class="bg-default text-default min-h-full">
     <div class="mb-5">
-      <h1 class="text-2xl font-semibold text-slate-900">Incidents</h1>
-      <p class="text-sm text-slate-600 mt-1">Track failures, response, and resolution.</p>
+      <h1 class="text-2xl font-semibold text-highlighted">Incidents</h1>
+      <p class="text-sm text-muted mt-1">Track failures, response, and resolution.</p>
     </div>
 
     <IncidentStatsRow :incidents="incidentStore.incidents" class="mb-5" />
@@ -134,9 +134,9 @@ defineExpose({ filtered, filters })
       </UButton>
     </div>
 
-    <div class="bg-white rounded-lg border border-slate-200 overflow-hidden">
+    <div class="bg-default rounded-lg border border-default overflow-hidden">
       <div
-        class="grid grid-cols-[110px_1fr_1fr_130px_110px_60px] gap-2 px-4 py-2.5 bg-slate-50 text-xs font-medium text-slate-600 border-b border-slate-200"
+        class="grid grid-cols-[110px_1fr_1fr_130px_110px_60px] gap-2 px-4 py-2.5 bg-muted text-xs font-medium text-muted border-b border-default"
       >
         <span>Status</span>
         <span>Resource</span>
@@ -145,7 +145,7 @@ defineExpose({ filtered, filters })
         <span>Duration</span>
         <span />
       </div>
-      <div v-if="loading" class="px-6 py-12 text-center text-sm text-slate-500">Loading…</div>
+      <div v-if="loading" class="px-6 py-12 text-center text-sm text-muted">Loading…</div>
       <UEmpty
         v-else-if="filtered.length === 0 && incidentStore.incidents.length === 0"
         variant="naked"
@@ -173,7 +173,7 @@ defineExpose({ filtered, filters })
         <div
           v-for="i in filtered"
           :key="i.id"
-          class="grid grid-cols-[110px_1fr_1fr_130px_110px_60px] gap-2 px-4 py-3 items-center border-t border-slate-200 hover:bg-slate-50 cursor-pointer text-sm first:border-t-0"
+          class="grid grid-cols-[110px_1fr_1fr_130px_110px_60px] gap-2 px-4 py-3 items-center border-t border-default hover:bg-muted cursor-pointer text-sm first:border-t-0"
           @click="onRowClick(i)"
         >
           <span
@@ -182,15 +182,15 @@ defineExpose({ filtered, filters })
           >
             {{ statusOf(i).label }}
           </span>
-          <span class="font-medium text-slate-900 truncate">
+          <span class="font-medium text-highlighted truncate">
             {{ i.resource?.name ?? i.resource_id }}
           </span>
-          <span class="text-slate-600 truncate">{{ i.cause || i.reason || '—' }}</span>
-          <span class="text-xs text-slate-500" :title="new Date(i.started_at).toLocaleString()">
+          <span class="text-muted truncate">{{ i.cause || i.reason || '—' }}</span>
+          <span class="text-xs text-muted" :title="new Date(i.started_at).toLocaleString()">
             {{ timeAgo(i.started_at) }}
           </span>
-          <span class="text-xs font-mono text-slate-700">{{ durationOf(i) }}</span>
-          <UIcon name="i-lucide-chevron-right" class="size-4 text-slate-400 justify-self-end" />
+          <span class="text-xs font-mono text-default">{{ durationOf(i) }}</span>
+          <UIcon name="i-lucide-chevron-right" class="size-4 text-dimmed justify-self-end" />
         </div>
       </div>
     </div>

@@ -168,8 +168,8 @@ defineExpose({
   <div class="bg-default text-default min-h-full">
     <div class="flex items-center justify-between mb-6">
       <div>
-        <h1 class="text-2xl font-semibold text-slate-900">Resources</h1>
-        <p class="text-sm text-slate-600 mt-1">Track uptime and performance of your resources</p>
+        <h1 class="text-2xl font-semibold text-highlighted">Resources</h1>
+        <p class="text-sm text-muted mt-1">Track uptime and performance of your resources</p>
       </div>
       <UButton color="primary" size="sm" icon="i-lucide-plus" @click="openCreate">
         New monitor
@@ -257,9 +257,9 @@ defineExpose({
       </button>
     </div>
 
-    <div class="bg-white rounded-lg border border-slate-200 overflow-hidden">
+    <div class="bg-default rounded-lg border border-default overflow-hidden">
       <div
-        class="grid grid-cols-[28px_1fr_80px_90px_90px_90px_140px_40px] gap-2 px-4 py-2.5 bg-slate-50 text-xs font-medium text-slate-600 border-b border-slate-200"
+        class="grid grid-cols-[28px_1fr_80px_90px_90px_90px_140px_40px] gap-2 px-4 py-2.5 bg-muted text-xs font-medium text-muted border-b border-default"
       >
         <span />
         <span>Name</span>
@@ -271,7 +271,7 @@ defineExpose({
         <span />
       </div>
 
-      <div v-if="resourceStore.loading" class="px-6 py-12 text-center text-sm text-slate-500">
+      <div v-if="resourceStore.loading" class="px-6 py-12 text-center text-sm text-muted">
         Loading…
       </div>
       <UEmpty

@@ -68,7 +68,7 @@ const cards = computed(() => [
     <div
       v-for="c in cards"
       :key="c.label"
-      class="bg-white rounded-lg border border-slate-200 p-4 flex items-center gap-3.5"
+      class="bg-default rounded-lg border border-default p-4 flex items-center gap-3.5"
     >
       <div
         class="size-9 rounded-lg flex items-center justify-center shrink-0"
@@ -77,12 +77,12 @@ const cards = computed(() => [
         <UIcon :name="c.icon" class="size-4" :style="{ color: c.iconColor }" />
       </div>
       <div class="flex flex-col min-w-0 flex-1">
-        <span class="text-[10px] uppercase font-semibold tracking-wider text-slate-500">
+        <span class="text-[10px] uppercase font-semibold tracking-wider text-muted">
           {{ c.label }}
         </span>
         <div class="flex items-baseline gap-2">
-          <span class="text-xl font-bold text-slate-900 leading-tight">{{ c.value }}</span>
-          <span v-if="c.sub" class="text-[11px] text-slate-400 truncate">{{ c.sub }}</span>
+          <span class="text-xl font-bold text-highlighted leading-tight">{{ c.value }}</span>
+          <span v-if="c.sub" class="text-[11px] text-dimmed truncate">{{ c.sub }}</span>
         </div>
       </div>
     </div>
