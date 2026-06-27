@@ -1173,6 +1173,31 @@ const docTemplate = `{
                 }
             }
         },
+        "/status": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "public-status"
+                ],
+                "summary": "Public status page snapshot",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_denisakp_ogoune_internal_dto.PublicStatus"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_denisakp_ogoune_internal_dto.ProblemDetail"
+                        }
+                    }
+                }
+            }
+        },
         "/status-pages": {
             "get": {
                 "security": [
@@ -1213,6 +1238,190 @@ const docTemplate = `{
                         "description": "Unauthorized",
                         "schema": {
                             "$ref": "#/definitions/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/status/incidents": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "public-status"
+                ],
+                "summary": "Incident archive grouped by month",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "ISO date (default: 90 days ago)",
+                        "name": "from",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "ISO date (default: now)",
+                        "name": "to",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "filter by component",
+                        "name": "component_id",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_denisakp_ogoune_internal_dto.PublicIncidentsResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "Unprocessable Entity",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_denisakp_ogoune_internal_dto.ProblemDetail"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_denisakp_ogoune_internal_dto.ProblemDetail"
+                        }
+                    }
+                }
+            }
+        },
+        "/status/incidents/{id}": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "public-status"
+                ],
+                "summary": "Single incident with its lifecycle updates timeline",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Incident ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_denisakp_ogoune_internal_dto.PublicIncidentDetail"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_denisakp_ogoune_internal_dto.ProblemDetail"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_denisakp_ogoune_internal_dto.ProblemDetail"
+                        }
+                    }
+                }
+            }
+        },
+        "/status/resource/{id}/windows": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "public-status"
+                ],
+                "summary": "Per-resource 24h / 7d / 30d / 90d windows + 30-day daily + recent incidents",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Resource ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_denisakp_ogoune_internal_dto.PublicResourceWindowsResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_denisakp_ogoune_internal_dto.ProblemDetail"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_denisakp_ogoune_internal_dto.ProblemDetail"
+                        }
+                    }
+                }
+            }
+        },
+        "/status/uptime": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "public-status"
+                ],
+                "summary": "Daily uptime aggregates over a range",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "ISO date",
+                        "name": "from",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "ISO date",
+                        "name": "to",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "filter by component",
+                        "name": "component_id",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_denisakp_ogoune_internal_dto.PublicUptimeResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "Unprocessable Entity",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_denisakp_ogoune_internal_dto.ProblemDetail"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_denisakp_ogoune_internal_dto.ProblemDetail"
                         }
                     }
                 }
@@ -1441,9 +1650,636 @@ const docTemplate = `{
                     }
                 }
             }
+        },
+        "/toolbox/dns": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "toolbox"
+                ],
+                "summary": "Run a one-off DNS lookup",
+                "parameters": [
+                    {
+                        "description": "DNS lookup request",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/github_com_denisakp_ogoune_internal_dto_v1.DNSLookupRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_denisakp_ogoune_internal_dto_v1.SingleResponse-github_com_denisakp_ogoune_internal_dto_v1_DNSLookupResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse"
+                        }
+                    },
+                    "429": {
+                        "description": "Too Many Requests",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/toolbox/port-scan": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "toolbox"
+                ],
+                "summary": "Scan ports on a registered monitor host (rate-limited 5/min)",
+                "parameters": [
+                    {
+                        "description": "Port scan request",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/github_com_denisakp_ogoune_internal_dto_v1.PortScanRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_denisakp_ogoune_internal_dto_v1.SingleResponse-github_com_denisakp_ogoune_internal_dto_v1_PortScanResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse"
+                        }
+                    },
+                    "429": {
+                        "description": "Too Many Requests",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/toolbox/ssl-check": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "toolbox"
+                ],
+                "summary": "Inspect a TLS certificate",
+                "parameters": [
+                    {
+                        "description": "SSL check request",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/github_com_denisakp_ogoune_internal_dto_v1.SSLCheckRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_denisakp_ogoune_internal_dto_v1.SingleResponse-github_com_denisakp_ogoune_internal_dto_v1_SSLCheckResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "Unprocessable Entity",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/toolbox/whois": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "toolbox"
+                ],
+                "summary": "Look up domain registration data",
+                "parameters": [
+                    {
+                        "description": "WHOIS request",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/github_com_denisakp_ogoune_internal_dto_v1.WhoisRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_denisakp_ogoune_internal_dto_v1.SingleResponse-github_com_denisakp_ogoune_internal_dto_v1_WhoisResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "Unprocessable Entity",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse"
+                        }
+                    }
+                }
+            }
         }
     },
     "definitions": {
+        "github_com_denisakp_ogoune_internal_dto.ProblemDetail": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "string"
+                },
+                "detail": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "integer"
+                },
+                "title": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_denisakp_ogoune_internal_dto.PublicAggregatedState": {
+            "type": "string",
+            "enum": [
+                "up",
+                "degraded",
+                "down",
+                "maintenance",
+                "unknown"
+            ],
+            "x-enum-varnames": [
+                "PublicStateUp",
+                "PublicStateDegraded",
+                "PublicStateDown",
+                "PublicStateMaintenance",
+                "PublicStateUnknown"
+            ]
+        },
+        "github_com_denisakp_ogoune_internal_dto.PublicBranding": {
+            "type": "object",
+            "properties": {
+                "favicon_url": {
+                    "type": "string"
+                },
+                "homepage_url": {
+                    "type": "string"
+                },
+                "logo_url_dark": {
+                    "type": "string"
+                },
+                "logo_url_light": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "primary_color": {
+                    "type": "string"
+                },
+                "umami_script_url": {
+                    "type": "string"
+                },
+                "umami_website_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_denisakp_ogoune_internal_dto.PublicComponent": {
+            "type": "object",
+            "properties": {
+                "aggregated_state": {
+                    "$ref": "#/definitions/github_com_denisakp_ogoune_internal_dto.PublicAggregatedState"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "resources": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_denisakp_ogoune_internal_dto.PublicResource"
+                    }
+                }
+            }
+        },
+        "github_com_denisakp_ogoune_internal_dto.PublicIncidentDetail": {
+            "type": "object",
+            "properties": {
+                "component_id": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "resolved_at": {
+                    "type": "string"
+                },
+                "resource_id": {
+                    "type": "string"
+                },
+                "severity": {
+                    "$ref": "#/definitions/github_com_denisakp_ogoune_internal_dto.PublicIncidentSeverity"
+                },
+                "started_at": {
+                    "type": "string"
+                },
+                "title": {
+                    "type": "string"
+                },
+                "updates": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_denisakp_ogoune_internal_dto.PublicIncidentUpdate"
+                    }
+                }
+            }
+        },
+        "github_com_denisakp_ogoune_internal_dto.PublicIncidentMonth": {
+            "type": "object",
+            "properties": {
+                "count": {
+                    "type": "integer"
+                },
+                "incidents": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_denisakp_ogoune_internal_dto.PublicIncidentSummary"
+                    }
+                },
+                "year_month": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_denisakp_ogoune_internal_dto.PublicIncidentSeverity": {
+            "type": "string",
+            "enum": [
+                "minor",
+                "major",
+                "critical"
+            ],
+            "x-enum-varnames": [
+                "PublicSeverityMinor",
+                "PublicSeverityMajor",
+                "PublicSeverityCritical"
+            ]
+        },
+        "github_com_denisakp_ogoune_internal_dto.PublicIncidentSummary": {
+            "type": "object",
+            "properties": {
+                "component_id": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "resolved_at": {
+                    "type": "string"
+                },
+                "resource_id": {
+                    "type": "string"
+                },
+                "severity": {
+                    "$ref": "#/definitions/github_com_denisakp_ogoune_internal_dto.PublicIncidentSeverity"
+                },
+                "started_at": {
+                    "type": "string"
+                },
+                "title": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_denisakp_ogoune_internal_dto.PublicIncidentUpdate": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "string"
+                },
+                "message": {
+                    "type": "string"
+                },
+                "posted_at": {
+                    "type": "string"
+                },
+                "status": {
+                    "$ref": "#/definitions/github_com_denisakp_ogoune_internal_dto.PublicIncidentUpdateStatus"
+                }
+            }
+        },
+        "github_com_denisakp_ogoune_internal_dto.PublicIncidentUpdateStatus": {
+            "type": "string",
+            "enum": [
+                "investigating",
+                "identified",
+                "monitoring",
+                "resolved"
+            ],
+            "x-enum-varnames": [
+                "PublicUpdateInvestigating",
+                "PublicUpdateIdentified",
+                "PublicUpdateMonitoring",
+                "PublicUpdateResolved"
+            ]
+        },
+        "github_com_denisakp_ogoune_internal_dto.PublicIncidentsResponse": {
+            "type": "object",
+            "properties": {
+                "generated_at": {
+                    "type": "string"
+                },
+                "months": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_denisakp_ogoune_internal_dto.PublicIncidentMonth"
+                    }
+                },
+                "total": {
+                    "type": "integer"
+                }
+            }
+        },
+        "github_com_denisakp_ogoune_internal_dto.PublicResource": {
+            "type": "object",
+            "properties": {
+                "current_state": {
+                    "$ref": "#/definitions/github_com_denisakp_ogoune_internal_dto.PublicAggregatedState"
+                },
+                "host": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "uptime_90d_ratio": {
+                    "type": "number"
+                },
+                "uptime_ribbon": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_denisakp_ogoune_internal_dto.PublicRibbonEntry"
+                    }
+                }
+            }
+        },
+        "github_com_denisakp_ogoune_internal_dto.PublicResourceWindowsResponse": {
+            "type": "object",
+            "properties": {
+                "daily_30d": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_denisakp_ogoune_internal_dto.PublicRibbonEntry"
+                    }
+                },
+                "id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "recent_incidents": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_denisakp_ogoune_internal_dto.PublicIncidentSummary"
+                    }
+                },
+                "windows": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "$ref": "#/definitions/github_com_denisakp_ogoune_internal_dto.PublicWindowStats"
+                    }
+                }
+            }
+        },
+        "github_com_denisakp_ogoune_internal_dto.PublicRibbonEntry": {
+            "type": "object",
+            "properties": {
+                "day": {
+                    "type": "string"
+                },
+                "ratio": {
+                    "type": "number"
+                }
+            }
+        },
+        "github_com_denisakp_ogoune_internal_dto.PublicStatus": {
+            "type": "object",
+            "properties": {
+                "branding": {
+                    "$ref": "#/definitions/github_com_denisakp_ogoune_internal_dto.PublicBranding"
+                },
+                "components": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_denisakp_ogoune_internal_dto.PublicComponent"
+                    }
+                },
+                "current_month_incidents": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_denisakp_ogoune_internal_dto.PublicIncidentSummary"
+                    }
+                },
+                "generated_at": {
+                    "type": "string"
+                },
+                "standalone_resources": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_denisakp_ogoune_internal_dto.PublicResource"
+                    }
+                },
+                "uptime_window": {
+                    "$ref": "#/definitions/github_com_denisakp_ogoune_internal_dto.PublicUptimeWindow"
+                },
+                "verdict": {
+                    "$ref": "#/definitions/github_com_denisakp_ogoune_internal_dto.PublicVerdict"
+                }
+            }
+        },
+        "github_com_denisakp_ogoune_internal_dto.PublicUptimeDay": {
+            "type": "object",
+            "properties": {
+                "day": {
+                    "type": "string"
+                },
+                "downtime_seconds": {
+                    "type": "integer"
+                },
+                "incidents": {
+                    "type": "integer"
+                },
+                "related_incidents": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_denisakp_ogoune_internal_dto.PublicIncidentSummary"
+                    }
+                },
+                "samples": {
+                    "type": "integer"
+                },
+                "uptime_ratio": {
+                    "type": "number"
+                }
+            }
+        },
+        "github_com_denisakp_ogoune_internal_dto.PublicUptimeResponse": {
+            "type": "object",
+            "properties": {
+                "days": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_denisakp_ogoune_internal_dto.PublicUptimeDay"
+                    }
+                },
+                "generated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_denisakp_ogoune_internal_dto.PublicUptimeWindow": {
+            "type": "object",
+            "properties": {
+                "earliest_day": {
+                    "description": "EarliestDay is the first day for which any uptime data exists, in\nYYYY-MM-DD UTC. Empty when no data yet.",
+                    "type": "string"
+                },
+                "latest_day": {
+                    "description": "LatestDay is the most recent day we can report on (today UTC).",
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_denisakp_ogoune_internal_dto.PublicVerdict": {
+            "type": "object",
+            "properties": {
+                "color": {
+                    "type": "string"
+                },
+                "label": {
+                    "type": "string"
+                },
+                "status": {
+                    "$ref": "#/definitions/github_com_denisakp_ogoune_internal_dto.PublicVerdictStatus"
+                }
+            }
+        },
+        "github_com_denisakp_ogoune_internal_dto.PublicVerdictStatus": {
+            "type": "string",
+            "enum": [
+                "operational",
+                "partial_degradation",
+                "major_outage"
+            ],
+            "x-enum-varnames": [
+                "VerdictOperational",
+                "VerdictPartialDegradation",
+                "VerdictMajorOutage"
+            ]
+        },
+        "github_com_denisakp_ogoune_internal_dto.PublicWindowStats": {
+            "type": "object",
+            "properties": {
+                "incidents": {
+                    "type": "integer"
+                },
+                "uptime_ratio": {
+                    "type": "number"
+                }
+            }
+        },
         "github_com_denisakp_ogoune_internal_dto_v1.ChannelResponse": {
             "type": "object",
             "properties": {
@@ -1635,6 +2471,57 @@ const docTemplate = `{
                 }
             }
         },
+        "github_com_denisakp_ogoune_internal_dto_v1.DNSLookupRequest": {
+            "type": "object",
+            "properties": {
+                "custom_resolver": {
+                    "type": "string"
+                },
+                "domain": {
+                    "type": "string"
+                },
+                "record_types": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "resolver": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_denisakp_ogoune_internal_dto_v1.DNSLookupResponse": {
+            "type": "object",
+            "properties": {
+                "query_ms": {
+                    "type": "integer"
+                },
+                "records": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_denisakp_ogoune_internal_dto_v1.DNSRecord"
+                    }
+                },
+                "resolver_used": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_denisakp_ogoune_internal_dto_v1.DNSRecord": {
+            "type": "object",
+            "properties": {
+                "ttl": {
+                    "type": "integer"
+                },
+                "type": {
+                    "type": "string"
+                },
+                "value": {
+                    "type": "string"
+                }
+            }
+        },
         "github_com_denisakp_ogoune_internal_dto_v1.ErrorDetail": {
             "type": "object",
             "properties": {
@@ -1762,6 +2649,136 @@ const docTemplate = `{
                 }
             }
         },
+        "github_com_denisakp_ogoune_internal_dto_v1.PortResult": {
+            "type": "object",
+            "properties": {
+                "banner": {
+                    "type": "string"
+                },
+                "port": {
+                    "type": "integer"
+                },
+                "service": {
+                    "type": "string"
+                },
+                "status": {
+                    "description": "open | closed | filtered",
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_denisakp_ogoune_internal_dto_v1.PortScanRequest": {
+            "type": "object",
+            "properties": {
+                "ports": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                },
+                "preset": {
+                    "type": "string"
+                },
+                "target": {
+                    "type": "string"
+                },
+                "timeout_ms": {
+                    "type": "integer"
+                }
+            }
+        },
+        "github_com_denisakp_ogoune_internal_dto_v1.PortScanResponse": {
+            "type": "object",
+            "properties": {
+                "open_count": {
+                    "type": "integer"
+                },
+                "results": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_denisakp_ogoune_internal_dto_v1.PortResult"
+                    }
+                },
+                "scanned_count": {
+                    "type": "integer"
+                }
+            }
+        },
+        "github_com_denisakp_ogoune_internal_dto_v1.SSLCertificate": {
+            "type": "object",
+            "properties": {
+                "chain": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "cipher": {
+                    "type": "string"
+                },
+                "issuer": {
+                    "type": "string"
+                },
+                "sans": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "subject": {
+                    "type": "string"
+                },
+                "valid_from": {
+                    "type": "string"
+                },
+                "valid_to": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_denisakp_ogoune_internal_dto_v1.SSLCheckRequest": {
+            "type": "object",
+            "properties": {
+                "domain": {
+                    "type": "string"
+                },
+                "port": {
+                    "type": "integer"
+                }
+            }
+        },
+        "github_com_denisakp_ogoune_internal_dto_v1.SSLCheckResponse": {
+            "type": "object",
+            "properties": {
+                "certificate": {
+                    "$ref": "#/definitions/github_com_denisakp_ogoune_internal_dto_v1.SSLCertificate"
+                },
+                "days_to_expiry": {
+                    "type": "integer"
+                },
+                "expiring_soon": {
+                    "type": "boolean"
+                },
+                "vulnerabilities": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_denisakp_ogoune_internal_dto_v1.SSLVulnCheck"
+                    }
+                }
+            }
+        },
+        "github_com_denisakp_ogoune_internal_dto_v1.SSLVulnCheck": {
+            "type": "object",
+            "properties": {
+                "name": {
+                    "type": "string"
+                },
+                "status": {
+                    "description": "pass | warn",
+                    "type": "string"
+                }
+            }
+        },
         "github_com_denisakp_ogoune_internal_dto_v1.SingleResponse-github_com_denisakp_ogoune_internal_dto_v1_ChannelResponse": {
             "type": "object",
             "properties": {
@@ -1789,6 +2806,17 @@ const docTemplate = `{
             "properties": {
                 "data": {
                     "$ref": "#/definitions/github_com_denisakp_ogoune_internal_dto_v1.CredentialResponse"
+                },
+                "meta": {
+                    "$ref": "#/definitions/github_com_denisakp_ogoune_internal_dto_v1.MetaResponse"
+                }
+            }
+        },
+        "github_com_denisakp_ogoune_internal_dto_v1.SingleResponse-github_com_denisakp_ogoune_internal_dto_v1_DNSLookupResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/github_com_denisakp_ogoune_internal_dto_v1.DNSLookupResponse"
                 },
                 "meta": {
                     "$ref": "#/definitions/github_com_denisakp_ogoune_internal_dto_v1.MetaResponse"
@@ -1828,11 +2856,44 @@ const docTemplate = `{
                 }
             }
         },
+        "github_com_denisakp_ogoune_internal_dto_v1.SingleResponse-github_com_denisakp_ogoune_internal_dto_v1_PortScanResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/github_com_denisakp_ogoune_internal_dto_v1.PortScanResponse"
+                },
+                "meta": {
+                    "$ref": "#/definitions/github_com_denisakp_ogoune_internal_dto_v1.MetaResponse"
+                }
+            }
+        },
+        "github_com_denisakp_ogoune_internal_dto_v1.SingleResponse-github_com_denisakp_ogoune_internal_dto_v1_SSLCheckResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/github_com_denisakp_ogoune_internal_dto_v1.SSLCheckResponse"
+                },
+                "meta": {
+                    "$ref": "#/definitions/github_com_denisakp_ogoune_internal_dto_v1.MetaResponse"
+                }
+            }
+        },
         "github_com_denisakp_ogoune_internal_dto_v1.SingleResponse-github_com_denisakp_ogoune_internal_dto_v1_TagResponse": {
             "type": "object",
             "properties": {
                 "data": {
                     "$ref": "#/definitions/github_com_denisakp_ogoune_internal_dto_v1.TagResponse"
+                },
+                "meta": {
+                    "$ref": "#/definitions/github_com_denisakp_ogoune_internal_dto_v1.MetaResponse"
+                }
+            }
+        },
+        "github_com_denisakp_ogoune_internal_dto_v1.SingleResponse-github_com_denisakp_ogoune_internal_dto_v1_WhoisResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/github_com_denisakp_ogoune_internal_dto_v1.WhoisResponse"
                 },
                 "meta": {
                     "$ref": "#/definitions/github_com_denisakp_ogoune_internal_dto_v1.MetaResponse"
@@ -1944,6 +3005,52 @@ const docTemplate = `{
                     "type": "string"
                 }
             }
+        },
+        "github_com_denisakp_ogoune_internal_dto_v1.WhoisRequest": {
+            "type": "object",
+            "properties": {
+                "domain": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_denisakp_ogoune_internal_dto_v1.WhoisResponse": {
+            "type": "object",
+            "properties": {
+                "days_to_expiry": {
+                    "type": "integer"
+                },
+                "dnssec": {
+                    "type": "boolean"
+                },
+                "expires_at": {
+                    "type": "string"
+                },
+                "nameservers": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "privacy": {
+                    "type": "boolean"
+                },
+                "registered_at": {
+                    "type": "string"
+                },
+                "registrar": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
         }
     },
     "securityDefinitions": {
@@ -1958,7 +3065,7 @@ const docTemplate = `{
 // SwaggerInfo holds exported Swagger Info so clients can modify it
 var SwaggerInfo = &swag.Spec{
 	Version:          "1.0",
-	Host:             "localhost:8080",
+	Host:             "localhost:9596",
 	BasePath:         "/api/v1",
 	Schemes:          []string{},
 	Title:            "Ogoune Public API",

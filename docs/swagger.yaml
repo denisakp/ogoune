@@ -1,5 +1,286 @@
 basePath: /api/v1
 definitions:
+  github_com_denisakp_ogoune_internal_dto.ProblemDetail:
+    properties:
+      code:
+        type: string
+      detail:
+        type: string
+      status:
+        type: integer
+      title:
+        type: string
+      type:
+        type: string
+    type: object
+  github_com_denisakp_ogoune_internal_dto.PublicAggregatedState:
+    enum:
+    - up
+    - degraded
+    - down
+    - maintenance
+    - unknown
+    type: string
+    x-enum-varnames:
+    - PublicStateUp
+    - PublicStateDegraded
+    - PublicStateDown
+    - PublicStateMaintenance
+    - PublicStateUnknown
+  github_com_denisakp_ogoune_internal_dto.PublicBranding:
+    properties:
+      favicon_url:
+        type: string
+      homepage_url:
+        type: string
+      logo_url_dark:
+        type: string
+      logo_url_light:
+        type: string
+      name:
+        type: string
+      primary_color:
+        type: string
+      umami_script_url:
+        type: string
+      umami_website_id:
+        type: string
+    type: object
+  github_com_denisakp_ogoune_internal_dto.PublicComponent:
+    properties:
+      aggregated_state:
+        $ref: '#/definitions/github_com_denisakp_ogoune_internal_dto.PublicAggregatedState'
+      id:
+        type: string
+      name:
+        type: string
+      resources:
+        items:
+          $ref: '#/definitions/github_com_denisakp_ogoune_internal_dto.PublicResource'
+        type: array
+    type: object
+  github_com_denisakp_ogoune_internal_dto.PublicIncidentDetail:
+    properties:
+      component_id:
+        type: string
+      id:
+        type: string
+      resolved_at:
+        type: string
+      resource_id:
+        type: string
+      severity:
+        $ref: '#/definitions/github_com_denisakp_ogoune_internal_dto.PublicIncidentSeverity'
+      started_at:
+        type: string
+      title:
+        type: string
+      updates:
+        items:
+          $ref: '#/definitions/github_com_denisakp_ogoune_internal_dto.PublicIncidentUpdate'
+        type: array
+    type: object
+  github_com_denisakp_ogoune_internal_dto.PublicIncidentMonth:
+    properties:
+      count:
+        type: integer
+      incidents:
+        items:
+          $ref: '#/definitions/github_com_denisakp_ogoune_internal_dto.PublicIncidentSummary'
+        type: array
+      year_month:
+        type: string
+    type: object
+  github_com_denisakp_ogoune_internal_dto.PublicIncidentSeverity:
+    enum:
+    - minor
+    - major
+    - critical
+    type: string
+    x-enum-varnames:
+    - PublicSeverityMinor
+    - PublicSeverityMajor
+    - PublicSeverityCritical
+  github_com_denisakp_ogoune_internal_dto.PublicIncidentSummary:
+    properties:
+      component_id:
+        type: string
+      id:
+        type: string
+      resolved_at:
+        type: string
+      resource_id:
+        type: string
+      severity:
+        $ref: '#/definitions/github_com_denisakp_ogoune_internal_dto.PublicIncidentSeverity'
+      started_at:
+        type: string
+      title:
+        type: string
+    type: object
+  github_com_denisakp_ogoune_internal_dto.PublicIncidentUpdate:
+    properties:
+      id:
+        type: string
+      message:
+        type: string
+      posted_at:
+        type: string
+      status:
+        $ref: '#/definitions/github_com_denisakp_ogoune_internal_dto.PublicIncidentUpdateStatus'
+    type: object
+  github_com_denisakp_ogoune_internal_dto.PublicIncidentUpdateStatus:
+    enum:
+    - investigating
+    - identified
+    - monitoring
+    - resolved
+    type: string
+    x-enum-varnames:
+    - PublicUpdateInvestigating
+    - PublicUpdateIdentified
+    - PublicUpdateMonitoring
+    - PublicUpdateResolved
+  github_com_denisakp_ogoune_internal_dto.PublicIncidentsResponse:
+    properties:
+      generated_at:
+        type: string
+      months:
+        items:
+          $ref: '#/definitions/github_com_denisakp_ogoune_internal_dto.PublicIncidentMonth'
+        type: array
+      total:
+        type: integer
+    type: object
+  github_com_denisakp_ogoune_internal_dto.PublicResource:
+    properties:
+      current_state:
+        $ref: '#/definitions/github_com_denisakp_ogoune_internal_dto.PublicAggregatedState'
+      host:
+        type: string
+      id:
+        type: string
+      name:
+        type: string
+      uptime_90d_ratio:
+        type: number
+      uptime_ribbon:
+        items:
+          $ref: '#/definitions/github_com_denisakp_ogoune_internal_dto.PublicRibbonEntry'
+        type: array
+    type: object
+  github_com_denisakp_ogoune_internal_dto.PublicResourceWindowsResponse:
+    properties:
+      daily_30d:
+        items:
+          $ref: '#/definitions/github_com_denisakp_ogoune_internal_dto.PublicRibbonEntry'
+        type: array
+      id:
+        type: string
+      name:
+        type: string
+      recent_incidents:
+        items:
+          $ref: '#/definitions/github_com_denisakp_ogoune_internal_dto.PublicIncidentSummary'
+        type: array
+      windows:
+        additionalProperties:
+          $ref: '#/definitions/github_com_denisakp_ogoune_internal_dto.PublicWindowStats'
+        type: object
+    type: object
+  github_com_denisakp_ogoune_internal_dto.PublicRibbonEntry:
+    properties:
+      day:
+        type: string
+      ratio:
+        type: number
+    type: object
+  github_com_denisakp_ogoune_internal_dto.PublicStatus:
+    properties:
+      branding:
+        $ref: '#/definitions/github_com_denisakp_ogoune_internal_dto.PublicBranding'
+      components:
+        items:
+          $ref: '#/definitions/github_com_denisakp_ogoune_internal_dto.PublicComponent'
+        type: array
+      current_month_incidents:
+        items:
+          $ref: '#/definitions/github_com_denisakp_ogoune_internal_dto.PublicIncidentSummary'
+        type: array
+      generated_at:
+        type: string
+      standalone_resources:
+        items:
+          $ref: '#/definitions/github_com_denisakp_ogoune_internal_dto.PublicResource'
+        type: array
+      uptime_window:
+        $ref: '#/definitions/github_com_denisakp_ogoune_internal_dto.PublicUptimeWindow'
+      verdict:
+        $ref: '#/definitions/github_com_denisakp_ogoune_internal_dto.PublicVerdict'
+    type: object
+  github_com_denisakp_ogoune_internal_dto.PublicUptimeDay:
+    properties:
+      day:
+        type: string
+      downtime_seconds:
+        type: integer
+      incidents:
+        type: integer
+      related_incidents:
+        items:
+          $ref: '#/definitions/github_com_denisakp_ogoune_internal_dto.PublicIncidentSummary'
+        type: array
+      samples:
+        type: integer
+      uptime_ratio:
+        type: number
+    type: object
+  github_com_denisakp_ogoune_internal_dto.PublicUptimeResponse:
+    properties:
+      days:
+        items:
+          $ref: '#/definitions/github_com_denisakp_ogoune_internal_dto.PublicUptimeDay'
+        type: array
+      generated_at:
+        type: string
+    type: object
+  github_com_denisakp_ogoune_internal_dto.PublicUptimeWindow:
+    properties:
+      earliest_day:
+        description: |-
+          EarliestDay is the first day for which any uptime data exists, in
+          YYYY-MM-DD UTC. Empty when no data yet.
+        type: string
+      latest_day:
+        description: LatestDay is the most recent day we can report on (today UTC).
+        type: string
+    type: object
+  github_com_denisakp_ogoune_internal_dto.PublicVerdict:
+    properties:
+      color:
+        type: string
+      label:
+        type: string
+      status:
+        $ref: '#/definitions/github_com_denisakp_ogoune_internal_dto.PublicVerdictStatus'
+    type: object
+  github_com_denisakp_ogoune_internal_dto.PublicVerdictStatus:
+    enum:
+    - operational
+    - partial_degradation
+    - major_outage
+    type: string
+    x-enum-varnames:
+    - VerdictOperational
+    - VerdictPartialDegradation
+    - VerdictMajorOutage
+  github_com_denisakp_ogoune_internal_dto.PublicWindowStats:
+    properties:
+      incidents:
+        type: integer
+      uptime_ratio:
+        type: number
+    type: object
   github_com_denisakp_ogoune_internal_dto_v1.ChannelResponse:
     properties:
       config:
@@ -126,6 +407,39 @@ definitions:
         description: '"ok" or "failed"'
         type: string
     type: object
+  github_com_denisakp_ogoune_internal_dto_v1.DNSLookupRequest:
+    properties:
+      custom_resolver:
+        type: string
+      domain:
+        type: string
+      record_types:
+        items:
+          type: string
+        type: array
+      resolver:
+        type: string
+    type: object
+  github_com_denisakp_ogoune_internal_dto_v1.DNSLookupResponse:
+    properties:
+      query_ms:
+        type: integer
+      records:
+        items:
+          $ref: '#/definitions/github_com_denisakp_ogoune_internal_dto_v1.DNSRecord'
+        type: array
+      resolver_used:
+        type: string
+    type: object
+  github_com_denisakp_ogoune_internal_dto_v1.DNSRecord:
+    properties:
+      ttl:
+        type: integer
+      type:
+        type: string
+      value:
+        type: string
+    type: object
   github_com_denisakp_ogoune_internal_dto_v1.ErrorDetail:
     properties:
       code:
@@ -209,6 +523,91 @@ definitions:
       updated_at:
         type: string
     type: object
+  github_com_denisakp_ogoune_internal_dto_v1.PortResult:
+    properties:
+      banner:
+        type: string
+      port:
+        type: integer
+      service:
+        type: string
+      status:
+        description: open | closed | filtered
+        type: string
+    type: object
+  github_com_denisakp_ogoune_internal_dto_v1.PortScanRequest:
+    properties:
+      ports:
+        items:
+          type: integer
+        type: array
+      preset:
+        type: string
+      target:
+        type: string
+      timeout_ms:
+        type: integer
+    type: object
+  github_com_denisakp_ogoune_internal_dto_v1.PortScanResponse:
+    properties:
+      open_count:
+        type: integer
+      results:
+        items:
+          $ref: '#/definitions/github_com_denisakp_ogoune_internal_dto_v1.PortResult'
+        type: array
+      scanned_count:
+        type: integer
+    type: object
+  github_com_denisakp_ogoune_internal_dto_v1.SSLCertificate:
+    properties:
+      chain:
+        items:
+          type: string
+        type: array
+      cipher:
+        type: string
+      issuer:
+        type: string
+      sans:
+        items:
+          type: string
+        type: array
+      subject:
+        type: string
+      valid_from:
+        type: string
+      valid_to:
+        type: string
+    type: object
+  github_com_denisakp_ogoune_internal_dto_v1.SSLCheckRequest:
+    properties:
+      domain:
+        type: string
+      port:
+        type: integer
+    type: object
+  github_com_denisakp_ogoune_internal_dto_v1.SSLCheckResponse:
+    properties:
+      certificate:
+        $ref: '#/definitions/github_com_denisakp_ogoune_internal_dto_v1.SSLCertificate'
+      days_to_expiry:
+        type: integer
+      expiring_soon:
+        type: boolean
+      vulnerabilities:
+        items:
+          $ref: '#/definitions/github_com_denisakp_ogoune_internal_dto_v1.SSLVulnCheck'
+        type: array
+    type: object
+  github_com_denisakp_ogoune_internal_dto_v1.SSLVulnCheck:
+    properties:
+      name:
+        type: string
+      status:
+        description: pass | warn
+        type: string
+    type: object
   github_com_denisakp_ogoune_internal_dto_v1.SingleResponse-github_com_denisakp_ogoune_internal_dto_v1_ChannelResponse:
     properties:
       data:
@@ -227,6 +626,13 @@ definitions:
     properties:
       data:
         $ref: '#/definitions/github_com_denisakp_ogoune_internal_dto_v1.CredentialResponse'
+      meta:
+        $ref: '#/definitions/github_com_denisakp_ogoune_internal_dto_v1.MetaResponse'
+    type: object
+  github_com_denisakp_ogoune_internal_dto_v1.SingleResponse-github_com_denisakp_ogoune_internal_dto_v1_DNSLookupResponse:
+    properties:
+      data:
+        $ref: '#/definitions/github_com_denisakp_ogoune_internal_dto_v1.DNSLookupResponse'
       meta:
         $ref: '#/definitions/github_com_denisakp_ogoune_internal_dto_v1.MetaResponse'
     type: object
@@ -251,10 +657,31 @@ definitions:
       meta:
         $ref: '#/definitions/github_com_denisakp_ogoune_internal_dto_v1.MetaResponse'
     type: object
+  github_com_denisakp_ogoune_internal_dto_v1.SingleResponse-github_com_denisakp_ogoune_internal_dto_v1_PortScanResponse:
+    properties:
+      data:
+        $ref: '#/definitions/github_com_denisakp_ogoune_internal_dto_v1.PortScanResponse'
+      meta:
+        $ref: '#/definitions/github_com_denisakp_ogoune_internal_dto_v1.MetaResponse'
+    type: object
+  github_com_denisakp_ogoune_internal_dto_v1.SingleResponse-github_com_denisakp_ogoune_internal_dto_v1_SSLCheckResponse:
+    properties:
+      data:
+        $ref: '#/definitions/github_com_denisakp_ogoune_internal_dto_v1.SSLCheckResponse'
+      meta:
+        $ref: '#/definitions/github_com_denisakp_ogoune_internal_dto_v1.MetaResponse'
+    type: object
   github_com_denisakp_ogoune_internal_dto_v1.SingleResponse-github_com_denisakp_ogoune_internal_dto_v1_TagResponse:
     properties:
       data:
         $ref: '#/definitions/github_com_denisakp_ogoune_internal_dto_v1.TagResponse'
+      meta:
+        $ref: '#/definitions/github_com_denisakp_ogoune_internal_dto_v1.MetaResponse'
+    type: object
+  github_com_denisakp_ogoune_internal_dto_v1.SingleResponse-github_com_denisakp_ogoune_internal_dto_v1_WhoisResponse:
+    properties:
+      data:
+        $ref: '#/definitions/github_com_denisakp_ogoune_internal_dto_v1.WhoisResponse'
       meta:
         $ref: '#/definitions/github_com_denisakp_ogoune_internal_dto_v1.MetaResponse'
     type: object
@@ -327,7 +754,37 @@ definitions:
       name:
         type: string
     type: object
-host: localhost:8080
+  github_com_denisakp_ogoune_internal_dto_v1.WhoisRequest:
+    properties:
+      domain:
+        type: string
+    type: object
+  github_com_denisakp_ogoune_internal_dto_v1.WhoisResponse:
+    properties:
+      days_to_expiry:
+        type: integer
+      dnssec:
+        type: boolean
+      expires_at:
+        type: string
+      nameservers:
+        items:
+          type: string
+        type: array
+      privacy:
+        type: boolean
+      registered_at:
+        type: string
+      registrar:
+        type: string
+      status:
+        items:
+          type: string
+        type: array
+      updated_at:
+        type: string
+    type: object
+host: localhost:9596
 info:
   contact: {}
   description: Ogoune uptime monitoring — Public REST API v1.
@@ -1062,6 +1519,22 @@ paths:
       summary: Live-test credentials without persisting (rate-limited 10/min)
       tags:
       - resource-credentials
+  /status:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_denisakp_ogoune_internal_dto.PublicStatus'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/github_com_denisakp_ogoune_internal_dto.ProblemDetail'
+      summary: Public status page snapshot
+      tags:
+      - public-status
   /status-pages:
     get:
       parameters:
@@ -1090,6 +1563,126 @@ paths:
       summary: List status pages (component-based, read-only)
       tags:
       - status-pages
+  /status/incidents:
+    get:
+      parameters:
+      - description: 'ISO date (default: 90 days ago)'
+        in: query
+        name: from
+        type: string
+      - description: 'ISO date (default: now)'
+        in: query
+        name: to
+        type: string
+      - description: filter by component
+        in: query
+        name: component_id
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_denisakp_ogoune_internal_dto.PublicIncidentsResponse'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/github_com_denisakp_ogoune_internal_dto.ProblemDetail'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/github_com_denisakp_ogoune_internal_dto.ProblemDetail'
+      summary: Incident archive grouped by month
+      tags:
+      - public-status
+  /status/incidents/{id}:
+    get:
+      parameters:
+      - description: Incident ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_denisakp_ogoune_internal_dto.PublicIncidentDetail'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/github_com_denisakp_ogoune_internal_dto.ProblemDetail'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/github_com_denisakp_ogoune_internal_dto.ProblemDetail'
+      summary: Single incident with its lifecycle updates timeline
+      tags:
+      - public-status
+  /status/resource/{id}/windows:
+    get:
+      parameters:
+      - description: Resource ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_denisakp_ogoune_internal_dto.PublicResourceWindowsResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/github_com_denisakp_ogoune_internal_dto.ProblemDetail'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/github_com_denisakp_ogoune_internal_dto.ProblemDetail'
+      summary: Per-resource 24h / 7d / 30d / 90d windows + 30-day daily + recent incidents
+      tags:
+      - public-status
+  /status/uptime:
+    get:
+      parameters:
+      - description: ISO date
+        in: query
+        name: from
+        required: true
+        type: string
+      - description: ISO date
+        in: query
+        name: to
+        required: true
+        type: string
+      - description: filter by component
+        in: query
+        name: component_id
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_denisakp_ogoune_internal_dto.PublicUptimeResponse'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/github_com_denisakp_ogoune_internal_dto.ProblemDetail'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/github_com_denisakp_ogoune_internal_dto.ProblemDetail'
+      summary: Daily uptime aggregates over a range
+      tags:
+      - public-status
   /tags:
     get:
       parameters:
@@ -1230,6 +1823,138 @@ paths:
       summary: Update a tag
       tags:
       - tags
+  /toolbox/dns:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: DNS lookup request
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_denisakp_ogoune_internal_dto_v1.DNSLookupRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_denisakp_ogoune_internal_dto_v1.SingleResponse-github_com_denisakp_ogoune_internal_dto_v1_DNSLookupResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse'
+        "429":
+          description: Too Many Requests
+          schema:
+            $ref: '#/definitions/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Run a one-off DNS lookup
+      tags:
+      - toolbox
+  /toolbox/port-scan:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Port scan request
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_denisakp_ogoune_internal_dto_v1.PortScanRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_denisakp_ogoune_internal_dto_v1.SingleResponse-github_com_denisakp_ogoune_internal_dto_v1_PortScanResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse'
+        "429":
+          description: Too Many Requests
+          schema:
+            $ref: '#/definitions/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Scan ports on a registered monitor host (rate-limited 5/min)
+      tags:
+      - toolbox
+  /toolbox/ssl-check:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: SSL check request
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_denisakp_ogoune_internal_dto_v1.SSLCheckRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_denisakp_ogoune_internal_dto_v1.SingleResponse-github_com_denisakp_ogoune_internal_dto_v1_SSLCheckResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Inspect a TLS certificate
+      tags:
+      - toolbox
+  /toolbox/whois:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: WHOIS request
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_denisakp_ogoune_internal_dto_v1.WhoisRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_denisakp_ogoune_internal_dto_v1.SingleResponse-github_com_denisakp_ogoune_internal_dto_v1_WhoisResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Look up domain registration data
+      tags:
+      - toolbox
 securityDefinitions:
   BearerAuth:
     in: header

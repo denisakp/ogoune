@@ -38,7 +38,7 @@ func NewPublicStatusHandler(svc PublicStatusProvider) *PublicStatusHandler {
 //	@Tags		public-status
 //	@Produce	json
 //	@Success	200	{object}	dto.PublicStatus
-//	@Failure	500	{object}	dto.ProblemDetails
+//	@Failure	500	{object}	dto.ProblemDetail
 //	@Router		/status [get]
 func (h *PublicStatusHandler) GetCurrent(w http.ResponseWriter, r *http.Request) {
 	data, err := h.svc.GetCurrent(r.Context())
@@ -59,8 +59,8 @@ func (h *PublicStatusHandler) GetCurrent(w http.ResponseWriter, r *http.Request)
 //	@Param		to				query		string	false	"ISO date (default: now)"
 //	@Param		component_id	query		string	false	"filter by component"
 //	@Success	200	{object}	dto.PublicIncidentsResponse
-//	@Failure	422	{object}	dto.ProblemDetails
-//	@Failure	500	{object}	dto.ProblemDetails
+//	@Failure	422	{object}	dto.ProblemDetail
+//	@Failure	500	{object}	dto.ProblemDetail
 //	@Router		/status/incidents [get]
 func (h *PublicStatusHandler) GetIncidents(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
@@ -104,8 +104,8 @@ func (h *PublicStatusHandler) GetIncidents(w http.ResponseWriter, r *http.Reques
 //	@Param		to				query		string	true	"ISO date"
 //	@Param		component_id	query		string	false	"filter by component"
 //	@Success	200	{object}	dto.PublicUptimeResponse
-//	@Failure	422	{object}	dto.ProblemDetails
-//	@Failure	500	{object}	dto.ProblemDetails
+//	@Failure	422	{object}	dto.ProblemDetail
+//	@Failure	500	{object}	dto.ProblemDetail
 //	@Router		/status/uptime [get]
 func (h *PublicStatusHandler) GetUptime(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
@@ -151,8 +151,8 @@ func (h *PublicStatusHandler) GetUptime(w http.ResponseWriter, r *http.Request) 
 //	@Produce	json
 //	@Param		id	path		string	true	"Incident ID"
 //	@Success	200	{object}	dto.PublicIncidentDetail
-//	@Failure	404	{object}	dto.ProblemDetails
-//	@Failure	500	{object}	dto.ProblemDetails
+//	@Failure	404	{object}	dto.ProblemDetail
+//	@Failure	500	{object}	dto.ProblemDetail
 //	@Router		/status/incidents/{id} [get]
 func (h *PublicStatusHandler) GetIncidentDetail(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
@@ -180,8 +180,8 @@ func (h *PublicStatusHandler) GetIncidentDetail(w http.ResponseWriter, r *http.R
 //	@Produce	json
 //	@Param		id	path		string	true	"Resource ID"
 //	@Success	200	{object}	dto.PublicResourceWindowsResponse
-//	@Failure	404	{object}	dto.ProblemDetails
-//	@Failure	500	{object}	dto.ProblemDetails
+//	@Failure	404	{object}	dto.ProblemDetail
+//	@Failure	500	{object}	dto.ProblemDetail
 //	@Router		/status/resource/{id}/windows [get]
 func (h *PublicStatusHandler) GetResourceWindows(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
