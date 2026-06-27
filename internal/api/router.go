@@ -60,6 +60,7 @@ func NewRouter(
 	statusPageV1Handler *v1handler.StatusPageV1Handler,
 	heartbeatV1Handler *v1handler.HeartbeatV1Handler,
 	credentialV1Handler *v1handler.ResourceCredentialHandler,
+	toolboxV1Handler *v1handler.ToolboxHandler,
 	enableSwagger bool,
 	cfg *config.Config,
 ) http.Handler {
@@ -341,6 +342,14 @@ func NewRouter(
 			// Status page routes — registered in T034
 			r.Route("/status-pages", func(r chi.Router) {
 				r.Get("/", statusPageV1Handler.List)
+			})
+			// Toolbox — one-shot network tools (spec 071). Write-scoped + per-user
+			// rate-limited; port-scan strictest (5/min), others 20/min.
+			r.Route("/toolbox", func(r chi.Router) {
+				r.With(middleware.RequireReadWrite, middleware.PerUserRateLimit(20)).Post("/dns", toolboxV1Handler.DNS)
+				r.With(middleware.RequireReadWrite, middleware.PerUserRateLimit(5)).Post("/port-scan", toolboxV1Handler.PortScan)
+				r.With(middleware.RequireReadWrite, middleware.PerUserRateLimit(20)).Post("/ssl-check", toolboxV1Handler.SSL)
+				r.With(middleware.RequireReadWrite, middleware.PerUserRateLimit(20)).Post("/whois", toolboxV1Handler.WHOIS)
 			})
 		})
 	})
