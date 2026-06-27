@@ -15,9 +15,12 @@ import type { Resource, Tag } from '@/types'
 
 interface Props {
   resource?: Resource | null
+  // Seed for "create from toolbox" (spec 071) — pre-fills type/target/name on a
+  // NEW monitor without entering edit mode.
+  initial?: { type?: string; target?: string; name?: string } | null
 }
 
-const props = withDefaults(defineProps<Props>(), { resource: null })
+const props = withDefaults(defineProps<Props>(), { resource: null, initial: null })
 const emit = defineEmits<{ submit: []; cancel: [] }>()
 
 const formRef = ref<{
@@ -117,7 +120,7 @@ function initialState(): FormState {
       ...targetToPerType(String(r.type), r.target as string | undefined),
     } as FormState
   }
-  return {
+  const base: FormState = {
     type: 'http',
     name: '',
     interval: 60,
@@ -129,12 +132,22 @@ function initialState(): FormState {
     tags: [],
     notification_channels: [],
   }
+  if (props.initial) {
+    const seedType = props.initial.type || 'http'
+    return {
+      ...base,
+      type: seedType as ResourceInput['type'],
+      name: props.initial.name ?? base.name,
+      ...targetToPerType(seedType, props.initial.target),
+    } as FormState
+  }
+  return base
 }
 
 const state = reactive<FormState>(initialState())
 
 watch(
-  () => props.resource,
+  () => [props.resource, props.initial],
   () => {
     Object.assign(state, initialState())
   },

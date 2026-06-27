@@ -881,3 +881,25 @@ export type {
   DashboardHealthStatus,
   DashboardHealth,
 } from './dashboards'
+
+// ─── Spec 071: Toolbox + Metrics ────────────────────────────────────────────
+
+export type {
+  DnsRecordType,
+  DnsResolver,
+  DnsLookupRequest,
+  DnsRecord,
+  DnsLookupResponse,
+  PortPreset,
+  PortStatus,
+  PortScanRequest,
+  PortResult,
+  PortScanResponse,
+  SslCertificate,
+  SslVulnCheck,
+  SslCheckRequest,
+  SslCheckResponse,
+  WhoisRequest,
+  WhoisResponse,
+  DnsHistoryEntry,
+} from './toolbox'

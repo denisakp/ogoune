@@ -24,6 +24,11 @@ const report: NavItem[] = [
   { label: 'Dashboards', to: '/dashboards', icon: 'i-lucide-layout-grid' },
 ]
 
+const tools: NavItem[] = [
+  { label: 'Toolbox', to: '/toolbox', icon: 'i-lucide-wrench' },
+  { label: 'Metrics', to: '/metrics', icon: 'i-lucide-line-chart' },
+]
+
 const settings: NavItem[] = [
   { label: 'Notifications', to: '/notifications', icon: 'i-lucide-bell' },
   { label: 'Escalation', to: '/escalation', icon: 'i-lucide-siren' },
@@ -75,6 +80,21 @@ function linkClass(to: string): string {
         <div class="space-y-1">
           <RouterLink
             v-for="item in report"
+            :key="item.to"
+            :to="item.to"
+            class="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors"
+            :class="linkClass(item.to)"
+          >
+            <UIcon :name="item.icon" class="size-4" />
+            <span>{{ item.label }}</span>
+          </RouterLink>
+        </div>
+      </section>
+      <section>
+        <div class="px-2 py-1 text-xs font-medium text-muted uppercase tracking-wide">Tools</div>
+        <div class="space-y-1">
+          <RouterLink
+            v-for="item in tools"
             :key="item.to"
             :to="item.to"
             class="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors"

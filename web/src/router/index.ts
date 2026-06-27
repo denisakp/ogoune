@@ -28,6 +28,12 @@ const MaintenanceView = () => import('@/views/maintenance/MaintenanceListView.vu
 const ReportsView = () => import('@/views/reports/ReportsView.vue')
 const DashboardsView = () => import('@/views/dashboards/DashboardsView.vue')
 const DashboardDetailView = () => import('@/views/dashboards/DashboardDetailView.vue')
+const ToolboxLayoutView = () => import('@/views/toolbox/ToolboxLayoutView.vue')
+const DnsToolView = () => import('@/views/toolbox/DnsToolView.vue')
+const PortToolView = () => import('@/views/toolbox/PortToolView.vue')
+const SslToolView = () => import('@/views/toolbox/SslToolView.vue')
+const WhoisToolView = () => import('@/views/toolbox/WhoisToolView.vue')
+const MetricsView = () => import('@/views/metrics/MetricsView.vue')
 const Error404View = () => import('@/views/errors/Error404View.vue')
 const Error500View = () => import('@/views/errors/Error500View.vue')
 const MaintenanceModeView = () => import('@/views/errors/MaintenanceModeView.vue')
@@ -243,6 +249,26 @@ const routes: RouteRecordRaw[] = [
     name: 'MaintenanceMode',
     component: MaintenanceModeView,
     meta: { public: true, requiresLayout: false },
+  },
+
+  // Spec 071 — Toolbox (route-synced tabs) + Metrics doc page.
+  {
+    path: '/toolbox',
+    component: ToolboxLayoutView,
+    meta: { requiresAuth: true, requiresLayout: true, breadcrumbLabel: 'Toolbox' },
+    redirect: '/toolbox/dns',
+    children: [
+      { path: 'dns', name: 'ToolboxDns', component: DnsToolView, meta: { requiresAuth: true } },
+      { path: 'port', name: 'ToolboxPort', component: PortToolView, meta: { requiresAuth: true } },
+      { path: 'ssl', name: 'ToolboxSsl', component: SslToolView, meta: { requiresAuth: true } },
+      { path: 'whois', name: 'ToolboxWhois', component: WhoisToolView, meta: { requiresAuth: true } },
+    ],
+  },
+  {
+    path: '/metrics',
+    name: 'Metrics',
+    component: MetricsView,
+    meta: { requiresAuth: true, requiresLayout: true, breadcrumbLabel: 'Metrics' },
   },
 ]
 
