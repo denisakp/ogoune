@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 
 import { useResourceStore } from '@/stores/resourceStore'
 import { useComponentStore } from '@/stores/componentStore'
@@ -16,11 +16,14 @@ import type { Resource } from '@/types'
 const resourceStore = useResourceStore()
 const componentStore = useComponentStore()
 const router = useRouter()
+const route = useRoute()
 
 const filters = useResourceFilters()
 
 const showModal = ref(false)
 const editingResource = ref<Resource | null>(null)
+// Seed for "create from Toolbox" CTAs (spec 071): /resources?create=1&type=&target=
+const createSeed = ref<{ type?: string; target?: string; name?: string } | null>(null)
 const collapsedGroups = ref<Record<string, boolean>>({})
 
 const selectedIds = ref<string[]>([])
@@ -115,6 +118,7 @@ function setCollapsed(key: string, v: boolean) {
 
 function openCreate() {
   editingResource.value = null
+  createSeed.value = null
   showModal.value = true
 }
 
@@ -148,6 +152,18 @@ async function onFormSubmit() {
 
 onMounted(async () => {
   await Promise.all([resourceStore.loadResources(), componentStore.loadComponents()])
+  // Open the create modal pre-seeded when arriving from a Toolbox "Create monitor" CTA.
+  if (route.query.create === '1') {
+    createSeed.value = {
+      type: typeof route.query.type === 'string' ? route.query.type : undefined,
+      target: typeof route.query.target === 'string' ? route.query.target : undefined,
+      name: typeof route.query.name === 'string' ? route.query.name : undefined,
+    }
+    editingResource.value = null
+    showModal.value = true
+    // Drop the query so a refresh / back doesn't reopen it.
+    void router.replace({ query: {} })
+  }
 })
 
 defineExpose({
@@ -330,7 +346,12 @@ defineExpose({
       </template>
     </div>
 
-    <ResourceModal v-model:open="showModal" :resource="editingResource" @submit="onFormSubmit" />
+    <ResourceModal
+      v-model:open="showModal"
+      :resource="editingResource"
+      :initial="createSeed"
+      @submit="onFormSubmit"
+    />
     <GroupResourcesModal
       v-model:open="showGroupModal"
       :selected-ids="selectedIds"

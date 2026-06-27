@@ -7,11 +7,13 @@ import ResourceForm from './ResourceForm.vue'
 interface Props {
   open?: boolean
   resource?: Resource | null
+  initial?: { type?: string; target?: string; name?: string } | null
 }
 
 const props = withDefaults(defineProps<Props>(), {
   open: false,
   resource: null,
+  initial: null,
 })
 
 const emit = defineEmits<{
@@ -41,7 +43,12 @@ function onFormCancel() {
 <template>
   <UModal v-model:open="isOpen" :title="modalTitle" :ui="{ content: 'sm:max-w-xl' }">
     <template #body>
-      <ResourceForm :resource="resource" @submit="onFormSubmit" @cancel="onFormCancel" />
+      <ResourceForm
+        :resource="resource"
+        :initial="initial"
+        @submit="onFormSubmit"
+        @cancel="onFormCancel"
+      />
     </template>
   </UModal>
 </template>
