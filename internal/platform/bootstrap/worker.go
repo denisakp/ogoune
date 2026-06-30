@@ -84,12 +84,34 @@ func initTimingWheelWorker(app *App, enrichmentService *service.EnrichmentServic
 	if app.IncidentUpdateService != nil {
 		incidentService.SetUpdateSeeder(app.IncidentUpdateService)
 	}
+	if app.NotificationFeedService != nil {
+		incidentService.SetNotificationEmitter(app.NotificationFeedService)
+	}
 	app.DetectorIncidentSvc = incidentService
 
 	monitoringHandler := worker.NewMonitoringTaskHandler(app.ResourceRepo, app.MonitoringActivityRepo, app.MaintenanceRepo, app.IncidentDiagnosticsRepo, executor, incidentService, app.ComponentService, app.ConfirmationScheduler)
 
 	startTimingWheelDispatcher(tw, monitoringHandler, app.SchedulerCfg.TimingWheel.MaxWorkers)
 	startTimingWheelExpiryCheck(app, enrichmentService)
+	startTimingWheelNotificationRetention(app)
+}
+
+// startTimingWheelNotificationRetention runs the daily feed-retention prune in-process (spec 072).
+func startTimingWheelNotificationRetention(app *App) {
+	if app.NotificationFeedRepo == nil {
+		return
+	}
+	handler := worker.NewNotificationRetentionHandler(app.NotificationFeedRepo, app.Cfg.NotificationRetentionDays)
+	go func() {
+		ticker := time.NewTicker(24 * time.Hour)
+		defer ticker.Stop()
+		for range ticker.C {
+			if err := handler.ProcessTask(context.Background(), asynq.NewTask(worker.TypeNotificationRetention, nil)); err != nil {
+				slog.Error("TimingWheel notification:retention failed", "error", err)
+			}
+		}
+	}()
+	slog.Info("TimingWheel daily notification retention scheduled", "retention_days", app.Cfg.NotificationRetentionDays)
 }
 
 func startTimingWheelDispatcher(tw *scheduler.TimingWheelScheduler, handler *worker.MonitoringTaskHandler, maxWorkers int) {
@@ -202,6 +224,9 @@ func initAsynqProcessor(app *App, enrichmentService *service.EnrichmentService) 
 	if app.IncidentUpdateService != nil {
 		incidentService.SetUpdateSeeder(app.IncidentUpdateService)
 	}
+	if app.NotificationFeedService != nil {
+		incidentService.SetNotificationEmitter(app.NotificationFeedService)
+	}
 	app.DetectorIncidentSvc = incidentService
 
 	monitoringHandler := worker.NewMonitoringTaskHandler(app.ResourceRepo, app.MonitoringActivityRepo, app.MaintenanceRepo, app.IncidentDiagnosticsRepo, executor, incidentService, app.ComponentService, app.ConfirmationScheduler)
@@ -219,7 +244,15 @@ func initAsynqProcessor(app *App, enrichmentService *service.EnrichmentService) 
 		slog.Error("failed to register expiry:check scheduler", "error", err)
 	}
 
-	app.Processor = worker.NewProcessor(app.RedisOpt, monitoringHandler, maintenanceTaskHandler, expiryTaskHandler, worker.Config{
+	var retentionHandler *worker.NotificationRetentionHandler
+	if app.NotificationFeedRepo != nil {
+		retentionHandler = worker.NewNotificationRetentionHandler(app.NotificationFeedRepo, app.Cfg.NotificationRetentionDays)
+		if _, err := app.AsynqScheduler.Register("@daily", asynq.NewTask(worker.TypeNotificationRetention, nil)); err != nil {
+			slog.Error("failed to register notification:retention scheduler", "error", err)
+		}
+	}
+
+	app.Processor = worker.NewProcessor(app.RedisOpt, monitoringHandler, maintenanceTaskHandler, expiryTaskHandler, retentionHandler, worker.Config{
 		Concurrency: app.SchedulerCfg.Asynq.Concurrency,
 	})
 
