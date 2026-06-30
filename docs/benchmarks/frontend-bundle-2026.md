@@ -290,3 +290,16 @@ Notable initial-download chunks (`main`):
 - `main` initial gz dropped to 73 KB — combination of route-based code-splitting refinements landed between PR-6 / PR-7 + the `@vueuse/core` dedupe that eliminated duplicate copies bundled by vaul-vue (10.x) and transitives (11.x). Authenticated-bundle delta attributable to spec 070 = +82.9 KB gz across four lazy chunks; T060 envelope (+40 KB gz) breached by DashboardDetailView (67 KB gz) alone. Follow-up: dynamic-`import()` each widget on render to reclaim ~30-40 KB gz.
 - Status bundle: 940 B gz initial — unchanged in intent (spec 070 does not touch the public status page).
 - 693 / 693 frontend tests pass (128 files). `pnpm lint` clean.
+
+## Spec 073 — migration cleanup close-out (2026-06-30)
+
+- **Branch**: `073-frontend-cleanup`. **Build**: `pnpm build-only` (no Vite warnings).
+- **Change**: removed the dangling `@ant-design/icons-vue` dependency (0 source imports) and the dev-only `/_dev/nuxtui-demo` view/route/spec; added the `no-restricted-imports` guard. **Net production-bundle impact ≈ 0** — both removed artifacts were already absent from the prod bundle (unused dep tree-shaken; demo route gated behind `import.meta.env.DEV`).
+
+| Build | `main` initial (gz) | Total (gz) | `status` initial (gz) | Note |
+|-------|--------------------:|-----------:|----------------------:|------|
+| Spec 070 (PR-7, prior ref) | 73,140 | 704,597 | 940 | reference |
+| Spec 073 (this) | ~73,600 | ~741,400 | ~920 | total delta vs ref = specs 071 (toolbox) + 072 (notif feed); 073 itself net-neutral |
+
+- The total-gz growth since the spec-070 reference is attributable to features 071 (toolbox) and 072 (notification feed), **not** to this cleanup. 073 confirms no regression: `main` initial and `status` initial are flat.
+- This entry is the post-migration reference for the AntDV→NuxtUI / Axios→Ky migration (now closed).

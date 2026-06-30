@@ -99,12 +99,13 @@ Handlers never run checks or query DB directly. Scheduling goes through the Sche
 
 ### Frontend (web/)
 
-Vue 3 Composition API + TypeScript + Pinia + Ant Design Vue.
+Vue 3 Composition API + TypeScript + Pinia + **NuxtUI 4** (Tailwind v4) + **Ky** + **Zod** + Iconify (lucide/heroicons). Migrated off Ant Design Vue + Axios (specs 057–073, ADR 0010).
 
-- API calls only through `web/src/services/*.ts` (Axios via `web/src/libs/axios.helper.ts`)
-- State: Pinia stores + composables (e.g., `web/src/composables/useResources.ts`)
-- Types centralized in `web/src/types/index.ts`
-- No Options API, no raw fetch/axios in components
+- API calls only through `web/src/services/*.ts` using the **Ky** client (`web/src/core/http/client.ts` — `getAuthenticatedClient()` + `request<T>()`). v1 endpoints return a `{ data }` envelope (unwrap in the service).
+- Forms: **Zod schemas under `web/src/schemas/`** consumed by `<UForm :schema :state>`; map server `ValidationError.fieldErrors` back via `formRef.setErrors`. See `web/src/schemas/README.md` and the oracle `web/src/views/_dev/UFormExampleView.vue`.
+- Shared UI: `U*` components under `web/src/components/ui/` — catalogue in `web/src/components/ui/README.md`. Prefer NuxtUI built-ins (`UTable`, `UForm`, `USelect`, `UModal`, …); icons via Iconify (`i-lucide-*`).
+- State: Pinia stores + composables (e.g., `web/src/composables/useResources.ts`). Types centralized in `web/src/types/index.ts`.
+- No Options API; **no `ant-design-vue`/`@ant-design/*`/`axios` imports** — enforced by `no-restricted-imports` in `web/eslint.config.ts` (runs in `make lint` / `ci-local`).
 
 ### API versioning
 
@@ -196,5 +197,5 @@ Dashboard: http://localhost:9009 (project `ogoune`). Block on CRITICAL/BLOCKER i
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan:
-`specs/072-notification-feed/plan.md`
+`specs/073-frontend-cleanup/plan.md`
 <!-- SPECKIT END -->
