@@ -48,6 +48,7 @@ type App struct {
 	EscalationRepo            port.EscalationRepository
 	UptimeDailyAggRepo        port.UptimeDailyAggRepository
 	IncidentUpdateRepo        port.IncidentUpdateRepository
+	NotificationFeedRepo      port.NotificationFeedRepository
 
 	// Metrics phase
 	MetricsRecorder       domain.MetricsRecorder
@@ -78,6 +79,7 @@ type App struct {
 	SessionService   *service.SessionService
 	TwoFactorService *service.TwoFactorService
 	EscalationService *service.EscalationService
+	NotificationFeedService *service.NotificationFeedService
 
 	// Spec 060 — Public status page
 	PublicStatusService   *service.PublicStatusService

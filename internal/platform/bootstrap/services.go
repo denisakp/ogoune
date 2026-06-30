@@ -14,6 +14,9 @@ func InitServices(app *App) {
 	enrichmentService := service.NewEnrichmentService(30 * time.Second)
 	app.ResourceService = service.NewResourceService(app.ResourceRepo, app.IncidentRepo, app.TagsRepo, app.SchedulerAdapter, app.MonitoringActivityRepo, enrichmentService, app.ComponentService)
 
+	// NotificationFeedService (spec 072) is built in InitDatabase — InitWorker
+	// runs before InitServices and needs it as the incident emitter.
+
 	// Auth service + default user
 	jwtManager := service.NewJWTManager(cfg.JWTSecret, "ogoune", 24*time.Hour)
 	app.JWTManager = jwtManager

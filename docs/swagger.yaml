@@ -486,6 +486,11 @@ definitions:
         description: '"open" or "resolved"'
         type: string
     type: object
+  github_com_denisakp_ogoune_internal_dto_v1.MarkAllReadResponse:
+    properties:
+      marked:
+        type: integer
+    type: object
   github_com_denisakp_ogoune_internal_dto_v1.MetaResponse:
     properties:
       page:
@@ -647,6 +652,13 @@ definitions:
     properties:
       data:
         $ref: '#/definitions/github_com_denisakp_ogoune_internal_dto_v1.IncidentResponse'
+      meta:
+        $ref: '#/definitions/github_com_denisakp_ogoune_internal_dto_v1.MetaResponse'
+    type: object
+  github_com_denisakp_ogoune_internal_dto_v1.SingleResponse-github_com_denisakp_ogoune_internal_dto_v1_MarkAllReadResponse:
+    properties:
+      data:
+        $ref: '#/definitions/github_com_denisakp_ogoune_internal_dto_v1.MarkAllReadResponse'
       meta:
         $ref: '#/definitions/github_com_denisakp_ogoune_internal_dto_v1.MetaResponse'
     type: object
@@ -1393,6 +1405,86 @@ paths:
       summary: Update a notification channel
       tags:
       - notification-channels
+  /notifications:
+    get:
+      parameters:
+      - description: Page number (default 1)
+        in: query
+        name: page
+        type: integer
+      - description: Items per page (1-200, default 50)
+        in: query
+        name: per_page
+        type: integer
+      - description: 'Filter: incident|system|general'
+        in: query
+        name: category
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: List the in-app notification feed (newest-first, paginated)
+      tags:
+      - notifications
+  /notifications/{id}/read:
+    post:
+      parameters:
+      - description: Notification ID
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "204":
+          description: No Content
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Mark a single notification read
+      tags:
+      - notifications
+  /notifications/read-all:
+    post:
+      consumes:
+      - application/json
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_denisakp_ogoune_internal_dto_v1.SingleResponse-github_com_denisakp_ogoune_internal_dto_v1_MarkAllReadResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Mark all visible notifications read (optional before_timestamp cursor)
+      tags:
+      - notifications
   /resources/{id}/credentials:
     delete:
       parameters:
