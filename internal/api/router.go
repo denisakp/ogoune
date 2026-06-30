@@ -61,6 +61,7 @@ func NewRouter(
 	heartbeatV1Handler *v1handler.HeartbeatV1Handler,
 	credentialV1Handler *v1handler.ResourceCredentialHandler,
 	toolboxV1Handler *v1handler.ToolboxHandler,
+	notificationFeedV1Handler *v1handler.NotificationFeedHandler,
 	enableSwagger bool,
 	cfg *config.Config,
 ) http.Handler {
@@ -342,6 +343,12 @@ func NewRouter(
 			// Status page routes — registered in T034
 			r.Route("/status-pages", func(r chi.Router) {
 				r.Get("/", statusPageV1Handler.List)
+			})
+			// Notification feed (spec 072). GET read; mark-read mutations write-scoped.
+			r.Route("/notifications", func(r chi.Router) {
+				r.Get("/", notificationFeedV1Handler.List)
+				r.With(middleware.RequireReadWrite).Post("/{id}/read", notificationFeedV1Handler.MarkRead)
+				r.With(middleware.RequireReadWrite).Post("/read-all", notificationFeedV1Handler.MarkAllRead)
 			})
 			// Toolbox — one-shot network tools (spec 071). Write-scoped + per-user
 			// rate-limited; port-scan strictest (5/min), others 20/min.

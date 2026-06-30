@@ -2,6 +2,7 @@ package monitoring
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -34,7 +35,14 @@ type IncidentService struct {
 	diagnostics          port.IncidentDiagnosticsRepository
 	components           port.ComponentRepository
 	updates              IncidentUpdateSeeder
+	notificationEmitter  NotificationEmitter
 	client               *asynq.Client
+}
+
+// NotificationEmitter is the optional in-app notification-feed producer (spec 072).
+// Implemented by *service.NotificationFeedService. Emission is fire-and-forget.
+type NotificationEmitter interface {
+	Emit(ctx context.Context, n domain.EmittedNotification) error
 }
 
 // NewIncidentService creates a new incident service with the given dependencies.
@@ -65,6 +73,36 @@ func (s *IncidentService) SetUpdateSeeder(seeder IncidentUpdateSeeder) {
 // SetComponentRepository sets the component repository for notification resolution
 func (s *IncidentService) SetComponentRepository(repo port.ComponentRepository) {
 	s.components = repo
+}
+
+// SetNotificationEmitter wires the optional in-app notification-feed producer (spec 072).
+// When nil, no feed notifications are emitted.
+func (s *IncidentService) SetNotificationEmitter(e NotificationEmitter) {
+	s.notificationEmitter = e
+}
+
+// emitFeedNotification publishes an incident feed notification fire-and-forget:
+// it never blocks or fails incident handling; errors are logged only (SC-004).
+func (s *IncidentService) emitFeedNotification(incident *domain.Incident, severity, title string) {
+	if s.notificationEmitter == nil {
+		return
+	}
+	deepLink := "/incidents/" + incident.ID
+	payload, _ := json.Marshal(map[string]string{"incident_id": incident.ID, "resource_id": incident.ResourceID})
+	n := domain.EmittedNotification{
+		Category:   domain.NotificationCategoryIncident,
+		Severity:   severity,
+		Title:      title,
+		DeepLink:   &deepLink,
+		Payload:    payload,
+		OccurredAt: time.Now(),
+	}
+	emitter := s.notificationEmitter
+	go func() {
+		if err := emitter.Emit(context.Background(), n); err != nil {
+			slog.Warn("failed to emit incident feed notification", "incident_id", incident.ID, "error", err)
+		}
+	}()
 }
 
 // CreateIncident creates a new incident when a resource reaches 3 consecutive failures.
@@ -110,6 +148,9 @@ func (s *IncidentService) CreateIncident(ctx context.Context, r *domain.Resource
 	}
 
 	slog.Info("incident created", "incident_id", incident.ID, "resource_id", r.ID, "cause", cause)
+
+	// Spec 072: surface in the in-app feed (fire-and-forget, never blocks).
+	s.emitFeedNotification(incident, domain.NotificationSeverityError, fmt.Sprintf("%s is down", r.Name))
 
 	// Persist incident diagnostics immediately after creation
 	// This captures error details, network timing, and other technical context
@@ -387,6 +428,9 @@ func (s *IncidentService) ResolveIncident(ctx context.Context, r *domain.Resourc
 	}
 
 	slog.Info("incident resolved", "incident_id", activeIncident.ID, "resource_id", r.ID)
+
+	// Spec 072: surface recovery in the in-app feed (fire-and-forget).
+	s.emitFeedNotification(activeIncident, domain.NotificationSeveritySuccess, fmt.Sprintf("%s recovered", r.Name))
 
 	// Step 1: Create "resolved" event step
 	resolvedStep := &domain.IncidentEventStep{

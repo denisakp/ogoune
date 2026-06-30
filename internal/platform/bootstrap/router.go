@@ -85,13 +85,15 @@ func InitRouter(app *App) {
 	toolboxService := service.NewToolboxService(app.ResourceRepo, 10*time.Second)
 	toolboxV1Handler := v1handler.NewToolboxHandler(toolboxService)
 
+	notificationFeedV1Handler := v1handler.NewNotificationFeedHandler(app.NotificationFeedService)
+
 	// Set APP_VERSION env
 	err := os.Setenv("APP_VERSION", AppVersion)
 	if err != nil {
 		return
 	}
 
-	apiHandler := api.NewRouter(resourceHandler, pingHandler, activityHandler, tagHandler, componentHandler, statusPageHandler, publicStatusHandler, asCacheRecorder(app.PublicStatusCacheMetr), statusPageSettingsHandler, incidentHandler, incidentUpdateHandler, notificationHandler, maintenanceHandler, statsHandler, systemHandler, runtimeConfigHandler, authHandler, accountHandler, app.AuthService, app.APIKeyService, app.SessionService, sessionHandler, twoFactorV1Handler, escalationV1Handler, monitorV1Handler, incidentV1Handler, channelV1Handler, componentV1Handler, tagV1Handler, statusPageV1Handler, heartbeatV1Handler, credentialV1Handler, toolboxV1Handler, cfg.EnableSwagger, cfg)
+	apiHandler := api.NewRouter(resourceHandler, pingHandler, activityHandler, tagHandler, componentHandler, statusPageHandler, publicStatusHandler, asCacheRecorder(app.PublicStatusCacheMetr), statusPageSettingsHandler, incidentHandler, incidentUpdateHandler, notificationHandler, maintenanceHandler, statsHandler, systemHandler, runtimeConfigHandler, authHandler, accountHandler, app.AuthService, app.APIKeyService, app.SessionService, sessionHandler, twoFactorV1Handler, escalationV1Handler, monitorV1Handler, incidentV1Handler, channelV1Handler, componentV1Handler, tagV1Handler, statusPageV1Handler, heartbeatV1Handler, credentialV1Handler, toolboxV1Handler, notificationFeedV1Handler, cfg.EnableSwagger, cfg)
 
 	// Root router
 	rootRouter := chi.NewRouter()

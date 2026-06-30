@@ -967,6 +967,135 @@
                 }
             }
         },
+        "/notifications": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "notifications"
+                ],
+                "summary": "List the in-app notification feed (newest-first, paginated)",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Page number (default 1)",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Items per page (1-200, default 50)",
+                        "name": "per_page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter: incident|system|general",
+                        "name": "category",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "Unprocessable Entity",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/notifications/read-all": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "notifications"
+                ],
+                "summary": "Mark all visible notifications read (optional before_timestamp cursor)",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_denisakp_ogoune_internal_dto_v1.SingleResponse-github_com_denisakp_ogoune_internal_dto_v1_MarkAllReadResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/notifications/{id}/read": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "notifications"
+                ],
+                "summary": "Mark a single notification read",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Notification ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/resources/{id}/credentials": {
             "get": {
                 "security": [
@@ -2587,6 +2716,14 @@
                 }
             }
         },
+        "github_com_denisakp_ogoune_internal_dto_v1.MarkAllReadResponse": {
+            "type": "object",
+            "properties": {
+                "marked": {
+                    "type": "integer"
+                }
+            }
+        },
         "github_com_denisakp_ogoune_internal_dto_v1.MetaResponse": {
             "type": "object",
             "properties": {
@@ -2833,6 +2970,17 @@
             "properties": {
                 "data": {
                     "$ref": "#/definitions/github_com_denisakp_ogoune_internal_dto_v1.IncidentResponse"
+                },
+                "meta": {
+                    "$ref": "#/definitions/github_com_denisakp_ogoune_internal_dto_v1.MetaResponse"
+                }
+            }
+        },
+        "github_com_denisakp_ogoune_internal_dto_v1.SingleResponse-github_com_denisakp_ogoune_internal_dto_v1_MarkAllReadResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/github_com_denisakp_ogoune_internal_dto_v1.MarkAllReadResponse"
                 },
                 "meta": {
                     "$ref": "#/definitions/github_com_denisakp_ogoune_internal_dto_v1.MetaResponse"

@@ -29,4 +29,7 @@ var (
 	// Spec 060 — Public Status Pages
 	_ port.UptimeDailyAggRepository = (*UptimeDailyAggRepositorySQLC)(nil)
 	_ port.IncidentUpdateRepository = (*IncidentUpdateRepositorySQLC)(nil)
+
+	// Spec 072 — In-app notification feed
+	_ port.NotificationFeedRepository = (*NotificationFeedRepositorySQLC)(nil)
 )

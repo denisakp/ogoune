@@ -54,6 +54,9 @@ type Config struct {
 	MetricsEnabled bool
 	MetricsToken   string
 
+	// Notification feed retention (spec 072)
+	NotificationRetentionDays int
+
 	// Swagger configuration
 	EnableSwagger bool
 
@@ -101,6 +104,10 @@ func Load() Config {
 	enableICMP := parseBool(GetEnv("ENABLE_ICMP", "false"), false)
 	metricsEnabled := parseBool(GetEnv("ENABLE_METRICS", "false"), false)
 	metricsToken := GetEnv("METRICS_TOKEN", "")
+	notificationRetentionDays := parseInt(GetEnv("NOTIFICATION_RETENTION_DAYS", "90"))
+	if notificationRetentionDays <= 0 {
+		notificationRetentionDays = 90 // never 0 — would prune the entire feed
+	}
 	enableSwagger := parseBool(GetEnv("ENABLE_SWAGGER", "false"), false)
 	logFormat := GetEnv("LOG_FORMAT", "json")
 	logLevel := GetEnv("LOG_LEVEL", "info")
@@ -148,6 +155,7 @@ func Load() Config {
 		EnableICMP:                     enableICMP,
 		MetricsEnabled:                 metricsEnabled,
 		MetricsToken:                   metricsToken,
+		NotificationRetentionDays:      notificationRetentionDays,
 		EnableSwagger:                  enableSwagger,
 		AppEnv:                         appEnv,
 		SSLProvider:                    sslProvider,

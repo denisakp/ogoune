@@ -64,6 +64,10 @@ func InitDatabase(app *App) {
 	app.EscalationRepo = store.NewEscalationRepositorySQLC(rt)
 	app.UptimeDailyAggRepo = store.NewUptimeDailyAggRepositorySQLC(rt)
 	app.IncidentUpdateRepo = store.NewIncidentUpdateRepositorySQLC(rt)
+	app.NotificationFeedRepo = store.NewNotificationFeedRepositorySQLC(rt)
+	// Built here (not InitServices) because InitWorker runs first and wires this
+	// as the incident notification emitter (spec 072).
+	app.NotificationFeedService = service.NewNotificationFeedService(app.NotificationFeedRepo)
 
 	// Seed-time services that the worker layer depends on must be built
 	// before InitWorker runs (InitServices is too late). The full

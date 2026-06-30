@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest'
-import { __createMockFeedForTests, __createRemoteStubForTests } from './notificationFeedService'
+import { http, HttpResponse } from 'msw'
+import { __createMockFeedForTests, __createRemoteFeedForTests } from './notificationFeedService'
+import { server } from '@/test/msw/server'
 
 describe('notificationFeedService (spec 069 / US4)', () => {
   describe('mock mode', () => {
@@ -39,12 +41,47 @@ describe('notificationFeedService (spec 069 / US4)', () => {
     })
   })
 
-  describe('remote stub', () => {
-    it('throws not-implemented on every operation', async () => {
-      const feed = __createRemoteStubForTests()
-      await expect(feed.fetch()).rejects.toThrow(/not implemented/)
-      await expect(feed.markRead('x')).rejects.toThrow(/not implemented/)
-      await expect(feed.markAllRead()).rejects.toThrow(/not implemented/)
+  describe('remote feed (spec 072)', () => {
+    it('fetch unwraps the v1 {data} envelope into items', async () => {
+      server.use(
+        http.get('*/v1/notifications', () =>
+          HttpResponse.json({
+            data: [
+              { id: 'n1', category: 'incident', severity: 'error', title: 'down', occurredAt: '2026-06-27T10:00:00Z', deepLink: '/incidents/n1', unread: true },
+            ],
+            meta: { page: 1, per_page: 50, total: 1 },
+          }),
+        ),
+      )
+      const feed = __createRemoteFeedForTests()
+      const items = await feed.fetch()
+      expect(items).toHaveLength(1)
+      expect(items[0]!.id).toBe('n1')
+      expect(items[0]!.unread).toBe(true)
+    })
+
+    it('markRead POSTs to /{id}/read', async () => {
+      let hit = ''
+      server.use(
+        http.post('*/v1/notifications/:id/read', ({ params }) => {
+          hit = String(params.id)
+          return new HttpResponse(null, { status: 204 })
+        }),
+      )
+      await __createRemoteFeedForTests().markRead('abc')
+      expect(hit).toBe('abc')
+    })
+
+    it('markAllRead POSTs to /read-all', async () => {
+      let called = false
+      server.use(
+        http.post('*/v1/notifications/read-all', () => {
+          called = true
+          return HttpResponse.json({ data: { marked: 3 } })
+        }),
+      )
+      await __createRemoteFeedForTests().markAllRead()
+      expect(called).toBe(true)
     })
   })
 })
