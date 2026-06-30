@@ -214,6 +214,17 @@ type ExpiryNotificationLogRepository interface {
 	DeleteOlderThan(ctx context.Context, cutoff time.Time) error
 }
 
+// NotificationFeedRepository persists in-app notification-feed items (spec 072).
+// Distinct from NotificationRepository (outbound dispatch events).
+type NotificationFeedRepository interface {
+	Create(ctx context.Context, n *domain.FeedNotification) (*domain.FeedNotification, error)
+	ListForUser(ctx context.Context, userID string, category *string, limit, offset int) ([]*domain.FeedNotification, error)
+	CountForUser(ctx context.Context, userID string, category *string) (int64, error)
+	MarkRead(ctx context.Context, id string, at time.Time) (int64, error)
+	MarkAllRead(ctx context.Context, userID string, before, at time.Time) (int64, error)
+	DeleteOlderThan(ctx context.Context, cutoff time.Time) (int64, error)
+}
+
 // SessionRepository — spec 059 FR-008/009/009a.
 type SessionRepository interface {
 	Create(ctx context.Context, s *domain.Session) error

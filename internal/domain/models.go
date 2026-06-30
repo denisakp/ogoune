@@ -684,3 +684,53 @@ type DNSRecord struct {
 	LastError *string `json:"last_error,omitempty"`
 }
 
+
+// --- In-app notification feed (spec 072) ---
+// Distinct from NotificationEvent / NotificationChannel (outbound dispatch).
+
+// Notification feed categories.
+const (
+	NotificationCategoryIncident = "incident"
+	NotificationCategorySystem   = "system"
+	NotificationCategoryGeneral  = "general"
+)
+
+// Notification feed severities.
+const (
+	NotificationSeverityInfo    = "info"
+	NotificationSeverityWarning = "warning"
+	NotificationSeverityError   = "error"
+	NotificationSeveritySuccess = "success"
+)
+
+// FeedNotification is a single in-app notification-feed item (spec 072).
+// user_id == nil means instance-wide (visible to all authenticated users).
+// Read state is global: a single ReadAt shared by all users.
+type FeedNotification struct {
+	Base
+	UserID      *string    `json:"user_id"`
+	Category    string     `json:"category"`
+	Severity    string     `json:"severity"`
+	Title       string     `json:"title"`
+	Description *string    `json:"description,omitempty"`
+	DeepLink    *string    `json:"deep_link,omitempty"`
+	Payload     []byte     `json:"payload,omitempty"`
+	OccurredAt  time.Time  `json:"occurred_at"`
+	ReadAt      *time.Time `json:"read_at,omitempty"`
+}
+
+// Unread reports whether the notification has not been read.
+func (n *FeedNotification) Unread() bool { return n.ReadAt == nil }
+
+// EmittedNotification is the producer-facing input to the notification feed
+// (spec 072), decoupled from storage. OccurredAt zero defaults to now.
+type EmittedNotification struct {
+	UserID      *string
+	Category    string
+	Severity    string
+	Title       string
+	Description *string
+	DeepLink    *string
+	Payload     []byte
+	OccurredAt  time.Time
+}

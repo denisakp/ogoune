@@ -166,6 +166,21 @@ type MonitoringActivity struct {
 	IsMaintenance int64     `json:"is_maintenance"`
 }
 
+type Notification struct {
+	ID          string         `json:"id"`
+	UserID      sql.NullString `json:"user_id"`
+	Category    string         `json:"category"`
+	Severity    string         `json:"severity"`
+	Title       string         `json:"title"`
+	Description sql.NullString `json:"description"`
+	DeepLink    sql.NullString `json:"deep_link"`
+	Payload     sql.NullString `json:"payload"`
+	OccurredAt  time.Time      `json:"occurred_at"`
+	ReadAt      sql.NullTime   `json:"read_at"`
+	CreatedAt   time.Time      `json:"created_at"`
+	UpdatedAt   time.Time      `json:"updated_at"`
+}
+
 type NotificationChannel struct {
 	ID               string      `json:"id"`
 	CreatedAt        time.Time   `json:"created_at"`

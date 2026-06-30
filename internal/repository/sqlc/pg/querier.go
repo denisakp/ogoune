@@ -26,6 +26,7 @@ type Querier interface {
 	CountMonitoringActivityByResourceTotal(ctx context.Context, arg CountMonitoringActivityByResourceTotalParams) (int64, error)
 	CountMonitoringActivitySinceSuccess(ctx context.Context, createdAt pgtype.Timestamptz) (int64, error)
 	CountMonitoringActivitySinceTotal(ctx context.Context, createdAt pgtype.Timestamptz) (int64, error)
+	CountNotificationsForUser(ctx context.Context, arg CountNotificationsForUserParams) (int64, error)
 	CountRecentTwoFactorResetTokensByUser(ctx context.Context, arg CountRecentTwoFactorResetTokensByUserParams) (int64, error)
 	CountResourcesByComponentID(ctx context.Context, componentID pgtype.Text) (int64, error)
 	CreateAPIKey(ctx context.Context, arg CreateAPIKeyParams) error
@@ -42,6 +43,7 @@ type Querier interface {
 	CreateIncidentUpdate(ctx context.Context, arg CreateIncidentUpdateParams) error
 	CreateMaintenance(ctx context.Context, arg CreateMaintenanceParams) error
 	CreateMonitoringActivity(ctx context.Context, arg CreateMonitoringActivityParams) error
+	CreateNotification(ctx context.Context, arg CreateNotificationParams) (Notification, error)
 	CreateNotificationChannel(ctx context.Context, arg CreateNotificationChannelParams) error
 	CreateNotificationEvent(ctx context.Context, arg CreateNotificationEventParams) error
 	// PR1 of US1: CRUD without M2M and without 1-to-1 preloads.
@@ -66,6 +68,7 @@ type Querier interface {
 	DeleteMaintenance(ctx context.Context, id string) (int64, error)
 	DeleteNotificationChannel(ctx context.Context, id string) (int64, error)
 	DeleteNotificationEvent(ctx context.Context, id string) error
+	DeleteNotificationsOlderThan(ctx context.Context, cutoff pgtype.Timestamptz) (int64, error)
 	DeleteResourceCredentialByResourceID(ctx context.Context, resourceID string) (int64, error)
 	DeleteTag(ctx context.Context, id string) (int64, error)
 	DeleteUser(ctx context.Context, id string) error
@@ -143,15 +146,18 @@ type Querier interface {
 	ListMonitoringActivities(ctx context.Context, arg ListMonitoringActivitiesParams) ([]MonitoringActivity, error)
 	ListNotificationChannels(ctx context.Context, arg ListNotificationChannelsParams) ([]NotificationChannel, error)
 	ListNotificationEvents(ctx context.Context, arg ListNotificationEventsParams) ([]NotificationEvent, error)
+	ListNotificationsForUser(ctx context.Context, arg ListNotificationsForUserParams) ([]Notification, error)
 	ListResources(ctx context.Context, arg ListResourcesParams) ([]Resource, error)
 	ListResourcesByComponentID(ctx context.Context, componentID pgtype.Text) ([]Resource, error)
 	ListScheduledResources(ctx context.Context) ([]Resource, error)
 	ListTagIDsByResourceID(ctx context.Context, resourceID string) ([]string, error)
 	ListTags(ctx context.Context, arg ListTagsParams) ([]Tag, error)
 	ListTagsByResourceIDs(ctx context.Context, dollar_1 []string) ([]ListTagsByResourceIDsRow, error)
+	MarkAllNotificationsReadForUser(ctx context.Context, arg MarkAllNotificationsReadForUserParams) (int64, error)
 	MarkNotificationChannelFailure(ctx context.Context, arg MarkNotificationChannelFailureParams) error
 	MarkNotificationChannelSent(ctx context.Context, arg MarkNotificationChannelSentParams) error
 	MarkNotificationEventTerminal(ctx context.Context, arg MarkNotificationEventTerminalParams) (int64, error)
+	MarkNotificationRead(ctx context.Context, arg MarkNotificationReadParams) (int64, error)
 	MarkTwoFactorResetTokenUsed(ctx context.Context, arg MarkTwoFactorResetTokenUsedParams) (int64, error)
 	NextEscalationPriority(ctx context.Context) (int32, error)
 	Ping(ctx context.Context) (int32, error)

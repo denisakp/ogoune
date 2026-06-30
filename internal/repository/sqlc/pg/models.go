@@ -165,6 +165,21 @@ type MonitoringActivity struct {
 	IsMaintenance bool               `json:"is_maintenance"`
 }
 
+type Notification struct {
+	ID          string             `json:"id"`
+	UserID      pgtype.Text        `json:"user_id"`
+	Category    string             `json:"category"`
+	Severity    string             `json:"severity"`
+	Title       string             `json:"title"`
+	Description pgtype.Text        `json:"description"`
+	DeepLink    pgtype.Text        `json:"deep_link"`
+	Payload     []byte             `json:"payload"`
+	OccurredAt  pgtype.Timestamptz `json:"occurred_at"`
+	ReadAt      pgtype.Timestamptz `json:"read_at"`
+	CreatedAt   pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt   pgtype.Timestamptz `json:"updated_at"`
+}
+
 type NotificationChannel struct {
 	ID               string             `json:"id"`
 	CreatedAt        pgtype.Timestamptz `json:"created_at"`
