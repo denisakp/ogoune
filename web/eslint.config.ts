@@ -28,4 +28,25 @@ export default defineConfigWithVueTs(
   vueTsConfigs.recommended,
   ...pluginOxlint.configs['flat/recommended'],
   skipFormatting,
+
+  // Spec 073 — guard the completed migration: forbid re-introducing the retired
+  // Ant Design Vue / Axios stack. Use NuxtUI components + Iconify, and the Ky
+  // client (`@/core/http/client`) instead.
+  {
+    name: 'app/no-legacy-stack',
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          paths: [
+            { name: 'ant-design-vue', message: 'Ant Design Vue was removed (spec 073). Use NuxtUI components.' },
+            { name: 'axios', message: 'Axios was removed (spec 073). Use the Ky client at @/core/http/client.' },
+          ],
+          patterns: [
+            { group: ['ant-design-vue', 'ant-design-vue/*', '@ant-design/*'], message: 'Ant Design Vue / its icons were removed (spec 073). Use NuxtUI + Iconify.' },
+          ],
+        },
+      ],
+    },
+  },
 )
