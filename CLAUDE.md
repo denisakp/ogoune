@@ -42,9 +42,14 @@ go run ./cmd/api
 # Frontend dev
 cd web && pnpm install && pnpm dev  # http://localhost:5173, needs VITE_API_BASE_URL
 
-# Swagger
-make swag               # regenerate docs/ from annotations, commit the result
-                        # UI at /api/v1/docs/* (ENABLE_SWAGGER=true)
+# OpenAPI (spec 074) — Go annotations are the source of truth
+make openapi            # regenerate api/openapi/v1.{yaml,json} (OpenAPI 3.1, swag v2), commit it
+make gen-fe-types       # regenerate web/packages/api-types/generated/schema.d.ts from the contract
+make lint-openapi       # Spectral lint (workspace binary, no global install)
+                        # After changing a v1 handler/DTO → run both + commit the artifacts.
+                        # ci-local fails on drift. Runtime serves the embedded spec at
+                        # /api/v1/openapi.json (no disk dep); UI at /api/v1/docs/* (ENABLE_SWAGGER=true).
+                        # Frontend types: import from @ogoune/api-types (not hand-maintained).
 
 # sqlc (type-safe DB queries)
 make sqlc-generate      # regenerate Go code under internal/repository/sqlc/{pg,sqlite}/
@@ -196,5 +201,5 @@ Dashboard: http://localhost:9009 (project `ogoune`). Block on CRITICAL/BLOCKER i
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan:
-`specs/072-notification-feed/plan.md`
+`specs/074-openapi-typed-contract/plan.md`
 <!-- SPECKIT END -->
