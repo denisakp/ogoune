@@ -276,12 +276,6 @@ const routes: RouteRecordRaw[] = [
 // Spec 053 FR-006, SC-007 + spec 055 FR-012 · contract: contracts/component-resolver.md
 if (import.meta.env.DEV) {
   routes.push({
-    path: '/_dev/nuxtui-demo',
-    name: 'NuxtUIDemo',
-    component: () => import('@/views/_dev/NuxtUIDemoView.vue'),
-    meta: { public: true, requiresLayout: false },
-  })
-  routes.push({
     path: '/_dev/uform-example',
     name: 'UFormExample',
     component: () => import('@/views/_dev/UFormExampleView.vue'),
