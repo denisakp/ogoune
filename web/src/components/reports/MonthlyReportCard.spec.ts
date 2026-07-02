@@ -68,7 +68,7 @@ describe('MonthlyReportCard (spec 070 / US1)', () => {
 
   it('toggle click calls toggleMonthly(true) and reflects new state', async () => {
     toggleMonthlyMock.mockImplementation(async (next: boolean) => {
-      monthlyRef.value = { ...(monthlyRef.value as never), enabled: next }
+      monthlyRef.value = { ...(monthlyRef.value as NonNullable<typeof monthlyRef.value>), enabled: next }
     })
     const wrapper = mount(MonthlyReportCard, { global: { stubs }, attachTo: document.body })
     const toggle = wrapper.find('button[data-state]')

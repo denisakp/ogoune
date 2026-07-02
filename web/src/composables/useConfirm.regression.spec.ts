@@ -245,6 +245,7 @@ describe('FR-036 destructive flows route through useConfirm', () => {
           homepage_url: '',
           custom_domain: '',
           umami_website_id: '',
+          umami_script_url: '',
           enable_details_page: true,
           show_uptime_percentage: true,
           hide_paused_monitors: true,

@@ -62,8 +62,8 @@ const layout = computed(() => {
     if (t < start) continue
     const idx = Math.min(count - 1, Math.floor((t - start) / bucketMs))
     if (idx < 0) continue
-    sums[idx] += d.response_time
-    counts[idx] += 1
+    sums[idx] = (sums[idx] ?? 0) + d.response_time
+    counts[idx] = (counts[idx] ?? 0) + 1
   }
 
   const buckets: Bucket[] = []

@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createApp, defineComponent, h } from 'vue'
 
-const isNavigationFailureMock = vi.fn(() => false)
+const isNavigationFailureMock = vi.fn((_e?: unknown) => false)
 vi.mock('vue-router', () => ({
   isNavigationFailure: (e: unknown) => isNavigationFailureMock(e),
 }))
