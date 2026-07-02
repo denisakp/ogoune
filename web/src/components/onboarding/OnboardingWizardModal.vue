@@ -53,9 +53,9 @@ defineExpose({ activeStep, next, back, finish, skip })
 <template>
   <UModal v-model:open="localOpen" :ui="{ content: 'sm:max-w-md' }">
     <template #content>
-      <div class="flex flex-col bg-white rounded-xl overflow-hidden">
-        <div class="px-5 pt-4 pb-2.5 border-b border-slate-100">
-          <div class="text-[10px] font-bold tracking-wider text-slate-400 mb-2">
+      <div class="flex flex-col bg-default rounded-xl overflow-hidden">
+        <div class="px-5 pt-4 pb-2.5 border-b border-default">
+          <div class="text-[10px] font-bold tracking-wider text-muted mb-2">
             {{ stepLabel }}
           </div>
           <div class="flex items-center gap-3">
@@ -67,7 +67,7 @@ defineExpose({ activeStep, next, back, finish, skip })
                 v-for="i in totalSteps"
                 :key="i"
                 class="size-1.5 rounded-full"
-                :class="i - 1 <= activeStep ? 'bg-primary-600' : 'bg-slate-200'"
+                :class="i - 1 <= activeStep ? 'bg-primary-600' : 'bg-muted'"
               />
             </div>
             <div class="flex-1" />
@@ -96,12 +96,12 @@ defineExpose({ activeStep, next, back, finish, skip })
             <div class="size-16 rounded-full bg-primary-600 flex items-center justify-center">
               <UIcon name="i-lucide-sparkles" class="size-7 text-white" />
             </div>
-            <h2 class="text-xl font-bold text-slate-900">Welcome to Ogoune</h2>
-            <p class="text-sm text-slate-600 leading-relaxed max-w-xs">
+            <h2 class="text-xl font-bold text-highlighted">Welcome to Ogoune</h2>
+            <p class="text-sm text-muted leading-relaxed max-w-xs">
               Let's set up your first monitor in less than 2 minutes. We'll guide you.
             </p>
             <div
-              class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-50 border border-slate-200 text-[11px] text-slate-600"
+              class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-muted border border-default text-[11px] text-muted"
             >
               <UIcon name="i-lucide-clock" class="size-3" />
               ~2 minutes
@@ -110,17 +110,17 @@ defineExpose({ activeStep, next, back, finish, skip })
 
           <div v-else-if="activeStep === 1" class="space-y-3.5">
             <div>
-              <h2 class="text-base font-semibold text-slate-900">Add your first monitor</h2>
-              <p class="text-xs text-slate-600 mt-1">
+              <h2 class="text-base font-semibold text-highlighted">Add your first monitor</h2>
+              <p class="text-xs text-muted mt-1">
                 A URL or host to watch. You can add more monitors later.
               </p>
             </div>
             <div class="space-y-1.5">
-              <label class="text-xs font-medium text-slate-900">Name</label>
+              <label class="text-xs font-medium text-highlighted">Name</label>
               <UInput v-model="monitorName" placeholder="API Production" size="md" class="w-full" />
             </div>
             <div class="space-y-1.5">
-              <label class="text-xs font-medium text-slate-900">Type</label>
+              <label class="text-xs font-medium text-highlighted">Type</label>
               <USelect
                 v-model="monitorType"
                 :items="[
@@ -131,7 +131,7 @@ defineExpose({ activeStep, next, back, finish, skip })
               />
             </div>
             <div class="space-y-1.5">
-              <label class="text-xs font-medium text-slate-900">URL</label>
+              <label class="text-xs font-medium text-highlighted">URL</label>
               <UInput
                 v-model="monitorUrl"
                 placeholder="https://api.acme.com/health"
@@ -143,8 +143,8 @@ defineExpose({ activeStep, next, back, finish, skip })
 
           <div v-else-if="activeStep === 2" class="space-y-3.5">
             <div>
-              <h2 class="text-base font-semibold text-slate-900">How should we reach you?</h2>
-              <p class="text-xs text-slate-600 mt-1">
+              <h2 class="text-base font-semibold text-highlighted">How should we reach you?</h2>
+              <p class="text-xs text-muted mt-1">
                 Pick a channel for alerts. You can add more later.
               </p>
             </div>
@@ -157,7 +157,7 @@ defineExpose({ activeStep, next, back, finish, skip })
               ]"
               :ui="{
                 root: 'space-y-2',
-                item: 'flex items-center gap-3 px-3.5 py-3 rounded-md border border-slate-200',
+                item: 'flex items-center gap-3 px-3.5 py-3 rounded-md border border-default',
               }"
             />
           </div>
@@ -169,13 +169,13 @@ defineExpose({ activeStep, next, back, finish, skip })
             >
               <UIcon name="i-lucide-check" class="size-6 text-emerald-600" />
             </div>
-            <h2 class="text-lg font-bold text-slate-900">You're all set</h2>
-            <p class="text-xs text-slate-600 leading-relaxed max-w-xs">
+            <h2 class="text-lg font-bold text-highlighted">You're all set</h2>
+            <p class="text-xs text-muted leading-relaxed max-w-xs">
               {{ monitorName || 'Your monitor' }} is being watched. First check running now.
             </p>
-            <div class="w-full bg-slate-50 rounded-lg p-3.5 text-left text-xs space-y-1">
-              <div class="font-semibold text-slate-900">Next steps</div>
-              <ul class="text-slate-600 space-y-0.5">
+            <div class="w-full bg-muted rounded-lg p-3.5 text-left text-xs space-y-1">
+              <div class="font-semibold text-highlighted">Next steps</div>
+              <ul class="text-muted space-y-0.5">
                 <li>Invite teammates from Settings</li>
                 <li>Create a status page</li>
                 <li>Configure SLO targets</li>
@@ -185,7 +185,7 @@ defineExpose({ activeStep, next, back, finish, skip })
         </div>
 
         <div
-          class="flex items-center px-5 py-3.5 bg-slate-50 border-t border-slate-100"
+          class="flex items-center px-5 py-3.5 bg-muted border-t border-default"
           :class="activeStep > 0 && activeStep < totalSteps - 1 ? 'justify-between' : 'justify-end'"
         >
           <UButton
