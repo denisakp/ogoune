@@ -20,7 +20,7 @@ GOFLAGS           := -trimpath
 GO_TEST_FLAGS     := -race -count=1
 GO_LINT_TIMEOUT   := 5m
 
-.PHONY: build build-be build-fe test test-be test-be-pg test-be-bench bench-api test-fe lint clean docker swag run-ci ci-local license-audit sqlc-bin sqlc-generate sqlc-check migrations-drift-check fuzz-dynquery
+.PHONY: build build-be build-fe test test-be test-be-pg test-be-bench bench-api test-fe lint clean docker run-ci ci-local license-audit sqlc-bin sqlc-generate sqlc-check migrations-drift-check fuzz-dynquery
 
 build: build-fe build-be
 
@@ -103,9 +103,6 @@ clean:
 docker:
 	docker build -t ogoune:test .
 
-swag:
-	swag init -g cmd/api/main.go --output docs --parseDependency --parseInternal
-
 run-ci: ci-local
 
 # Tier 1 local CI gate — must pass before every push.
@@ -113,17 +110,23 @@ run-ci: ci-local
 # (dual-dialect Postgres + paired benches). Catches ~80% of CI breaks
 # locally so we don't burn compute minutes on red lanes.
 ci-local:
-	@echo "=== 1/6 sqlc drift check ==="
+	@echo "=== 1/7 sqlc drift check ==="
 	$(MAKE) sqlc-check
-	@echo "=== 2/6 migrations drift check ==="
+	@echo "=== 2/7 migrations drift check ==="
 	$(MAKE) migrations-drift-check
-	@echo "=== 3/6 Lint (go vet + pnpm lint) ==="
+	@echo "=== 3/7 OpenAPI contract + types drift guard ==="
+	$(MAKE) openapi
+	@git diff --exit-code -- api/openapi/ || { echo "OpenAPI contract stale: run 'make openapi' and commit api/openapi/"; exit 1; }
+	$(MAKE) lint-openapi
+	$(MAKE) gen-fe-types
+	@git diff --exit-code -- web/packages/api-types/generated/ || { echo "FE types stale: run 'make gen-fe-types' and commit web/packages/api-types/generated/"; exit 1; }
+	@echo "=== 4/7 Lint (go vet + pnpm lint) ==="
 	$(MAKE) lint
-	@echo "=== 4/6 Backend tests (race + timeout, SQLite) ==="
+	@echo "=== 5/7 Backend tests (race + timeout, SQLite) ==="
 	go test -race -timeout 120s ./...
-	@echo "=== 5/6 Frontend tests ==="
+	@echo "=== 6/7 Frontend tests ==="
 	$(MAKE) test-fe
-	@echo "=== 6/6 License audit ==="
+	@echo "=== 7/7 License audit ==="
 	$(MAKE) license-audit
 	@echo "=== ci-local: ALL PASSED ==="
 
@@ -142,16 +145,25 @@ fuzz-dynquery:
 	go test -run=^$$ -fuzz=FuzzBuildIncidentsQuery -fuzztime=30s ./internal/repository/sqlc/dynquery/...
 
 .PHONY: lint-openapi
-lint-openapi: ## Lint OpenAPI specs with Spectral (requires: npm install -g @stoplight/spectral-cli @stoplight/spectral-owasp-rules)
+lint-openapi: ## Lint the OpenAPI contract with Spectral (workspace binary — no global install)
 	@echo ">> Lint OpenAPI..."
-	spectral lint api/openapi/openapi-010-public-api-v1.yaml --ruleset .spectral.yaml
+	cd web && pnpm exec spectral lint ../api/openapi/v1.yaml --ruleset ../.spectral.yaml --fail-severity=error
 
 .PHONY: openapi
-openapi: ## generate OpenAPI documentation
-	swag init -g cmd/meyebi-api/main.go -o api/openapi --parseDependency --parseInternal
+openapi: ## generate the canonical OpenAPI 3.1 contract from Go annotations (source of truth)
+	go run github.com/swaggo/swag/v2/cmd/swag init -g cmd/api/main.go --v3.1 -o api/openapi --parseDependency --parseInternal
+	@mv api/openapi/swagger.yaml api/openapi/v1.yaml
+	@mv api/openapi/swagger.json api/openapi/v1.json
+	@rm -f api/openapi/docs.go
+	@echo ">> OpenAPI 3.1 contract → api/openapi/v1.{yaml,json}"
+
+.PHONY: gen-fe-types
+gen-fe-types: openapi ## regenerate committed frontend types from the contract
+	cd web && pnpm --filter @ogoune/api-types generate
+	@echo ">> Frontend types → web/packages/api-types/generated/schema.d.ts"
 
 .PHONY: help
 help: ## Affiche cette aide
-	@echo "MEYEBI — Commandes disponibles :"
+	@echo "Ogoune — Commandes disponibles :"
 	@echo ""
 	@awk 'BEGIN {FS = ":.*?## "} /^[a-zA-Z_-]+:.*?## / {printf "  \033[36m%-20s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST) | sort

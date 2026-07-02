@@ -4,7 +4,6 @@ import (
 	"log/slog"
 	"os"
 
-	ogounedocs "github.com/denisakp/ogoune/docs"
 	"github.com/denisakp/ogoune/internal/config"
 	icmppkg "github.com/denisakp/ogoune/internal/icmp"
 	"github.com/denisakp/ogoune/pkg/crypto"
@@ -16,10 +15,8 @@ func InitConfig(app *App) {
 	cfg := config.MustInit()
 	app.Cfg = &cfg
 
-	// Set Swagger host dynamically
-	swaggerHost := config.GetEnv("SWAGGER_HOST", "localhost:"+cfg.Port)
-	ogounedocs.SwaggerInfo.Host = swaggerHost
-	ogounedocs.SwaggerInfo.Version = AppVersion
+	// OpenAPI contract is generated from Go annotations and embedded at build time
+	// (api/openapi, spec 074) — no runtime SwaggerInfo mutation needed.
 
 	// Initialize structured logger
 	l := logger.New(cfg.LogFormat, cfg.LogLevel)
