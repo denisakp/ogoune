@@ -77,7 +77,7 @@ const editor = useEditor({
   ],
   editorProps: {
     attributes: {
-      class: 'prose prose-sm max-w-none focus:outline-none px-3 py-2 text-slate-900',
+      class: 'prose dark:prose-invert prose-sm max-w-none focus:outline-none px-3 py-2 text-highlighted',
     },
   },
   onUpdate({ editor }) {
@@ -225,11 +225,11 @@ const items: TbItem[] = [
 
 <template>
   <div
-    class="rounded-md border border-slate-300 bg-white overflow-hidden"
+    class="rounded-md border border-default bg-default overflow-hidden"
     data-testid="rich-text-editor"
   >
     <div
-      class="flex items-center gap-0.5 border-b border-slate-200 bg-white px-2 py-1.5"
+      class="flex items-center gap-0.5 border-b border-default bg-default px-2 py-1.5"
       role="toolbar"
     >
       <!-- Text-style buttons -->
@@ -237,8 +237,8 @@ const items: TbItem[] = [
         v-for="it in items"
         :key="it.key"
         type="button"
-        class="h-8 min-w-8 px-2 inline-flex items-center justify-center rounded-md text-sm text-slate-600 hover:bg-slate-100 hover:text-slate-900"
-        :class="{ 'bg-slate-100 text-slate-900': it.active && it.active() }"
+        class="h-8 min-w-8 px-2 inline-flex items-center justify-center rounded-md text-sm text-muted hover:bg-elevated hover:text-highlighted"
+        :class="{ 'bg-elevated text-highlighted': it.active && it.active() }"
         :title="it.title"
         :data-testid="it.testid"
         @click="it.onClick"
@@ -249,8 +249,8 @@ const items: TbItem[] = [
       <!-- Bullet list -->
       <button
         type="button"
-        class="h-8 w-8 inline-flex items-center justify-center rounded-md text-slate-600 hover:bg-slate-100 hover:text-slate-900"
-        :class="{ 'bg-slate-100 text-slate-900': isActive('bulletList') }"
+        class="h-8 w-8 inline-flex items-center justify-center rounded-md text-muted hover:bg-elevated hover:text-highlighted"
+        :class="{ 'bg-elevated text-highlighted': isActive('bulletList') }"
         title="Bullet list"
         data-testid="rt-bullet"
         @click="toggleBullet"
@@ -276,8 +276,8 @@ const items: TbItem[] = [
       <!-- Numbered list -->
       <button
         type="button"
-        class="h-8 w-8 inline-flex items-center justify-center rounded-md text-slate-600 hover:bg-slate-100 hover:text-slate-900"
-        :class="{ 'bg-slate-100 text-slate-900': isActive('orderedList') }"
+        class="h-8 w-8 inline-flex items-center justify-center rounded-md text-muted hover:bg-elevated hover:text-highlighted"
+        :class="{ 'bg-elevated text-highlighted': isActive('orderedList') }"
         title="Numbered list"
         data-testid="rt-ordered"
         @click="toggleOrdered"
@@ -303,8 +303,8 @@ const items: TbItem[] = [
       <!-- Task list (checkboxes) -->
       <button
         type="button"
-        class="h-8 w-8 inline-flex items-center justify-center rounded-md text-slate-600 hover:bg-slate-100 hover:text-slate-900"
-        :class="{ 'bg-slate-100 text-slate-900': isActive('taskList') }"
+        class="h-8 w-8 inline-flex items-center justify-center rounded-md text-muted hover:bg-elevated hover:text-highlighted"
+        :class="{ 'bg-elevated text-highlighted': isActive('taskList') }"
         title="Task list"
         data-testid="rt-tasks"
         @click="toggleTaskList"
@@ -330,8 +330,8 @@ const items: TbItem[] = [
       <!-- Link -->
       <button
         type="button"
-        class="h-8 w-8 inline-flex items-center justify-center rounded-md text-slate-600 hover:bg-slate-100 hover:text-slate-900"
-        :class="{ 'bg-slate-100 text-slate-900': isActive('link') }"
+        class="h-8 w-8 inline-flex items-center justify-center rounded-md text-muted hover:bg-elevated hover:text-highlighted"
+        :class="{ 'bg-elevated text-highlighted': isActive('link') }"
         title="Link"
         data-testid="rt-link"
         @click="setLink"
@@ -353,8 +353,8 @@ const items: TbItem[] = [
       <!-- Inline code -->
       <button
         type="button"
-        class="h-8 w-8 inline-flex items-center justify-center rounded-md text-slate-600 hover:bg-slate-100 hover:text-slate-900"
-        :class="{ 'bg-slate-100 text-slate-900': isActive('code') }"
+        class="h-8 w-8 inline-flex items-center justify-center rounded-md text-muted hover:bg-elevated hover:text-highlighted"
+        :class="{ 'bg-elevated text-highlighted': isActive('code') }"
         title="Inline code"
         data-testid="rt-code"
         @click="toggleCode"
@@ -376,8 +376,8 @@ const items: TbItem[] = [
       <!-- Preview toggle -->
       <button
         type="button"
-        class="ml-auto h-8 inline-flex items-center gap-1.5 px-2.5 rounded-md text-sm text-slate-600 hover:bg-slate-100 hover:text-slate-900"
-        :class="{ 'bg-slate-100 text-slate-900': preview }"
+        class="ml-auto h-8 inline-flex items-center gap-1.5 px-2.5 rounded-md text-sm text-muted hover:bg-elevated hover:text-highlighted"
+        :class="{ 'bg-elevated text-highlighted': preview }"
         :title="preview ? 'Back to edit' : 'Preview'"
         data-testid="rt-preview"
         @click="togglePreview"
@@ -402,7 +402,7 @@ const items: TbItem[] = [
       <EditorContent :editor="editor" />
       <p
         v-if="editor && editor.isEmpty && placeholder"
-        class="px-3 -mt-9 pointer-events-none text-sm text-slate-400"
+        class="px-3 -mt-9 pointer-events-none text-sm text-muted"
         aria-hidden="true"
       >
         {{ placeholder }}
@@ -411,7 +411,7 @@ const items: TbItem[] = [
 
     <div
       v-if="preview"
-      class="prose prose-sm max-w-none px-3 py-3"
+      class="prose dark:prose-invert prose-sm max-w-none px-3 py-3"
       :style="{ minHeight: minHeight || '120px' }"
       v-html="sanitizedHtml"
     />

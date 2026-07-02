@@ -85,12 +85,12 @@ function setOverrides(v: StatusPageThemeOverrides) {
 
 <template>
   <section
-    class="rounded-lg border border-slate-200 bg-white p-5 space-y-5"
+    class="rounded-lg border border-default bg-default p-5 space-y-5"
     data-testid="branding-section"
   >
     <header>
-      <h2 class="text-base font-semibold text-slate-900">Branding</h2>
-      <p class="text-sm text-slate-500">Customize the look and feel of your public status page.</p>
+      <h2 class="text-base font-semibold text-highlighted">Branding</h2>
+      <p class="text-sm text-muted">Customize the look and feel of your public status page.</p>
     </header>
 
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
@@ -126,11 +126,11 @@ function setOverrides(v: StatusPageThemeOverrides) {
       />
     </div>
 
-    <div class="border-t border-slate-100 pt-5">
+    <div class="border-t border-default pt-5">
       <PrimaryColorPicker :model-value="primaryColor" @update:model-value="setPrimary" />
     </div>
 
-    <div class="border-t border-slate-100 pt-5">
+    <div class="border-t border-default pt-5">
       <ThemeOverridesEditor :model-value="themeOverrides" @update:model-value="setOverrides" />
     </div>
   </section>
