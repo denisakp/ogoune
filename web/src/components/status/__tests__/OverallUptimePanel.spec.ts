@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { mount, flushPromises } from '@vue/test-utils'
 import OverallUptimePanel from '../OverallUptimePanel.vue'
-import type { PublicResource, PublicStatusResourceWindows } from '@/types'
+import type { PublicResourceSummary, PublicStatusResourceWindows } from '@/types'
 
 vi.mock('@/services/statusPublicService', () => ({
   fetchPublicStatusSummary: vi.fn(),
@@ -13,7 +13,7 @@ vi.mock('@/services/statusPublicService', () => ({
 
 import * as svc from '@/services/statusPublicService'
 
-const resource: PublicResource = {
+const resource: PublicResourceSummary = {
   id: 'res-1',
   name: 'api.acme.com',
   host: 'api.acme.com',
@@ -81,6 +81,6 @@ describe('OverallUptimePanel — US4', () => {
     await w.setProps({ open: true })
     await flushPromises()
     // Same resource → one fetch on every open is acceptable; assert at most one.
-    expect(svc.fetchPublicStatusResourceWindows.mock.calls.length).toBeLessThanOrEqual(1)
+    expect(vi.mocked(svc.fetchPublicStatusResourceWindows).mock.calls.length).toBeLessThanOrEqual(1)
   })
 })

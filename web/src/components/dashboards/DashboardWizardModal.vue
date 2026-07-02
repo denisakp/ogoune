@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
+import { useToast } from '@nuxt/ui/composables/useToast'
 
 import { useAuthStore } from '@/stores/authStore'
 import { useDashboards } from '@/composables/useDashboards'
@@ -163,7 +164,7 @@ const refreshOptions: { value: DashboardRefreshInterval; label: string }[] = [
 </script>
 
 <template>
-  <UModal :open="open" :ui="{ content: 'max-w-2xl' }" @update:open="(v) => v || tryClose()">
+  <UModal :open="open" :ui="{ content: 'max-w-2xl' }" @update:open="(v: boolean) => v || tryClose()">
     <template #content>
       <div class="bg-default" data-testid="wizard-modal">
         <header

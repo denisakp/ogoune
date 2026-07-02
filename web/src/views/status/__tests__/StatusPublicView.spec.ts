@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { mount, flushPromises } from '@vue/test-utils'
 import { createRouter, createMemoryHistory } from 'vue-router'
 import StatusPublicView from '../StatusPublicView.vue'
-import type { PublicStatusSummary, PublicResource, PublicComponent } from '@/types'
+import type { PublicStatusSummary, PublicResourceSummary, PublicComponentSummary } from '@/types'
 
 vi.mock('@/services/statusPublicService', () => ({
   fetchPublicStatusSummary: vi.fn(),
@@ -22,7 +22,7 @@ vi.mock('@/composables/useRuntimeConfig', () => ({
 import * as svc from '@/services/statusPublicService'
 import * as runtime from '@/composables/useRuntimeConfig'
 
-function mkResource(id: string, state: PublicResource['current_state'] = 'up'): PublicResource {
+function mkResource(id: string, state: PublicResourceSummary['current_state'] = 'up'): PublicResourceSummary {
   return {
     id,
     name: id,
@@ -33,7 +33,7 @@ function mkResource(id: string, state: PublicResource['current_state'] = 'up'): 
   }
 }
 
-function mkComponent(id: string, resources: PublicResource[]): PublicComponent {
+function mkComponent(id: string, resources: PublicResourceSummary[]): PublicComponentSummary {
   return { id, name: id, aggregated_state: 'up', resources }
 }
 
@@ -41,6 +41,7 @@ function mkSummary(overrides: Partial<PublicStatusSummary> = {}): PublicStatusSu
   return {
     generated_at: '2026-06-04T12:00:00Z',
     branding: { name: 'Acme Corp' },
+    uptime_window: { latest_day: '2026-06-04' },
     verdict: { status: 'operational', label: 'All Systems Operational', color: 'green' },
     components: [],
     standalone_resources: [],

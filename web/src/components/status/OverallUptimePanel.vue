@@ -2,10 +2,10 @@
 import { computed, ref, watch, onMounted, onBeforeUnmount } from 'vue'
 import { useStatusPublic } from '@/composables/useStatusPublic'
 import UUptimeBar from '@/components/ui/UUptimeBar.vue'
-import type { PublicResource } from '@/types'
+import type { PublicResourceSummary } from '@/types'
 
 const props = defineProps<{
-  resource: PublicResource | null
+  resource: PublicResourceSummary | null
   open: boolean
 }>()
 
@@ -38,8 +38,10 @@ const stats = computed(
   () =>
     details.value?.windows ?? ({} as Record<string, { uptime_ratio: number; incidents: number }>),
 )
+// The per-resource windows endpoint carries no daily series; the uptime ribbon
+// on the resource summary is the available day-by-day source.
 const daily30 = computed(() =>
-  (details.value?.daily_30d ?? []).map((d) => ({ day: d.day, ratio: d.ratio ?? null })),
+  (props.resource?.uptime_ribbon ?? []).map((d) => ({ day: d.day, ratio: d.ratio ?? null })),
 )
 const recent = computed(() => details.value?.recent_incidents ?? [])
 

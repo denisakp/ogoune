@@ -13,6 +13,8 @@ import * as svc from '@/services/statusPublicService'
 
 const summaryFixture: PublicStatusSummary = {
   generated_at: '2026-06-04T17:42:11Z',
+  branding: { name: 'Ogoune' },
+  uptime_window: { latest_day: '2026-06-04' },
   verdict: { status: 'operational', label: 'All Systems Operational', color: 'green' },
   components: [],
   standalone_resources: [],
@@ -21,7 +23,16 @@ const summaryFixture: PublicStatusSummary = {
 
 const uptimeFixture: PublicStatusUptimeRange = {
   generated_at: '2026-06-04T17:42:11Z',
-  days: [{ day: '2026-06-04', uptime_ratio: 0.9999, samples: 1440, incidents: 0 }],
+  days: [
+    {
+      day: '2026-06-04',
+      uptime_ratio: 0.9999,
+      samples: 1440,
+      incidents: 0,
+      downtime_seconds: 0,
+      related_incidents: [],
+    },
+  ],
 }
 
 describe('useStatusPublic', () => {

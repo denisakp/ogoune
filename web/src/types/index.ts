@@ -872,6 +872,7 @@ export type {
   WidgetArchetype,
   WidgetDefinition,
   WidgetInstance,
+  ResourceType,
   DashboardScopeMode,
   DashboardScope,
   DashboardTimeRange,
