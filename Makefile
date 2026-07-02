@@ -20,7 +20,7 @@ GOFLAGS           := -trimpath
 GO_TEST_FLAGS     := -race -count=1
 GO_LINT_TIMEOUT   := 5m
 
-.PHONY: build build-be build-fe test test-be test-be-pg test-be-bench bench-api test-fe lint clean docker run-ci ci-local license-audit sqlc-bin sqlc-generate sqlc-check migrations-drift-check fuzz-dynquery
+.PHONY: build build-be build-fe test test-be test-be-pg test-be-bench bench-api test-fe type-check-fe lint clean docker run-ci ci-local license-audit sqlc-bin sqlc-generate sqlc-check migrations-drift-check fuzz-dynquery
 
 build: build-fe build-be
 
@@ -92,6 +92,9 @@ bench-api:
 test-fe:
 	cd web && pnpm test
 
+type-check-fe:
+	cd web && pnpm type-check
+
 lint:
 	go vet ./...
 	cd web && pnpm lint
@@ -110,23 +113,25 @@ run-ci: ci-local
 # (dual-dialect Postgres + paired benches). Catches ~80% of CI breaks
 # locally so we don't burn compute minutes on red lanes.
 ci-local:
-	@echo "=== 1/7 sqlc drift check ==="
+	@echo "=== 1/8 sqlc drift check ==="
 	$(MAKE) sqlc-check
-	@echo "=== 2/7 migrations drift check ==="
+	@echo "=== 2/8 migrations drift check ==="
 	$(MAKE) migrations-drift-check
-	@echo "=== 3/7 OpenAPI contract + types drift guard ==="
+	@echo "=== 3/8 OpenAPI contract + types drift guard ==="
 	$(MAKE) openapi
 	@git diff --exit-code -- api/openapi/ || { echo "OpenAPI contract stale: run 'make openapi' and commit api/openapi/"; exit 1; }
 	$(MAKE) lint-openapi
 	$(MAKE) gen-fe-types
 	@git diff --exit-code -- web/packages/api-types/generated/ || { echo "FE types stale: run 'make gen-fe-types' and commit web/packages/api-types/generated/"; exit 1; }
-	@echo "=== 4/7 Lint (go vet + pnpm lint) ==="
+	@echo "=== 4/8 Lint (go vet + pnpm lint) ==="
 	$(MAKE) lint
-	@echo "=== 5/7 Backend tests (race + timeout, SQLite) ==="
+	@echo "=== 5/8 Frontend type-check (vue-tsc) ==="
+	$(MAKE) type-check-fe
+	@echo "=== 6/8 Backend tests (race + timeout, SQLite) ==="
 	go test -race -timeout 120s ./...
-	@echo "=== 6/7 Frontend tests ==="
+	@echo "=== 7/8 Frontend tests ==="
 	$(MAKE) test-fe
-	@echo "=== 7/7 License audit ==="
+	@echo "=== 8/8 License audit ==="
 	$(MAKE) license-audit
 	@echo "=== ci-local: ALL PASSED ==="
 
