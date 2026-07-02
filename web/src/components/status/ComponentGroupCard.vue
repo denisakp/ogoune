@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import ResourceRow from './ResourceRow.vue'
-import type { PublicComponent } from '@/types'
+import type { PublicComponentSummary } from '@/types'
 
-import type { PublicResource } from '@/types'
-const props = defineProps<{ component: PublicComponent }>()
-const emit = defineEmits<{ (e: 'open-resource', resource: PublicResource): void }>()
+import type { PublicResourceSummary } from '@/types'
+const props = defineProps<{ component: PublicComponentSummary }>()
+const emit = defineEmits<{ (e: 'open-resource', resource: PublicResourceSummary): void }>()
 
 const open = ref(true)
 function toggle() {

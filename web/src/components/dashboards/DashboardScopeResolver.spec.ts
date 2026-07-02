@@ -73,7 +73,7 @@ describe('DashboardScopeResolver (spec 070 / US2)', () => {
     await nextTick()
     expect(wrapper.find('[data-testid="scope-type-picker"]').exists()).toBe(true)
     const emits = wrapper.emitted('update:modelValue') as DashboardScope[][]
-    const last = emits[emits.length - 1]![0]
+    const last = emits[emits.length - 1]![0]!
     expect(last.mode).toBe('type')
     expect(last.payload.tagIds ?? []).toEqual([])
   })
@@ -95,7 +95,7 @@ describe('DashboardScopeResolver (spec 070 / US2)', () => {
     await chips[0]!.trigger('click')
     await nextTick()
     const emits = wrapper.emitted('update:modelValue') as DashboardScope[][]
-    const last = emits[emits.length - 1]![0]
+    const last = emits[emits.length - 1]![0]!
     expect(last.mode).toBe('type')
     expect(last.payload.types).toEqual(['http'])
     expect(wrapper.find('[data-testid="scope-match-count"]').text()).toContain('1')

@@ -36,6 +36,8 @@ function mkIncident(
 
 const summary: PublicStatusSummary = {
   generated_at: '2026-06-04T12:00:00Z',
+  branding: { name: 'Ogoune' },
+  uptime_window: { latest_day: '2026-06-04' },
   verdict: { status: 'operational', label: 'OK', color: 'green' },
   components: [
     { id: 'c-api', name: 'API', aggregated_state: 'up', resources: [] },
@@ -95,7 +97,7 @@ describe('StatusHistoryView — US2', () => {
     await select.setValue('c-api')
     await flushPromises()
     const lastCall = vi.mocked(svc.fetchPublicStatusIncidents).mock.calls.at(-1)
-    expect(lastCall?.[0].component_id).toBe('c-api')
+    expect(lastCall?.[0]?.component_id).toBe('c-api')
   })
 
   it('date range filter forwards from/to', async () => {
@@ -104,7 +106,7 @@ describe('StatusHistoryView — US2', () => {
     await w.get('[data-testid="filter-from"]').setValue('2026-04-01')
     await flushPromises()
     const lastCall = vi.mocked(svc.fetchPublicStatusIncidents).mock.calls.at(-1)
-    expect(lastCall?.[0].from).toBe('2026-04-01')
+    expect(lastCall?.[0]?.from).toBe('2026-04-01')
   })
 
   it('counter shows "X incidents · all resolved" when all resolved', async () => {

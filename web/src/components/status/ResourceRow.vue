@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import UUptimeBar from '@/components/ui/UUptimeBar.vue'
-import type { PublicResource } from '@/types'
+import type { PublicResourceSummary } from '@/types'
 
-const props = defineProps<{ resource: PublicResource }>()
-const emit = defineEmits<{ (e: 'open', resource: PublicResource): void }>()
+const props = defineProps<{ resource: PublicResourceSummary }>()
+const emit = defineEmits<{ (e: 'open', resource: PublicResourceSummary): void }>()
 
 const statePillClass = computed(() => {
   switch (props.resource.current_state) {

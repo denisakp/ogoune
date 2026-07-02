@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import ResourceRow from './ResourceRow.vue'
-import type { PublicResource } from '@/types'
+import type { PublicResourceSummary } from '@/types'
 
-defineProps<{ resources: PublicResource[] }>()
-const emit = defineEmits<{ (e: 'open-resource', resource: PublicResource): void }>()
+defineProps<{ resources: PublicResourceSummary[] }>()
+const emit = defineEmits<{ (e: 'open-resource', resource: PublicResourceSummary): void }>()
 </script>
 
 <template>

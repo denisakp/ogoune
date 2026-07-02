@@ -2,6 +2,7 @@
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import draggable from 'vuedraggable'
+import { useToast } from '@nuxt/ui/composables/useToast'
 import { useAuthStore } from '@/stores/authStore'
 import { useDashboards } from '@/composables/useDashboards'
 import { useDashboardData } from '@/composables/useDashboardData'

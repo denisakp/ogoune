@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { onMounted, computed, ref } from 'vue'
-import type { PublicResource } from '@/types'
+import type { PublicResourceSummary } from '@/types'
 import { useStatusPublic } from '@/composables/useStatusPublic'
 import PublicHeader from '@/components/status/PublicHeader.vue'
 import PublicQuickNav from '@/components/status/PublicQuickNav.vue'
@@ -21,9 +21,9 @@ const branding = computed(() => summary.value?.branding ?? null)
 const brandName = computed(() => branding.value?.name ?? 'Status Page')
 
 const panelOpen = ref(false)
-const panelResource = ref<PublicResource | null>(null)
+const panelResource = ref<PublicResourceSummary | null>(null)
 
-function openPanel(resource: PublicResource) {
+function openPanel(resource: PublicResourceSummary) {
   panelResource.value = resource
   panelOpen.value = true
 }
