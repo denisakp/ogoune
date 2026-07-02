@@ -214,6 +214,16 @@ type ExpiryNotificationLogRepository interface {
 	DeleteOlderThan(ctx context.Context, cutoff time.Time) error
 }
 
+// DashboardRepository persists custom dashboards (spec 075). Config-only.
+type DashboardRepository interface {
+	Create(ctx context.Context, d *domain.Dashboard) (*domain.Dashboard, error)
+	FindByID(ctx context.Context, id string) (*domain.Dashboard, error)
+	List(ctx context.Context, limit, offset int) ([]*domain.Dashboard, error)
+	Update(ctx context.Context, d *domain.Dashboard) error
+	UpdateWidgets(ctx context.Context, id string, widgets []domain.WidgetInstance, at time.Time) error
+	Delete(ctx context.Context, id string) error
+}
+
 // NotificationFeedRepository persists in-app notification-feed items (spec 072).
 // Distinct from NotificationRepository (outbound dispatch events).
 type NotificationFeedRepository interface {

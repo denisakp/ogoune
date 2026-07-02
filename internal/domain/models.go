@@ -42,7 +42,6 @@ type Tags struct {
 	Resources   []*Resource `json:"resources"`
 }
 
-
 type ResourceType string
 
 const (
@@ -91,7 +90,7 @@ type Resource struct {
 	Name                    string                 `json:"name"`
 	Type                    ResourceType           `json:"type" `
 	Interval                int                    `json:"interval"` // in seconds
-	Timeout                 int                    `json:"timeout"`   // in seconds
+	Timeout                 int                    `json:"timeout"`  // in seconds
 	Target                  string                 `json:"target"`
 	LastChecked             *time.Time             `json:"last_checked"`
 	Status                  ResourceStatus         `json:"status"`
@@ -133,7 +132,6 @@ type Resource struct {
 func (r *Resource) IsHeartbeatWaiting() bool {
 	return r != nil && r.Type == ResourceHeartbeat && r.LastPingAt == nil
 }
-
 
 // ExpiryStatus represents the computed expiry state of a resource's SSL certificate or domain.
 type ExpiryStatus string
@@ -228,7 +226,6 @@ type ExpiryNotificationLog struct {
 	SentAt     time.Time `json:"sent_at"    `
 }
 
-
 // Component is a logical grouping of resources. Its status is derived from member resources.
 type Component struct {
 	Base
@@ -238,7 +235,6 @@ type Component struct {
 	LastNotificationStatus ComponentStatus `json:"last_notification_status"`
 	GroupingWindowSeconds  int             `json:"grouping_window_seconds"`
 }
-
 
 // Incident represents an event where a Resource is down or experiencing issues.
 type Incident struct {
@@ -253,7 +249,6 @@ type Incident struct {
 	IncidentDiagnostics *IncidentDiagnostics `json:"diagnostics"`
 }
 
-
 // IncidentDiagnostics contains enriched diagnostic information about an incident
 // including request/response details, failure classification, and timing breakdown.
 // This is populated when an incident is created and provides users with detailed
@@ -262,23 +257,23 @@ type IncidentDiagnostics struct {
 	Base
 	IncidentID        string            `json:"incident_id"`
 	Incident          Incident          `json:"incident"`
-	RequestMethod     string            `json:"request_method"`                           // GET, HEAD, POST, etc.
-	RequestURL        string            `json:"request_url"`                              // Full URL being checked
-	RequestHeaders    map[string]string `json:"request_headers"`   // Sanitized request headers
-	RequestTimeout    int               `json:"request_timeout"`                          // Timeout in seconds
-	HTTPStatusCode    int               `json:"http_status_code"` // HTTP status code (-1 if N/A)
-	ResponseHeaders   map[string]string `json:"response_headers"`  // Response headers
-	ResponseBody      string            `json:"response_body"`                            // Base64 encoded if needed, truncated to 5KB
-	ResponseSize      int               `json:"response_size"`                            // Actual response size in bytes
-	FailureType       string            `json:"failure_type"`                // e.g., connection_timeout, invalid_status_code
-	ErrorMessage      string            `json:"error_message"`                            // Machine-readable error from Go
-	ErrorSummary      string            `json:"error_summary"`                            // Human-friendly explanation
-	TotalDuration     int               `json:"total_duration"`                           // Milliseconds
-	DNSDuration       int               `json:"dns_duration"`                             // Milliseconds (0 if not measured)
-	TLSDuration       int               `json:"tls_duration"`                             // Milliseconds (0 if not applicable)
-	FirstByteDuration int               `json:"first_byte_duration"`                      // Milliseconds (0 if body not captured)
-	BodyTruncated     bool              `json:"body_truncated"`                           // true if response body was truncated
-	BodyEncoded       bool              `json:"body_encoded"`                             // true if response body is base64 encoded
+	RequestMethod     string            `json:"request_method"`      // GET, HEAD, POST, etc.
+	RequestURL        string            `json:"request_url"`         // Full URL being checked
+	RequestHeaders    map[string]string `json:"request_headers"`     // Sanitized request headers
+	RequestTimeout    int               `json:"request_timeout"`     // Timeout in seconds
+	HTTPStatusCode    int               `json:"http_status_code"`    // HTTP status code (-1 if N/A)
+	ResponseHeaders   map[string]string `json:"response_headers"`    // Response headers
+	ResponseBody      string            `json:"response_body"`       // Base64 encoded if needed, truncated to 5KB
+	ResponseSize      int               `json:"response_size"`       // Actual response size in bytes
+	FailureType       string            `json:"failure_type"`        // e.g., connection_timeout, invalid_status_code
+	ErrorMessage      string            `json:"error_message"`       // Machine-readable error from Go
+	ErrorSummary      string            `json:"error_summary"`       // Human-friendly explanation
+	TotalDuration     int               `json:"total_duration"`      // Milliseconds
+	DNSDuration       int               `json:"dns_duration"`        // Milliseconds (0 if not measured)
+	TLSDuration       int               `json:"tls_duration"`        // Milliseconds (0 if not applicable)
+	FirstByteDuration int               `json:"first_byte_duration"` // Milliseconds (0 if body not captured)
+	BodyTruncated     bool              `json:"body_truncated"`      // true if response body was truncated
+	BodyEncoded       bool              `json:"body_encoded"`        // true if response body is base64 encoded
 
 	// Keyword enrichment fields (populated for keyword monitor incidents only)
 	Keyword      *string `json:"keyword,omitempty"`
@@ -286,12 +281,11 @@ type IncidentDiagnostics struct {
 	KeywordFound *bool   `json:"keyword_found,omitempty"`
 
 	// ICMP enrichment fields (H2: populated by diagnostic enricher for all DOWN incidents)
-	ICMPAvailable *bool  `json:"icmp_available"` // whether ICMP capability was available at enrichment time
-	ICMPReachable *bool  `json:"icmp_reachable"` // whether host replied to ICMP echo
-	ICMPRttMs     *int   `json:"icmp_rtt_ms"`    // round-trip time in ms; null when unreachable
-	RootCauseHint string `json:"root_cause_hint"`  // enum: icmp_unavailable|host_unreachable|service_down|""
+	ICMPAvailable *bool  `json:"icmp_available"`  // whether ICMP capability was available at enrichment time
+	ICMPReachable *bool  `json:"icmp_reachable"`  // whether host replied to ICMP echo
+	ICMPRttMs     *int   `json:"icmp_rtt_ms"`     // round-trip time in ms; null when unreachable
+	RootCauseHint string `json:"root_cause_hint"` // enum: icmp_unavailable|host_unreachable|service_down|""
 }
-
 
 // WithICMP merges ICMP enrichment results into diagnostics.
 // This is called after a DOWN check fails to populate network diagnostic fields.
@@ -328,7 +322,6 @@ type IncidentEventStep struct {
 	Step       IncidentEventStepType `json:"step"`
 	Message    *string               `json:"message"`
 }
-
 
 // EventType Event type constants for notification event types (avoid magic strings)
 type EventType string
@@ -373,7 +366,6 @@ type NotificationEvent struct {
 	LastError   string                      `json:"last_error"`
 }
 
-
 type MonitoringActivity struct {
 	Base
 	ResourceID    string   `json:"resource_id"`
@@ -384,7 +376,6 @@ type MonitoringActivity struct {
 	ResponseData  []byte   `json:"response_data"`
 	IsMaintenance bool     `json:"is_maintenance"`
 }
-
 
 // UptimeStat represents aggregated uptime data for a specific hour
 type UptimeStat struct {
@@ -438,7 +429,6 @@ type NotificationChannel struct {
 	Failures24h      int                     `json:"failures_24h"`
 }
 
-
 // ResourceCredential holds optional auth credentials for protocol-aware resources
 // (Redis, MySQL, PostgreSQL). One row per resource at most. Password and Options are
 // encrypted at rest via AES-256-GCM; Username is plaintext.
@@ -482,7 +472,6 @@ type Maintenance struct {
 	Resources      []*Resource `json:"resources"`
 }
 
-
 type StatusPageSettings struct {
 	Base
 	Name                 string          `json:"name"`
@@ -498,11 +487,11 @@ type StatusPageSettings struct {
 	CustomDomainSSL      DomainSSLStatus `json:"custom_domain_ssl_status"`
 	CustomDomainDNS      []DNSRecord     `json:"custom_domain_dns_records"`
 	// Branding — spec 060 FR-013..FR-018.
-	LogoURLLight    string            `json:"logo_url_light"`
-	LogoURLDark     string            `json:"logo_url_dark"`
-	FaviconURL      string            `json:"favicon_url"`
-	PrimaryColor    string            `json:"primary_color"`
-	ThemeOverrides  map[string]string `json:"theme_overrides"`
+	LogoURLLight   string            `json:"logo_url_light"`
+	LogoURLDark    string            `json:"logo_url_dark"`
+	FaviconURL     string            `json:"favicon_url"`
+	PrimaryColor   string            `json:"primary_color"`
+	ThemeOverrides map[string]string `json:"theme_overrides"`
 }
 
 // UptimeDailyAgg holds per-resource, per-UTC-day uptime counters populated
@@ -564,7 +553,6 @@ type APIKey struct {
 	IsActive   bool        `json:"is_active"`
 }
 
-
 // User represents a user account with authentication credentials
 type User struct {
 	Base
@@ -580,7 +568,6 @@ type User struct {
 	CreatedAt            time.Time  `json:"created_at"`
 	UpdatedAt            time.Time  `json:"updated_at"`
 }
-
 
 // IsPasswordInitialized returns true if the user has set a custom password
 func (u *User) IsPasswordInitialized() bool {
@@ -684,7 +671,6 @@ type DNSRecord struct {
 	LastError *string `json:"last_error,omitempty"`
 }
 
-
 // --- In-app notification feed (spec 072) ---
 // Distinct from NotificationEvent / NotificationChannel (outbound dispatch).
 
@@ -733,4 +719,60 @@ type EmittedNotification struct {
 	DeepLink    *string
 	Payload     []byte
 	OccurredAt  time.Time
+}
+
+// --- Custom dashboards (spec 075) ---
+
+// Dashboard widget-type identifiers (must match the frontend widget catalog).
+const (
+	WidgetTypeUptimeStat         = "uptime-stat"
+	WidgetTypeIncidentsList      = "incidents-list"
+	WidgetTypeResponseTime       = "response-time"
+	WidgetTypeResourceStatusGrid = "resource-status-grid"
+)
+
+// Dashboard scope modes.
+const (
+	DashboardScopeModeTag       = "tag"
+	DashboardScopeModeComponent = "component"
+	DashboardScopeModeType      = "type"
+	DashboardScopeModeManual    = "manual"
+)
+
+// DashboardScopePayload holds the selection for each scope mode.
+type DashboardScopePayload struct {
+	TagIDs       []string `json:"tagIds,omitempty"`
+	ComponentIDs []string `json:"componentIds,omitempty"`
+	Types        []string `json:"types,omitempty"`
+	ResourceIDs  []string `json:"resourceIds,omitempty"`
+}
+
+// DashboardScope selects which resources a dashboard covers.
+type DashboardScope struct {
+	Mode    string                `json:"mode"`
+	Payload DashboardScopePayload `json:"payload"`
+}
+
+// WidgetInstance is one placed widget within a dashboard.
+type WidgetInstance struct {
+	ID           string         `json:"id"`
+	WidgetTypeID string         `json:"widgetTypeId"`
+	Position     int            `json:"position"`
+	Title        *string        `json:"title,omitempty"`
+	Config       map[string]any `json:"config,omitempty"`
+}
+
+// Dashboard is a saved custom view (spec 075). Config-only: scope + widgets +
+// settings are persisted; widget metric data renders frontend-side. Ownership
+// governs mutation; read is instance-wide.
+type Dashboard struct {
+	Base
+	OwnerID          string           `json:"owner_id"`
+	OwnerName        string           `json:"owner_name"`
+	Name             string           `json:"name"`
+	Scope            DashboardScope   `json:"scope"`
+	Widgets          []WidgetInstance `json:"widgets"`
+	DefaultTimeRange string           `json:"default_time_range"`
+	RefreshInterval  string           `json:"refresh_interval"`
+	Visibility       string           `json:"visibility"`
 }

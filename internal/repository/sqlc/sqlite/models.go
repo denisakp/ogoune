@@ -39,6 +39,19 @@ type ComponentNotificationChannel struct {
 	NotificationChannelID string `json:"notification_channel_id"`
 }
 
+type Dashboard struct {
+	ID               string    `json:"id"`
+	OwnerID          string    `json:"owner_id"`
+	Name             string    `json:"name"`
+	Scope            string    `json:"scope"`
+	Widgets          string    `json:"widgets"`
+	DefaultTimeRange string    `json:"default_time_range"`
+	RefreshInterval  string    `json:"refresh_interval"`
+	Visibility       string    `json:"visibility"`
+	CreatedAt        time.Time `json:"created_at"`
+	UpdatedAt        time.Time `json:"updated_at"`
+}
+
 type EscalationPolicy struct {
 	ID         string    `json:"id"`
 	Name       string    `json:"name"`

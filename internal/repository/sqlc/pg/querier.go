@@ -31,6 +31,7 @@ type Querier interface {
 	CountResourcesByComponentID(ctx context.Context, componentID pgtype.Text) (int64, error)
 	CreateAPIKey(ctx context.Context, arg CreateAPIKeyParams) error
 	CreateComponent(ctx context.Context, arg CreateComponentParams) error
+	CreateDashboard(ctx context.Context, arg CreateDashboardParams) (Dashboard, error)
 	CreateEscalationPolicy(ctx context.Context, arg CreateEscalationPolicyParams) error
 	CreateEscalationStep(ctx context.Context, arg CreateEscalationStepParams) error
 	CreateExpiryNotificationLog(ctx context.Context, arg CreateExpiryNotificationLogParams) error
@@ -56,6 +57,7 @@ type Querier interface {
 	CreateTwoFactorResetToken(ctx context.Context, arg CreateTwoFactorResetTokenParams) error
 	CreateUser(ctx context.Context, arg CreateUserParams) (User, error)
 	DeleteComponent(ctx context.Context, id string) (int64, error)
+	DeleteDashboard(ctx context.Context, id string) (int64, error)
 	DeleteEscalationPolicy(ctx context.Context, id string) (int64, error)
 	DeleteEscalationStepsByPolicy(ctx context.Context, policyID string) error
 	DeleteExpiredTwoFactorResetTokens(ctx context.Context, expiresAt pgtype.Timestamptz) error
@@ -78,6 +80,7 @@ type Querier interface {
 	FindActiveMaintenancesForResource(ctx context.Context, arg FindActiveMaintenancesForResourceParams) ([]Maintenance, error)
 	FindActiveTwoFactorResetToken(ctx context.Context, arg FindActiveTwoFactorResetTokenParams) (TwoFactorResetToken, error)
 	FindComponentByID(ctx context.Context, id string) (Component, error)
+	FindDashboardByID(ctx context.Context, id string) (FindDashboardByIDRow, error)
 	FindDefaultNotificationChannels(ctx context.Context) ([]NotificationChannel, error)
 	FindEarliestUptimeDailyAggDay(ctx context.Context) (interface{}, error)
 	FindEscalationPolicyByID(ctx context.Context, id string) (EscalationPolicy, error)
@@ -134,6 +137,7 @@ type Querier interface {
 	// 1-to-1 preloads ------------------------------------------------------------
 	ListComponentsByIDs(ctx context.Context, dollar_1 []string) ([]Component, error)
 	ListCredentialsByResourceIDs(ctx context.Context, dollar_1 []string) ([]ResourceCredential, error)
+	ListDashboards(ctx context.Context, arg ListDashboardsParams) ([]ListDashboardsRow, error)
 	ListEscalationPolicies(ctx context.Context) ([]EscalationPolicy, error)
 	ListEscalationStepsByPolicy(ctx context.Context, policyID string) ([]EscalationStep, error)
 	ListIncidentDiagnosticsByIncidentIDs(ctx context.Context, dollar_1 []string) ([]IncidentDiagnostic, error)
@@ -178,6 +182,8 @@ type Querier interface {
 	UpdateAPIKeyLastUsed(ctx context.Context, arg UpdateAPIKeyLastUsedParams) (int64, error)
 	UpdateComponent(ctx context.Context, arg UpdateComponentParams) error
 	UpdateComponentLastNotificationStatus(ctx context.Context, arg UpdateComponentLastNotificationStatusParams) (int64, error)
+	UpdateDashboard(ctx context.Context, arg UpdateDashboardParams) (int64, error)
+	UpdateDashboardWidgets(ctx context.Context, arg UpdateDashboardWidgetsParams) (int64, error)
 	UpdateEscalationPolicy(ctx context.Context, arg UpdateEscalationPolicyParams) (int64, error)
 	UpdateIncident(ctx context.Context, arg UpdateIncidentParams) (int64, error)
 	UpdateIncidentDiagnostics(ctx context.Context, arg UpdateIncidentDiagnosticsParams) (int64, error)
