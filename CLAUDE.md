@@ -20,7 +20,7 @@ make test-be            # go test -race ./... (SQLite-only; Postgres tests skip)
 make test-be-pg         # dual-dialect (SQLite + Postgres via testcontainers); needs Docker
 make test-fe            # cd web && pnpm test
 go test -race ./internal/scheduler/...  # single package
-make ci-local           # full local CI gate: sqlc-check + drift + lint + race tests + frontend tests + license-audit
+make ci-local           # full local CI gate: sqlc-check + drift + lint + fe type-check (vue-tsc) + race tests + frontend tests + license-audit
                         # `make run-ci` kept as alias. Run before every push to catch CI breaks locally.
 
 # Lint
