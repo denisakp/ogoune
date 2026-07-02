@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useResourceStore } from '@/stores/resourceStore'
 import { useTagStore } from '@/stores/tagStore'
 import { useComponentStore } from '@/stores/componentStore'
@@ -87,13 +87,18 @@ function setMode(next: DashboardScopeMode) {
   if (next !== 'manual') resourceIds.value = []
 }
 
-function toggleArrayValue<T>(arr: { value: T[] }, v: T) {
-  if (arr.value.includes(v)) {
-    arr.value = arr.value.filter((x) => x !== v)
-  } else {
-    arr.value = [...arr.value, v]
-  }
+// NOTE: called from the template where top-level refs auto-unwrap, so `current`
+// is the plain array, not the ref. Returns the next array; call sites assign it
+// back to the ref (`tagIds = toggleArrayValue(tagIds, id)`).
+function toggleArrayValue<T>(current: T[], v: T): T[] {
+  return current.includes(v) ? current.filter((x) => x !== v) : [...current, v]
 }
+
+onMounted(() => {
+  if ((resourceStore.resources ?? []).length === 0) void resourceStore.loadResources()
+  if (tagStore.tags.length === 0) void tagStore.fetchTags()
+  if (componentStore.components.length === 0) void componentStore.loadComponents()
+})
 </script>
 
 <template>
@@ -129,7 +134,7 @@ function toggleArrayValue<T>(arr: { value: T[] }, v: T) {
               ? 'border-primary text-primary bg-primary/10'
               : 'border-default text-muted hover:bg-muted'
           "
-          @click="toggleArrayValue(tagIds, t.id)"
+          @click="tagIds = toggleArrayValue(tagIds, t.id)"
         >
           {{ t.name }}
         </button>
@@ -150,7 +155,7 @@ function toggleArrayValue<T>(arr: { value: T[] }, v: T) {
               ? 'border-primary text-primary bg-primary/10'
               : 'border-default text-muted hover:bg-muted'
           "
-          @click="toggleArrayValue(componentIds, c.id)"
+          @click="componentIds = toggleArrayValue(componentIds, c.id)"
         >
           {{ c.name }}
         </button>
@@ -173,7 +178,7 @@ function toggleArrayValue<T>(arr: { value: T[] }, v: T) {
               ? 'border-primary text-primary bg-primary/10'
               : 'border-default text-muted hover:bg-muted'
           "
-          @click="toggleArrayValue(types, t)"
+          @click="types = toggleArrayValue(types, t)"
         >
           {{ t }}
         </button>
@@ -192,7 +197,7 @@ function toggleArrayValue<T>(arr: { value: T[] }, v: T) {
             type="checkbox"
             :checked="resourceIds.includes(r.id)"
             class="size-4"
-            @change="toggleArrayValue(resourceIds, r.id)"
+            @change="resourceIds = toggleArrayValue(resourceIds, r.id)"
           />
           <span class="flex-1 truncate text-default">{{ r.name }}</span>
           <span class="text-xs text-muted">{{ r.type }}</span>
