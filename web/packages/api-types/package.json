@@ -5,7 +5,7 @@
   "main": "./index.ts",
   "types": "./index.ts",
   "scripts": {
-    "generate": "openapi-typescript openapi/openapi.yaml -o generated/schema.d.ts" 
+    "generate": "openapi-typescript ../../../api/openapi/v1.yaml -o generated/schema.d.ts"
   },
   "devDependencies": {
     "openapi-typescript": "^7"
