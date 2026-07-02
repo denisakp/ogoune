@@ -119,9 +119,7 @@ VITE_MAINTENANCE_MODE=true
 VITE_MAINTENANCE_ETA="est. 30 min"
 VITE_MAINTENANCE_MESSAGE="Upgrading DB"
 
-# Notification feed (spec 069) — bell dropdown source.
-VITE_NOTIFICATION_FEED_MODE=mock      # default; fixture-driven
-# VITE_NOTIFICATION_FEED_MODE=remote  # reserved for future backend
+# Notification feed: always backed by the real v1 API (spec 072) — no mock mode.
 
 # Reports + Dashboards feed (spec 070).
 VITE_REPORTS_FEED_MODE=mock           # default
