@@ -117,6 +117,20 @@ async function onAction(p: { action: RowAction; row: unknown }) {
   }
 }
 
+// Resource has 8 monitor states; UStatusBadge exposes 5 presentational ones.
+// Map to the closest badge state (unmapped states previously rendered blank).
+type BadgeStatus = 'up' | 'down' | 'warning' | 'maintenance' | 'unknown'
+const STATUS_BADGE: Record<Resource['status'], BadgeStatus> = {
+  up: 'up',
+  down: 'down',
+  error: 'down',
+  flapping: 'warning',
+  waiting: 'unknown',
+  pending: 'unknown',
+  paused: 'unknown',
+  unknown: 'unknown',
+}
+
 // Columns exposed for test contract + UTable consumption (TanStack ColumnDef shape).
 // `id` is asserted by the spec under the same keys the legacy UDataTable used.
 const columns: TableColumn<Resource>[] = [
@@ -124,7 +138,7 @@ const columns: TableColumn<Resource>[] = [
     id: 'status',
     accessorKey: 'status',
     header: 'Status',
-    cell: ({ row }) => h(UStatusBadge, { status: row.original.status }),
+    cell: ({ row }) => h(UStatusBadge, { status: STATUS_BADGE[row.original.status] ?? 'unknown' }),
   },
   { id: 'name', accessorKey: 'name', header: 'Name' },
   {
