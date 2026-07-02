@@ -232,6 +232,300 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/dashboards": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List all dashboards (instance-wide, newest-updated first) */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            [key: string]: unknown;
+                        };
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        /** Create a dashboard (owner = caller) */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            /** @description Dashboard */
+            requestBody: {
+                content: {
+                    "application/json": Record<string, never> | components["schemas"]["github_com_denisakp_ogoune_internal_dto_v1.CreateDashboardRequest"];
+                };
+            };
+            responses: {
+                /** @description Created */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["github_com_denisakp_ogoune_internal_dto_v1.SingleResponse-github_com_denisakp_ogoune_internal_dto_v1_DashboardResponse"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse"];
+                    };
+                };
+                /** @description Unprocessable Entity */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/dashboards/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get a dashboard */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    /** @description Dashboard ID */
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["github_com_denisakp_ogoune_internal_dto_v1.SingleResponse-github_com_denisakp_ogoune_internal_dto_v1_DashboardResponse"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        /** Delete a dashboard (owner only) */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    /** @description Dashboard ID */
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description No Content */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse"];
+                    };
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        /** Update a dashboard (partial patch; owner only) */
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    /** @description Dashboard ID */
+                    id: string;
+                };
+                cookie?: never;
+            };
+            /** @description Partial patch */
+            requestBody: {
+                content: {
+                    "application/json": Record<string, never> | components["schemas"]["github_com_denisakp_ogoune_internal_dto_v1.UpdateDashboardRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["github_com_denisakp_ogoune_internal_dto_v1.SingleResponse-github_com_denisakp_ogoune_internal_dto_v1_DashboardResponse"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse"];
+                    };
+                };
+                /** @description Unprocessable Entity */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse"];
+                    };
+                };
+            };
+        };
+        trace?: never;
+    };
+    "/dashboards/{id}/layout": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Save a dashboard's widget layout (owner only) */
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    /** @description Dashboard ID */
+                    id: string;
+                };
+                cookie?: never;
+            };
+            /** @description Ordered widgets */
+            requestBody: {
+                content: {
+                    "application/json": Record<string, never> | components["schemas"]["github_com_denisakp_ogoune_internal_dto_v1.SaveLayoutRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["github_com_denisakp_ogoune_internal_dto_v1.SingleResponse-github_com_denisakp_ogoune_internal_dto_v1_DashboardResponse"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse"];
+                    };
+                };
+            };
+        };
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/heartbeat/ping/{slug}": {
         parameters: {
             query?: never;
@@ -2373,6 +2667,14 @@ export interface components {
             description?: string;
             name?: string;
         };
+        "github_com_denisakp_ogoune_internal_dto_v1.CreateDashboardRequest": {
+            defaultTimeRange?: string;
+            name?: string;
+            refreshInterval?: string;
+            scope?: components["schemas"]["github_com_denisakp_ogoune_internal_dto_v1.DashboardScope"];
+            visibility?: string;
+            widgets?: components["schemas"]["github_com_denisakp_ogoune_internal_dto_v1.WidgetInstance"][];
+        };
         "github_com_denisakp_ogoune_internal_dto_v1.CreateMonitorRequest": {
             component_id?: string;
             interval?: number;
@@ -2428,6 +2730,29 @@ export interface components {
             ttl?: number;
             type?: string;
             value?: string;
+        };
+        "github_com_denisakp_ogoune_internal_dto_v1.DashboardResponse": {
+            createdAt?: string;
+            defaultTimeRange?: string;
+            id?: string;
+            name?: string;
+            ownerId?: string;
+            ownerName?: string;
+            refreshInterval?: string;
+            scope?: components["schemas"]["github_com_denisakp_ogoune_internal_dto_v1.DashboardScope"];
+            updatedAt?: string;
+            visibility?: string;
+            widgets?: components["schemas"]["github_com_denisakp_ogoune_internal_dto_v1.WidgetInstance"][];
+        };
+        "github_com_denisakp_ogoune_internal_dto_v1.DashboardScope": {
+            mode?: string;
+            payload?: components["schemas"]["github_com_denisakp_ogoune_internal_dto_v1.DashboardScopePayload"];
+        };
+        "github_com_denisakp_ogoune_internal_dto_v1.DashboardScopePayload": {
+            componentIds?: string[];
+            resourceIds?: string[];
+            tagIds?: string[];
+            types?: string[];
         };
         "github_com_denisakp_ogoune_internal_dto_v1.ErrorDetail": {
             code?: string;
@@ -2518,6 +2843,9 @@ export interface components {
             /** @description pass | warn */
             status?: string;
         };
+        "github_com_denisakp_ogoune_internal_dto_v1.SaveLayoutRequest": {
+            widgets?: components["schemas"]["github_com_denisakp_ogoune_internal_dto_v1.WidgetInstance"][];
+        };
         "github_com_denisakp_ogoune_internal_dto_v1.SingleResponse-github_com_denisakp_ogoune_internal_dto_v1_ChannelResponse": {
             data?: components["schemas"]["github_com_denisakp_ogoune_internal_dto_v1.ChannelResponse"];
             meta?: components["schemas"]["github_com_denisakp_ogoune_internal_dto_v1.MetaResponse"];
@@ -2532,6 +2860,10 @@ export interface components {
         };
         "github_com_denisakp_ogoune_internal_dto_v1.SingleResponse-github_com_denisakp_ogoune_internal_dto_v1_DNSLookupResponse": {
             data?: components["schemas"]["github_com_denisakp_ogoune_internal_dto_v1.DNSLookupResponse"];
+            meta?: components["schemas"]["github_com_denisakp_ogoune_internal_dto_v1.MetaResponse"];
+        };
+        "github_com_denisakp_ogoune_internal_dto_v1.SingleResponse-github_com_denisakp_ogoune_internal_dto_v1_DashboardResponse": {
+            data?: components["schemas"]["github_com_denisakp_ogoune_internal_dto_v1.DashboardResponse"];
             meta?: components["schemas"]["github_com_denisakp_ogoune_internal_dto_v1.MetaResponse"];
         };
         "github_com_denisakp_ogoune_internal_dto_v1.SingleResponse-github_com_denisakp_ogoune_internal_dto_v1_HeartbeatPingResponse": {
@@ -2584,6 +2916,14 @@ export interface components {
             description?: string;
             name?: string;
         };
+        "github_com_denisakp_ogoune_internal_dto_v1.UpdateDashboardRequest": {
+            defaultTimeRange?: string;
+            name?: string;
+            refreshInterval?: string;
+            scope?: components["schemas"]["github_com_denisakp_ogoune_internal_dto_v1.DashboardScope"];
+            visibility?: string;
+            widgets?: components["schemas"]["github_com_denisakp_ogoune_internal_dto_v1.WidgetInstance"][];
+        };
         "github_com_denisakp_ogoune_internal_dto_v1.UpdateMonitorRequest": {
             component_id?: string;
             interval?: number;
@@ -2614,6 +2954,15 @@ export interface components {
             registrar?: string;
             status?: string[];
             updated_at?: string;
+        };
+        "github_com_denisakp_ogoune_internal_dto_v1.WidgetInstance": {
+            config?: {
+                [key: string]: unknown;
+            };
+            id?: string;
+            position?: number;
+            title?: string;
+            widgetTypeId?: string;
         };
     };
     responses: never;
