@@ -1,111 +1,103 @@
 import { describe, expect, it } from 'vitest'
-import {
-  __createMockFeedForTests,
-  __createRemoteStubForTests,
-} from './dashboardsService'
-import type { Dashboard, WidgetInstance } from '@/types'
+import { http, HttpResponse } from 'msw'
+import { createRemoteDashboardsFeed } from './dashboardsService'
+import { server } from '@/test/msw/server'
+import type { Dashboard } from '@/types'
 
-function makeWidget(id: string, pos: number): WidgetInstance {
-  return { id, widgetTypeId: 'uptime-stat', position: pos, config: {} }
+function sample(id = 'd1'): Dashboard {
+  return {
+    id,
+    name: 'Prod',
+    scope: { mode: 'tag', payload: { tagIds: ['t1'] } },
+    widgets: [{ id: 'w1', widgetTypeId: 'uptime-stat', position: 0 }],
+    defaultTimeRange: '24h',
+    refreshInterval: '1m',
+    visibility: 'team',
+    ownerId: 'alice',
+    ownerName: 'Alice',
+    createdAt: '2026-07-02T10:00:00Z',
+    updatedAt: '2026-07-02T10:00:00Z',
+  }
 }
 
-describe('dashboardsService (spec 070 / US2)', () => {
-  describe('mock mode', () => {
-    it('list returns fixture sorted by updatedAt desc', async () => {
-      const feed = __createMockFeedForTests('user-default')
-      const list = await feed.list()
-      expect(list.length).toBeGreaterThan(0)
-      for (let i = 1; i < list.length; i++) {
-        expect(new Date(list[i - 1]!.updatedAt).getTime()).toBeGreaterThanOrEqual(
-          new Date(list[i]!.updatedAt).getTime(),
-        )
-      }
-    })
-
-    it('get returns null for unknown id', async () => {
-      const feed = __createMockFeedForTests('user-default')
-      expect(await feed.get('does-not-exist')).toBeNull()
-    })
-
-    it('create assigns id + timestamps + appends to store', async () => {
-      const feed = __createMockFeedForTests('user-default')
-      const before = (await feed.list()).length
-      const created = await feed.create({
-        name: 'test',
-        scope: { mode: 'tag', payload: { tagIds: ['x'] } },
-        widgets: [makeWidget('w1', 0)],
-        defaultTimeRange: '24h',
-        refreshInterval: '30s',
-        visibility: 'private',
-        ownerId: 'user-default',
-        ownerName: 'Me',
-      })
-      expect(created.id).toMatch(/^dash-/)
-      expect(typeof created.createdAt).toBe('string')
-      expect(typeof created.updatedAt).toBe('string')
-      const after = await feed.list()
-      expect(after.length).toBe(before + 1)
-    })
-
-    it('update by non-owner throws FORBIDDEN', async () => {
-      const feed = __createMockFeedForTests('user-default')
-      const list = await feed.list()
-      const otherOwned = list.find((d) => d.ownerId !== 'user-default')!
-      await expect(
-        feed.update(otherOwned.id, { name: 'hijacked' }),
-      ).rejects.toThrow('FORBIDDEN')
-    })
-
-    it('update by owner bumps updatedAt only when state changed', async () => {
-      const feed = __createMockFeedForTests('user-default')
-      const list = await feed.list()
-      const owned = list.find((d) => d.ownerId === 'user-default')!
-
-      const sameWidgets: Dashboard = await feed.update(owned.id, { widgets: owned.widgets })
-      expect(sameWidgets.updatedAt).toBe(owned.updatedAt)
-
-      const changed = await feed.update(owned.id, { name: owned.name + ' v2' })
-      expect(new Date(changed.updatedAt).getTime()).toBeGreaterThan(new Date(owned.updatedAt).getTime())
-    })
-
-    it('saveLayout is idempotent when widgets unchanged (FR-030)', async () => {
-      const feed = __createMockFeedForTests('user-default')
-      const list = await feed.list()
-      const owned = list.find((d) => d.ownerId === 'user-default')!
-      const same = await feed.saveLayout(owned.id, owned.widgets)
-      expect(same.updatedAt).toBe(owned.updatedAt)
-    })
-
-    it('saveLayout bumps updatedAt when widgets changed', async () => {
-      const feed = __createMockFeedForTests('user-default')
-      const list = await feed.list()
-      const owned = list.find((d) => d.ownerId === 'user-default')!
-      const newLayout = [...owned.widgets, makeWidget('w-new', owned.widgets.length)]
-      const result = await feed.saveLayout(owned.id, newLayout)
-      expect(new Date(result.updatedAt).getTime()).toBeGreaterThan(new Date(owned.updatedAt).getTime())
-    })
-
-    it('remove by owner deletes', async () => {
-      const feed = __createMockFeedForTests('user-default')
-      const list = await feed.list()
-      const owned = list.find((d) => d.ownerId === 'user-default')!
-      await feed.remove(owned.id)
-      expect(await feed.get(owned.id)).toBeNull()
-    })
-
-    it('remove by non-owner throws FORBIDDEN', async () => {
-      const feed = __createMockFeedForTests('user-default')
-      const list = await feed.list()
-      const other = list.find((d) => d.ownerId !== 'user-default')!
-      await expect(feed.remove(other.id)).rejects.toThrow('FORBIDDEN')
-    })
+describe('dashboardsService (spec 075 — real backend)', () => {
+  it('list unwraps the {data} envelope', async () => {
+    server.use(http.get('*/v1/dashboards', () => HttpResponse.json({ data: [sample()] })))
+    const items = await createRemoteDashboardsFeed().list()
+    expect(items).toHaveLength(1)
+    expect(items[0]!.ownerName).toBe('Alice')
   })
 
-  describe('remote stub', () => {
-    it('throws not-implemented on every operation', async () => {
-      const feed = __createRemoteStubForTests()
-      await expect(feed.list()).rejects.toThrow(/not implemented/)
-      await expect(feed.get('x')).rejects.toThrow(/not implemented/)
+  it('get returns the dashboard', async () => {
+    server.use(http.get('*/v1/dashboards/d1', () => HttpResponse.json({ data: sample() })))
+    const d = await createRemoteDashboardsFeed().get('d1')
+    expect(d?.id).toBe('d1')
+  })
+
+  it('get maps 404 to null', async () => {
+    server.use(
+      http.get('*/v1/dashboards/missing', () =>
+        HttpResponse.json({ error: { code: 'DASHBOARD_NOT_FOUND', message: 'x' } }, { status: 404 }),
+      ),
+    )
+    expect(await createRemoteDashboardsFeed().get('missing')).toBeNull()
+  })
+
+  it('create POSTs and returns the created dashboard', async () => {
+    let body: unknown
+    server.use(
+      http.post('*/v1/dashboards', async ({ request }) => {
+        body = await request.json()
+        return HttpResponse.json({ data: sample('new') }, { status: 201 })
+      }),
+    )
+    const created = await createRemoteDashboardsFeed().create({
+      name: 'Prod',
+      scope: { mode: 'tag', payload: { tagIds: ['t1'] } },
+      widgets: [],
+      defaultTimeRange: '24h',
+      refreshInterval: '1m',
+      visibility: 'team',
+      ownerId: 'alice',
+      ownerName: 'Alice',
     })
+    expect(created.id).toBe('new')
+    expect(body).toMatchObject({ name: 'Prod' })
+  })
+
+  it('update PATCHes', async () => {
+    let method = ''
+    server.use(
+      http.patch('*/v1/dashboards/d1', ({ request }) => {
+        method = request.method
+        return HttpResponse.json({ data: sample() })
+      }),
+    )
+    await createRemoteDashboardsFeed().update('d1', { name: 'Renamed' })
+    expect(method).toBe('PATCH')
+  })
+
+  it('saveLayout PUTs the widgets', async () => {
+    let payload: { widgets?: unknown } = {}
+    server.use(
+      http.put('*/v1/dashboards/d1/layout', async ({ request }) => {
+        payload = (await request.json()) as { widgets?: unknown }
+        return HttpResponse.json({ data: sample() })
+      }),
+    )
+    await createRemoteDashboardsFeed().saveLayout('d1', [{ id: 'w1', widgetTypeId: 'uptime-stat', position: 0 }])
+    expect(Array.isArray(payload.widgets)).toBe(true)
+  })
+
+  it('remove DELETEs', async () => {
+    let hit = false
+    server.use(
+      http.delete('*/v1/dashboards/d1', () => {
+        hit = true
+        return new HttpResponse(null, { status: 204 })
+      }),
+    )
+    await createRemoteDashboardsFeed().remove('d1')
+    expect(hit).toBe(true)
   })
 })

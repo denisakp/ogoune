@@ -121,9 +121,9 @@ VITE_MAINTENANCE_MESSAGE="Upgrading DB"
 
 # Notification feed: always backed by the real v1 API (spec 072) — no mock mode.
 
-# Reports + Dashboards feed (spec 070).
+# Reports feed (spec 070).
 VITE_REPORTS_FEED_MODE=mock           # default
-VITE_DASHBOARDS_FEED_MODE=mock        # default
+# Dashboards: always backed by the real v1 API (spec 075) — no mock mode.
 ```
 
 `pnpm install` skips all post-install scripts by default (`onlyBuiltDependencies` in `package.json`). If a new dep needs a native build step, allowlist it explicitly there.
