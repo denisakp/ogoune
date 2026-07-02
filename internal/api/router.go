@@ -3,8 +3,8 @@ package api
 import (
 	"log/slog"
 	"net/http"
-	"os"
 
+	"github.com/denisakp/ogoune/api/openapi"
 	"github.com/denisakp/ogoune/internal/api/handler"
 	v1handler "github.com/denisakp/ogoune/internal/api/handler/v1"
 	"github.com/denisakp/ogoune/internal/api/middleware"
@@ -403,20 +403,13 @@ func rateLimitLogger(scope string) func(http.Handler) http.Handler {
 	}
 }
 
-// serveOpenAPISpec serves the generated OpenAPI spec JSON file.
-// Returns 503 SPEC_NOT_AVAILABLE if docs/swagger.json has not been generated yet.
+// serveOpenAPISpec serves the OpenAPI 3.1 contract embedded at build time
+// (api/openapi/v1.json via api/openapi.SpecJSON). Embedding removes the runtime
+// dependency on an on-disk file — no more 503 SPEC_NOT_AVAILABLE in containers.
 func serveOpenAPISpec(w http.ResponseWriter, r *http.Request) {
-	const specPath = "docs/swagger.json"
-	data, err := os.ReadFile(specPath)
-	if err != nil {
-		w.Header().Set(headerContentType, contentTypeJSON)
-		w.WriteHeader(http.StatusServiceUnavailable)
-		w.Write([]byte(`{"error":{"code":"SPEC_NOT_AVAILABLE","message":"OpenAPI spec not generated; run make swag"}}`))
-		return
-	}
 	w.Header().Set(headerContentType, contentTypeJSON)
 	w.WriteHeader(http.StatusOK)
-	w.Write(data)
+	w.Write(openapi.SpecJSON)
 }
 
 // registerSwaggerUI mounts the Swagger UI handler under /api/v1/docs/*.

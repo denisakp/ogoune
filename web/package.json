@@ -30,6 +30,7 @@
   },
   "dependencies": {
     "@iconify/vue": "^5.0.1",
+    "@ogoune/api-types": "workspace:*",
     "@nuxt/ui": "^4.8.1",
     "@tiptap/core": "^3.26.0",
     "@tiptap/extension-link": "^3.26.0",
@@ -55,6 +56,8 @@
   },
   "devDependencies": {
     "@prettier/plugin-oxc": "^0.0.4",
+    "@stoplight/spectral-cli": "^6.14.0",
+    "@stoplight/spectral-owasp-ruleset": "^2.0.1",
     "@tailwindcss/vite": "^4.0.0",
     "@tsconfig/node22": "^22.0.2",
     "@types/node": "^22.18.6",
