@@ -62,6 +62,7 @@ func NewRouter(
 	credentialV1Handler *v1handler.ResourceCredentialHandler,
 	toolboxV1Handler *v1handler.ToolboxHandler,
 	notificationFeedV1Handler *v1handler.NotificationFeedHandler,
+	dashboardV1Handler *v1handler.DashboardHandler,
 	enableSwagger bool,
 	cfg *config.Config,
 ) http.Handler {
@@ -349,6 +350,15 @@ func NewRouter(
 				r.Get("/", notificationFeedV1Handler.List)
 				r.With(middleware.RequireReadWrite).Post("/{id}/read", notificationFeedV1Handler.MarkRead)
 				r.With(middleware.RequireReadWrite).Post("/read-all", notificationFeedV1Handler.MarkAllRead)
+			})
+			// Custom dashboards (spec 075). Read instance-wide; mutations owner-only + write-scoped.
+			r.Route("/dashboards", func(r chi.Router) {
+				r.Get("/", dashboardV1Handler.List)
+				r.Get("/{id}", dashboardV1Handler.Get)
+				r.With(middleware.RequireReadWrite).Post("/", dashboardV1Handler.Create)
+				r.With(middleware.RequireReadWrite).Patch("/{id}", dashboardV1Handler.Update)
+				r.With(middleware.RequireReadWrite).Put("/{id}/layout", dashboardV1Handler.SaveLayout)
+				r.With(middleware.RequireReadWrite).Delete("/{id}", dashboardV1Handler.Delete)
 			})
 			// Toolbox — one-shot network tools (spec 071). Write-scoped + per-user
 			// rate-limited; port-scan strictest (5/min), others 20/min.

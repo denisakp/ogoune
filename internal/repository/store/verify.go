@@ -32,4 +32,7 @@ var (
 
 	// Spec 072 — In-app notification feed
 	_ port.NotificationFeedRepository = (*NotificationFeedRepositorySQLC)(nil)
+
+	// Spec 075 — Custom dashboards
+	_ port.DashboardRepository = (*DashboardRepositorySQLC)(nil)
 )

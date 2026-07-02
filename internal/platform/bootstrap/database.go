@@ -69,6 +69,9 @@ func InitDatabase(app *App) {
 	// as the incident notification emitter (spec 072).
 	app.NotificationFeedService = service.NewNotificationFeedService(app.NotificationFeedRepo)
 
+	app.DashboardRepo = store.NewDashboardRepositorySQLC(rt)
+	app.DashboardService = service.NewDashboardService(app.DashboardRepo)
+
 	// Seed-time services that the worker layer depends on must be built
 	// before InitWorker runs (InitServices is too late). The full
 	// PublicStatusService stays in InitServices since it has no worker dep.

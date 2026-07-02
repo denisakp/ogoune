@@ -49,6 +49,7 @@ type App struct {
 	UptimeDailyAggRepo        port.UptimeDailyAggRepository
 	IncidentUpdateRepo        port.IncidentUpdateRepository
 	NotificationFeedRepo      port.NotificationFeedRepository
+	DashboardRepo             port.DashboardRepository
 
 	// Metrics phase
 	MetricsRecorder       domain.MetricsRecorder
@@ -80,6 +81,7 @@ type App struct {
 	TwoFactorService *service.TwoFactorService
 	EscalationService *service.EscalationService
 	NotificationFeedService *service.NotificationFeedService
+	DashboardService        *service.DashboardService
 
 	// Spec 060 — Public status page
 	PublicStatusService   *service.PublicStatusService
