@@ -39,4 +39,7 @@ var (
 	// Spec 076 — Monthly reports
 	_ port.ReportSettingsRepository = (*ReportSettingsRepositorySQLC)(nil)
 	_ port.ReportHistoryRepository  = (*ReportHistoryRepositorySQLC)(nil)
+
+	// Announcements (operator banners)
+	_ port.AnnouncementRepository = (*AnnouncementRepositorySQLC)(nil)
 )

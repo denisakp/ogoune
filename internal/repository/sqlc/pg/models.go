@@ -8,6 +8,17 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+type Announcement struct {
+	ID          string             `json:"id"`
+	Severity    string             `json:"severity"`
+	Title       string             `json:"title"`
+	Description string             `json:"description"`
+	Dismissible bool               `json:"dismissible"`
+	Active      bool               `json:"active"`
+	CreatedAt   pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt   pgtype.Timestamptz `json:"updated_at"`
+}
+
 type ApiKey struct {
 	ID         string             `json:"id"`
 	CreatedAt  pgtype.Timestamptz `json:"created_at"`

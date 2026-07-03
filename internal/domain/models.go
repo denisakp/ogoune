@@ -827,3 +827,36 @@ type ReportHistory struct {
 	RecipientEmail  string                `json:"recipient_email"`
 	Breakdown       []ReportBreakdownLine `json:"breakdown"`
 }
+
+// ─── Announcements: operator banners (option 2) ─────────────────────────────
+
+// AnnouncementSeverity maps 1:1 to the frontend banner colors.
+type AnnouncementSeverity string
+
+const (
+	AnnouncementInfo    AnnouncementSeverity = "info"
+	AnnouncementWarning AnnouncementSeverity = "warning"
+	AnnouncementSuccess AnnouncementSeverity = "success"
+	AnnouncementError   AnnouncementSeverity = "error"
+)
+
+// IsValid reports whether s is a known announcement severity.
+func (s AnnouncementSeverity) IsValid() bool {
+	switch s {
+	case AnnouncementInfo, AnnouncementWarning, AnnouncementSuccess, AnnouncementError:
+		return true
+	default:
+		return false
+	}
+}
+
+// Announcement is an instance-wide operator banner (single-tenant). Dismissal is
+// per-user and lives client-side (localStorage); the server only tracks active.
+type Announcement struct {
+	Base
+	Severity    AnnouncementSeverity
+	Title       string
+	Description string
+	Dismissible bool
+	Active      bool
+}

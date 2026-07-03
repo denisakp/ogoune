@@ -224,6 +224,13 @@ type DashboardRepository interface {
 	Delete(ctx context.Context, id string) error
 }
 
+// AnnouncementRepository persists operator announcement banners (option 2).
+type AnnouncementRepository interface {
+	Create(ctx context.Context, a *domain.Announcement) (*domain.Announcement, error)
+	ListActive(ctx context.Context) ([]*domain.Announcement, error)
+	Delete(ctx context.Context, id string) error
+}
+
 // ReportSettingsRepository persists the single instance-wide monthly-report
 // configuration (spec 076). Get returns repository.ErrNotFound when unsaved.
 type ReportSettingsRepository interface {
