@@ -6,6 +6,7 @@
  */
 import { computed, ref } from 'vue'
 import { useToast } from '@nuxt/ui/composables/useToast'
+import { GRAFANA_DASHBOARD, ALERT_RULES_YAML } from './integrations'
 
 const toast = useToast()
 
@@ -46,7 +47,7 @@ const curlExample = computed(
 # TYPE ogoune_resource_up gauge
 ogoune_resource_up{resource_id="01H...",name="api"} 1
 # TYPE ogoune_uptime_ratio gauge
-ogoune_uptime_ratio{resource_id="01H...",window="24h"} 0.998`,
+ogoune_uptime_ratio{resource_id="01H...",window="24h"} 99.8`,
 )
 
 function typeColor(type: string): 'primary' | 'warning' | 'success' {
@@ -62,6 +63,28 @@ async function copy(value: string, label = 'Copied') {
   } catch {
     toast.add({ title: 'Copy failed', color: 'error' })
   }
+}
+
+function download(filename: string, content: string, mime: string) {
+  const url = URL.createObjectURL(new Blob([content], { type: mime }))
+  const a = document.createElement('a')
+  a.href = url
+  a.download = filename
+  a.click()
+  URL.revokeObjectURL(url)
+  toast.add({ title: `${filename} downloaded`, color: 'success' })
+}
+
+function importGrafanaDashboard() {
+  download(
+    'ogoune-grafana-dashboard.json',
+    JSON.stringify(GRAFANA_DASHBOARD, null, 2),
+    'application/json',
+  )
+}
+
+function downloadAlertRules() {
+  download('ogoune-alerts.rules.yml', ALERT_RULES_YAML, 'text/yaml')
 }
 </script>
 
@@ -143,10 +166,28 @@ async function copy(value: string, label = 'Copied') {
         <div class="rounded-lg border border-default p-4 flex flex-col gap-2 text-sm">
           <div class="font-medium text-highlighted">Integrations</div>
           <div class="flex items-center justify-between">
-            <span>Grafana</span><UButton size="xs" variant="subtle" color="neutral">Import dashboard</UButton>
+            <span>Grafana</span>
+            <UButton
+              size="xs"
+              variant="subtle"
+              color="neutral"
+              data-testid="grafana-import"
+              @click="importGrafanaDashboard"
+            >
+              Import dashboard
+            </UButton>
           </div>
           <div class="flex items-center justify-between">
-            <span>Alertmanager</span><UButton size="xs" variant="subtle" color="neutral">Examples</UButton>
+            <span>Alertmanager</span>
+            <UButton
+              size="xs"
+              variant="subtle"
+              color="neutral"
+              data-testid="alertmanager-examples"
+              @click="downloadAlertRules"
+            >
+              Examples
+            </UButton>
           </div>
           <div class="flex items-center justify-between text-muted">
             <span>OpenTelemetry</span><UBadge color="neutral" variant="subtle" size="sm">Soon</UBadge>
