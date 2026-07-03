@@ -85,6 +85,10 @@ func InitDatabase(app *App) {
 		app.NotificationChannelRepo,
 	)
 
+	// Announcement banners (option 2) — instance-wide operator messages.
+	app.AnnouncementRepo = store.NewAnnouncementRepositorySQLC(rt)
+	app.AnnouncementService = service.NewAnnouncementService(app.AnnouncementRepo)
+
 	// Seed-time services that the worker layer depends on must be built
 	// before InitWorker runs (InitServices is too late). The full
 	// PublicStatusService stays in InitServices since it has no worker dep.

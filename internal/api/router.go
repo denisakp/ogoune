@@ -64,6 +64,7 @@ func NewRouter(
 	notificationFeedV1Handler *v1handler.NotificationFeedHandler,
 	dashboardV1Handler *v1handler.DashboardHandler,
 	reportV1Handler *v1handler.ReportHandler,
+	announcementV1Handler *v1handler.AnnouncementHandler,
 	enableSwagger bool,
 	cfg *config.Config,
 ) http.Handler {
@@ -368,6 +369,13 @@ func NewRouter(
 				r.With(middleware.RequireReadWrite).Put("/settings", reportV1Handler.UpdateSettings)
 				r.Get("/history", reportV1Handler.History)
 				r.Get("/preview", reportV1Handler.Preview)
+			})
+
+			// Operator announcement banners — instance-wide read; publish/retract write-scoped.
+			r.Route("/announcements", func(r chi.Router) {
+				r.Get("/", announcementV1Handler.List)
+				r.With(middleware.RequireReadWrite).Post("/", announcementV1Handler.Create)
+				r.With(middleware.RequireReadWrite).Delete("/{id}", announcementV1Handler.Delete)
 			})
 			// Toolbox — one-shot network tools (spec 071). Write-scoped + per-user
 			// rate-limited; port-scan strictest (5/min), others 20/min.

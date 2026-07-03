@@ -428,6 +428,29 @@
                 },
                 "type": "object"
             },
+            "github_com_denisakp_ogoune_internal_dto_v1.AnnouncementResponse": {
+                "properties": {
+                    "createdAt": {
+                        "type": "string"
+                    },
+                    "description": {
+                        "type": "string"
+                    },
+                    "dismissible": {
+                        "type": "boolean"
+                    },
+                    "id": {
+                        "type": "string"
+                    },
+                    "severity": {
+                        "type": "string"
+                    },
+                    "title": {
+                        "type": "string"
+                    }
+                },
+                "type": "object"
+            },
             "github_com_denisakp_ogoune_internal_dto_v1.ChannelResponse": {
                 "properties": {
                     "config": {
@@ -473,6 +496,23 @@
                         "type": "string"
                     },
                     "updated_at": {
+                        "type": "string"
+                    }
+                },
+                "type": "object"
+            },
+            "github_com_denisakp_ogoune_internal_dto_v1.CreateAnnouncementRequest": {
+                "properties": {
+                    "description": {
+                        "type": "string"
+                    },
+                    "dismissible": {
+                        "type": "boolean"
+                    },
+                    "severity": {
+                        "type": "string"
+                    },
+                    "title": {
                         "type": "string"
                     }
                 },
@@ -1142,6 +1182,17 @@
                 },
                 "type": "object"
             },
+            "github_com_denisakp_ogoune_internal_dto_v1.SingleResponse-github_com_denisakp_ogoune_internal_dto_v1_AnnouncementResponse": {
+                "properties": {
+                    "data": {
+                        "$ref": "#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.AnnouncementResponse"
+                    },
+                    "meta": {
+                        "$ref": "#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.MetaResponse"
+                    }
+                },
+                "type": "object"
+            },
             "github_com_denisakp_ogoune_internal_dto_v1.SingleResponse-github_com_denisakp_ogoune_internal_dto_v1_ChannelResponse": {
                 "properties": {
                     "data": {
@@ -1547,6 +1598,154 @@
         "url": "https://github.com/denisakp/ogoune"
     },
     "paths": {
+        "/announcements": {
+            "get": {
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "additionalProperties": {},
+                                    "type": "object"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    },
+                    "401": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse"
+                                }
+                            }
+                        },
+                        "description": "Unauthorized"
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "summary": "List active announcement banners",
+                "tags": [
+                    "announcements"
+                ]
+            },
+            "post": {
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "oneOf": [
+                                    {
+                                        "type": "object"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.CreateAnnouncementRequest",
+                                        "summary": "body",
+                                        "description": "Announcement"
+                                    }
+                                ]
+                            }
+                        }
+                    },
+                    "description": "Announcement",
+                    "required": true
+                },
+                "responses": {
+                    "201": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.SingleResponse-github_com_denisakp_ogoune_internal_dto_v1_AnnouncementResponse"
+                                }
+                            }
+                        },
+                        "description": "Created"
+                    },
+                    "403": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse"
+                                }
+                            }
+                        },
+                        "description": "Forbidden"
+                    },
+                    "422": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse"
+                                }
+                            }
+                        },
+                        "description": "Unprocessable Entity"
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "summary": "Publish an announcement banner",
+                "tags": [
+                    "announcements"
+                ]
+            }
+        },
+        "/announcements/{id}": {
+            "delete": {
+                "parameters": [
+                    {
+                        "description": "Announcement ID",
+                        "in": "path",
+                        "name": "id",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "403": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse"
+                                }
+                            }
+                        },
+                        "description": "Forbidden"
+                    },
+                    "404": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse"
+                                }
+                            }
+                        },
+                        "description": "Not Found"
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "summary": "Retract an announcement banner",
+                "tags": [
+                    "announcements"
+                ]
+            }
+        },
         "/components": {
             "get": {
                 "parameters": [
