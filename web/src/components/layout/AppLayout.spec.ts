@@ -4,6 +4,7 @@ import { createPinia, setActivePinia } from 'pinia'
 import { nextTick } from 'vue'
 import AppLayout from './AppLayout.vue'
 import { useAnnouncementStore } from '@/stores/announcementStore'
+import { __setAnnouncementsFeedForTests } from '@/services/announcementsService'
 
 function mountLayout() {
   return mount(AppLayout, {
@@ -22,6 +23,8 @@ describe('AppLayout', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
     localStorage.clear()
+    // Deterministic boot-fetch: no remote banners unless a test publishes.
+    __setAnnouncementsFeedForTests({ fetchActive: async () => [] })
   })
 
   it('mounts and renders the default slot inside the main column', () => {

@@ -7,6 +7,7 @@ import AppTopbar from './AppTopbar.vue'
 import OnboardingWizardModal from '@/components/onboarding/OnboardingWizardModal.vue'
 import { useOnboardingState } from '@/composables/useOnboardingState'
 import { useAnnouncementStore } from '@/stores/announcementStore'
+import announcementsService from '@/services/announcementsService'
 
 const { isPending, load } = useOnboardingState()
 
@@ -15,7 +16,17 @@ const { active: activeBanner } = storeToRefs(announcements)
 
 onMounted(() => {
   void load()
+  void loadAnnouncements()
 })
+
+async function loadAnnouncements() {
+  try {
+    const banners = await announcementsService.fetchActive()
+    banners.forEach((b) => announcements.publish(b))
+  } catch {
+    // Non-critical: a failed banner fetch must never block the app.
+  }
+}
 
 function onClose() {
   // markDone already called from wizard for both Skip + Summary CTA
