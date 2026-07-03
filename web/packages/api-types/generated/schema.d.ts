@@ -1481,6 +1481,171 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/reports/history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List generated reports (newest first) */
+        get: {
+            parameters: {
+                query?: {
+                    /** @description Max entries (default 6, max 50) */
+                    limit?: number;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            [key: string]: unknown;
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/reports/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Preview the current in-progress period (not persisted) */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["github_com_denisakp_ogoune_internal_dto_v1.SingleResponse-github_com_denisakp_ogoune_internal_dto_v1_ReportHistoryResponse"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/reports/settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get the monthly-report configuration */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["github_com_denisakp_ogoune_internal_dto_v1.SingleResponse-github_com_denisakp_ogoune_internal_dto_v1_ReportSettingsResponse"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse"];
+                    };
+                };
+            };
+        };
+        /** Update the monthly-report configuration */
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            /** @description Report settings */
+            requestBody: {
+                content: {
+                    "application/json": Record<string, never> | components["schemas"]["github_com_denisakp_ogoune_internal_dto_v1.UpdateReportSettingsRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["github_com_denisakp_ogoune_internal_dto_v1.SingleResponse-github_com_denisakp_ogoune_internal_dto_v1_ReportSettingsResponse"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse"];
+                    };
+                };
+                /** @description Unprocessable Entity */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse"];
+                    };
+                };
+            };
+        };
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/resources/{id}/credentials": {
         parameters: {
             query?: never;
@@ -2819,6 +2984,29 @@ export interface components {
             results?: components["schemas"]["github_com_denisakp_ogoune_internal_dto_v1.PortResult"][];
             scanned_count?: number;
         };
+        "github_com_denisakp_ogoune_internal_dto_v1.ReportBreakdown": {
+            incidents?: number;
+            name?: string;
+            uptimePct?: number;
+        };
+        "github_com_denisakp_ogoune_internal_dto_v1.ReportHistoryResponse": {
+            downtimeSeconds?: number;
+            id?: string;
+            incidentCount?: number;
+            period?: string;
+            recipientEmail?: string;
+            resourceBreakdown?: components["schemas"]["github_com_denisakp_ogoune_internal_dto_v1.ReportBreakdown"][];
+            sentAt?: string;
+            status?: string;
+            uptimePct?: number;
+        };
+        "github_com_denisakp_ogoune_internal_dto_v1.ReportSettingsResponse": {
+            enabled?: boolean;
+            lastSentAt?: string;
+            recipientEmail?: string;
+            schedule?: string;
+            scope?: string;
+        };
         "github_com_denisakp_ogoune_internal_dto_v1.SSLCertificate": {
             chain?: string[];
             cipher?: string;
@@ -2886,6 +3074,14 @@ export interface components {
             data?: components["schemas"]["github_com_denisakp_ogoune_internal_dto_v1.PortScanResponse"];
             meta?: components["schemas"]["github_com_denisakp_ogoune_internal_dto_v1.MetaResponse"];
         };
+        "github_com_denisakp_ogoune_internal_dto_v1.SingleResponse-github_com_denisakp_ogoune_internal_dto_v1_ReportHistoryResponse": {
+            data?: components["schemas"]["github_com_denisakp_ogoune_internal_dto_v1.ReportHistoryResponse"];
+            meta?: components["schemas"]["github_com_denisakp_ogoune_internal_dto_v1.MetaResponse"];
+        };
+        "github_com_denisakp_ogoune_internal_dto_v1.SingleResponse-github_com_denisakp_ogoune_internal_dto_v1_ReportSettingsResponse": {
+            data?: components["schemas"]["github_com_denisakp_ogoune_internal_dto_v1.ReportSettingsResponse"];
+            meta?: components["schemas"]["github_com_denisakp_ogoune_internal_dto_v1.MetaResponse"];
+        };
         "github_com_denisakp_ogoune_internal_dto_v1.SingleResponse-github_com_denisakp_ogoune_internal_dto_v1_SSLCheckResponse": {
             data?: components["schemas"]["github_com_denisakp_ogoune_internal_dto_v1.SSLCheckResponse"];
             meta?: components["schemas"]["github_com_denisakp_ogoune_internal_dto_v1.MetaResponse"];
@@ -2935,6 +3131,12 @@ export interface components {
             target?: string;
             timeout?: number;
             type?: string;
+        };
+        "github_com_denisakp_ogoune_internal_dto_v1.UpdateReportSettingsRequest": {
+            enabled?: boolean;
+            recipientEmail?: string;
+            schedule?: string;
+            scope?: string;
         };
         "github_com_denisakp_ogoune_internal_dto_v1.UpdateTagRequest": {
             color?: string;

@@ -94,6 +94,25 @@ func initTimingWheelWorker(app *App, enrichmentService *service.EnrichmentServic
 	startTimingWheelDispatcher(tw, monitoringHandler, app.SchedulerCfg.TimingWheel.MaxWorkers)
 	startTimingWheelExpiryCheck(app, enrichmentService)
 	startTimingWheelNotificationRetention(app)
+	startTimingWheelReportCheck(app)
+}
+
+// startTimingWheelReportCheck runs the monthly report catch-up scan in-process
+// (spec 076): once at startup (self-heals a missed month on restart) then daily.
+func startTimingWheelReportCheck(app *App) {
+	if app.ReportService == nil {
+		return
+	}
+	handler := worker.NewReportTaskHandler(app.ReportService)
+	_ = handler.ProcessTask(context.Background(), asynq.NewTask(worker.TypeReportCheck, nil)) // startup catch-up
+	go func() {
+		ticker := time.NewTicker(24 * time.Hour)
+		defer ticker.Stop()
+		for range ticker.C {
+			_ = handler.ProcessTask(context.Background(), asynq.NewTask(worker.TypeReportCheck, nil))
+		}
+	}()
+	slog.Info("TimingWheel daily report check scheduled")
 }
 
 // startTimingWheelNotificationRetention runs the daily feed-retention prune in-process (spec 072).
@@ -252,7 +271,16 @@ func initAsynqProcessor(app *App, enrichmentService *service.EnrichmentService) 
 		}
 	}
 
-	app.Processor = worker.NewProcessor(app.RedisOpt, monitoringHandler, maintenanceTaskHandler, expiryTaskHandler, retentionHandler, worker.Config{
+	// Monthly report catch-up scan (spec 076) — daily tick, idempotent per period.
+	var reportHandler *worker.ReportTaskHandler
+	if app.ReportService != nil {
+		reportHandler = worker.NewReportTaskHandler(app.ReportService)
+		if _, err := app.AsynqScheduler.Register("@daily", asynq.NewTask(worker.TypeReportCheck, nil)); err != nil {
+			slog.Error("failed to register report:check scheduler", "error", err)
+		}
+	}
+
+	app.Processor = worker.NewProcessor(app.RedisOpt, monitoringHandler, maintenanceTaskHandler, expiryTaskHandler, retentionHandler, reportHandler, worker.Config{
 		Concurrency: app.SchedulerCfg.Asynq.Concurrency,
 	})
 

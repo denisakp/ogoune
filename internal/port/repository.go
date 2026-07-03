@@ -224,6 +224,20 @@ type DashboardRepository interface {
 	Delete(ctx context.Context, id string) error
 }
 
+// ReportSettingsRepository persists the single instance-wide monthly-report
+// configuration (spec 076). Get returns repository.ErrNotFound when unsaved.
+type ReportSettingsRepository interface {
+	Get(ctx context.Context) (*domain.ReportSettings, error)
+	Upsert(ctx context.Context, s *domain.ReportSettings) (*domain.ReportSettings, error)
+}
+
+// ReportHistoryRepository persists generated monthly reports (spec 076).
+type ReportHistoryRepository interface {
+	Create(ctx context.Context, r *domain.ReportHistory) (*domain.ReportHistory, error)
+	ListRecent(ctx context.Context, limit int) ([]*domain.ReportHistory, error)
+	FindByPeriod(ctx context.Context, period string) (*domain.ReportHistory, error)
+}
+
 // NotificationFeedRepository persists in-app notification-feed items (spec 072).
 // Distinct from NotificationRepository (outbound dispatch events).
 type NotificationFeedRepository interface {

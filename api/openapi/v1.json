@@ -982,6 +982,76 @@
                 },
                 "type": "object"
             },
+            "github_com_denisakp_ogoune_internal_dto_v1.ReportBreakdown": {
+                "properties": {
+                    "incidents": {
+                        "type": "integer"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "uptimePct": {
+                        "type": "number"
+                    }
+                },
+                "type": "object"
+            },
+            "github_com_denisakp_ogoune_internal_dto_v1.ReportHistoryResponse": {
+                "properties": {
+                    "downtimeSeconds": {
+                        "type": "integer"
+                    },
+                    "id": {
+                        "type": "string"
+                    },
+                    "incidentCount": {
+                        "type": "integer"
+                    },
+                    "period": {
+                        "type": "string"
+                    },
+                    "recipientEmail": {
+                        "type": "string"
+                    },
+                    "resourceBreakdown": {
+                        "items": {
+                            "$ref": "#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.ReportBreakdown"
+                        },
+                        "type": "array",
+                        "uniqueItems": false
+                    },
+                    "sentAt": {
+                        "type": "string"
+                    },
+                    "status": {
+                        "type": "string"
+                    },
+                    "uptimePct": {
+                        "type": "number"
+                    }
+                },
+                "type": "object"
+            },
+            "github_com_denisakp_ogoune_internal_dto_v1.ReportSettingsResponse": {
+                "properties": {
+                    "enabled": {
+                        "type": "boolean"
+                    },
+                    "lastSentAt": {
+                        "type": "string"
+                    },
+                    "recipientEmail": {
+                        "type": "string"
+                    },
+                    "schedule": {
+                        "type": "string"
+                    },
+                    "scope": {
+                        "type": "string"
+                    }
+                },
+                "type": "object"
+            },
             "github_com_denisakp_ogoune_internal_dto_v1.SSLCertificate": {
                 "properties": {
                     "chain": {
@@ -1182,6 +1252,28 @@
                 },
                 "type": "object"
             },
+            "github_com_denisakp_ogoune_internal_dto_v1.SingleResponse-github_com_denisakp_ogoune_internal_dto_v1_ReportHistoryResponse": {
+                "properties": {
+                    "data": {
+                        "$ref": "#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.ReportHistoryResponse"
+                    },
+                    "meta": {
+                        "$ref": "#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.MetaResponse"
+                    }
+                },
+                "type": "object"
+            },
+            "github_com_denisakp_ogoune_internal_dto_v1.SingleResponse-github_com_denisakp_ogoune_internal_dto_v1_ReportSettingsResponse": {
+                "properties": {
+                    "data": {
+                        "$ref": "#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.ReportSettingsResponse"
+                    },
+                    "meta": {
+                        "$ref": "#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.MetaResponse"
+                    }
+                },
+                "type": "object"
+            },
             "github_com_denisakp_ogoune_internal_dto_v1.SingleResponse-github_com_denisakp_ogoune_internal_dto_v1_SSLCheckResponse": {
                 "properties": {
                     "data": {
@@ -1331,6 +1423,23 @@
                         "type": "integer"
                     },
                     "type": {
+                        "type": "string"
+                    }
+                },
+                "type": "object"
+            },
+            "github_com_denisakp_ogoune_internal_dto_v1.UpdateReportSettingsRequest": {
+                "properties": {
+                    "enabled": {
+                        "type": "boolean"
+                    },
+                    "recipientEmail": {
+                        "type": "string"
+                    },
+                    "schedule": {
+                        "type": "string"
+                    },
+                    "scope": {
                         "type": "string"
                     }
                 },
@@ -3181,6 +3290,165 @@
                 "summary": "Mark a single notification read",
                 "tags": [
                     "notifications"
+                ]
+            }
+        },
+        "/reports/history": {
+            "get": {
+                "parameters": [
+                    {
+                        "description": "Max entries (default 6, max 50)",
+                        "in": "query",
+                        "name": "limit",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "additionalProperties": {},
+                                    "type": "object"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "summary": "List generated reports (newest first)",
+                "tags": [
+                    "reports"
+                ]
+            }
+        },
+        "/reports/preview": {
+            "get": {
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.SingleResponse-github_com_denisakp_ogoune_internal_dto_v1_ReportHistoryResponse"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "summary": "Preview the current in-progress period (not persisted)",
+                "tags": [
+                    "reports"
+                ]
+            }
+        },
+        "/reports/settings": {
+            "get": {
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.SingleResponse-github_com_denisakp_ogoune_internal_dto_v1_ReportSettingsResponse"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    },
+                    "401": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse"
+                                }
+                            }
+                        },
+                        "description": "Unauthorized"
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "summary": "Get the monthly-report configuration",
+                "tags": [
+                    "reports"
+                ]
+            },
+            "put": {
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "oneOf": [
+                                    {
+                                        "type": "object"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.UpdateReportSettingsRequest",
+                                        "summary": "body",
+                                        "description": "Report settings"
+                                    }
+                                ]
+                            }
+                        }
+                    },
+                    "description": "Report settings",
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.SingleResponse-github_com_denisakp_ogoune_internal_dto_v1_ReportSettingsResponse"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    },
+                    "403": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse"
+                                }
+                            }
+                        },
+                        "description": "Forbidden"
+                    },
+                    "422": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse"
+                                }
+                            }
+                        },
+                        "description": "Unprocessable Entity"
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "summary": "Update the monthly-report configuration",
+                "tags": [
+                    "reports"
                 ]
             }
         },

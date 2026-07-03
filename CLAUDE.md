@@ -93,7 +93,7 @@ Handlers never run checks or query DB directly. Scheduling goes through the Sche
 - **Ports (contracts)**: `internal/port/` — all interface definitions (repository, scheduler, notifier, monitoring)
 - **Repositories**: `internal/repository/store/*_sqlc.go` — hand-written wrappers over sqlc-generated query bindings (under `internal/repository/sqlc/{pg,sqlite}/`). See `internal/repository/sqlc/README.md` for the contributor onboarding workflow. `internal/repository/interfaces.go` holds only error sentinels.
 - **Scheduler**: `internal/scheduler/` — TimingWheel and Asynq implementations of `port.Scheduler`
-- **Workers**: `internal/worker/` — `handler_monitoring.go` (check execution + incident triggering), `handler_expiry.go`, `handler_notification.go`
+- **Workers**: `internal/worker/` — `handler_monitoring.go` (check execution + incident triggering), `handler_expiry.go`, `handler_notification.go`, `handler_report.go` (spec 076: monthly report catch-up scan — daily tick generates the previous completed month if absent, idempotent per `period`; delivery via the oldest `smtp` notification channel with the report's recipient; failed send → `report_history.status=failed`, never aborts the job)
 - **Check strategies**: `internal/monitoring/strategy/` — HTTP, TCP, DNS, ICMP, Keyword, Protocol
 - **Incident logic**: `internal/monitoring/incident_service.go` — confirmation window, flap detection, alert grouping
 - **Notifications**: `pkg/notifier/` — SMTP, Slack, Discord, Google Chat, Teams, webhooks
@@ -202,5 +202,5 @@ Dashboard: http://localhost:9009 (project `ogoune`). Block on CRITICAL/BLOCKER i
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan:
-`specs/075-dashboards-backend/plan.md`
+`specs/076-reports-backend/plan.md`
 <!-- SPECKIT END -->

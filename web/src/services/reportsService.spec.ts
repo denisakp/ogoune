@@ -1,67 +1,106 @@
-import { beforeEach, describe, expect, it } from 'vitest'
-import {
-  __createMockFeedForTests,
-  __createRemoteStubForTests,
-} from './reportsService'
+import { describe, expect, it } from 'vitest'
+import { http, HttpResponse } from 'msw'
+import { createRemoteReportsFeed } from './reportsService'
+import { server } from '@/test/msw/server'
+import type { MonthlyReport } from '@/types'
 
-describe('reportsService (spec 070 / US1)', () => {
-  describe('mock mode', () => {
-    let feed: ReturnType<typeof __createMockFeedForTests>
-
-    beforeEach(() => {
-      feed = __createMockFeedForTests()
-    })
-
-    it('returns a default disabled monthly report on first fetch', async () => {
-      const m = await feed.fetchMonthly()
-      expect(m.enabled).toBe(false)
-      expect(m.schedule).toBe('monthly-1st')
-      expect(m.scope).toBe('all-resources')
-      expect(m.lastSentAt).toBeNull()
-    })
-
-    it('persists toggle ON across fetches', async () => {
-      const initial = await feed.fetchMonthly()
-      await feed.saveMonthly({ ...initial, enabled: true })
-      const reloaded = await feed.fetchMonthly()
-      expect(reloaded.enabled).toBe(true)
-    })
-
-    it('returns history sorted by sentAt desc', async () => {
-      const h = await feed.fetchHistory()
-      for (let i = 1; i < h.length; i++) {
-        expect(new Date(h[i - 1]!.sentAt).getTime()).toBeGreaterThanOrEqual(
-          new Date(h[i]!.sentAt).getTime(),
-        )
-      }
-    })
-
-    it('caps history length at the provided limit', async () => {
-      const h = await feed.fetchHistory(2)
-      expect(h.length).toBe(2)
-    })
-
-    it('fetchPendingPreview returns null in MVP', async () => {
-      const p = await feed.fetchPendingPreview()
-      expect(p).toBeNull()
-    })
+describe('reportsService (spec 076 — real backend)', () => {
+  it('fetchMonthly unwraps the {data} envelope', async () => {
+    server.use(
+      http.get('*/v1/reports/settings', () =>
+        HttpResponse.json({
+          data: {
+            enabled: true,
+            recipientEmail: 'ops@example.com',
+            schedule: 'monthly-1st',
+            scope: 'all-resources',
+            lastSentAt: null,
+          },
+        }),
+      ),
+    )
+    const got = await createRemoteReportsFeed().fetchMonthly()
+    expect(got.enabled).toBe(true)
+    expect(got.recipientEmail).toBe('ops@example.com')
   })
 
-  describe('remote stub', () => {
-    it('throws not-implemented on every operation', async () => {
-      const feed = __createRemoteStubForTests()
-      await expect(feed.fetchMonthly()).rejects.toThrow(/not implemented/)
-      await expect(
-        feed.saveMonthly({
-          enabled: true,
-          recipientEmail: 'x@y',
-          schedule: 'monthly-1st',
-          scope: 'all-resources',
-          lastSentAt: null,
+  it('saveMonthly PUTs the config and returns the updated settings', async () => {
+    let sent: MonthlyReport | null = null
+    server.use(
+      http.put('*/v1/reports/settings', async ({ request }) => {
+        sent = (await request.json()) as MonthlyReport
+        return HttpResponse.json({ data: sent })
+      }),
+    )
+    const next: MonthlyReport = {
+      enabled: true,
+      recipientEmail: 'a@b.com',
+      schedule: 'monthly-1st',
+      scope: 'all-resources',
+      lastSentAt: null,
+    }
+    const got = await createRemoteReportsFeed().saveMonthly(next)
+    expect(sent).not.toBeNull()
+    expect(got.recipientEmail).toBe('a@b.com')
+  })
+
+  it('fetchHistory forwards the limit and unwraps the list', async () => {
+    let url = ''
+    server.use(
+      http.get('*/v1/reports/history', ({ request }) => {
+        url = request.url
+        return HttpResponse.json({
+          data: [
+            {
+              id: 'r1',
+              period: '2026-06',
+              sentAt: '2026-07-01T00:05:00Z',
+              status: 'delivered',
+              uptimePct: 99.9,
+              incidentCount: 1,
+              downtimeSeconds: 300,
+              recipientEmail: 'ops@example.com',
+              resourceBreakdown: [{ name: 'API', uptimePct: 99.9, incidents: 1 }],
+            },
+          ],
+        })
+      }),
+    )
+    const rows = await createRemoteReportsFeed().fetchHistory(3)
+    expect(url).toContain('limit=3')
+    expect(rows).toHaveLength(1)
+    expect(rows[0]!.period).toBe('2026-06')
+  })
+
+  it('fetchHistory returns [] when the envelope has no data', async () => {
+    server.use(http.get('*/v1/reports/history', () => HttpResponse.json({ data: null })))
+    expect(await createRemoteReportsFeed().fetchHistory()).toEqual([])
+  })
+
+  it('fetchPendingPreview maps a data object', async () => {
+    server.use(
+      http.get('*/v1/reports/preview', () =>
+        HttpResponse.json({
+          data: {
+            id: '',
+            period: '2026-07',
+            sentAt: '2026-07-15T10:00:00Z',
+            status: 'pending',
+            uptimePct: 100,
+            incidentCount: 0,
+            downtimeSeconds: 0,
+            recipientEmail: 'ops@example.com',
+            resourceBreakdown: [],
+          },
         }),
-      ).rejects.toThrow(/not implemented/)
-      await expect(feed.fetchHistory()).rejects.toThrow(/not implemented/)
-      await expect(feed.fetchPendingPreview()).rejects.toThrow(/not implemented/)
-    })
+      ),
+    )
+    const pv = await createRemoteReportsFeed().fetchPendingPreview()
+    expect(pv?.period).toBe('2026-07')
+  })
+
+  it('fetchPendingPreview maps null to null', async () => {
+    server.use(http.get('*/v1/reports/preview', () => HttpResponse.json({ data: null })))
+    expect(await createRemoteReportsFeed().fetchPendingPreview()).toBeNull()
   })
 })
