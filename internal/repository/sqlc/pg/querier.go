@@ -30,6 +30,7 @@ type Querier interface {
 	CountRecentTwoFactorResetTokensByUser(ctx context.Context, arg CountRecentTwoFactorResetTokensByUserParams) (int64, error)
 	CountResourcesByComponentID(ctx context.Context, componentID pgtype.Text) (int64, error)
 	CreateAPIKey(ctx context.Context, arg CreateAPIKeyParams) error
+	CreateAnnouncement(ctx context.Context, arg CreateAnnouncementParams) (Announcement, error)
 	CreateComponent(ctx context.Context, arg CreateComponentParams) error
 	CreateDashboard(ctx context.Context, arg CreateDashboardParams) (Dashboard, error)
 	CreateEscalationPolicy(ctx context.Context, arg CreateEscalationPolicyParams) error
@@ -57,6 +58,7 @@ type Querier interface {
 	CreateTag(ctx context.Context, arg CreateTagParams) (Tag, error)
 	CreateTwoFactorResetToken(ctx context.Context, arg CreateTwoFactorResetTokenParams) error
 	CreateUser(ctx context.Context, arg CreateUserParams) (User, error)
+	DeleteAnnouncement(ctx context.Context, id string) (int64, error)
 	DeleteComponent(ctx context.Context, id string) (int64, error)
 	DeleteDashboard(ctx context.Context, id string) (int64, error)
 	DeleteEscalationPolicy(ctx context.Context, id string) (int64, error)
@@ -132,6 +134,7 @@ type Querier interface {
 	// M2M: resource_tags ---------------------------------------------------------
 	LinkResourceTag(ctx context.Context, arg LinkResourceTagParams) error
 	ListAPIKeysByUserID(ctx context.Context, userID string) ([]ApiKey, error)
+	ListActiveAnnouncements(ctx context.Context, active bool) ([]Announcement, error)
 	ListActiveResources(ctx context.Context, arg ListActiveResourcesParams) ([]Resource, error)
 	ListActiveSessionsByUser(ctx context.Context, userID string) ([]Session, error)
 	ListChannelIDsByResourceID(ctx context.Context, resourceID string) ([]string, error)

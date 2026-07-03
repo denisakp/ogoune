@@ -9,6 +9,17 @@ import (
 	"time"
 )
 
+type Announcement struct {
+	ID          string    `json:"id"`
+	Severity    string    `json:"severity"`
+	Title       string    `json:"title"`
+	Description string    `json:"description"`
+	Dismissible int64     `json:"dismissible"`
+	Active      int64     `json:"active"`
+	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
+}
+
 type ApiKey struct {
 	ID         string       `json:"id"`
 	CreatedAt  time.Time    `json:"created_at"`
