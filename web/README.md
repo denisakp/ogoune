@@ -120,9 +120,7 @@ VITE_MAINTENANCE_ETA="est. 30 min"
 VITE_MAINTENANCE_MESSAGE="Upgrading DB"
 
 # Notification feed: always backed by the real v1 API (spec 072) — no mock mode.
-
-# Reports feed (spec 070).
-VITE_REPORTS_FEED_MODE=mock           # default
+# Reports: always backed by the real v1 API (spec 076) — no mock mode.
 # Dashboards: always backed by the real v1 API (spec 075) — no mock mode.
 ```
 

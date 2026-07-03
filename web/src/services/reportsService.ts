@@ -1,17 +1,14 @@
 import type { MonthlyReport, ReportHistoryEntry } from '@/types'
-import { defaultMonthlyReport, REPORT_HISTORY_FIXTURE } from '@/mocks/reports.fixture'
+import { getAuthenticatedClient, request } from '@/core/http/client'
 
 /**
- * Spec 070 — internal contract between the reports UI and its (mocked) feed.
- * Documented at `specs/070-reports-dashboards/contracts/reports-feed.contract.md`.
+ * Reports feed — always backed by the real v1 API (spec 076).
  *
- * UI components MUST import only the `ReportsFeed` interface and the
- * default export below. Swapping to a real backend in a future PRD is a
- * one-file change (FR-030a).
- *
- * Note: the zero-resources guard (FR-007) lives in `useReports` at the
- * composable layer so the mock stays pure and pinia-free at module
- * evaluation time. A real backend will enforce the same guard server-side.
+ * The backend persists the monthly-report configuration, generates the monthly
+ * report (reusing daily uptime aggregates + incidents), and emails it via an
+ * SMTP notification channel. v1 endpoints wrap payloads in a `{ data }`
+ * envelope; the DTOs already match the `MonthlyReport` / `ReportHistoryEntry`
+ * shapes (camelCase). The zero-resources guard lives in `useReports`.
  */
 export interface ReportsFeed {
   fetchMonthly(): Promise<MonthlyReport>
@@ -20,45 +17,38 @@ export interface ReportsFeed {
   fetchPendingPreview(): Promise<ReportHistoryEntry | null>
 }
 
-export function createMockReportsFeed(): ReportsFeed {
-  let monthly: MonthlyReport = defaultMonthlyReport()
-  const history: ReportHistoryEntry[] = [...REPORT_HISTORY_FIXTURE]
+const successMsg = (m: string) => ({ headers: { 'x-success-message': m } })
 
+export function createRemoteReportsFeed(): ReportsFeed {
+  const client = () => getAuthenticatedClient()
   return {
-    async fetchMonthly() {
-      return { ...monthly }
+    async fetchMonthly(): Promise<MonthlyReport> {
+      const res = await request<{ data: MonthlyReport }>(client(), 'v1/reports/settings')
+      return res.data
     },
-    async saveMonthly(next: MonthlyReport) {
-      monthly = { ...next }
-      return { ...monthly }
+    async saveMonthly(next: MonthlyReport): Promise<MonthlyReport> {
+      const res = await request<{ data: MonthlyReport }>(client(), 'v1/reports/settings', {
+        method: 'PUT',
+        json: next,
+        ...successMsg('Report settings saved'),
+      })
+      return res.data
     },
-    async fetchHistory(limit = 6) {
-      return history
-        .slice()
-        .sort((a, b) => new Date(b.sentAt).getTime() - new Date(a.sentAt).getTime())
-        .slice(0, limit)
+    async fetchHistory(limit = 6): Promise<ReportHistoryEntry[]> {
+      const res = await request<{ data: ReportHistoryEntry[] }>(
+        client(),
+        `v1/reports/history?limit=${limit}`,
+      )
+      return res?.data ?? []
     },
-    async fetchPendingPreview() {
-      return null
+    async fetchPendingPreview(): Promise<ReportHistoryEntry | null> {
+      const res = await request<{ data: ReportHistoryEntry | null }>(client(), 'v1/reports/preview')
+      return res?.data ?? null
     },
   }
 }
 
-export function createRemoteStub(): ReportsFeed {
-  const notImplemented = (op: string) => async () => {
-    throw new Error(`reportsService: 'remote' mode not implemented yet (${op})`)
-  }
-  return {
-    fetchMonthly: notImplemented('fetchMonthly'),
-    saveMonthly: notImplemented('saveMonthly') as ReportsFeed['saveMonthly'],
-    fetchHistory: notImplemented('fetchHistory') as ReportsFeed['fetchHistory'],
-    fetchPendingPreview: notImplemented('fetchPendingPreview') as ReportsFeed['fetchPendingPreview'],
-  }
-}
-
-const mode = (import.meta.env.VITE_REPORTS_FEED_MODE as string | undefined) ?? 'mock'
-
-let activeFeed: ReportsFeed = mode === 'remote' ? createRemoteStub() : createMockReportsFeed()
+let activeFeed: ReportsFeed = createRemoteReportsFeed()
 
 const reportsService: ReportsFeed = {
   fetchMonthly: () => activeFeed.fetchMonthly(),
@@ -69,19 +59,11 @@ const reportsService: ReportsFeed = {
 
 export default reportsService
 
-// Test-only helpers.
+// Test-only: inject a fake feed (view specs) or reset to the real one.
 export function __setReportsFeedForTests(feed: ReportsFeed): void {
   activeFeed = feed
 }
 
 export function __resetReportsForTests(): void {
-  activeFeed = mode === 'remote' ? createRemoteStub() : createMockReportsFeed()
-}
-
-export function __createMockFeedForTests(): ReportsFeed {
-  return createMockReportsFeed()
-}
-
-export function __createRemoteStubForTests(): ReportsFeed {
-  return createRemoteStub()
+  activeFeed = createRemoteReportsFeed()
 }
