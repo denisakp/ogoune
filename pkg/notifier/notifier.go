@@ -30,6 +30,7 @@ type NotificationPayload struct {
 	Expiry    *ExpiryNotification
 	Flapping  *FlappingNotification
 	Reminder  *ReminderNotification
+	Report    *ReportNotification
 }
 
 // ExpiryNotification carries expiry-specific data for threshold alert dispatching.

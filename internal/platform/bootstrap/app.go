@@ -50,6 +50,8 @@ type App struct {
 	IncidentUpdateRepo        port.IncidentUpdateRepository
 	NotificationFeedRepo      port.NotificationFeedRepository
 	DashboardRepo             port.DashboardRepository
+	ReportSettingsRepo        port.ReportSettingsRepository
+	ReportHistoryRepo         port.ReportHistoryRepository
 
 	// Metrics phase
 	MetricsRecorder       domain.MetricsRecorder
@@ -82,6 +84,7 @@ type App struct {
 	EscalationService *service.EscalationService
 	NotificationFeedService *service.NotificationFeedService
 	DashboardService        *service.DashboardService
+	ReportService           *service.ReportService
 
 	// Spec 060 — Public status page
 	PublicStatusService   *service.PublicStatusService

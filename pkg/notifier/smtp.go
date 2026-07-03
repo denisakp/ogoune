@@ -122,11 +122,14 @@ func (n *SMTPNotifier) Send(ctx context.Context, payload NotificationPayload) er
 	case payload.Expiry != nil:
 		subject = n.expirySubject(payload.Expiry)
 		htmlBody = n.generateExpiryEmailHTML(payload.Expiry)
+	case payload.Report != nil:
+		subject = n.reportSubject(payload.Report)
+		htmlBody = n.generateReportEmailHTML(payload.Report)
 	case payload.Incident != nil:
 		incident := *payload.Incident
 		subject, htmlBody = n.incidentEmailContent(incident)
 	default:
-		return fmt.Errorf("notification payload missing incident, component, expiry, flapping, or reminder")
+		return fmt.Errorf("notification payload missing incident, component, expiry, flapping, reminder, or report")
 	}
 
 	message := gomail.NewMessage()
@@ -389,4 +392,32 @@ func (n *SMTPNotifier) generateExpiryEmailHTML(expiry *ExpiryNotification) strin
 	}
 
 	return buf.String()
+}
+
+// reportSubject builds the subject line for a monthly report email (spec 076).
+func (n *SMTPNotifier) reportSubject(r *ReportNotification) string {
+	return fmt.Sprintf("Monthly uptime report — %s", r.Period)
+}
+
+// generateReportEmailHTML renders a simple, dependency-free HTML body for a
+// monthly report. Kept inline (not templated) to avoid a new embedded asset.
+func (n *SMTPNotifier) generateReportEmailHTML(r *ReportNotification) string {
+	var rows bytes.Buffer
+	for _, b := range r.Breakdown {
+		rows.WriteString(fmt.Sprintf(
+			"<tr><td style=\"padding:4px 12px 4px 0\">%s</td><td style=\"padding:4px 12px;text-align:right\">%.2f%%</td><td style=\"padding:4px 0;text-align:right\">%d</td></tr>",
+			template.HTMLEscapeString(b.Name), b.UptimePct, b.Incidents))
+	}
+	downtimeMin := r.DowntimeSeconds / 60
+	return fmt.Sprintf(`<!DOCTYPE html><html><body style="font-family:system-ui,sans-serif;color:#0f172a">
+<h2 style="margin:0 0 4px">Monthly uptime report</h2>
+<p style="color:#64748b;margin:0 0 16px">Period: %s</p>
+<table style="border-collapse:collapse;margin-bottom:16px">
+<tr><td style="padding:4px 24px 4px 0"><strong>Overall uptime</strong></td><td style="text-align:right">%.2f%%</td></tr>
+<tr><td style="padding:4px 24px 4px 0"><strong>Incidents</strong></td><td style="text-align:right">%d</td></tr>
+<tr><td style="padding:4px 24px 4px 0"><strong>Total downtime</strong></td><td style="text-align:right">%d min</td></tr>
+</table>
+<h3 style="margin:0 0 8px">Per-resource</h3>
+<table style="border-collapse:collapse"><thead><tr><th style="text-align:left;padding:0 12px 4px 0">Resource</th><th style="text-align:right;padding:0 12px 4px">Uptime</th><th style="text-align:right;padding:0 0 4px">Incidents</th></tr></thead><tbody>%s</tbody></table>
+</body></html>`, template.HTMLEscapeString(r.Period), r.UptimePct, r.IncidentCount, downtimeMin, rows.String())
 }

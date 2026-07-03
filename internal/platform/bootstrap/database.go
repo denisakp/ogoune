@@ -72,6 +72,19 @@ func InitDatabase(app *App) {
 	app.DashboardRepo = store.NewDashboardRepositorySQLC(rt)
 	app.DashboardService = service.NewDashboardService(app.DashboardRepo)
 
+	// Reports (spec 076): built here (not InitServices) because InitWorker runs
+	// first and registers the scheduled report generator.
+	app.ReportSettingsRepo = store.NewReportSettingsRepositorySQLC(rt)
+	app.ReportHistoryRepo = store.NewReportHistoryRepositorySQLC(rt)
+	app.ReportService = service.NewReportService(
+		app.ReportSettingsRepo,
+		app.ReportHistoryRepo,
+		app.ResourceRepo,
+		app.UptimeDailyAggRepo,
+		app.IncidentRepo,
+		app.NotificationChannelRepo,
+	)
+
 	// Seed-time services that the worker layer depends on must be built
 	// before InitWorker runs (InitServices is too late). The full
 	// PublicStatusService stays in InitServices since it has no worker dep.

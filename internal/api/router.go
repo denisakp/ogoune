@@ -63,6 +63,7 @@ func NewRouter(
 	toolboxV1Handler *v1handler.ToolboxHandler,
 	notificationFeedV1Handler *v1handler.NotificationFeedHandler,
 	dashboardV1Handler *v1handler.DashboardHandler,
+	reportV1Handler *v1handler.ReportHandler,
 	enableSwagger bool,
 	cfg *config.Config,
 ) http.Handler {
@@ -359,6 +360,14 @@ func NewRouter(
 				r.With(middleware.RequireReadWrite).Patch("/{id}", dashboardV1Handler.Update)
 				r.With(middleware.RequireReadWrite).Put("/{id}/layout", dashboardV1Handler.SaveLayout)
 				r.With(middleware.RequireReadWrite).Delete("/{id}", dashboardV1Handler.Delete)
+			})
+
+			// Monthly reports (spec 076) — instance-wide read; config write-scoped.
+			r.Route("/reports", func(r chi.Router) {
+				r.Get("/settings", reportV1Handler.GetSettings)
+				r.With(middleware.RequireReadWrite).Put("/settings", reportV1Handler.UpdateSettings)
+				r.Get("/history", reportV1Handler.History)
+				r.Get("/preview", reportV1Handler.Preview)
 			})
 			// Toolbox — one-shot network tools (spec 071). Write-scoped + per-user
 			// rate-limited; port-scan strictest (5/min), others 20/min.
