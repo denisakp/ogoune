@@ -32,11 +32,12 @@ func (m *mockRecorder) RecordCheck(resourceID, name string, resourceType Resourc
 	})
 }
 
-// successStrategy always returns a success result.
+// successStrategy always returns a success result (resource up), matching what
+// real strategies emit (domain StatusUp = "up").
 type successStrategy struct{}
 
 func (s *successStrategy) Execute(ctx context.Context, resource *Resource) (CheckResult, error) {
-	return CheckResult{Status: "success"}, nil
+	return CheckResult{Status: string(StatusUp)}, nil
 }
 
 // failureStrategy always returns a failure result.
@@ -62,7 +63,7 @@ func TestCheckExecutor_RecordCheck_CalledOnce(t *testing.T) {
 
 	result, err := executor.ExecuteCheck(resource)
 	require.NoError(t, err)
-	assert.Equal(t, "success", result.Status)
+	assert.Equal(t, string(StatusUp), result.Status)
 
 	require.Len(t, rec.calls, 1, "RecordCheck must be called exactly once")
 	call := rec.calls[0]
@@ -93,7 +94,8 @@ func TestCheckExecutor_RecordCheck_FailureStatus(t *testing.T) {
 	assert.Equal(t, "failure", rec.calls[0].status)
 }
 
-func TestCheckExecutor_RecordCheck_TimeoutStatus(t *testing.T) {
+// A non-up result (here a timeout) is downtime and must be recorded as failure.
+func TestCheckExecutor_RecordCheck_TimeoutCountsAsFailure(t *testing.T) {
 	rec := &mockRecorder{}
 	strategies := map[ResourceType]CheckStrategy{
 		ResourceHTTP: &struct{ CheckStrategy }{&timeoutStrategy{}},
@@ -110,7 +112,7 @@ func TestCheckExecutor_RecordCheck_TimeoutStatus(t *testing.T) {
 	require.NoError(t, err)
 
 	require.Len(t, rec.calls, 1)
-	assert.Equal(t, "timeout", rec.calls[0].status)
+	assert.Equal(t, "failure", rec.calls[0].status)
 }
 
 // timeoutStrategy returns a timeout result.

@@ -25,7 +25,7 @@ const catalog = [
   { name: 'ogoune_resource_status', type: 'gauge', description: 'Current status (0=unknown,1=up,2=down,3=paused).' },
   { name: 'ogoune_incidents_total', type: 'counter', description: 'All-time total incidents for the resource.' },
   { name: 'ogoune_incidents_active', type: 'gauge', description: 'Currently open incidents for the resource.' },
-  { name: 'ogoune_uptime_ratio', type: 'gauge', description: 'Uptime ratio (0.0–1.0) over a time window.' },
+  { name: 'ogoune_uptime_ratio', type: 'gauge', description: 'Uptime percentage (0–100) over a time window.' },
 ]
 
 const scrapeConfig = computed(
