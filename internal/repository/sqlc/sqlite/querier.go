@@ -48,6 +48,7 @@ type Querier interface {
 	CreateNotification(ctx context.Context, arg CreateNotificationParams) (Notification, error)
 	CreateNotificationChannel(ctx context.Context, arg CreateNotificationChannelParams) error
 	CreateNotificationEvent(ctx context.Context, arg CreateNotificationEventParams) error
+	CreateReportHistory(ctx context.Context, arg CreateReportHistoryParams) (ReportHistory, error)
 	// PR1 of US1: CRUD without M2M and without 1-to-1 preloads.
 	// Mirror of postgres/resource.sql with SQLite-specific date math for
 	// FindMissedHeartbeats (strftime instead of EXTRACT EPOCH).
@@ -101,6 +102,7 @@ type Querier interface {
 	FindNotificationChannelsByType(ctx context.Context, type_ string) ([]NotificationChannel, error)
 	FindNotificationEventByID(ctx context.Context, id string) (NotificationEvent, error)
 	FindPendingNotificationEvents(ctx context.Context, arg FindPendingNotificationEventsParams) ([]NotificationEvent, error)
+	FindReportHistoryByPeriod(ctx context.Context, period string) (ReportHistory, error)
 	FindResourceByHeartbeatSlug(ctx context.Context, heartbeatSlug sql.NullString) (Resource, error)
 	FindResourceByID(ctx context.Context, id string) (Resource, error)
 	FindResourceIDsByTagName(ctx context.Context, arg FindResourceIDsByTagNameParams) ([]string, error)
@@ -117,6 +119,7 @@ type Querier interface {
 	GetIncidentStatsSQLite(ctx context.Context, since time.Time) (GetIncidentStatsSQLiteRow, error)
 	GetIncidentUpdate(ctx context.Context, id string) (IncidentUpdate, error)
 	GetRecentResponseTimes(ctx context.Context, arg GetRecentResponseTimesParams) ([]GetRecentResponseTimesRow, error)
+	GetReportSettings(ctx context.Context) (ReportSetting, error)
 	GetResourceCredentialByResourceID(ctx context.Context, resourceID string) (ResourceCredential, error)
 	GetStatusPageSettings(ctx context.Context) (StatusPageSetting, error)
 	HasActiveIncident(ctx context.Context) (int64, error)
@@ -148,6 +151,7 @@ type Querier interface {
 	ListNotificationChannels(ctx context.Context, arg ListNotificationChannelsParams) ([]NotificationChannel, error)
 	ListNotificationEvents(ctx context.Context, arg ListNotificationEventsParams) ([]NotificationEvent, error)
 	ListNotificationsForUser(ctx context.Context, arg ListNotificationsForUserParams) ([]Notification, error)
+	ListRecentReportHistory(ctx context.Context, lim int64) ([]ReportHistory, error)
 	ListResources(ctx context.Context, arg ListResourcesParams) ([]Resource, error)
 	ListResourcesByComponentID(ctx context.Context, componentID sql.NullString) ([]Resource, error)
 	ListScheduledResources(ctx context.Context) ([]Resource, error)
@@ -199,6 +203,7 @@ type Querier interface {
 	UpdateUserLastLogin(ctx context.Context, id string) error
 	UpdateUserPassword(ctx context.Context, arg UpdateUserPasswordParams) error
 	UpdateUserTwoFactorSecret(ctx context.Context, arg UpdateUserTwoFactorSecretParams) error
+	UpsertReportSettings(ctx context.Context, arg UpsertReportSettingsParams) (ReportSetting, error)
 	UpsertResourceCredential(ctx context.Context, arg UpsertResourceCredentialParams) error
 	UpsertUptimeDailyAgg(ctx context.Context, arg UpsertUptimeDailyAggParams) error
 }

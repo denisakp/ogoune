@@ -35,4 +35,8 @@ var (
 
 	// Spec 075 — Custom dashboards
 	_ port.DashboardRepository = (*DashboardRepositorySQLC)(nil)
+
+	// Spec 076 — Monthly reports
+	_ port.ReportSettingsRepository = (*ReportSettingsRepositorySQLC)(nil)
+	_ port.ReportHistoryRepository  = (*ReportHistoryRepositorySQLC)(nil)
 )

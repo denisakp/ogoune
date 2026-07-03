@@ -721,8 +721,6 @@ type EmittedNotification struct {
 	OccurredAt  time.Time
 }
 
-// --- Custom dashboards (spec 075) ---
-
 // Dashboard widget-type identifiers (must match the frontend widget catalog).
 const (
 	WidgetTypeUptimeStat         = "uptime-stat"
@@ -775,4 +773,57 @@ type Dashboard struct {
 	DefaultTimeRange string           `json:"default_time_range"`
 	RefreshInterval  string           `json:"refresh_interval"`
 	Visibility       string           `json:"visibility"`
+}
+
+// ─── Spec 076: Monthly reports ──────────────────────────────────────────────
+
+// ReportStatus is the terminal status of a generated report. "pending" is a
+// valid frontend enum value but is never persisted server-side (generation and
+// delivery are synchronous → one write with a terminal status).
+type ReportStatus string
+
+const (
+	ReportStatusPending   ReportStatus = "pending"
+	ReportStatusDelivered ReportStatus = "delivered"
+	ReportStatusFailed    ReportStatus = "failed"
+)
+
+// Frozen enum values (frontend sends only these).
+const (
+	ReportScheduleMonthly1st = "monthly-1st"
+	ReportScopeAllResources  = "all-resources"
+)
+
+// ReportSettingsSingletonID is the fixed primary key of the single instance-wide
+// report configuration row.
+const ReportSettingsSingletonID = "report_settings_singleton"
+
+// ReportSettings is the instance-wide monthly-report configuration (one row).
+type ReportSettings struct {
+	Base
+	Enabled        bool       `json:"enabled"`
+	RecipientEmail string     `json:"recipient_email"`
+	Schedule       string     `json:"schedule"`
+	Scope          string     `json:"scope"`
+	LastSentAt     *time.Time `json:"last_sent_at"`
+}
+
+// ReportBreakdownLine is one per-resource line in a report snapshot.
+type ReportBreakdownLine struct {
+	Name      string  `json:"name"`
+	UptimePct float64 `json:"uptime_pct"`
+	Incidents int     `json:"incidents"`
+}
+
+// ReportHistory is a generated report for one period. Immutable once written.
+type ReportHistory struct {
+	Base
+	Period          string                `json:"period"`
+	SentAt          time.Time             `json:"sent_at"`
+	Status          ReportStatus          `json:"status"`
+	UptimePct       float64               `json:"uptime_pct"`
+	IncidentCount   int                   `json:"incident_count"`
+	DowntimeSeconds int64                 `json:"downtime_seconds"`
+	RecipientEmail  string                `json:"recipient_email"`
+	Breakdown       []ReportBreakdownLine `json:"breakdown"`
 }

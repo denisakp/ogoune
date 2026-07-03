@@ -220,6 +220,30 @@ type NotificationEvent struct {
 	LastError   string         `json:"last_error"`
 }
 
+type ReportHistory struct {
+	ID                string    `json:"id"`
+	Period            string    `json:"period"`
+	SentAt            time.Time `json:"sent_at"`
+	Status            string    `json:"status"`
+	UptimePct         float64   `json:"uptime_pct"`
+	IncidentCount     int64     `json:"incident_count"`
+	DowntimeSeconds   int64     `json:"downtime_seconds"`
+	RecipientEmail    string    `json:"recipient_email"`
+	ResourceBreakdown string    `json:"resource_breakdown"`
+	CreatedAt         time.Time `json:"created_at"`
+}
+
+type ReportSetting struct {
+	ID             string       `json:"id"`
+	Enabled        int64        `json:"enabled"`
+	RecipientEmail string       `json:"recipient_email"`
+	Schedule       string       `json:"schedule"`
+	Scope          string       `json:"scope"`
+	LastSentAt     sql.NullTime `json:"last_sent_at"`
+	CreatedAt      time.Time    `json:"created_at"`
+	UpdatedAt      time.Time    `json:"updated_at"`
+}
+
 type Resource struct {
 	ID                      string         `json:"id"`
 	CreatedAt               time.Time      `json:"created_at"`
