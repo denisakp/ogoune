@@ -37,6 +37,7 @@ const sections: Section[] = [
     items: [
       { label: 'General', to: '/settings/org/general', icon: 'i-lucide-building-2' },
       { label: 'Status Page', to: '/settings/org/status-page', icon: 'i-lucide-globe' },
+      { label: 'Announcements', to: '/settings/org/announcements', icon: 'i-lucide-megaphone' },
     ],
   },
 ]

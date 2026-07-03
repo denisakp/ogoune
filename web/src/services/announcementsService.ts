@@ -24,9 +24,20 @@ function toBanner(a: AnnouncementResponse): Banner {
   }
 }
 
+export interface AnnouncementInput {
+  severity: Banner['severity']
+  title: string
+  description?: string
+  dismissible: boolean
+}
+
 export interface AnnouncementsFeed {
   fetchActive(): Promise<Banner[]>
+  create(input: AnnouncementInput): Promise<Banner>
+  remove(id: string): Promise<void>
 }
+
+const successMsg = (m: string) => ({ headers: { 'x-success-message': m } })
 
 export function createRemoteAnnouncementsFeed(): AnnouncementsFeed {
   const client = () => getAuthenticatedClient()
@@ -35,6 +46,20 @@ export function createRemoteAnnouncementsFeed(): AnnouncementsFeed {
       const res = await request<{ data: AnnouncementResponse[] }>(client(), 'v1/announcements')
       return (res?.data ?? []).map(toBanner)
     },
+    async create(input: AnnouncementInput): Promise<Banner> {
+      const res = await request<{ data: AnnouncementResponse }>(client(), 'v1/announcements', {
+        method: 'POST',
+        json: { ...input, description: input.description ?? '' },
+        ...successMsg('Announcement published'),
+      })
+      return toBanner(res.data)
+    },
+    async remove(id: string): Promise<void> {
+      await request<void>(client(), `v1/announcements/${id}`, {
+        method: 'DELETE',
+        ...successMsg('Announcement retracted'),
+      })
+    },
   }
 }
 
@@ -42,6 +67,8 @@ let activeFeed: AnnouncementsFeed = createRemoteAnnouncementsFeed()
 
 const announcementsService: AnnouncementsFeed = {
   fetchActive: () => activeFeed.fetchActive(),
+  create: (input) => activeFeed.create(input),
+  remove: (id) => activeFeed.remove(id),
 }
 
 export default announcementsService

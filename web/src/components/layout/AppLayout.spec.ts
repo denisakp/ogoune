@@ -24,7 +24,11 @@ describe('AppLayout', () => {
     setActivePinia(createPinia())
     localStorage.clear()
     // Deterministic boot-fetch: no remote banners unless a test publishes.
-    __setAnnouncementsFeedForTests({ fetchActive: async () => [] })
+    __setAnnouncementsFeedForTests({
+      fetchActive: async () => [],
+      create: async () => ({ id: 'x', severity: 'info', title: '', dismissible: true }),
+      remove: async () => {},
+    })
   })
 
   it('mounts and renders the default slot inside the main column', () => {

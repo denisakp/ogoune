@@ -14,6 +14,7 @@ const ApiKeysSettingsView = () => import('@/views/settings/ApiKeysView.vue')
 const EscalationSettingsView = () => import('@/views/settings/EscalationView.vue')
 const OrgGeneralSettingsView = () => import('@/views/settings/OrgGeneralView.vue')
 const StatusPageSettingsView = () => import('@/views/settings/StatusPageSettingsView.vue')
+const AnnouncementsSettingsView = () => import('@/views/settings/AnnouncementsView.vue')
 const TwoFactorRecoverView = () => import('@/views/auth/TwoFactorRecoverView.vue')
 const TwoFactorResetView = () => import('@/views/auth/TwoFactorResetView.vue')
 const Verify2FAView = () => import('@/views/auth/Verify2FAView.vue')
@@ -172,6 +173,12 @@ const routes: RouteRecordRaw[] = [
         name: 'SettingsStatusPage',
         component: StatusPageSettingsView,
         meta: { breadcrumbLabel: 'Status Page' },
+      },
+      {
+        path: 'org/announcements',
+        name: 'SettingsAnnouncements',
+        component: AnnouncementsSettingsView,
+        meta: { breadcrumbLabel: 'Announcements' },
       },
     ],
   },
