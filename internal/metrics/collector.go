@@ -52,7 +52,7 @@ func NewOgouneCollector(rr port.ResourceRepository, ir port.IncidentRepository, 
 		),
 		descUptimeRatio: prometheus.NewDesc(
 			"ogoune_uptime_ratio",
-			"Uptime ratio (0.0-1.0) over the given time window.",
+			"Uptime percentage (0-100) over the given time window.",
 			append(labels, "window"), nil,
 		),
 	}
