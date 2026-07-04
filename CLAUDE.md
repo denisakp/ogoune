@@ -117,6 +117,13 @@ Vue 3 Composition API + TypeScript + Pinia + **NuxtUI 4** (Tailwind v4) + **Ky**
 - `/api/v1/` — stable public API, semver-protected
 - `/api/` (non-versioned) — internal, may change anytime
 
+**The root (`/api/`, non-versioned) API is FROZEN.** Do NOT add new handlers under
+`internal/api/handler/*.go` or new routes to the non-`/v1` groups. All new
+endpoints go to `internal/api/handler/v1/` under `/api/v1/`. Legacy root handlers
+(resources, incidents, components, tags, notifications — duplicated in v1) are
+migrated to v1 opportunistically, domain by domain, deleting the root handler +
+routes once the frontend service is repointed. New features are v1-only.
+
 ## Patterns to follow
 
 ### Adding a new monitor type
