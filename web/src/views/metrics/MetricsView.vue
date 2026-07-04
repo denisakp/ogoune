@@ -171,10 +171,11 @@ function downloadAlertRules() {
               size="xs"
               variant="subtle"
               color="neutral"
-              data-testid="grafana-import"
+              icon="i-lucide-download"
+              data-testid="grafana-download"
               @click="importGrafanaDashboard"
             >
-              Import dashboard
+              Download dashboard
             </UButton>
           </div>
           <div class="flex items-center justify-between">
@@ -183,10 +184,11 @@ function downloadAlertRules() {
               size="xs"
               variant="subtle"
               color="neutral"
+              icon="i-lucide-download"
               data-testid="alertmanager-examples"
               @click="downloadAlertRules"
             >
-              Examples
+              Download rules
             </UButton>
           </div>
           <div class="flex items-center justify-between text-muted">
