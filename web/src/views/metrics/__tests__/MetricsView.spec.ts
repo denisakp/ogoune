@@ -27,7 +27,7 @@ describe('MetricsView', () => {
 
   it('Import dashboard triggers a JSON download', async () => {
     const w = mount(MetricsView, { global: { stubs } })
-    await w.find('[data-testid="grafana-import"]').trigger('click')
+    await w.find('[data-testid="grafana-download"]').trigger('click')
     expect(URL.createObjectURL).toHaveBeenCalledOnce()
     const blob = (URL.createObjectURL as unknown as ReturnType<typeof vi.fn>).mock.calls[0]![0] as Blob
     expect(blob.type).toBe('application/json')
