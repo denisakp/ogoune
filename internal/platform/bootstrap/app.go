@@ -13,6 +13,7 @@ import (
 	"github.com/denisakp/ogoune/internal/port"
 	"github.com/denisakp/ogoune/internal/scheduler"
 	"github.com/denisakp/ogoune/internal/service"
+	svcintegrations "github.com/denisakp/ogoune/internal/service/integrations"
 	"github.com/denisakp/ogoune/internal/worker"
 	"github.com/go-chi/chi/v5"
 	"github.com/hibiken/asynq"
@@ -87,6 +88,7 @@ type App struct {
 	DashboardService        *service.DashboardService
 	ReportService           *service.ReportService
 	AnnouncementService     *service.AnnouncementService
+	IntegrationsService     *svcintegrations.IntegrationsService
 
 	// Spec 060 — Public status page
 	PublicStatusService   *service.PublicStatusService
