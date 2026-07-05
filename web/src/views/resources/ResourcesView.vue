@@ -11,6 +11,7 @@ import ResourceListItem from '@/components/resources/ResourceListItem.vue'
 import ResourceModal from '@/components/resources/ResourceModal.vue'
 import GroupResourcesModal from '@/components/modals/GroupResourcesModal.vue'
 import { bulkRemoveFromComponent } from '@/services/componentService'
+import { exportManifest } from '@/services/resourceImportService'
 import type { Resource } from '@/types'
 
 const resourceStore = useResourceStore()
@@ -28,6 +29,23 @@ const collapsedGroups = ref<Record<string, boolean>>({})
 
 const selectedIds = ref<string[]>([])
 const showGroupModal = ref(false)
+
+const exporting = ref(false)
+async function onExport() {
+  exporting.value = true
+  try {
+    const yaml = await exportManifest()
+    const blob = new Blob([yaml], { type: 'text/yaml' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = 'ogoune-monitors.yaml'
+    a.click()
+    URL.revokeObjectURL(url)
+  } finally {
+    exporting.value = false
+  }
+}
 
 function toggleSelect(id: string) {
   const i = selectedIds.value.indexOf(id)
@@ -187,9 +205,30 @@ defineExpose({
         <h1 class="text-2xl font-semibold text-highlighted">Resources</h1>
         <p class="text-sm text-muted mt-1">Track uptime and performance of your resources</p>
       </div>
-      <UButton color="primary" size="sm" icon="i-lucide-plus" @click="openCreate">
-        New monitor
-      </UButton>
+      <div class="flex items-center gap-2">
+        <UButton
+          color="neutral"
+          variant="ghost"
+          size="sm"
+          icon="i-lucide-download"
+          :loading="exporting"
+          @click="onExport"
+        >
+          Export
+        </UButton>
+        <UButton
+          color="neutral"
+          variant="ghost"
+          size="sm"
+          icon="i-lucide-upload"
+          @click="router.push({ name: 'ResourceImport' })"
+        >
+          Import
+        </UButton>
+        <UButton color="primary" size="sm" icon="i-lucide-plus" @click="openCreate">
+          New monitor
+        </UButton>
+      </div>
     </div>
 
     <div class="flex flex-wrap items-center gap-2 mb-3">

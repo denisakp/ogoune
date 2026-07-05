@@ -13,6 +13,7 @@ import (
 	"github.com/denisakp/ogoune/internal/api/middleware"
 	"github.com/denisakp/ogoune/internal/metrics"
 	"github.com/denisakp/ogoune/internal/service"
+	"github.com/denisakp/ogoune/internal/service/resourceimport"
 	"github.com/go-chi/chi/v5"
 )
 
@@ -91,13 +92,17 @@ func InitRouter(app *App) {
 	announcementV1Handler := v1handler.NewAnnouncementHandler(app.AnnouncementService)
 	integrationsV1Handler := v1handler.NewIntegrationsHandler(app.IntegrationsService)
 
+	// Bulk resource import/export (spec 078)
+	resourceImportService := resourceimport.NewService(app.ResourceService, app.ComponentRepo, app.NotificationChannelRepo)
+	resourceImportV1Handler := v1handler.NewResourceImportHandler(resourceImportService)
+
 	// Set APP_VERSION env
 	err := os.Setenv("APP_VERSION", AppVersion)
 	if err != nil {
 		return
 	}
 
-	apiHandler := api.NewRouter(resourceHandler, pingHandler, activityHandler, tagHandler, componentHandler, statusPageHandler, publicStatusHandler, asCacheRecorder(app.PublicStatusCacheMetr), statusPageSettingsHandler, incidentHandler, incidentUpdateHandler, notificationHandler, maintenanceHandler, statsHandler, systemHandler, runtimeConfigHandler, authHandler, accountHandler, app.AuthService, app.APIKeyService, app.SessionService, sessionHandler, twoFactorV1Handler, escalationV1Handler, monitorV1Handler, incidentV1Handler, channelV1Handler, componentV1Handler, tagV1Handler, statusPageV1Handler, heartbeatV1Handler, credentialV1Handler, toolboxV1Handler, notificationFeedV1Handler, dashboardV1Handler, reportV1Handler, announcementV1Handler, integrationsV1Handler, cfg.EnableSwagger, cfg)
+	apiHandler := api.NewRouter(resourceHandler, pingHandler, activityHandler, tagHandler, componentHandler, statusPageHandler, publicStatusHandler, asCacheRecorder(app.PublicStatusCacheMetr), statusPageSettingsHandler, incidentHandler, incidentUpdateHandler, notificationHandler, maintenanceHandler, statsHandler, systemHandler, runtimeConfigHandler, authHandler, accountHandler, app.AuthService, app.APIKeyService, app.SessionService, sessionHandler, twoFactorV1Handler, escalationV1Handler, monitorV1Handler, incidentV1Handler, channelV1Handler, componentV1Handler, tagV1Handler, statusPageV1Handler, heartbeatV1Handler, credentialV1Handler, toolboxV1Handler, notificationFeedV1Handler, dashboardV1Handler, reportV1Handler, announcementV1Handler, integrationsV1Handler, resourceImportV1Handler, cfg.EnableSwagger, cfg)
 
 	// Root router
 	rootRouter := chi.NewRouter()

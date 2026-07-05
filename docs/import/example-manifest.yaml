@@ -1,0 +1,45 @@
+# Ogoune resource import manifest — example (version 1)
+# References tags/components by name (auto-created), notification channels by name (must pre-exist).
+version: 1
+defaults:
+  interval: 60
+  timeout: 10
+  confirmation_checks: 3
+resources:
+  - name: Marketing site
+    type: http
+    target: https://example.com
+    interval: 30
+    tags: [prod, web]
+    component: Website
+    notification_channels: [ops-email]
+
+  - name: API TCP
+    type: tcp
+    target: api.example.com:5432
+
+  - name: Public DNS
+    type: dns
+    target: example.com
+
+  - name: Edge ping
+    type: icmp
+    target: 203.0.113.10
+
+  - name: Homepage keyword
+    type: keyword
+    target: https://example.com
+    keyword: "Welcome"
+    keyword_mode: present
+
+  - name: Postgres protocol
+    type: protocol
+    target: db.example.com
+    protocol_type: postgres
+    protocol_port: 5432
+
+  - name: Nightly cron heartbeat
+    type: heartbeat
+    heartbeat_interval: 3600
+    heartbeat_grace: 300
+    tags: [batch]

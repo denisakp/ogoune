@@ -1308,6 +1308,115 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/monitors/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Export all monitors as a YAML manifest */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description YAML manifest */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/yaml": string;
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/monitors/import": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Bulk-import monitors from a YAML manifest */
+        post: {
+            parameters: {
+                query?: {
+                    /** @description Validate only, write nothing */
+                    dryRun?: boolean;
+                    /** @description How to treat existing names (skip|error, default skip) */
+                    duplicatePolicy?: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            /** @description YAML manifest */
+            requestBody: {
+                content: {
+                    "text/plain": string;
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["github_com_denisakp_ogoune_internal_dto_v1.SingleResponse-github_com_denisakp_ogoune_internal_dto_v1_ImportReport"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse"];
+                    };
+                };
+                /** @description Unprocessable Entity */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["github_com_denisakp_ogoune_internal_dto_v1.SingleResponse-github_com_denisakp_ogoune_internal_dto_v1_ImportReport"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/notification-channels": {
         parameters: {
             query?: never;
@@ -3170,6 +3279,14 @@ export interface components {
         "github_com_denisakp_ogoune_internal_dto_v1.HeartbeatPingResponse": {
             received_at?: string;
         };
+        "github_com_denisakp_ogoune_internal_dto_v1.ImportReport": {
+            created?: number;
+            dry_run?: boolean;
+            failed?: number;
+            rows?: components["schemas"]["github_com_denisakp_ogoune_internal_dto_v1.RowResult"][];
+            skipped?: number;
+            total?: number;
+        };
         "github_com_denisakp_ogoune_internal_dto_v1.IncidentResponse": {
             cause?: string;
             created_at?: string;
@@ -3243,6 +3360,15 @@ export interface components {
             schedule?: string;
             scope?: string;
         };
+        /** @enum {string} */
+        "github_com_denisakp_ogoune_internal_dto_v1.RowAction": "create" | "skip" | "error";
+        "github_com_denisakp_ogoune_internal_dto_v1.RowResult": {
+            action?: components["schemas"]["github_com_denisakp_ogoune_internal_dto_v1.RowAction"];
+            errors?: string[];
+            index?: number;
+            name?: string;
+            valid?: boolean;
+        };
         "github_com_denisakp_ogoune_internal_dto_v1.SSLCertificate": {
             chain?: string[];
             cipher?: string;
@@ -3296,6 +3422,10 @@ export interface components {
         };
         "github_com_denisakp_ogoune_internal_dto_v1.SingleResponse-github_com_denisakp_ogoune_internal_dto_v1_HeartbeatPingResponse": {
             data?: components["schemas"]["github_com_denisakp_ogoune_internal_dto_v1.HeartbeatPingResponse"];
+            meta?: components["schemas"]["github_com_denisakp_ogoune_internal_dto_v1.MetaResponse"];
+        };
+        "github_com_denisakp_ogoune_internal_dto_v1.SingleResponse-github_com_denisakp_ogoune_internal_dto_v1_ImportReport": {
+            data?: components["schemas"]["github_com_denisakp_ogoune_internal_dto_v1.ImportReport"];
             meta?: components["schemas"]["github_com_denisakp_ogoune_internal_dto_v1.MetaResponse"];
         };
         "github_com_denisakp_ogoune_internal_dto_v1.SingleResponse-github_com_denisakp_ogoune_internal_dto_v1_IncidentResponse": {

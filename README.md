@@ -248,6 +248,31 @@ See [QUICKSTART.md](./QUICKSTART.md) for step-by-step integration.
 
 ---
 
+## Bulk import / export
+
+Onboard or migrate many monitors at once with a YAML manifest instead of the UI form.
+
+```bash
+# 1. Preview (dry-run) — validate every row, write nothing
+curl -X POST "$OGOUNE/api/v1/monitors/import?dryRun=true" \
+  -H "Authorization: Bearer $API_KEY" \
+  -H "Content-Type: text/yaml" \
+  --data-binary @monitors.yaml
+
+# 2. Import for real (optional ?duplicatePolicy=skip|error, default skip)
+curl -X POST "$OGOUNE/api/v1/monitors/import" \
+  -H "Authorization: Bearer $API_KEY" -H "Content-Type: text/yaml" \
+  --data-binary @monitors.yaml
+
+# 3. Export the current set back to YAML (round-trips)
+curl "$OGOUNE/api/v1/monitors/export" -H "Authorization: Bearer $API_KEY" -o monitors.yaml
+```
+
+Tags and components are referenced by name and auto-created; notification channels are
+referenced by name and must pre-exist (secrets are never imported). Import is all-or-nothing —
+always dry-run first. Max 500 resources per manifest. Schema, example, and rules:
+[`docs/import/`](./docs/import/). In the UI: **Resources → Import / Export**.
+
 ## Roadmap
 
 See [ROADMAP.md](./ROADMAP.md) for the full roadmap.

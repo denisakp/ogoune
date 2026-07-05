@@ -112,13 +112,27 @@ function perTypeToTarget(s: FormState): string {
   }
 }
 
+// toIdList normalizes an API relation (array of {id} objects, or already-string
+// IDs) into the string[] the form state and schema expect.
+function toIdList(value: unknown): string[] {
+  if (!Array.isArray(value)) return []
+  return value
+    .map((item) => (typeof item === 'string' ? item : ((item as { id?: string })?.id ?? '')))
+    .filter(Boolean)
+}
+
 function initialState(): FormState {
   if (props.resource) {
     const r = props.resource as unknown as Record<string, unknown>
     return {
       ...r,
+      // The API returns tags / notification_channels as objects, but the form
+      // (and its schema) work with string IDs. Without this the schema fails and
+      // UForm silently blocks the submit on edit.
+      tags: toIdList(r.tags),
+      notification_channels: toIdList(r.notification_channels),
       ...targetToPerType(String(r.type), r.target as string | undefined),
-    } as FormState
+    } as unknown as FormState
   }
   const base: FormState = {
     type: 'http',

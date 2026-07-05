@@ -54,6 +54,39 @@ func (s *ResourceService) resolveOrCreateTag(ctx context.Context, nameOrID strin
 	return newTag, nil
 }
 
+// resolveChannelsByName resolves notification channels by exact name.
+// Channels are never created here (they hold secrets); an unknown name is a
+// validation error. The full channel list is loaded once and matched in memory,
+// since there is no find-by-name repository method and channel counts are small.
+func (s *ResourceService) resolveChannelsByName(ctx context.Context, names []string) ([]*domain.NotificationChannel, error) {
+	if s.channels == nil {
+		return nil, fmt.Errorf("%w: notification channel support is not configured", ErrValidationFailed)
+	}
+	all, err := s.channels.List(ctx, 10000, 0)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list notification channels: %w", err)
+	}
+	byName := make(map[string]*domain.NotificationChannel, len(all))
+	for _, ch := range all {
+		if ch != nil {
+			byName[ch.Name] = ch
+		}
+	}
+	var resolved []*domain.NotificationChannel
+	for _, raw := range names {
+		name := strings.TrimSpace(raw)
+		if name == "" {
+			continue
+		}
+		ch, ok := byName[name]
+		if !ok {
+			return nil, fmt.Errorf("%w: notification channel '%s' not found", ErrValidationFailed, name)
+		}
+		resolved = append(resolved, ch)
+	}
+	return resolved, nil
+}
+
 // AddTagsToResource adds multiple tags to a resource using GORM's Association mode.
 func (s *ResourceService) AddTagsToResource(ctx context.Context, resourceID string, tagIDs []string) error {
 	// Fetch the resource

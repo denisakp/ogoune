@@ -150,4 +150,28 @@ describe('ResourceForm — cross-type behaviors', () => {
     const payload = args?.[1] as Record<string, unknown>
     expect(payload.name).toBe('renamed')
   })
+
+  it('edit mode normalizes tag/channel objects to string IDs (schema would block otherwise)', async () => {
+    const resource = {
+      id: 'r1',
+      type: 'http',
+      name: 'api',
+      interval: 60,
+      target: 'https://x.test',
+      tags: [
+        { id: 't1', name: 'alpha' },
+        { id: 't2', name: 'beta' },
+      ],
+      notification_channels: [{ id: 'c1', name: 'ops' }],
+    } as unknown as Resource
+    const w = build({ resource })
+    const vm = w.vm as unknown as FormVm
+    expect(vm.state.tags).toEqual(['t1', 't2'])
+    expect(vm.state.notification_channels).toEqual(['c1'])
+
+    await vm.onSubmit()
+    expect(updateMock).toHaveBeenCalled()
+    const payload = updateMock.mock.calls.at(-1)?.[1] as Record<string, unknown>
+    expect(payload.tags).toEqual(['t1', 't2'])
+  })
 })

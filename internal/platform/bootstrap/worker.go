@@ -175,12 +175,18 @@ func startTimingWheelExpiryCheck(app *App, enrichmentService *service.Enrichment
 	)
 	twExpiryHandler := worker.NewExpiryTaskHandler(app.ResourceRepo, app.NotificationChannelRepo, enrichmentService, twExpiryService)
 	go func() {
-		ticker := time.NewTicker(24 * time.Hour)
-		defer ticker.Stop()
-		for range ticker.C {
+		runExpiry := func() {
 			if err := twExpiryHandler.ProcessTask(context.Background(), asynq.NewTask(worker.TypeExpiryCheck, nil)); err != nil {
 				slog.Error("TimingWheel expiry:check failed", "error", err)
 			}
+		}
+		// Startup catch-up so freshly-renewed certificates are refreshed without
+		// waiting up to 24h for the first tick.
+		runExpiry()
+		ticker := time.NewTicker(24 * time.Hour)
+		defer ticker.Stop()
+		for range ticker.C {
+			runExpiry()
 		}
 	}()
 	slog.Info("TimingWheel daily expiry check scheduled")

@@ -29,7 +29,7 @@ func TestResourceService_FindOrCreateTags_ResolvesExistingTagByName(t *testing.T
 		Name: "production",
 	}))
 
-	service := NewResourceService(resourceRepo, incidentRepo, tagsRepo, schedulerFake, monitoringActivityRepo, enrichmentService, componentService)
+	service := NewResourceService(resourceRepo, incidentRepo, tagsRepo, channelRepo, schedulerFake, monitoringActivityRepo, enrichmentService, componentService)
 
 	created, err := service.CreateResource(context.Background(), &dto.CreateResourcePayload{
 		Name:     "tagged-resource",
