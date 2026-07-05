@@ -9,6 +9,7 @@ import (
 	dbruntime "github.com/denisakp/ogoune/internal/database"
 	"github.com/denisakp/ogoune/internal/repository/store"
 	"github.com/denisakp/ogoune/internal/service"
+	svcintegrations "github.com/denisakp/ogoune/internal/service/integrations"
 )
 
 // InitDatabase opens the database runtime and wires all sqlc-backed
@@ -88,6 +89,9 @@ func InitDatabase(app *App) {
 	// Announcement banners (option 2) — instance-wide operator messages.
 	app.AnnouncementRepo = store.NewAnnouncementRepositorySQLC(rt)
 	app.AnnouncementService = service.NewAnnouncementService(app.AnnouncementRepo)
+
+	// Config-derived observability integrations (spec 077) — read-only.
+	app.IntegrationsService = svcintegrations.NewIntegrationsService(app.ResourceRepo, app.ComponentRepo)
 
 	// Seed-time services that the worker layer depends on must be built
 	// before InitWorker runs (InitServices is too late). The full

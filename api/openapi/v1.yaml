@@ -1650,6 +1650,41 @@ paths:
       summary: Get an incident by ID
       tags:
       - incidents
+  /integrations/alert-rules:
+    get:
+      parameters:
+      - description: Uptime alert threshold percent (default 99)
+        in: query
+        name: uptimeThreshold
+        schema:
+          type: integer
+      responses:
+        "200":
+          content:
+            text/yaml:
+              schema:
+                type: string
+          description: Prometheus rules YAML
+      security:
+      - BearerAuth: []
+      summary: Download config-derived Prometheus alerting rules (YAML)
+      tags:
+      - integrations
+  /integrations/grafana-dashboard:
+    get:
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                additionalProperties: {}
+                type: object
+          description: Grafana dashboard model
+      security:
+      - BearerAuth: []
+      summary: Download config-derived Grafana dashboard (JSON)
+      tags:
+      - integrations
   /monitors:
     get:
       parameters:

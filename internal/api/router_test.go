@@ -85,6 +85,7 @@ func TestNewRouter_PingIsPublicAndResourcesAreProtected(t *testing.T) {
 		nil,
 		nil,
 		nil,
+		nil,
 		false,
 		&config.Config{
 			RateLimitAuth:         10,

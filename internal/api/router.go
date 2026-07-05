@@ -65,6 +65,7 @@ func NewRouter(
 	dashboardV1Handler *v1handler.DashboardHandler,
 	reportV1Handler *v1handler.ReportHandler,
 	announcementV1Handler *v1handler.AnnouncementHandler,
+	integrationsV1Handler *v1handler.IntegrationsHandler,
 	enableSwagger bool,
 	cfg *config.Config,
 ) http.Handler {
@@ -376,6 +377,12 @@ func NewRouter(
 				r.Get("/", announcementV1Handler.List)
 				r.With(middleware.RequireReadWrite).Post("/", announcementV1Handler.Create)
 				r.With(middleware.RequireReadWrite).Delete("/{id}", announcementV1Handler.Delete)
+			})
+
+			// Config-derived observability assets (spec 077) — read-only downloads.
+			r.Route("/integrations", func(r chi.Router) {
+				r.Get("/alert-rules", integrationsV1Handler.AlertRules)
+				r.Get("/grafana-dashboard", integrationsV1Handler.GrafanaDashboard)
 			})
 			// Toolbox — one-shot network tools (spec 071). Write-scoped + per-user
 			// rate-limited; port-scan strictest (5/min), others 20/min.

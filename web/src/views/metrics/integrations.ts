@@ -4,6 +4,11 @@
  * - example Prometheus alerting rules (evaluated by Prometheus, routed by Alertmanager)
  *
  * Built over the ogoune_* metrics emitted by GET /metrics.
+ *
+ * Now the STATIC FALLBACK (spec 077): the Download buttons fetch config-derived
+ * artifacts from /api/v1/integrations/* and only use these when that fails.
+ * NOTE (D1): the 5-panel dashboard shape below is duplicated with the backend
+ * generator (internal/service/integrations/dashboard.go). Keep them in sync.
  */
 
 const DS = '${DS_PROMETHEUS}'
