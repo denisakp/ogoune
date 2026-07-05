@@ -7,6 +7,7 @@
 import { computed, ref } from 'vue'
 import { useToast } from '@nuxt/ui/composables/useToast'
 import { GRAFANA_DASHBOARD, ALERT_RULES_YAML } from './integrations'
+import integrationsService from '@/services/integrationsService'
 
 const toast = useToast()
 
@@ -75,16 +76,26 @@ function download(filename: string, content: string, mime: string) {
   toast.add({ title: `${filename} downloaded`, color: 'success' })
 }
 
-function importGrafanaDashboard() {
-  download(
-    'ogoune-grafana-dashboard.json',
-    JSON.stringify(GRAFANA_DASHBOARD, null, 2),
-    'application/json',
-  )
+// Both downloads try the config-derived endpoint first; on any error they fall
+// back to the bundled static template so the button is never dead (spec 077 US3).
+async function importGrafanaDashboard() {
+  try {
+    const dash = await integrationsService.fetchGrafanaDashboard()
+    download('ogoune-grafana-dashboard.json', JSON.stringify(dash, null, 2), 'application/json')
+  } catch {
+    download('ogoune-grafana-dashboard.json', JSON.stringify(GRAFANA_DASHBOARD, null, 2), 'application/json')
+    toast.add({ title: 'Used the generic template (config-derived unavailable)', color: 'warning' })
+  }
 }
 
-function downloadAlertRules() {
-  download('ogoune-alerts.rules.yml', ALERT_RULES_YAML, 'text/yaml')
+async function downloadAlertRules() {
+  try {
+    const rules = await integrationsService.fetchAlertRules()
+    download('ogoune-alerts.rules.yml', rules, 'text/yaml')
+  } catch {
+    download('ogoune-alerts.rules.yml', ALERT_RULES_YAML, 'text/yaml')
+    toast.add({ title: 'Used the generic template (config-derived unavailable)', color: 'warning' })
+  }
 }
 </script>
 
@@ -165,6 +176,10 @@ function downloadAlertRules() {
 
         <div class="rounded-lg border border-default p-4 flex flex-col gap-2 text-sm">
           <div class="font-medium text-highlighted">Integrations</div>
+          <p class="text-xs text-muted" data-testid="scrape-hint">
+            Downloads are generated from your Ogoune config. They only show data once a
+            Prometheus scrape of <code>/metrics</code> is active.
+          </p>
           <div class="flex items-center justify-between">
             <span>Grafana</span>
             <UButton
