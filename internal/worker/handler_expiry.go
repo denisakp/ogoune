@@ -27,6 +27,7 @@ type expiryChecker interface {
 // activeResourceLister is the narrow slice of ResourceRepository that the handler needs.
 type activeResourceLister interface {
 	FindActive(ctx context.Context, limit, offset int) ([]*domain.Resource, error)
+	UpdateMetadata(ctx context.Context, id string, req port.UpdateMetadataRequest) error
 }
 
 // ExpiryTaskHandler processes the daily expiry:check task.
@@ -108,6 +109,20 @@ func (h *ExpiryTaskHandler) processResource(ctx context.Context, resource *domai
 				slog.Error("failed to reset expiry logs", "resource_id", resource.ID, "expiry_type", "domain", "error", err)
 			}
 		}
+	}
+
+	// Persist the freshly enriched metadata so the stored SSL/domain expiry
+	// dates stay current (e.g. after a certificate renewal). Without this the
+	// daily job would detect renewals but the UI/API would keep showing the
+	// stale dates from the last create/update enrichment.
+	persistReq := port.UpdateMetadataRequest{
+		SSLExpirationDate:    &metadata.SSLExpirationDate,
+		SSLIssuer:            &metadata.SSLIssuer,
+		DomainExpirationDate: &metadata.DomainExpirationDate,
+		DomainRegistrar:      &metadata.DomainRegistrar,
+	}
+	if err := h.resources.UpdateMetadata(ctx, resource.ID, persistReq); err != nil {
+		slog.Error("failed to persist enriched metadata", "resource_id", resource.ID, "error", err)
 	}
 
 	// Attach the freshly enriched metadata so CheckAndNotify uses the latest dates.
