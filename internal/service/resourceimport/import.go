@@ -9,7 +9,16 @@ import (
 	"github.com/denisakp/ogoune/internal/domain"
 	"github.com/denisakp/ogoune/internal/dto"
 	dtoV1 "github.com/denisakp/ogoune/internal/dto/v1"
+	"github.com/denisakp/ogoune/internal/service"
 )
+
+// cleanValidationMessage strips the leading "validation failed: " wrapper so the
+// per-row report shows just the actionable reason.
+func cleanValidationMessage(err error) string {
+	msg := err.Error()
+	msg = strings.TrimPrefix(msg, service.ErrValidationFailed.Error()+": ")
+	return msg
+}
 
 // ErrManifestTooLarge is returned when a manifest exceeds MaxManifestResources.
 var ErrManifestTooLarge = fmt.Errorf("manifest exceeds the maximum of %d resources", MaxManifestResources)
@@ -112,6 +121,14 @@ func (s *Service) Import(ctx context.Context, raw []byte, opts dtoV1.ImportOptio
 		res, cerr := s.resources.CreateResource(ctx, payload)
 		if cerr != nil {
 			s.compensate(ctx, created)
+			// A domain validation error is the operator's fault, not a server
+			// fault: surface it as a per-row 422 report rather than a 500.
+			if errors.Is(cerr, service.ErrValidationFailed) {
+				rows[i].Valid = false
+				rows[i].Action = dtoV1.RowActionError
+				rows[i].Errors = []string{cleanValidationMessage(cerr)}
+				return buildReport(false, rows), ErrValidationFailed
+			}
 			return nil, fmt.Errorf("failed to create resource %q (row %d): %w", row.Name, i, cerr)
 		}
 		created = append(created, res.ID)

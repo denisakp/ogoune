@@ -102,6 +102,22 @@ func TestValidate_DuplicatePolicy(t *testing.T) {
 	}
 }
 
+func TestValidate_ConfirmationIntervalMustBeLessThanInterval(t *testing.T) {
+	m := &Manifest{Version: 1, Resources: []ResourceDecl{
+		{Name: "a", Type: "http", Target: "https://example.com", Interval: p(60), Timeout: p(10), ConfirmationInterval: p(300)},
+	}}
+	rows := Validate(m, nil, nil, dtoV1.DuplicatePolicySkip)
+	if rows[0].Valid {
+		t.Fatalf("expected invalid: confirmation_interval 300 >= interval 60")
+	}
+	// And a valid relation passes.
+	m.Resources[0].ConfirmationInterval = p(30)
+	rows = Validate(m, nil, nil, dtoV1.DuplicatePolicySkip)
+	if !rows[0].Valid {
+		t.Fatalf("expected valid with confirmation_interval < interval, errors: %v", rows[0].Errors)
+	}
+}
+
 func TestValidate_IntraManifestDuplicate(t *testing.T) {
 	m := &Manifest{Version: 1, Defaults: baseDefaults(), Resources: []ResourceDecl{
 		{Name: "Same", Type: "http", Target: "https://example.com"},

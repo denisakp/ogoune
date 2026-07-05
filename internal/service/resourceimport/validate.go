@@ -132,11 +132,17 @@ func validateRow(decl ResourceDecl, channelNames map[string]bool) []string {
 	if decl.Timeout == nil || *decl.Timeout <= 0 {
 		errs = append(errs, "timeout must be greater than 0")
 	}
-	if decl.ConfirmationChecks != nil && *decl.ConfirmationChecks < 0 {
-		errs = append(errs, "confirmation_checks must be >= 0")
+	if decl.ConfirmationChecks != nil && *decl.ConfirmationChecks < 1 {
+		errs = append(errs, "confirmation_checks must be >= 1")
 	}
-	if decl.ConfirmationInterval != nil && *decl.ConfirmationInterval < 0 {
-		errs = append(errs, "confirmation_interval must be >= 0")
+	if decl.ConfirmationInterval != nil && *decl.ConfirmationInterval <= 0 {
+		errs = append(errs, "confirmation_interval must be > 0")
+	}
+	// Mirror the domain rule enforced by ResourceService.CreateResource so the
+	// dry-run catches it instead of failing mid-import.
+	if decl.Interval != nil && *decl.Interval > 0 &&
+		decl.ConfirmationInterval != nil && *decl.ConfirmationInterval >= *decl.Interval {
+		errs = append(errs, "confirmation_interval must be less than interval")
 	}
 
 	errs = append(errs, validateTypeSpecific(rt, decl)...)
