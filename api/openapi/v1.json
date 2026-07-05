@@ -873,6 +873,33 @@
                 },
                 "type": "object"
             },
+            "github_com_denisakp_ogoune_internal_dto_v1.ImportReport": {
+                "properties": {
+                    "created": {
+                        "type": "integer"
+                    },
+                    "dry_run": {
+                        "type": "boolean"
+                    },
+                    "failed": {
+                        "type": "integer"
+                    },
+                    "rows": {
+                        "items": {
+                            "$ref": "#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.RowResult"
+                        },
+                        "type": "array",
+                        "uniqueItems": false
+                    },
+                    "skipped": {
+                        "type": "integer"
+                    },
+                    "total": {
+                        "type": "integer"
+                    }
+                },
+                "type": "object"
+            },
             "github_com_denisakp_ogoune_internal_dto_v1.IncidentResponse": {
                 "properties": {
                     "cause": {
@@ -1092,6 +1119,43 @@
                 },
                 "type": "object"
             },
+            "github_com_denisakp_ogoune_internal_dto_v1.RowAction": {
+                "enum": [
+                    "create",
+                    "skip",
+                    "error"
+                ],
+                "type": "string",
+                "x-enum-varnames": [
+                    "RowActionCreate",
+                    "RowActionSkip",
+                    "RowActionError"
+                ]
+            },
+            "github_com_denisakp_ogoune_internal_dto_v1.RowResult": {
+                "properties": {
+                    "action": {
+                        "$ref": "#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.RowAction"
+                    },
+                    "errors": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "uniqueItems": false
+                    },
+                    "index": {
+                        "type": "integer"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "valid": {
+                        "type": "boolean"
+                    }
+                },
+                "type": "object"
+            },
             "github_com_denisakp_ogoune_internal_dto_v1.SSLCertificate": {
                 "properties": {
                     "chain": {
@@ -1252,6 +1316,17 @@
                 "properties": {
                     "data": {
                         "$ref": "#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.HeartbeatPingResponse"
+                    },
+                    "meta": {
+                        "$ref": "#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.MetaResponse"
+                    }
+                },
+                "type": "object"
+            },
+            "github_com_denisakp_ogoune_internal_dto_v1.SingleResponse-github_com_denisakp_ogoune_internal_dto_v1_ImportReport": {
+                "properties": {
+                    "data": {
+                        "$ref": "#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.ImportReport"
                     },
                     "meta": {
                         "$ref": "#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.MetaResponse"
@@ -2820,6 +2895,123 @@
                     }
                 ],
                 "summary": "Create a monitor",
+                "tags": [
+                    "monitors"
+                ]
+            }
+        },
+        "/monitors/export": {
+            "get": {
+                "responses": {
+                    "200": {
+                        "content": {
+                            "text/yaml": {
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
+                        },
+                        "description": "YAML manifest"
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "summary": "Export all monitors as a YAML manifest",
+                "tags": [
+                    "monitors"
+                ]
+            }
+        },
+        "/monitors/import": {
+            "post": {
+                "parameters": [
+                    {
+                        "description": "Validate only, write nothing",
+                        "in": "query",
+                        "name": "dryRun",
+                        "schema": {
+                            "type": "boolean"
+                        }
+                    },
+                    {
+                        "description": "How to treat existing names (skip|error, default skip)",
+                        "in": "query",
+                        "name": "duplicatePolicy",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "text/plain": {
+                            "schema": {
+                                "oneOf": [
+                                    {
+                                        "type": "string"
+                                    },
+                                    {
+                                        "title": "body",
+                                        "type": "string"
+                                    }
+                                ]
+                            }
+                        }
+                    },
+                    "description": "YAML manifest",
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.SingleResponse-github_com_denisakp_ogoune_internal_dto_v1_ImportReport"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    },
+                    "400": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse"
+                                }
+                            }
+                        },
+                        "description": "Bad Request"
+                    },
+                    "403": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse"
+                                }
+                            }
+                        },
+                        "description": "Forbidden"
+                    },
+                    "422": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.SingleResponse-github_com_denisakp_ogoune_internal_dto_v1_ImportReport"
+                                }
+                            }
+                        },
+                        "description": "Unprocessable Entity"
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "summary": "Bulk-import monitors from a YAML manifest",
                 "tags": [
                     "monitors"
                 ]

@@ -12,7 +12,7 @@ func InitServices(app *App) {
 	cfg := app.Cfg
 
 	enrichmentService := service.NewEnrichmentService(30 * time.Second)
-	app.ResourceService = service.NewResourceService(app.ResourceRepo, app.IncidentRepo, app.TagsRepo, app.SchedulerAdapter, app.MonitoringActivityRepo, enrichmentService, app.ComponentService)
+	app.ResourceService = service.NewResourceService(app.ResourceRepo, app.IncidentRepo, app.TagsRepo, app.NotificationChannelRepo, app.SchedulerAdapter, app.MonitoringActivityRepo, enrichmentService, app.ComponentService)
 
 	// NotificationFeedService (spec 072) is built in InitDatabase — InitWorker
 	// runs before InitServices and needs it as the incident emitter.

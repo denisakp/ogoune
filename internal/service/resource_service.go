@@ -30,6 +30,7 @@ type ResourceService struct {
 	resources          port.ResourceRepository
 	incidents          port.IncidentRepository
 	tags               port.TagsRepository
+	channels           port.NotificationChannelRepository
 	scheduler          port.ResourceScheduler
 	monitoringActivity port.MonitoringActivityRepository
 	enrichment         *EnrichmentService
@@ -41,6 +42,7 @@ func NewResourceService(
 	resources port.ResourceRepository,
 	incidents port.IncidentRepository,
 	tags port.TagsRepository,
+	channels port.NotificationChannelRepository,
 	scheduler port.ResourceScheduler,
 	monitoringActivity port.MonitoringActivityRepository,
 	enrichment *EnrichmentService,
@@ -50,6 +52,7 @@ func NewResourceService(
 		resources:          resources,
 		incidents:          incidents,
 		tags:               tags,
+		channels:           channels,
 		scheduler:          scheduler,
 		monitoringActivity: monitoringActivity,
 		enrichment:         enrichment,
@@ -189,6 +192,16 @@ func (s *ResourceService) CreateResource(ctx context.Context, payload *dto.Creat
 			return nil, fmt.Errorf("failed to process tags: %w", err)
 		}
 		resource.Tags = tags
+	}
+
+	// Resolve notification channels by name (lookup-only; never created here).
+	// Used by the bulk import path (spec 078). Missing channel is a validation error.
+	if len(payload.NotificationChannelNames) > 0 {
+		channels, err := s.resolveChannelsByName(ctx, payload.NotificationChannelNames)
+		if err != nil {
+			return nil, err
+		}
+		resource.NotificationChannels = channels
 	}
 
 	// Create resource in database

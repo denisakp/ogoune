@@ -1,0 +1,70 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ogoune.dev/schemas/resource-manifest-v1.json",
+  "title": "Ogoune Resource Import Manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "resources"],
+  "properties": {
+    "version": { "type": "integer", "const": 1 },
+    "defaults": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "interval": { "type": "integer", "minimum": 1 },
+        "timeout": { "type": "integer", "minimum": 1 },
+        "confirmation_checks": { "type": "integer", "minimum": 0 },
+        "confirmation_interval": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "resources": {
+      "type": "array",
+      "minItems": 0,
+      "maxItems": 500,
+      "items": { "$ref": "#/$defs/resource" }
+    }
+  },
+  "$defs": {
+    "resource": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "type"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "type": { "enum": ["http", "tcp", "dns", "icmp", "keyword", "protocol", "heartbeat"] },
+        "target": { "type": "string" },
+        "interval": { "type": "integer", "minimum": 1 },
+        "timeout": { "type": "integer", "minimum": 1 },
+        "confirmation_checks": { "type": "integer", "minimum": 0 },
+        "confirmation_interval": { "type": "integer", "minimum": 0 },
+        "keyword": { "type": "string" },
+        "keyword_mode": { "enum": ["present", "absent"] },
+        "protocol_type": { "type": "string" },
+        "protocol_port": { "type": "integer", "minimum": 1, "maximum": 65535 },
+        "heartbeat_interval": { "type": "integer", "minimum": 1 },
+        "heartbeat_grace": { "type": "integer", "minimum": 0 },
+        "tags": { "type": "array", "items": { "type": "string" } },
+        "component": { "type": "string" },
+        "notification_channels": { "type": "array", "items": { "type": "string" } }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "type": { "const": "keyword" } } },
+          "then": { "required": ["target", "keyword"] }
+        },
+        {
+          "if": { "properties": { "type": { "const": "protocol" } } },
+          "then": { "required": ["target", "protocol_type", "protocol_port"] }
+        },
+        {
+          "if": { "properties": { "type": { "const": "heartbeat" } } },
+          "then": { "required": ["heartbeat_interval", "heartbeat_grace"] }
+        },
+        {
+          "if": { "properties": { "type": { "enum": ["http", "tcp", "dns", "icmp"] } } },
+          "then": { "required": ["target"] }
+        }
+      ]
+    }
+  }
+}

@@ -66,6 +66,7 @@ func NewRouter(
 	reportV1Handler *v1handler.ReportHandler,
 	announcementV1Handler *v1handler.AnnouncementHandler,
 	integrationsV1Handler *v1handler.IntegrationsHandler,
+	resourceImportV1Handler *v1handler.ResourceImportHandler,
 	enableSwagger bool,
 	cfg *config.Config,
 ) http.Handler {
@@ -309,6 +310,9 @@ func NewRouter(
 			r.Route("/monitors", func(r chi.Router) {
 				r.Get("/", monitorV1Handler.List)
 				r.With(middleware.RequireReadWrite).Post("/", monitorV1Handler.Create)
+				// Bulk import/export (spec 078). Import is write-scoped; export is read.
+				r.With(middleware.RequireReadWrite).Post("/import", resourceImportV1Handler.Import)
+				r.Get("/export", resourceImportV1Handler.Export)
 				r.Get("/{id}", monitorV1Handler.Get)
 				r.With(middleware.RequireReadWrite).Put("/{id}", monitorV1Handler.Update)
 				r.With(middleware.RequireReadWrite).Delete("/{id}", monitorV1Handler.Delete)

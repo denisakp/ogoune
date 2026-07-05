@@ -4,6 +4,7 @@ import { useAuthStore } from '@/stores/authStore'
 const OverviewView = () => import('@/views/overview/OverviewView.vue')
 const ResourcesView = () => import('@/views/resources/ResourcesView.vue')
 const ResourceDetailView = () => import('@/views/resources/ResourceDetailView.vue')
+const ResourceImportView = () => import('@/views/resources/ResourceImportView.vue')
 const ComponentsView = () => import('@/views/ComponentsView.vue')
 const SettingsLayoutView = () => import('@/views/settings/SettingsLayoutView.vue')
 const AccountSettingsView = () => import('@/views/settings/AccountView.vue')
@@ -103,6 +104,12 @@ const routes: RouteRecordRaw[] = [
     name: 'Resources',
     component: ResourcesView,
     meta: { requiresAuth: true, requiresLayout: true, breadcrumbLabel: 'Resources' },
+  },
+  {
+    path: '/resources/import',
+    name: 'ResourceImport',
+    component: ResourceImportView,
+    meta: { requiresAuth: true, requiresLayout: true, breadcrumbLabel: 'Import' },
   },
   {
     path: '/resources/:id',

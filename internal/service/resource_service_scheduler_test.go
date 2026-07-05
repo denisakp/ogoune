@@ -187,7 +187,7 @@ func newSchedulerAwareResourceService() (*ResourceService, *recordingScheduler) 
 	monitoring := fake.NewMonitoringActivityFake()
 	recorder := &recordingScheduler{}
 
-	return NewResourceService(resources, incidents, tags, recorder, monitoring, nil, nil), recorder
+	return NewResourceService(resources, incidents, tags, fake.NewNotificationChannelFake(), recorder, monitoring, nil, nil), recorder
 }
 
 type recordingScheduler struct {

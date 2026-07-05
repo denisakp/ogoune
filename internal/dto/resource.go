@@ -9,27 +9,31 @@ import (
 // CreateResourcePayload contains fields for creating a new monitoring resource.
 // Tags field expects tag names (strings) - tags will be created if they don't exist.
 type CreateResourcePayload struct {
-	Name                    string              `json:"name" binding:"required"`
-	Type                    domain.ResourceType `json:"type" binding:"required"`
-	Interval                int                 `json:"interval" binding:"required,min=10,max=3600"`
-	Timeout                 int                 `json:"timeout" binding:"required,min=1,max=60"`
-	Target                  string              `json:"target" binding:"required"`
-	HeartbeatInterval       *int                `json:"heartbeat_interval,omitempty"`
-	HeartbeatGrace          *int                `json:"heartbeat_grace,omitempty"`
-	Keyword                 *string             `json:"keyword,omitempty"`
-	KeywordMode             *string             `json:"keyword_mode,omitempty"`
-	ProtocolType            *string             `json:"protocol_type,omitempty"`
-	ProtocolPort            *int                `json:"protocol_port,omitempty"`
-	Tags                    []string            `json:"tags"` // Tag names - will be created if they don't exist
-	ComponentID             *string             `json:"component_id,omitempty"`
-	ConfirmationChecks      *int                `json:"confirmation_checks,omitempty"`
-	ConfirmationInterval    *int                `json:"confirmation_interval,omitempty"`
-	ExpiryAlertThresholds   *string             `json:"expiry_alert_thresholds,omitempty"`
-	FlapDetectionEnabled    *bool               `json:"flap_detection_enabled,omitempty"`
-	FlapThreshold           *int                `json:"flap_threshold,omitempty"`
-	FlapWindowSeconds       *int                `json:"flap_window_seconds,omitempty"`
-	FlapMaxDurationMinutes  *int                `json:"flap_max_duration_minutes,omitempty"`
-	ReminderIntervalMinutes *int                `json:"reminder_interval_minutes,omitempty"`
+	Name              string              `json:"name" binding:"required"`
+	Type              domain.ResourceType `json:"type" binding:"required"`
+	Interval          int                 `json:"interval" binding:"required,min=10,max=3600"`
+	Timeout           int                 `json:"timeout" binding:"required,min=1,max=60"`
+	Target            string              `json:"target" binding:"required"`
+	HeartbeatInterval *int                `json:"heartbeat_interval,omitempty"`
+	HeartbeatGrace    *int                `json:"heartbeat_grace,omitempty"`
+	Keyword           *string             `json:"keyword,omitempty"`
+	KeywordMode       *string             `json:"keyword_mode,omitempty"`
+	ProtocolType      *string             `json:"protocol_type,omitempty"`
+	ProtocolPort      *int                `json:"protocol_port,omitempty"`
+	Tags              []string            `json:"tags"` // Tag names - will be created if they don't exist
+	// NotificationChannelNames are channel names to attach; resolved to IDs at create time.
+	// Channels must already exist (they hold secrets and are never created here). Used by the
+	// bulk import path (spec 078); missing name is a validation error.
+	NotificationChannelNames []string `json:"notification_channel_names,omitempty"`
+	ComponentID              *string  `json:"component_id,omitempty"`
+	ConfirmationChecks       *int     `json:"confirmation_checks,omitempty"`
+	ConfirmationInterval     *int     `json:"confirmation_interval,omitempty"`
+	ExpiryAlertThresholds    *string  `json:"expiry_alert_thresholds,omitempty"`
+	FlapDetectionEnabled     *bool    `json:"flap_detection_enabled,omitempty"`
+	FlapThreshold            *int     `json:"flap_threshold,omitempty"`
+	FlapWindowSeconds        *int     `json:"flap_window_seconds,omitempty"`
+	FlapMaxDurationMinutes   *int     `json:"flap_max_duration_minutes,omitempty"`
+	ReminderIntervalMinutes  *int     `json:"reminder_interval_minutes,omitempty"`
 }
 
 // UpdateResourcePayload contains the fields that can be updated for a resource.
