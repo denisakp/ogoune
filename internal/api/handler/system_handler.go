@@ -25,7 +25,7 @@ func NewSystemHandler() *SystemHandler {
 func (h *SystemHandler) GetEdition(w http.ResponseWriter, r *http.Request) {
 	version := os.Getenv("APP_VERSION")
 	if version == "" {
-		version = "1.0.0"
+		version = "1.0.0-beta"
 	}
 
 	response.JSON(w, http.StatusOK, editionResponse{

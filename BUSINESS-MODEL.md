@@ -110,9 +110,9 @@ The CLA allows Ogoune to relicense contributions under any OSI-approved license 
 
 ---
 
-## Historical version compatibility
+## Historical licensing note
 
-**Pre-v2.0.0**, Ogoune was licensed under **AGPL v3**. All releases distributed under AGPL v3 remain under those terms in perpetuity. The current open-core model (Apache 2.0 + LicenseRef-Ogoune-EE) applies only to v2.0.0+ commits and releases.
+Ogoune's core was previously licensed under **AGPL v3**. The relicensing to Apache 2.0 predates any tagged release — no version was ever published under AGPL. Any copy obtained under AGPL remains governed by AGPL in perpetuity; the current open-core model (Apache 2.0 + LicenseRef-Ogoune-EE) governs the source tree and all releases from `v1.0.0-beta` onward.
 
 ---
 

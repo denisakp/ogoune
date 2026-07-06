@@ -20,7 +20,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 )
 
-const AppVersion = "1.0.0"
+const AppVersion = "1.0.0-beta"
 
 // App holds all initialized application components.
 // Each Init* function populates a subset of fields.

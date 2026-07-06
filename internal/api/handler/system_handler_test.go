@@ -30,8 +30,8 @@ func TestSystemHandlerGetEditionCommunity(t *testing.T) {
 	if body["edition"] != "community" {
 		t.Fatalf("expected edition community, got %q", body["edition"])
 	}
-	if body["version"] != "1.0.0" {
-		t.Fatalf("expected default version 1.0.0, got %q", body["version"])
+	if body["version"] != "1.0.0-beta" {
+		t.Fatalf("expected default version 1.0.0-beta, got %q", body["version"])
 	}
 }
 

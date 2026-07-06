@@ -7,13 +7,13 @@
 **Uptime monitoring that confirms before it cries wolf.**
 
 ![License: Apache 2.0 (core)](https://img.shields.io/badge/license-Apache_2.0-blue) ![License: EE](https://img.shields.io/badge/internal%2Fee-LicenseRef--Ogoune--EE-orange)
-![Version](https://img.shields.io/badge/version-v1.0.0-green)
+![Version](https://img.shields.io/badge/version-v1.0.0--beta-yellow)
 ![Go](https://img.shields.io/badge/go-1.24%2B-00ADD8)
 ![Vue](https://img.shields.io/badge/vue-3.x-4FC08D)
 ![Docker](https://img.shields.io/badge/docker-ready-2496ED)
 [![GitHub Stars](https://img.shields.io/github/stars/denisakp/ogoune?style=flat)](https://github.com/denisakp/ogoune)
 [![GitHub Actions](https://img.shields.io/badge/GitHub%20Actions-passing-brightgreen?logo=github)](https://github.com/denisakp/ogoune/actions)
-[![GitLab CI/CD](https://img.shields.io/badge/GitLab%20CI-ready-orange?logo=gitlab)](./specs/021-gitlab-ci-workflows/quickstart.md)
+[![GitLab CI/CD](https://img.shields.io/badge/GitLab%20CI-ready-orange?logo=gitlab)](./.gitlab-ci.yml)
 
 Ogoune monitors your websites, APIs, and services. When something goes down, it **verifies the failure** before 
 alerting you. No more 3am pages for a 2-second network blip.
@@ -357,14 +357,14 @@ All contributors must sign the **CLA** — the bot handles this automatically on
 
 ## Licence
 
-Ogoune uses an Open Core dual-licensing model from v2.0.0 onward:
+Ogoune uses an Open Core dual-licensing model:
 
 - **Core** (everything outside `internal/ee/`): **Apache License 2.0** — see [LICENSE](./LICENSE). Free, self-hostable, modifiable, and redistributable under standard permissive terms.
 - **Enterprise Edition**: any file under `internal/ee/` or carrying the SPDX identifier `LicenseRef-Ogoune-EE` is governed by a separate commercial source-available licence — see [LICENSE.ee](./LICENSE.ee). The source is visible for evaluation, development, testing, and contribution, but production use requires a commercial licence (`hello@ogoune.com`).
 
 Contributions to either scope require accepting the Contributor License Agreement — see [cla.md](./cla.md). The CLA bot prompts you on your first pull request.
 
-**Past releases**: any Ogoune distribution made publicly available prior to v2.0.0 remains licensed under **AGPL v3 forever**. The dual-licensing change above applies only to commits and releases made from v2.0.0 onward. See the [migration announcement](https://github.com/denisakp/ogoune/discussions) for details.
+**Prior licensing**: Ogoune's core was previously licensed under **AGPL v3**. The relicensing to Apache 2.0 predates any tagged release — no version was ever published under AGPL. Any copy obtained under AGPL remains governed by AGPL; the open-core model above governs the current source tree and all releases from `v1.0.0-beta` onward.
 
 
 ---

@@ -3,7 +3,7 @@
 This document is public and intentionally transparent. It shows what we have built, what we are working on, and where 
 we are going.
 
-> **Last updated:** May 2026 — v1.0.0
+> **Last updated:** July 2026 — v1.0.0-beta
 > **Strategic context:** see [`BUSINESS-MODEL.md`](./BUSINESS-MODEL.md) for our open-core philosophy.
 
 ---
@@ -28,7 +28,7 @@ Ogoune follows an **Open Core** model:
 
 The Apache 2.0 licence on the core lets you use, modify, deploy, and fork Ogoune Community Edition under standard permissive terms — no copyleft obligation. For Enterprise features in production, contact us for a commercial licence (`hello@ogoune.com`).
 
-**Pre-v2.0.0 distributions remain AGPL v3 forever.** Releases distributed under AGPL prior to v2.0.0 stay under those terms in perpetuity; the dual model above applies only to commits and releases from v2.0.0 onward.
+**Prior licensing.** Ogoune's core was previously licensed under AGPL v3; the relicensing to Apache 2.0 predates any tagged release. Any copy obtained under AGPL remains AGPL in perpetuity; the dual model above governs the current tree and all releases from `v1.0.0-beta` onward.
 
 ### Contributing
 

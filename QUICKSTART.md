@@ -46,8 +46,9 @@ docker run -d \
   --restart unless-stopped \
   -p 8080:8080 \
   -v ogoune_data:/data \
+  -e APP_SECRET_KEY=$(openssl rand -hex 32) \
   -e JWT_SECRET=change-me-before-production \
-  ogoune/community:latest
+  ghcr.io/denisakp/ogoune:latest
 ```
 
 Open **http://localhost:8080**
@@ -61,7 +62,7 @@ Create a `compose.yml`:
 ```yaml
 services:
   ogoune:
-    image: ogoune/community:latest
+    image: ghcr.io/denisakp/ogoune:latest
     container_name: ogoune
     restart: unless-stopped
     ports:
@@ -72,6 +73,7 @@ services:
       DB_DRIVER: sqlite
       SQLITE_PATH: /data/ogoune.db
       SCHEDULER_DRIVER: timingwheel
+      APP_SECRET_KEY: change-me-generate-with-openssl-rand-hex-32
       JWT_SECRET: change-me-before-production
       ADMIN_EMAIL: admin@ogoune.test
 
@@ -703,10 +705,10 @@ You must mount a volume. Without `-v ogoune_data:/data`, data is lost when the c
 
 ```bash
 # Correct
-docker run -v ogoune_data:/data ogoune/community:latest
+docker run -v ogoune_data:/data ghcr.io/denisakp/ogoune:latest
 
 # Wrong — data lost on restart
-docker run ogoune/community:latest
+docker run ghcr.io/denisakp/ogoune:latest
 ```
 
 ---

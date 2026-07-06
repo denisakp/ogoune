@@ -10,7 +10,7 @@ interface EditionResponse {
 }
 
 const edition = ref<Edition>('community')
-const version = ref<string>('1.0.0')
+const version = ref<string>('1.0.0-beta')
 const isLoaded = ref(false)
 const isLoading = ref(false)
 
