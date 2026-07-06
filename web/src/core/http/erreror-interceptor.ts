@@ -88,14 +88,32 @@ function errorTitleFor(status: number, message: string | null): string {
 
 // ---- 401 single-flight (clarification Q1) ----
 let redirecting = false
-async function handle401SingleFlight(): Promise<void> {
-  if (redirecting) return
-  redirecting = true
-  const toast = await resolveToast()
-  toast?.add({ title: 'Unauthorized. Please log in again.', color: 'error' })
+
+function clearStoredCredentials(): void {
   localStorage.removeItem(TOKEN_KEY)
   localStorage.removeItem(USER_EMAIL_KEY)
   localStorage.removeItem(USER_ID_KEY)
+}
+
+async function handle401SingleFlight(): Promise<void> {
+  if (redirecting) return
+  redirecting = true
+
+  // Guard against an infinite full-reload loop. `redirecting` is module state
+  // and resets on every full page load, so a 401 raised *while already on*
+  // /login would otherwise do `window.location.href = '/login'` → full reload →
+  // same request → same 401 → reload again, forever. When we're already on the
+  // login page, just clear stale credentials and stop — the app is right where
+  // the user needs to be, and the route guard handles the rest.
+  if (typeof window !== 'undefined' && window.location.pathname === '/login') {
+    clearStoredCredentials()
+    redirecting = false
+    return
+  }
+
+  const toast = await resolveToast()
+  toast?.add({ title: 'Unauthorized. Please log in again.', color: 'error' })
+  clearStoredCredentials()
   if (typeof window !== 'undefined') {
     window.location.href = '/login'
   }
