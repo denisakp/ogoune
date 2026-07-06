@@ -1,33 +1,62 @@
 # Security Policy
 
-Security is crucial for this project. 🔒
+Security matters for Ogoune. 🔒 Thank you for helping keep it and its users safe.
 
-Learn more about it below. 👇
+## Supported versions
 
-## Versions
+Ogoune is currently in **beta**. Security fixes are provided for the latest
+released version only.
 
-The latest version or release is supported.
+| Version | Supported |
+|---|---|
+| `1.0.0-beta` (latest) | ✅ |
+| Older / pre-release builds | ❌ — please upgrade |
 
-You are encouraged to write tests for your application and update your versions frequently after 
-ensuring that your tests are passing. This way you will benefit from the latest features, bug fixes,
-and **security fixes**.
+Once a stable line ships, this table will list the supported minor versions.
 
-## Reporting a Vulnerability
+## Reporting a vulnerability
 
-If you think you found a vulnerability, and even if you are not sure about it, please report it right
-away by sending an email to: hello[at]denisakp.me. Please try to be as explicit as possible,
-describing all the steps and example code to reproduce the security issue.
+**Please do not open a public issue for security problems.**
 
-I (the author, [Denis AKPAGNONITE](https://denisakp.me)) will review it thoroughly and get 
-back to you.
+Report privately through either channel — GitHub is preferred because it gives
+us a private, trackable thread and a path to a coordinated advisory (and, if
+warranted, a CVE):
 
-## Public Discussions
+1. **GitHub Security Advisory (preferred)** — open a private report at
+   [github.com/denisakp/ogoune/security/advisories/new](https://github.com/denisakp/ogoune/security/advisories/new).
+2. **Email (fallback)** — `security@ogoune.com`.
 
-Please restrain from publicly discussing a potential security vulnerability. 🙊
+Even if you are unsure whether the issue is real, report it anyway.
 
-It's better to discuss privately and try to find a solution first, to limit the potential impact as 
-much as possible.
+### What to include
+
+- A clear description of the vulnerability and its impact.
+- Steps to reproduce (proof-of-concept code, requests, or configuration).
+- Affected version / commit and deployment mode (Community SQLite or
+  Postgres + Redis).
+- Any suggested remediation, if you have one.
+
+## What to expect
+
+- **Acknowledgement** within **3 business days**.
+- **Initial assessment** (severity + whether we can reproduce) within
+  **7 business days**.
+- We work on a fix and keep you updated on progress. Once released, we publish
+  an advisory crediting you (unless you prefer to stay anonymous).
+
+## Coordinated disclosure
+
+Please give us a reasonable window to release a fix before any public
+disclosure — up to **90 days**, or until a fix ships, whichever comes first.
+We are happy to coordinate timing and credit with you.
+
+## Safe harbor
+
+We consider good-faith security research conducted under this policy to be
+authorized. We will not pursue or support legal action against researchers who
+report vulnerabilities responsibly, avoid privacy violations and service
+disruption, and give us reasonable time to respond before disclosing.
 
 ---
 
-Thanks for your help 🙇!
+Thanks for your help 🙇
