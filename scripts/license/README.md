@@ -1,6 +1,6 @@
 # License guards
 
-Three guards enforce the post-v2.0.0 licensing contract on every PR targeting `main`:
+Three guards enforce the open-core licensing contract on every PR targeting `main`:
 
 | Guard | Script | Implements | Contract |
 |---|---|---|---|

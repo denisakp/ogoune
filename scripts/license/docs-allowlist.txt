@@ -3,8 +3,8 @@
 # Source: specs/040-relicense-apache-ee/data-model.md §4.
 
 previously AGPL
-pre-v2.0.0
-prior to v2.0.0
+previously licensed under
+predates any tagged release
 releases distributed under AGPL
-AGPL forever
+obtained under AGPL
 was AGPL

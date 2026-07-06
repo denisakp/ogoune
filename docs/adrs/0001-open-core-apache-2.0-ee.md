@@ -6,9 +6,11 @@
 - **Scope**: Both
 - **Tags**: license, business, governance
 
+> **Amended 2026-07-06**: this ADR was written expecting a `v2.0.0` milestone. The relicense in fact predates any tagged release — no public version was ever shipped under AGPL — and the first public release is `v1.0.0-beta`. References to "v2.0.0" below have been corrected: the relicense boundary is the relicense commit (`6c1910b`), not a version tag. The decision itself (open-core, Apache 2.0 + EE) is unchanged.
+
 ## Context
 
-Ogoune was released under AGPL v3 from inception. As the project matured toward a v2.0.0 milestone, two pressures emerged:
+Ogoune's core was under AGPL v3 from inception. As the project matured toward its first public release, two pressures emerged:
 
 1. **Commercial sustainability**: a solo-dev project needs revenue to survive. Pure AGPL forbids viable SaaS/embedded usage by potential paying customers (legal teams refuse AGPL on any code path touching their product).
 2. **Adoption friction**: AGPL deters smaller teams who fear copyleft contamination, even when their use case is plain self-hosted monitoring.
@@ -80,7 +82,7 @@ Ogoune adopts an **open-core model**:
 - **Core** (everything outside `internal/ee/`): **Apache License 2.0**.
 - **Enterprise Edition** (`internal/ee/` and any file marked `SPDX-License-Identifier: LicenseRef-Ogoune-EE`): **commercial source-available license** — source visible, production use requires a commercial key.
 
-Past AGPL v3 releases (pre-v2.0.0) remain under AGPL v3 in perpetuity. The dual model applies only to v2.0.0+ commits and releases.
+The core was previously under AGPL v3; the relicense (commit `6c1910b`) predates any tagged release, so no public version was ever shipped under AGPL. Any copy obtained under AGPL remains AGPL in perpetuity. The dual model governs the current tree and all releases from `v1.0.0-beta` onward.
 
 A Contributor License Agreement (`cla.md`) is required for every contributor so Ogoune can relicense contributions under either side of the open-core boundary.
 
@@ -107,8 +109,8 @@ A Contributor License Agreement (`cla.md`) is required for every contributor so 
 - **CE ↔ EE boundary**: `internal/ee/` already isolated; `License.Get()` in `internal/ee/license/` returns `community` vs `enterprise` based on key prefix `pg_ent_`. Runtime metadata only.
 - **Doc drift**: `README.md`, `BUSINESS-MODEL.md`, `TRADEMARK.md`, `CLAUDE.md` line 7, `LICENSE`, `LICENSE.ee` all updated.
 - **CLA**: `cla.md` introduced, CLA bot enabled at the org level for first-time contributors.
-- **Past releases**: AGPL v3 releases remain published as-is; release notes for v2.0.0 explicitly call out the historical AGPL boundary.
-- **Rollout**: hard cutover at v2.0.0 tag. No deprecation window — license change is binary.
+- **Past releases**: any code obtained under AGPL remains AGPL; the release notes call out the historical AGPL boundary.
+- **Rollout**: hard cutover landed with the relicense commit (`6c1910b`), before any public release tag. No deprecation window — license change is binary.
 
 ## Implementation checklist
 
@@ -119,7 +121,7 @@ A Contributor License Agreement (`cla.md`) is required for every contributor so 
 - [x] `BUSINESS-MODEL.md` + `TRADEMARK.md` published in repo root
 - [x] `README.md` badges and license section updated
 - [x] `CLAUDE.md` and `AGENTS.md` align (no stale AGPL references)
-- [x] v2.0.0 release notes call out historical AGPL boundary
+- [x] release notes call out historical AGPL boundary
 - [ ] Track CE/EE feature ratio quarterly in roadmap reviews
 
 ## References
