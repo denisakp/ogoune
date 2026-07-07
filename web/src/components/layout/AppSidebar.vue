@@ -4,7 +4,10 @@
  * Four sections (MONITOR / REPORT / TOOLS / SETTINGS) + footer status pill.
  * Contract: specs/055-slice-shared-components/contracts/app-layout.md
  */
+import { computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
+
+import { useResourceStore } from '@/stores/resourceStore'
 
 interface NavItem {
   label: string
@@ -37,6 +40,31 @@ const settings: NavItem[] = [
 ]
 
 const route = useRoute()
+
+// Footer status pill — reflect the real fleet state instead of a hardcoded
+// "operational". Fetch resources once if the store is still empty so the pill
+// is accurate on any page (the sidebar is mounted app-wide).
+const resourceStore = useResourceStore()
+onMounted(() => {
+  if (resourceStore.resources.length === 0 && !resourceStore.fetchLoading) {
+    void resourceStore.loadResources()
+  }
+})
+const hasResources = computed(() => resourceStore.resources.length > 0)
+const downCount = computed(() => resourceStore.resources.filter((r) => r.status === 'down').length)
+const footerLabel = computed(() => {
+  if (!hasResources.value) return 'No resources yet'
+  if (downCount.value > 0) return `${downCount.value} resource${downCount.value > 1 ? 's' : ''} down`
+  return 'All systems operational'
+})
+const footerTextClass = computed(() => {
+  if (!hasResources.value) return 'text-muted'
+  return downCount.value > 0 ? 'text-warning' : 'text-success'
+})
+const footerDotClass = computed(() => {
+  if (!hasResources.value) return 'bg-dimmed'
+  return downCount.value > 0 ? 'bg-warning' : 'bg-success'
+})
 
 function linkClass(to: string): string {
   const active = route.path === to || route.path.startsWith(`${to}/`)
@@ -127,10 +155,11 @@ function linkClass(to: string): string {
         to="/status.html"
         target="_blank"
         rel="noopener"
-        class="flex items-center gap-2 px-2 py-1.5 rounded-md text-xs text-success hover:bg-elevated transition-colors"
+        class="flex items-center gap-2 px-2 py-1.5 rounded-md text-xs hover:bg-elevated transition-colors"
+        :class="footerTextClass"
       >
-        <span class="size-2 rounded-full bg-success" />
-        All systems operational
+        <span class="size-2 rounded-full" :class="footerDotClass" />
+        {{ footerLabel }}
       </ULink>
     </div>
   </aside>

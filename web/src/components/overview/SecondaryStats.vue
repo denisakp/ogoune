@@ -39,7 +39,12 @@ const cards = computed(() => [
   {
     label: 'Resources',
     value: String(totalResources.value),
-    sub: downOrDegraded.value > 0 ? `${downOrDegraded.value} down/degraded` : 'all healthy',
+    sub:
+      totalResources.value === 0
+        ? 'none yet'
+        : downOrDegraded.value > 0
+          ? `${downOrDegraded.value} down/degraded`
+          : 'all healthy',
     icon: 'i-lucide-server',
     iconBg: '#4F46E514',
     iconColor: '#4F46E5',

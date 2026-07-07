@@ -26,6 +26,7 @@ const RANGE_LABEL: Record<OverviewRange, string> = {
   '30d': '30-day uptime',
 }
 
+const hasResources = computed(() => resourceStore.resources.length > 0)
 const downCount = computed(() => resourceStore.resources.filter((r) => r.status === 'down').length)
 const hasIncidents = computed(() => downCount.value > 0)
 
@@ -70,14 +71,16 @@ const dailyRatios = computed<(number | null)[]>(() => {
 
 const knownRatios = computed(() => dailyRatios.value.filter((v): v is number => v !== null))
 
-const uptimePct = computed(() => {
+const uptimePct = computed<number | null>(() => {
+  // No resources yet → no uptime to report. Returning null lets the template
+  // render a neutral "no data" state instead of a misleading 100 %.
+  if (!hasResources.value) return null
   // Prefer the windowed value from useOverviewMetrics (activity-based, real
   // time-aware). Fall back to the 90-day ribbon mean when no activities
   // landed in the window yet.
   const windowed = metrics?.uptimePct.value
   if (typeof windowed === 'number') return Math.round(windowed * 100) / 100
   if (knownRatios.value.length === 0) {
-    if (resourceStore.resources.length === 0) return 100
     const up = resourceStore.resources.filter((r) => r.status === 'up').length
     return Math.round((up / resourceStore.resources.length) * 1000) / 10
   }
@@ -85,9 +88,11 @@ const uptimePct = computed(() => {
   return Math.round(mean * 1000) / 10
 })
 
-const uptimeWhole = computed(() => Math.floor(uptimePct.value))
+const hasUptime = computed(() => uptimePct.value !== null)
+const uptimeWhole = computed(() => Math.floor(uptimePct.value ?? 0))
 const uptimeDecimal = computed(() => {
-  const dec = Math.round((uptimePct.value - Math.floor(uptimePct.value)) * 100)
+  const v = uptimePct.value ?? 0
+  const dec = Math.round((v - Math.floor(v)) * 100)
   return dec.toString().padStart(2, '0')
 })
 
@@ -143,7 +148,14 @@ function openStatusPage() {
     <div class="flex-1 min-w-0 flex flex-col gap-3.5">
       <div class="flex items-center gap-2.5 flex-wrap min-w-0">
         <div
-          v-if="hasIncidents"
+          v-if="!hasResources"
+          class="inline-flex items-center gap-2 px-2.5 py-0.5 rounded-full border border-default bg-muted"
+        >
+          <span class="size-1.5 rounded-full bg-dimmed" />
+          <span class="text-[13px] font-semibold text-muted"> No resources yet </span>
+        </div>
+        <div
+          v-else-if="hasIncidents"
           class="inline-flex items-center gap-2 px-2.5 py-0.5 rounded-full border"
           style="background-color: #fffbeb; border-color: #fcd34d"
         >
@@ -162,7 +174,11 @@ function openStatusPage() {
             All systems operational
           </span>
         </div>
-        <template v-if="hasIncidents">
+        <template v-if="!hasResources">
+          <span class="text-dimmed text-xs">·</span>
+          <span class="text-[13px] text-muted">Add a resource to start monitoring</span>
+        </template>
+        <template v-else-if="hasIncidents">
           <span class="text-dimmed text-xs">·</span>
           <span class="text-[13px] text-muted">
             Detected just now, {{ downCount }} resource{{ downCount > 1 ? 's' : '' }} down
@@ -173,13 +189,22 @@ function openStatusPage() {
       <div class="flex items-end gap-5">
         <div class="shrink-0">
           <div class="flex items-end gap-1">
-            <span class="text-[44px] font-bold text-highlighted leading-none tracking-tight">
-              {{ uptimeWhole }}.{{ uptimeDecimal }}
+            <template v-if="hasUptime">
+              <span class="text-[44px] font-bold text-highlighted leading-none tracking-tight">
+                {{ uptimeWhole }}.{{ uptimeDecimal }}
+              </span>
+              <span class="text-xl font-semibold text-muted leading-none pb-1">%</span>
+            </template>
+            <span
+              v-else
+              class="text-[44px] font-bold text-dimmed leading-none tracking-tight"
+              aria-label="No data yet"
+            >
+              —
             </span>
-            <span class="text-xl font-semibold text-muted leading-none pb-1">%</span>
           </div>
           <div class="text-[10px] font-medium text-dimmed uppercase tracking-wider mt-1">
-            {{ RANGE_LABEL[range] }}
+            {{ hasUptime ? RANGE_LABEL[range] : 'No data yet' }}
           </div>
         </div>
 
