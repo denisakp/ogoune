@@ -20,7 +20,7 @@ import (
 
 const (
 	// DefaultPassword is the initial password for new accounts
-	DefaultPassword = "ogu3n3@rd"
+	DefaultPassword = "password"
 	// BCryptCost is the cost factor for bcrypt hashing
 	BCryptCost = 12
 	// OTPLength is the length of the OTP code

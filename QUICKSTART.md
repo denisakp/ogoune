@@ -292,7 +292,7 @@ Regardless of which option you chose, the default credentials are:
 |---|---|
 | **URL** | http://localhost:8080 |
 | **Email** | `admin@ogoune.test` |
-| **Password** | `ogu3n3@rd` |
+| **Password** | `password` |
 
 **Change your password immediately** — Settings → Account → Change password.
 
