@@ -13,7 +13,6 @@
 ![Docker](https://img.shields.io/badge/docker-ready-2496ED)
 [![GitHub Stars](https://img.shields.io/github/stars/denisakp/ogoune?style=flat)](https://github.com/denisakp/ogoune)
 [![GitHub Actions](https://img.shields.io/badge/GitHub%20Actions-passing-brightgreen?logo=github)](https://github.com/denisakp/ogoune/actions)
-[![GitLab CI/CD](https://img.shields.io/badge/GitLab%20CI-ready-orange?logo=gitlab)](./.gitlab-ci.yml)
 
 Ogoune monitors your websites, APIs, and services. When something goes down, it **verifies the failure** before 
 alerting you. No more 3am pages for a 2-second network blip.
@@ -40,7 +39,7 @@ Open **http://localhost:8080** and log in:
 | | |
 |---|---|
 | Email | `admin@ogoune.test` |
-| Password | `ogu3n3@rd` |
+| Password | `password` |
 
 No PostgreSQL. No Redis. No reverse proxy. One container.
 
@@ -130,6 +129,7 @@ Set `confirmation_checks: 1` to restore immediate alerts.
 | Tags & components | Organize your monitors |
 | API keys | Programmatic access (`read` / `read_write`) |
 | Uptime statistics | 2h / 24h / 7d / 30d aggregates |
+| Bulk import / export | Onboard or migrate hundreds of monitors via YAML — see [`docs/import/`](./docs/import/) |
 
 ---
 
@@ -164,182 +164,32 @@ SCHEDULER_DRIVER=asynq         # Production (requires Redis)
 
 ## Configuration
 
-All settings via environment variables. See [`.env.example`](./.env.example).
+Everything is configured through environment variables — start from
+[`.env.example`](./.env.example). Only `APP_SECRET_KEY` (64-char hex,
+`openssl rand -hex 32`) and `JWT_SECRET` are mandatory before production.
 
-```env
-# Database
-DB_DRIVER=sqlite
-SQLITE_PATH=/data/ogoune.db
-
-# Scheduler
-SCHEDULER_DRIVER=timingwheel
-
-# Security — generate before production
-JWT_SECRET=change-me
-APP_SECRET_KEY=change-me    # openssl rand -hex 32
-
-# Open Core
-ENTERPRISE_LICENSE_KEY=     # leave empty for Community Edition
-
-# Settings (spec 059)
-APP_BASE_URL=https://status.example.com  # used in 2FA reset magic-link emails
-SSL_PROVIDER=external                    # letsencrypt | external | disabled
-```
-
-See [`docs/runbooks/settings-env.md`](./docs/runbooks/settings-env.md) for the
-`SSL_PROVIDER` UI matrix, the magic-link reset flow, and session-revocation
-semantics.
-
-### Generate `APP_SECRET_KEY`
-
-`APP_SECRET_KEY` is mandatory and must be a 64-character hex string.
-
-```bash
-# Generate a key value
-openssl rand -hex 32
-
-# Optional: write it directly to .env
-echo "APP_SECRET_KEY=$(openssl rand -hex 32)" >> .env
-```
-
-If you export it in your shell instead of `.env`, verify length:
-
-```bash
-echo -n "$APP_SECRET_KEY" | wc -c
-```
-
-### Optional ICMP monitoring
-
-ICMP monitoring is opt-in because raw ICMP sockets depend on host/container capabilities that are not universally available by default.
-
-Enable it only when you want ping-based monitoring or ICMP-backed network diagnostics for incidents:
-
-```env
-ENABLE_ICMP=true
-```
-
-When `ENABLE_ICMP=false` (default), Ogoune keeps HTTP, TCP, and DNS behavior unchanged and skips ICMP-specific checks and diagnostics.
-
-When `ENABLE_ICMP=true`, Ogoune starts normally in both cases:
-
-- if the runtime has the required capability, ICMP monitor creation and ICMP-backed diagnostics are available
-- if the runtime does not have the required capability, startup continues, the UI/API report ICMP as unavailable, and ICMP monitor creation is rejected until capability is granted
+Full setup walkthrough (Community, full stack, source), the env-var reference,
+ICMP opt-in, heartbeat integration, and troubleshooting live in
+**[QUICKSTART.md](./QUICKSTART.md)**. For the `SSL_PROVIDER` matrix, magic-link
+reset flow, and session-revocation semantics see
+[`docs/runbooks/settings-env.md`](./docs/runbooks/settings-env.md).
 
 ---
-
-### Heartbeat / Push monitoring
-
-Heartbeat monitoring lets you verify that cron jobs and background workers actually ran. Instead of Ogoune polling a target, your job calls Ogoune at the end of a successful run.
-
-```bash
-# At the end of your script, ping Ogoune
-curl -fsS "https://your-ogoune-host/ping/<slug>" >/dev/null
-```
-
-**How it works:**
-- Create a Heartbeat monitor with an interval and grace period.
-- Copy the generated ping URL and add it to your script.
-- Ogoune waits. If no ping arrives within interval + grace seconds, an incident is created.
-- A recovery ping resolves the incident automatically.
-
-**No authentication required.** The slug itself is the token (UUID v4, unguessable). A per-slug rate limit of 100 requests/min applies.
-
-See [QUICKSTART.md](./QUICKSTART.md) for step-by-step integration.
-
----
-
-## Bulk import / export
-
-Onboard or migrate many monitors at once with a YAML manifest instead of the UI form.
-
-```bash
-# 1. Preview (dry-run) — validate every row, write nothing
-curl -X POST "$OGOUNE/api/v1/monitors/import?dryRun=true" \
-  -H "Authorization: Bearer $API_KEY" \
-  -H "Content-Type: text/yaml" \
-  --data-binary @monitors.yaml
-
-# 2. Import for real (optional ?duplicatePolicy=skip|error, default skip)
-curl -X POST "$OGOUNE/api/v1/monitors/import" \
-  -H "Authorization: Bearer $API_KEY" -H "Content-Type: text/yaml" \
-  --data-binary @monitors.yaml
-
-# 3. Export the current set back to YAML (round-trips)
-curl "$OGOUNE/api/v1/monitors/export" -H "Authorization: Bearer $API_KEY" -o monitors.yaml
-```
-
-Tags and components are referenced by name and auto-created; notification channels are
-referenced by name and must pre-exist (secrets are never imported). Import is all-or-nothing —
-always dry-run first. Max 500 resources per manifest. Schema, example, and rules:
-[`docs/import/`](./docs/import/). In the UI: **Resources → Import / Export**.
 
 ## Roadmap
 
 See [ROADMAP.md](./ROADMAP.md) for the full roadmap.
 
-**Coming in H2:** Keyword checks, Prometheus metrics, IMAP/SMTP, Telegram, Digest
-notifications, API v1, credential encryption.
-
-**Coming in H3:** Toolbox, Enterprise Edition (multi-tenancy, SSO, billing, agent device monitoring).
+**Shipped since v1.0:** Keyword checks, Prometheus metrics, protocol-aware monitors,
+bulk import/export, heartbeat monitoring, API v1, credential encryption.
 
 ---
 
-## Prometheus Metrics Endpoint
+## Observability
 
-Ogoune exposes a standard Prometheus-compatible `GET /metrics` endpoint for observability.
-
-### Configuration
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `ENABLE_METRICS` | `false` | Set to `true` to enable the `/metrics` endpoint |
-| `METRICS_TOKEN` | _(empty)_ | Optional bearer token. When set, requests must include `Authorization: Bearer <token>`. Leave empty only on private/firewalled networks (a startup warning is logged). |
-
-### Access modes
-
-| `ENABLE_METRICS` | `METRICS_TOKEN` | Result |
-|-----------------|-----------------|--------|
-| `false` | any | `404 Not Found` — route not registered |
-| `true` | _(empty)_ | `200 OK` — unauthenticated (startup warning logged) |
-| `true` | `<token>` | `200 OK` with correct `Authorization: Bearer <token>` header; `401` otherwise |
-
-### Available metrics
-
-| Metric | Type | Description |
-|--------|------|-------------|
-| `go_goroutines` | Gauge | Active goroutines |
-| `go_memstats_heap_alloc_bytes` | Gauge | Heap memory in use |
-| `go_gc_duration_seconds` | Summary | GC pause durations |
-| `ogoune_resource_up` | Gauge | `1`=up, `0`=down per resource |
-| `ogoune_resource_status` | Gauge | `0`=unknown `1`=up `2`=down `3`=paused |
-| `ogoune_check_duration_seconds` | Histogram | Check latency in seconds |
-| `ogoune_checks_total` | Counter | Check executions by `status` label (`success`/`failure`/`timeout`) |
-| `ogoune_incidents_total` | Gauge | All-time incident count per resource |
-| `ogoune_incidents_active` | Gauge | Currently open incidents per resource |
-| `ogoune_uptime_ratio` | Gauge | Uptime `0.0–1.0` for `window` label `24h`, `7d`, `30d` |
-
-All `ogoune_*` metrics carry labels: `id`, `name`, `type`.
-
-### Prometheus scrape config
-
-Without authentication:
-```yaml
-scrape_configs:
-  - job_name: ogoune
-    scrape_interval: 30s
-    static_configs:
-      - targets: ["ogoune:8080"]
-```
-
-With bearer token:
-```yaml
-scrape_configs:
-  - job_name: ogoune
-    scrape_interval: 30s
-    bearer_token: your-secret-token-here
-    static_configs:
-      - targets: ["ogoune:8080"]
-```
+Ogoune exposes a Prometheus-compatible `GET /metrics` endpoint (opt-in via
+`ENABLE_METRICS=true`, optional bearer token). Metric catalogue, access modes,
+and scrape config: [`docs/observability/prometheus.md`](./docs/observability/prometheus.md).
 
 ---
 
