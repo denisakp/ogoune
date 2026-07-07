@@ -27,7 +27,7 @@ jobs:
         run: go install github.com/google/go-licenses@v1.6.0
 
       - name: Set up pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@v6
         with:
           run_install: false
           package_json_file: web/package.json
@@ -55,7 +55,7 @@ jobs:
 
       - name: Upload audit reports
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: license-reports
           path: |
