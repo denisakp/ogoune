@@ -13,6 +13,7 @@
 ![Docker](https://img.shields.io/badge/docker-ready-2496ED)
 [![GitHub Stars](https://img.shields.io/github/stars/denisakp/ogoune?style=flat)](https://github.com/denisakp/ogoune)
 [![GitHub Actions](https://img.shields.io/badge/GitHub%20Actions-passing-brightgreen?logo=github)](https://github.com/denisakp/ogoune/actions)
+[![Documentation](https://img.shields.io/badge/docs-nebula-6E56CF)](https://github.com/denisakp/ogoune/tree/main/nebula)
 
 Ogoune monitors your websites, APIs, and services. When something goes down, it **verifies the failure** before 
 alerting you. No more 3am pages for a 2-second network blip.
@@ -21,6 +22,8 @@ alerting you. No more 3am pages for a 2-second network blip.
 > Every alert is real.
 
 <img src="./static/dashboard.png" alt="Ogoune Dashboard" width="100%" style="border-radius: 8px; margin-top: 16px;" />
+
+📚 **Documentation:** [`nebula/`](./nebula/) — guides, self-hosting, Enterprise, and the API reference (VitePress). Hosted site at `docs.ogoune.io` coming soon.
 
 ---
 

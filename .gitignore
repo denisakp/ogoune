@@ -30,3 +30,7 @@ Thumbs.db
 .scannerwork/
 bench-output.txt
 api-bench-output.txt
+
+# VitePress docs (nebula/)
+nebula/.vitepress/cache/
+nebula/.vitepress/dist/
