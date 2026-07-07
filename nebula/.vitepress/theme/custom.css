@@ -1,0 +1,27 @@
+/* Enlarge the home hero image (default VitePress caps it around 320px).
+   The dashboard screenshot is wide, so let it fill a larger, un-cropped box. */
+.VPHero .image {
+  max-width: 100%;
+}
+
+.VPHero .image-container {
+  width: 100%;
+  max-width: 720px;
+  padding: 0;
+  transform: none;
+}
+
+.VPHero .image-src {
+  position: relative;
+  max-width: 100%;
+  max-height: none;
+  border-radius: 12px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.16);
+}
+
+/* Give the hero more room on large screens so the bigger image sits well. */
+@media (min-width: 960px) {
+  .VPHero .container {
+    max-width: 1200px;
+  }
+}
