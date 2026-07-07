@@ -87,3 +87,16 @@ linked in the release notes.
 - **Contributor guide**: `internal/repository/sqlc/README.md` — 9-step
   walkthrough for adding a new repository, sqlc-only.
 - **Patterns catalogue**: `internal/repository/sqlc/PATTERNS.md`.
+- **Public documentation site** — VitePress site under `nebula/`, published at
+  [docs.ogoune.com](https://docs.ogoune.com), with a live OpenAPI reference
+  rendered from `api/openapi/v1.json`. Auto-deployed on Vercel.
+
+### Fixed
+
+- **Docker image build** — the go-builder stage now copies `api/` so the
+  embedded OpenAPI spec (`//go:embed v1.json`) resolves. The release image
+  previously failed to compile (`no required module provides package
+  .../api/openapi`).
+- **CI (license guards)** — pin pnpm via `web/package.json`, add the missing
+  `web/.nvmrc` (node 24), and bump `pnpm/action-setup` + `actions/upload-artifact`
+  for the updated GitHub runner.
