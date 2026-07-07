@@ -33,6 +33,10 @@ export interface Resource {
   component_id?: string // Optional component assignment
   tags?: Tag[]
   incidents?: Incident[]
+  incident_count_30d?: number
+  uptime_7d?: number // 0..1 ratio over last 7 days
+  uptime_30d?: number // 0..1 ratio over last 30 days
+  response_time?: number // avg response time in ms over the same window
   uptime?: number // Overall uptime percentage
   hourly_uptime?: HourlyUptimeStat[] // Hourly uptime data for sparklines
   response_times?: ResponseTime[] // Response time history
@@ -46,17 +50,17 @@ export interface Resource {
   last_status_transition?: string | null
   flap_started_at?: string | null
   // Heartbeat-specific fields (only present when type === 'heartbeat')
-  heartbeat_slug?: string        // UUID v4 — present only in detail response
-  heartbeat_interval?: number    // seconds (60–86400)
-  heartbeat_grace?: number       // seconds (60–3600)
-  last_ping_at?: string | null   // ISO 8601 or null
-  waiting?: boolean              // true when last_ping_at is null (never pinged)
+  heartbeat_slug?: string // UUID v4 — present only in detail response
+  heartbeat_interval?: number // seconds (60–86400)
+  heartbeat_grace?: number // seconds (60–3600)
+  last_ping_at?: string | null // ISO 8601 or null
+  waiting?: boolean // true when last_ping_at is null (never pinged)
   // Keyword-specific fields (only present when type === 'keyword')
-  keyword?: string               // literal string to search for (max 500 chars)
+  keyword?: string // literal string to search for (max 500 chars)
   keyword_mode?: 'contains' | 'not_contains'
   // Protocol-specific fields (only present when type === 'protocol')
-  protocol_type?: 'redis' | 'mongodb' | 'ftp' | 'ssh'
-  protocol_port?: number         // 1–65535; absent = use protocol default
+  protocol_type?: 'redis' | 'mongodb' | 'ftp' | 'ssh' | 'mysql' | 'postgres' | 'rabbitmq' | 'kafka'
+  protocol_port?: number // 1–65535; absent = use protocol default
 }
 
 /**
@@ -104,14 +108,14 @@ export interface CreateResource {
   flap_max_duration_minutes?: number
   reminder_interval_minutes?: number
   // Heartbeat-specific
-  heartbeat_interval?: number   // seconds (60–86400)
-  heartbeat_grace?: number      // seconds (60–3600)
+  heartbeat_interval?: number // seconds (60–86400)
+  heartbeat_grace?: number // seconds (60–3600)
   // Keyword-specific
   keyword?: string
   keyword_mode?: 'contains' | 'not_contains'
   // Protocol-specific
-  protocol_type?: 'redis' | 'mongodb' | 'ftp' | 'ssh'
-  protocol_port?: number         // 1–65535; absent = use protocol default
+  protocol_type?: 'redis' | 'mongodb' | 'ftp' | 'ssh' | 'mysql' | 'postgres' | 'rabbitmq' | 'kafka'
+  protocol_port?: number // 1–65535; absent = use protocol default
 }
 
 export type UpdateResource = Partial<CreateResource>
@@ -289,7 +293,8 @@ export interface ExpirationStatus {
 export interface StatusPageSettings {
   name: string
   homepage_url?: string
-  google_analytics_id?: string
+  umami_website_id?: string
+  umami_script_url?: string
   enable_details_page: boolean
   show_uptime_percentage: boolean
 }
@@ -394,10 +399,147 @@ export interface PublicMonitorDetail {
   maintenance?: MaintenanceBanner
 }
 
+// =====================================================================
+// Spec 060 — Public Status Page DTOs
+// =====================================================================
+
+export type PublicVerdictStatus = 'operational' | 'partial_degradation' | 'major_outage'
+export type PublicVerdictColor = 'green' | 'yellow' | 'orange' | 'red'
+
+export interface PublicVerdict {
+  status: PublicVerdictStatus
+  label: string
+  color: PublicVerdictColor
+}
+
+export type PublicAggregatedState = 'up' | 'degraded' | 'down' | 'maintenance' | 'unknown'
+
+export interface PublicUptimeRibbonDay {
+  day: string
+  // null = no data for that day. The UI surfaces these as "unknown" cells,
+  // and the 90-day average is computed over known days only.
+  ratio: number | null
+}
+
+export interface PublicResourceSummary {
+  id: string
+  name: string
+  host: string
+  current_state: PublicAggregatedState
+  uptime_90d_ratio: number
+  uptime_ribbon: PublicUptimeRibbonDay[]
+}
+
+export interface PublicComponentSummary {
+  id: string
+  name: string
+  aggregated_state: PublicAggregatedState
+  resources: PublicResourceSummary[]
+}
+
+export type PublicIncidentSeverity = 'minor' | 'major' | 'critical'
+
+export interface PublicIncidentSummary {
+  id: string
+  title: string
+  started_at: string
+  resolved_at: string | null
+  severity: PublicIncidentSeverity
+  component_id?: string
+  resource_id?: string
+}
+
+export interface PublicBranding {
+  name: string
+  homepage_url?: string
+  logo_url_light?: string
+  logo_url_dark?: string
+  favicon_url?: string
+  primary_color?: string
+}
+
+export interface PublicUptimeWindow {
+  earliest_day?: string
+  latest_day: string
+}
+
+export interface PublicStatusSummary {
+  generated_at: string
+  branding: PublicBranding
+  uptime_window: PublicUptimeWindow
+  verdict: PublicVerdict
+  components: PublicComponentSummary[]
+  standalone_resources: PublicResourceSummary[]
+  current_month_incidents: PublicIncidentSummary[]
+}
+
+export interface PublicIncidentMonth {
+  year_month: string
+  count: number
+  incidents: PublicIncidentSummary[]
+}
+
+export interface PublicStatusIncidentsArchive {
+  generated_at: string
+  total: number
+  months: PublicIncidentMonth[]
+}
+
+export interface PublicUptimeDay {
+  day: string
+  uptime_ratio: number
+  samples: number
+  incidents: number
+  downtime_seconds: number
+  related_incidents: PublicIncidentSummary[]
+}
+
+export interface PublicStatusUptimeRange {
+  generated_at: string
+  days: PublicUptimeDay[]
+}
+
+export type PublicIncidentUpdateStatus = 'investigating' | 'identified' | 'monitoring' | 'resolved'
+
+export interface PublicIncidentUpdate {
+  id: string
+  status: PublicIncidentUpdateStatus
+  message: string
+  posted_at: string
+}
+
+export interface PublicIncidentDetail {
+  id: string
+  title: string
+  severity: PublicIncidentSeverity
+  started_at: string
+  resolved_at: string | null
+  component_id?: string
+  resource_id?: string
+  updates: PublicIncidentUpdate[]
+}
+
+export interface PublicResourceWindow {
+  uptime_ratio: number
+  incidents: number
+}
+
+export interface PublicStatusResourceWindows {
+  id: string
+  name: string
+  windows: {
+    '24h': PublicResourceWindow
+    '7d': PublicResourceWindow
+    '30d': PublicResourceWindow
+    '90d': PublicResourceWindow
+  }
+  recent_incidents: PublicIncidentSummary[]
+}
+
 /**
  * Notification Channel Types
  */
-export type NotificationChannelType = 'smtp' | 'slack' | 'sms'
+export type NotificationChannelType = 'smtp' | 'slack' | 'sms' | 'webhook'
 
 /**
  * SMTP Configuration for notification channel
@@ -448,6 +590,9 @@ export interface NotificationChannel {
   type: NotificationChannelType
   config: NotificationConfig
   enabled_by_default: boolean
+  last_sent_at?: string | null
+  last_failure_at?: string | null
+  failures_24h?: number
   created_at: string
   updated_at: string
 }
@@ -514,15 +659,41 @@ export interface MaintenanceBanner {
 }
 
 // Status Page Settings Management
+export type StatusPageLogoSlot = 'light' | 'dark' | 'favicon'
+
+export type StatusPageThemeKey =
+  | '--status-bg'
+  | '--status-text'
+  | '--status-up'
+  | '--status-degraded'
+  | '--status-down'
+  | '--status-radius'
+
+export type StatusPageThemeOverrides = Partial<Record<StatusPageThemeKey, string>>
+
 export interface StatusPageSettingsRequest {
   name: string
   homepage_url: string
   custom_domain: string
-  google_analytics_id: string
+  umami_website_id: string
+  umami_script_url: string
   enable_details_page: boolean
   show_uptime_percentage: boolean
   hide_paused_monitors: boolean
   show_incident_history: boolean
+  logo_url_light?: string
+  logo_url_dark?: string
+  favicon_url?: string
+  primary_color?: string
+  theme_overrides?: StatusPageThemeOverrides
+}
+
+export interface StatusPageDNSRecord {
+  type: 'CNAME' | 'TXT'
+  host: string
+  value: string
+  status: 'pending' | 'verified' | 'failed'
+  last_error?: string | null
 }
 
 export interface StatusPageSettingsResponse {
@@ -530,11 +701,20 @@ export interface StatusPageSettingsResponse {
   name: string
   homepage_url: string
   custom_domain: string
-  google_analytics_id: string
+  umami_website_id: string
+  umami_script_url: string
   enable_details_page: boolean
   show_uptime_percentage: boolean
   hide_paused_monitors: boolean
   show_incident_history: boolean
+  custom_domain_status: 'pending' | 'verified' | 'failed'
+  custom_domain_ssl_status: 'none' | 'provisioning' | 'active'
+  custom_domain_dns_records: StatusPageDNSRecord[]
+  logo_url_light: string
+  logo_url_dark: string
+  favicon_url: string
+  primary_color: string
+  theme_overrides: StatusPageThemeOverrides
   created_at: string
   updated_at: string
 }
@@ -622,3 +802,105 @@ export interface LiveSnapshot {
   recent_activities: MonitoringActivity[]
   fetched_at: string
 }
+
+// ─── Feature 028: Resource credentials (auth variants) ──────────────────────
+
+/**
+ * Protocol types that accept optional authentication credentials.
+ */
+export type CredentialProtocolType = 'redis' | 'mysql' | 'postgres'
+
+/**
+ * Request payload for POST /resources/{id}/credentials and .../credentials/test.
+ * Password is plaintext on the wire; it is encrypted server-side at rest and
+ * never returned by any subsequent read.
+ */
+export interface CredentialCreatePayload {
+  username?: string
+  password: string
+  options?: Record<string, unknown>
+}
+
+/**
+ * Response of GET / POST /resources/{id}/credentials.
+ * `password` is always the mask string `••••••••` — the plaintext value is never
+ * returned by any endpoint.
+ */
+export interface CredentialResponse {
+  resource_id: string
+  has_credentials: boolean
+  username?: string
+  password: string
+  created_at: string
+  updated_at: string
+}
+
+/**
+ * Response of POST /resources/{id}/credentials/test.
+ */
+export interface TestConnectionResponse {
+  status: 'ok' | 'failed'
+  cause?: string
+  latency_ms: number
+}
+
+// ─── Spec 069: Cross-cutting UI ─────────────────────────────────────────────
+
+export type {
+  NotificationCategory,
+  NotificationSeverity,
+  NotificationFeedItem,
+  NotificationReadState,
+} from './notifications'
+export type { SearchResultCategory, SearchResult } from './searchPalette'
+export type {
+  KeyboardShortcutSection,
+  KeyboardShortcutKind,
+  KeyboardShortcut,
+} from './keyboard'
+
+// ─── Spec 070: Reports + Dashboards ─────────────────────────────────────────
+
+export type {
+  MonthlyReport,
+  ReportStatus,
+  ReportResourceBreakdown,
+  ReportHistoryEntry,
+} from './reports'
+export type {
+  WidgetTypeId,
+  WidgetArchetype,
+  WidgetDefinition,
+  WidgetInstance,
+  ResourceType,
+  DashboardScopeMode,
+  DashboardScope,
+  DashboardTimeRange,
+  DashboardRefreshInterval,
+  DashboardVisibility,
+  Dashboard,
+  DashboardHealthStatus,
+  DashboardHealth,
+} from './dashboards'
+
+// ─── Spec 071: Toolbox + Metrics ────────────────────────────────────────────
+
+export type {
+  DnsRecordType,
+  DnsResolver,
+  DnsLookupRequest,
+  DnsRecord,
+  DnsLookupResponse,
+  PortPreset,
+  PortStatus,
+  PortScanRequest,
+  PortResult,
+  PortScanResponse,
+  SslCertificate,
+  SslVulnCheck,
+  SslCheckRequest,
+  SslCheckResponse,
+  WhoisRequest,
+  WhoisResponse,
+  DnsHistoryEntry,
+} from './toolbox'

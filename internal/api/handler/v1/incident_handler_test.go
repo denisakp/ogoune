@@ -10,6 +10,7 @@ import (
 
 	v1 "github.com/denisakp/ogoune/internal/api/handler/v1"
 	"github.com/denisakp/ogoune/internal/domain"
+	"github.com/denisakp/ogoune/internal/repository/sqlc/dynquery"
 	"github.com/go-chi/chi/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -43,6 +44,49 @@ func (m *mockIncidentService) GetIncidentByID(_ context.Context, _ string) (*dom
 		return nil, m.getErr
 	}
 	return m.incident, nil
+}
+
+func (m *mockIncidentService) ListByFilter(_ context.Context, f dynquery.IncidentFilter, page, perPage int) ([]*domain.Incident, int, error) {
+	if m.listErr != nil {
+		return nil, 0, m.listErr
+	}
+	// In-memory filter mimicking the SQL builder semantics.
+	matched := make([]*domain.Incident, 0, len(m.incidents))
+	for _, inc := range m.incidents {
+		if f.Status != nil {
+			isOpen := inc.ResolvedAt == nil
+			switch *f.Status {
+			case "open":
+				if !isOpen {
+					continue
+				}
+			case "resolved":
+				if isOpen {
+					continue
+				}
+			}
+		}
+		if f.MonitorID != nil && inc.ResourceID != *f.MonitorID {
+			continue
+		}
+		if f.From != nil && inc.StartedAt.Before(*f.From) {
+			continue
+		}
+		if f.To != nil && inc.StartedAt.After(*f.To) {
+			continue
+		}
+		matched = append(matched, inc)
+	}
+	total := len(matched)
+	offset := (page - 1) * perPage
+	if offset >= total {
+		return []*domain.Incident{}, total, nil
+	}
+	end := offset + perPage
+	if end > total {
+		end = total
+	}
+	return matched[offset:end], total, nil
 }
 
 func newIncidentRouter(svc v1.IncidentV1ServiceInterface) *chi.Mux {
@@ -115,7 +159,9 @@ func TestIncidentHandler_StatusFilter_Resolved_ReturnsOnlyResolved(t *testing.T)
 	}
 }
 
-func TestIncidentHandler_StatusFilter_Invalid_Returns422(t *testing.T) {
+// Renamed from _Returns422 — spec 051 moves filter-validation errors from
+// 422 to 400 per the new contract (pagination errors stay 422).
+func TestIncidentHandler_StatusFilter_Invalid_Returns400(t *testing.T) {
 	svc := &mockIncidentService{}
 	router := newIncidentRouter(svc)
 
@@ -123,7 +169,7 @@ func TestIncidentHandler_StatusFilter_Invalid_Returns422(t *testing.T) {
 	rr := httptest.NewRecorder()
 	router.ServeHTTP(rr, req)
 
-	require.Equal(t, http.StatusUnprocessableEntity, rr.Code)
+	require.Equal(t, http.StatusBadRequest, rr.Code)
 	var out problemDetailResponse
 	require.NoError(t, json.Unmarshal(rr.Body.Bytes(), &out))
 	assert.Equal(t, "VALIDATION_FAILED", out.Type)

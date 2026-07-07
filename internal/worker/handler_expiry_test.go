@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/denisakp/ogoune/internal/domain"
+	"github.com/denisakp/ogoune/internal/port"
 	"github.com/hibiken/asynq"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -18,12 +19,21 @@ import (
 
 // mockResourceRepo implements the activeResourceLister interface (only FindActive is needed).
 type mockExpiryResourceRepo struct {
-	resources []*domain.Resource
-	findErr   error
+	resources       []*domain.Resource
+	findErr         error
+	metadataUpdates map[string]port.UpdateMetadataRequest
 }
 
 func (m *mockExpiryResourceRepo) FindActive(_ context.Context, _, _ int) ([]*domain.Resource, error) {
 	return m.resources, m.findErr
+}
+
+func (m *mockExpiryResourceRepo) UpdateMetadata(_ context.Context, id string, req port.UpdateMetadataRequest) error {
+	if m.metadataUpdates == nil {
+		m.metadataUpdates = map[string]port.UpdateMetadataRequest{}
+	}
+	m.metadataUpdates[id] = req
+	return nil
 }
 
 // mockExpiryChannelRepo returns an empty channel list.
@@ -53,6 +63,10 @@ func (m *mockExpiryChannelRepo) FindByResourceID(_ context.Context, _ string) ([
 }
 func (m *mockExpiryChannelRepo) FindByComponentID(_ context.Context, _ string) ([]*domain.NotificationChannel, error) {
 	return nil, nil
+}
+func (m *mockExpiryChannelRepo) MarkSent(_ context.Context, _ string, _ time.Time) error { return nil }
+func (m *mockExpiryChannelRepo) MarkFailure(_ context.Context, _ string, _ time.Time) error {
+	return nil
 }
 
 // mockEnricher is a simple enricher implementation.
@@ -210,6 +224,25 @@ func TestExpiryTaskHandler_RenewalDetectionResetsSSLLogs(t *testing.T) {
 	require.NoError(t, h.ProcessTask(context.Background(), emptyTask()))
 
 	assert.Contains(t, checker.resetCalls, "http-1", "ResetLogs should be called when SSL is renewed")
+}
+
+// The daily job must persist the freshly-enriched metadata so the stored SSL /
+// domain expiry dates stay current after a certificate renewal.
+func TestExpiryTaskHandler_PersistsFreshMetadata(t *testing.T) {
+	fresh := time.Now().Add(90 * 24 * time.Hour)
+	resources := &mockExpiryResourceRepo{resources: []*domain.Resource{httpResource("http-1")}}
+	enricher := &mockEnricher{metadata: &domain.ResourceMetaData{
+		SSLExpirationDate: &fresh,
+		SSLIssuer:         "Let's Encrypt",
+	}}
+
+	h := NewExpiryTaskHandler(resources, &mockExpiryChannelRepo{}, enricher, &mockExpiryChecker{})
+	require.NoError(t, h.ProcessTask(context.Background(), emptyTask()))
+
+	req, ok := resources.metadataUpdates["http-1"]
+	require.True(t, ok, "UpdateMetadata must be called to persist fresh SSL data")
+	require.NotNil(t, req.SSLExpirationDate)
+	assert.Equal(t, fresh, *(*req.SSLExpirationDate))
 }
 
 // ---------------------------------------------------------------------------

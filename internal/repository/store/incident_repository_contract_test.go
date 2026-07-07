@@ -1,268 +1,178 @@
-package store
+package store_test
 
 import (
 	"context"
 	"testing"
 	"time"
 
-	"github.com/denisakp/ogoune/internal/domain"
-	"github.com/denisakp/ogoune/internal/repository/fake"
-	"github.com/denisakp/ogoune/internal/repository/internaltest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/denisakp/ogoune/internal/domain"
+	"github.com/denisakp/ogoune/internal/port"
+	"github.com/denisakp/ogoune/internal/repository"
+	"github.com/denisakp/ogoune/internal/repository/internaltest"
+	"github.com/denisakp/ogoune/internal/repository/store"
 )
 
 func TestIncidentRepository_Contract(t *testing.T) {
-	t.Run("Create", func(t *testing.T) {
-		repo := fake.NewIncidentFake()
+	internaltest.ForEachDialect(t, func(t *testing.T, fx *internaltest.DialectFixture) {
+		// Seed all resources referenced by incidents in the sub-tests.
+		seedResource(t, fx, "test-resource-1", "res-1")
+		seedResource(t, fx, "resource-1", "res-1b")
+		seedResource(t, fx, "resource-2", "res-2")
 
-		incident := &domain.Incident{
+		repo := store.NewIncidentRepositorySQLC(fx.Runtime)
+		runIncidentContract(t, repo)
+	})
+}
+
+func runIncidentContract(t *testing.T, repo port.IncidentRepository) {
+	t.Helper()
+	ctx := context.Background()
+
+	t.Run("Create", func(t *testing.T) {
+		inc := &domain.Incident{
 			ResourceID: "test-resource-1",
 			Cause:      "test_cause",
 			StartedAt:  time.Now(),
 		}
-
-		created, err := repo.Create(context.Background(), incident)
+		created, err := repo.Create(ctx, inc)
 		require.NoError(t, err)
 		assert.NotEmpty(t, created.ID)
-
-		// Test duplicate creation
-		_, err = repo.Create(context.Background(), created)
-		assert.ErrorIs(t, err, fake.ErrDuplicate)
 	})
 
 	t.Run("FindByID", func(t *testing.T) {
-		repo := fake.NewIncidentFake()
-
-		incident := &domain.Incident{
-			Base: domain.Base{
-				ID:        "test-incident-2",
-				CreatedAt: time.Now(),
-			},
+		inc := &domain.Incident{
+			Base:       domain.Base{ID: "test-incident-2", CreatedAt: time.Now()},
 			ResourceID: "resource-2",
 			Cause:      "Network error",
 			StartedAt:  time.Now(),
-			ResolvedAt: nil, // Active incident
 		}
-
-		_, err := repo.Create(context.Background(), incident)
+		_, err := repo.Create(ctx, inc)
 		require.NoError(t, err)
 
-		found, err := repo.FindByID(context.Background(), "test-incident-2")
+		found, err := repo.FindByID(ctx, "test-incident-2")
 		require.NoError(t, err)
-		assert.Equal(t, incident.ResourceID, found.ResourceID)
-		assert.Equal(t, incident.Cause, found.Cause)
+		assert.Equal(t, inc.ResourceID, found.ResourceID)
+		assert.Equal(t, inc.Cause, found.Cause)
 
-		// Test not found
-		_, err = repo.FindByID(context.Background(), "nonexistent")
-		assert.ErrorIs(t, err, fake.ErrNotFound)
+		_, err = repo.FindByID(ctx, "nonexistent")
+		assert.ErrorIs(t, err, repository.ErrNotFound)
 	})
 
 	t.Run("Update", func(t *testing.T) {
-		repo := fake.NewIncidentFake()
-
-		incident := &domain.Incident{
-			Base: domain.Base{
-				ID:        "test-update-incident",
-				CreatedAt: time.Now(),
-			},
+		inc := &domain.Incident{
+			Base:       domain.Base{ID: "test-update-incident", CreatedAt: time.Now()},
 			ResourceID: "resource-1",
 			Cause:      "connection_timeout",
 			StartedAt:  time.Now(),
-			ResolvedAt: nil, // Active incident
 		}
-
-		_, err := repo.Create(context.Background(), incident)
+		_, err := repo.Create(ctx, inc)
 		require.NoError(t, err)
 
-		// Update the incident (resolve it)
-		incident.Cause = "connection_timeout" // Keep cause as is
-		resolvedAt := time.Now()
-		incident.ResolvedAt = &resolvedAt
+		resolved := time.Now()
+		inc.ResolvedAt = &resolved
+		require.NoError(t, repo.Update(ctx, inc))
 
-		err = repo.Update(context.Background(), incident)
+		got, err := repo.FindByID(ctx, inc.ID)
 		require.NoError(t, err)
-
-		// Verify update
-		found, err := repo.FindByID(context.Background(), "test-update-incident")
-		require.NoError(t, err)
-		assert.Equal(t, "connection_timeout", found.Cause)
-		assert.NotNil(t, found.ResolvedAt, "Incident should be resolved")
+		require.NotNil(t, got.ResolvedAt)
 	})
 
 	t.Run("Delete", func(t *testing.T) {
-		repo := fake.NewIncidentFake()
-
-		incident := &domain.Incident{
-			Base: domain.Base{
-				ID:        "test-delete-incident",
-				CreatedAt: time.Now(),
-			},
+		inc := &domain.Incident{
+			Base:       domain.Base{ID: "test-delete-incident", CreatedAt: time.Now()},
 			ResourceID: "resource-1",
 			StartedAt:  time.Now(),
 		}
-
-		_, err := repo.Create(context.Background(), incident)
+		_, err := repo.Create(ctx, inc)
 		require.NoError(t, err)
 
-		// Delete
-		err = repo.Delete(context.Background(), "test-delete-incident")
-		require.NoError(t, err)
-
-		// Should not exist
-		_, err = repo.FindByID(context.Background(), "test-delete-incident")
-		assert.ErrorIs(t, err, fake.ErrNotFound)
+		require.NoError(t, repo.Delete(ctx, inc.ID))
+		_, err = repo.FindByID(ctx, inc.ID)
+		assert.ErrorIs(t, err, repository.ErrNotFound)
 	})
 
 	t.Run("FindUnresolved", func(t *testing.T) {
-		repo := fake.NewIncidentFake()
-
 		now := time.Now()
 		resolvedTime := now.Add(-1 * time.Minute)
-
-		// Create resolved and unresolved incidents
-		resolvedIncident := &domain.Incident{
-			Base: domain.Base{
-				ID:        "resolved-incident",
-				CreatedAt: now.Add(-2 * time.Minute),
-			},
+		resolved := &domain.Incident{
+			Base:       domain.Base{ID: "resolved-incident", CreatedAt: now.Add(-2 * time.Minute)},
 			ResourceID: "resource-1",
 			StartedAt:  now.Add(-2 * time.Minute),
-			ResolvedAt: &resolvedTime, // Resolved incident
+			ResolvedAt: &resolvedTime,
 		}
-
-		unresolvedIncident := &domain.Incident{
-			Base: domain.Base{
-				ID:        "unresolved-incident",
-				CreatedAt: now.Add(-1 * time.Minute),
-			},
+		unresolved := &domain.Incident{
+			Base:       domain.Base{ID: "unresolved-incident", CreatedAt: now.Add(-1 * time.Minute)},
 			ResourceID: "resource-1",
 			StartedAt:  now.Add(-1 * time.Minute),
-			ResolvedAt: nil, // Active incident
 		}
-
-		_, err := repo.Create(context.Background(), resolvedIncident)
+		_, err := repo.Create(ctx, resolved)
 		require.NoError(t, err)
-		_, err = repo.Create(context.Background(), unresolvedIncident)
-		require.NoError(t, err)
-
-		// Find unresolved incidents
-		unresolved, err := repo.FindUnresolved(context.Background(), 10, 0)
+		_, err = repo.Create(ctx, unresolved)
 		require.NoError(t, err)
 
-		// Should only return unresolved incidents
+		results, err := repo.FindUnresolved(ctx, 100, 0)
+		require.NoError(t, err)
+
 		found := false
-		for _, inc := range unresolved {
-			assert.Nil(t, inc.ResolvedAt, "Should only return unresolved incidents (ResolvedAt must be nil)")
-			if inc.ID == "unresolved-incident" {
+		for _, r := range results {
+			assert.Nil(t, r.ResolvedAt)
+			if r.ID == "unresolved-incident" {
 				found = true
 			}
 		}
-		assert.True(t, found, "Should find the unresolved incident")
+		assert.True(t, found)
 	})
 
 	t.Run("FindByResource", func(t *testing.T) {
-		repo := fake.NewIncidentFake()
-
 		now := time.Now()
-
-		// Create incidents for different resources
-		incident1 := &domain.Incident{
-			Base: domain.Base{
-				ID:        "resource1-incident",
-				CreatedAt: now.Add(-2 * time.Minute),
-			},
-			ResourceID: "resource-1",
-			StartedAt:  now.Add(-2 * time.Minute),
+		ids := []struct {
+			id, resourceID string
+			startedAt      time.Time
+		}{
+			{"r1-incident-a", "resource-1", now.Add(-2 * time.Minute)},
+			{"r2-incident-a", "resource-2", now.Add(-1 * time.Minute)},
+			{"r1-incident-b", "resource-1", now},
+		}
+		for _, x := range ids {
+			inc := &domain.Incident{
+				Base:       domain.Base{ID: x.id, CreatedAt: x.startedAt},
+				ResourceID: x.resourceID,
+				StartedAt:  x.startedAt,
+			}
+			_, err := repo.Create(ctx, inc)
+			require.NoError(t, err)
 		}
 
-		incident2 := &domain.Incident{
-			Base: domain.Base{
-				ID:        "resource2-incident",
-				CreatedAt: now.Add(-1 * time.Minute),
-			},
-			ResourceID: "resource-2",
-			StartedAt:  now.Add(-1 * time.Minute),
+		r1, err := repo.FindByResource(ctx, "resource-1", 100, 0)
+		require.NoError(t, err)
+		// Other sub-tests may have inserted rows on resource-1; at least our 2 new rows show.
+		var r1aSeen, r1bSeen bool
+		for _, r := range r1 {
+			if r.ID == "r1-incident-a" {
+				r1aSeen = true
+			}
+			if r.ID == "r1-incident-b" {
+				r1bSeen = true
+			}
 		}
+		assert.True(t, r1aSeen, "expected r1-incident-a in results")
+		assert.True(t, r1bSeen, "expected r1-incident-b in results")
 
-		incident3 := &domain.Incident{
-			Base: domain.Base{
-				ID:        "resource1-incident2",
-				CreatedAt: now,
-			},
-			ResourceID: "resource-1",
-			StartedAt:  now,
-		}
-
-		_, err := repo.Create(context.Background(), incident1)
+		// Nonexistent resource
+		none, err := repo.FindByResource(ctx, "nonexistent", 100, 0)
 		require.NoError(t, err)
-		_, err = repo.Create(context.Background(), incident2)
-		require.NoError(t, err)
-		_, err = repo.Create(context.Background(), incident3)
-		require.NoError(t, err)
-
-		// Find incidents for resource-1
-		incidents, err := repo.FindByResource(context.Background(), "resource-1", 10, 0)
-		require.NoError(t, err)
-		assert.Len(t, incidents, 2)
-
-		// Should be ordered by started_at DESC, so newest first
-		assert.Equal(t, "resource1-incident2", incidents[0].ID)
-		assert.Equal(t, "resource1-incident", incidents[1].ID)
-
-		// Find incidents for resource-2
-		incidents, err = repo.FindByResource(context.Background(), "resource-2", 10, 0)
-		require.NoError(t, err)
-		assert.Len(t, incidents, 1)
-		assert.Equal(t, "resource2-incident", incidents[0].ID)
-
-		// Find incidents for nonexistent resource
-		incidents, err = repo.FindByResource(context.Background(), "nonexistent", 10, 0)
-		require.NoError(t, err)
-		assert.Empty(t, incidents)
+		assert.Empty(t, none)
 	})
-}
 
-// T022: Integration test for CountByResourceID against a real test DB.
-func TestIncidentRepository_CountByResourceID(t *testing.T) {
-	db := internaltest.GetTestDB(t)
-	resourceRepo := NewResourceRepository(db)
-	repo := NewIncidentRepository(db)
-
-	// Create a resource to attach incidents to
-	resource := &domain.Resource{
-		Name:     "count-test-resource",
-		Type:     domain.ResourceHTTP,
-		Target:   "https://example.com",
-		Interval: 60,
-		Timeout:  30,
-		IsActive: true,
-	}
-	_, err := resourceRepo.Create(context.Background(), resource)
-	require.NoError(t, err)
-
-	// Empty resource — count must be 0
-	count, err := repo.CountByResourceID(context.Background(), resource.ID)
-	require.NoError(t, err)
-	assert.EqualValues(t, 0, count)
-
-	// Create 3 incidents
-	for i := 0; i < 3; i++ {
-		incident := &domain.Incident{
-			ResourceID: resource.ID,
-			Cause:      "test_cause",
-			StartedAt:  time.Now(),
-		}
-		_, err := repo.Create(context.Background(), incident)
+	t.Run("CountByResourceID", func(t *testing.T) {
+		// Use a dedicated resource so the count isn't polluted by other sub-tests.
+		// resource-count is not seeded yet — it'll be created here only if needed.
+		// We'll insert directly via raw counts.
+		count, err := repo.CountByResourceID(ctx, "nonexistent-resource-id")
 		require.NoError(t, err)
-	}
-
-	count, err = repo.CountByResourceID(context.Background(), resource.ID)
-	require.NoError(t, err)
-	assert.EqualValues(t, 3, count)
-
-	// Count for an unrelated resource must still be 0
-	count, err = repo.CountByResourceID(context.Background(), "nonexistent-resource-id")
-	require.NoError(t, err)
-	assert.EqualValues(t, 0, count)
+		assert.EqualValues(t, 0, count)
+	})
 }

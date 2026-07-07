@@ -17,7 +17,7 @@ import (
 
 func TestMonitoringActivityHandler_ListActivities_ResponseDataIsReadableText(t *testing.T) {
 	repo := fake.NewMonitoringActivityFake()
-	service := service.NewMonitoringActivityService(repo)
+	service := service.NewMonitoringActivityService(repo, nil)
 	h := NewMonitoringActivityHandler(service)
 
 	err := repo.Create(context.TODO(), &domain.MonitoringActivity{

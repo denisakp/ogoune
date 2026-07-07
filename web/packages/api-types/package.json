@@ -1,0 +1,13 @@
+{
+  "name": "@ogoune/api-types",
+  "version": "0.0.1",
+  "private": true,
+  "main": "./index.ts",
+  "types": "./index.ts",
+  "scripts": {
+    "generate": "openapi-typescript ../../../api/openapi/v1.yaml -o generated/schema.d.ts"
+  },
+  "devDependencies": {
+    "openapi-typescript": "^7"
+  }
+}

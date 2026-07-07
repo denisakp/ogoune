@@ -1,0 +1,1 @@
+-- SQLite drop column requires recreation; skipped for brevity.

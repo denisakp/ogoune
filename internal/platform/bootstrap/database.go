@@ -8,9 +8,14 @@ import (
 
 	dbruntime "github.com/denisakp/ogoune/internal/database"
 	"github.com/denisakp/ogoune/internal/repository/store"
+	"github.com/denisakp/ogoune/internal/service"
+	svcintegrations "github.com/denisakp/ogoune/internal/service/integrations"
 )
 
-// InitDatabase initializes the database connection, runs health check, and creates all repositories.
+// InitDatabase opens the database runtime and wires all sqlc-backed
+// repositories onto the App struct. Post-decom (spec 052), the legacy
+// `SQLC_*` env flags are gone; sqlc is the sole impl. Unknown `SQLC_*` vars
+// in the operator's environment are silently ignored (FR-004).
 func InitDatabase(app *App) {
 	cfg := app.Cfg
 
@@ -24,7 +29,6 @@ func InitDatabase(app *App) {
 		os.Exit(1)
 	}
 
-	// Health check
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 	if err := dbruntime.Ping(ctx); err != nil {
@@ -34,26 +38,63 @@ func InitDatabase(app *App) {
 
 	slog.Info("database connection established")
 
-	// Get database instance
-	db, err := dbruntime.Instance()
+	rt, err := dbruntime.ActiveRuntime()
 	if err != nil {
-		slog.Error("failed to get database instance", "error", err)
+		slog.Error("failed to get database runtime", "error", err)
 		os.Exit(1)
 	}
-	app.DB = db
 
-	// Initialize repositories
-	app.ResourceRepo = store.NewResourceRepository(db)
-	app.IncidentRepo = store.NewIncidentRepository(db)
-	app.IncidentEventStepRepo = store.NewIncidentEventStepRepository(db)
-	app.IncidentDiagnosticsRepo = store.NewIncidentDiagnosticsRepository(db)
-	app.NotificationRepo = store.NewNotificationRepository(db)
-	app.MaintenanceRepo = store.NewMaintenanceRepository(db)
-	app.NotificationChannelRepo = store.NewNotificationChannelRepository(db)
-	app.MonitoringActivityRepo = store.NewMonitoringActivityRepository(db)
-	app.TagsRepo = store.NewTagsRepository(db)
-	app.StatusPageSettingsRepo = store.NewStatusPageSettingsRepository(db)
-	app.ComponentRepo = store.NewComponentRepository(db)
-	app.UserRepo = store.NewUserRepository(db)
-	app.APIKeyRepo = store.NewAPIKeyRepository(db)
+	// Wire all repositories — sqlc is the only impl.
+	app.ResourceRepo = store.NewResourceRepositorySQLC(rt)
+	app.IncidentRepo = store.NewIncidentRepositorySQLC(rt)
+	app.IncidentEventStepRepo = store.NewIncidentEventStepRepositorySQLC(rt)
+	app.IncidentDiagnosticsRepo = store.NewIncidentDiagnosticsRepositorySQLC(rt)
+	app.NotificationRepo = store.NewNotificationRepositorySQLC(rt)
+	app.MaintenanceRepo = store.NewMaintenanceRepositorySQLC(rt)
+	app.NotificationChannelRepo = store.NewNotificationChannelRepositorySQLC(rt)
+	app.MonitoringActivityRepo = store.NewMonitoringActivityRepositorySQLC(rt)
+	app.TagsRepo = store.NewTagsRepositorySQLC(rt)
+	app.StatusPageSettingsRepo = store.NewStatusPageSettingsRepositorySQLC(rt)
+	app.ComponentRepo = store.NewComponentRepositorySQLC(rt)
+	app.UserRepo = store.NewUserRepositorySQLC(rt)
+	app.APIKeyRepo = store.NewAPIKeyRepositorySQLC(rt)
+	app.ResourceCredentialRepo = store.NewResourceCredentialRepositorySQLC(rt)
+	app.ExpiryNotificationLogRepo = store.NewExpiryNotificationLogRepositorySQLC(rt)
+	app.SessionRepo = store.NewSessionRepositorySQLC(rt)
+	app.TwoFactorResetTokenRepo = store.NewTwoFactorResetTokenRepositorySQLC(rt)
+	app.EscalationRepo = store.NewEscalationRepositorySQLC(rt)
+	app.UptimeDailyAggRepo = store.NewUptimeDailyAggRepositorySQLC(rt)
+	app.IncidentUpdateRepo = store.NewIncidentUpdateRepositorySQLC(rt)
+	app.NotificationFeedRepo = store.NewNotificationFeedRepositorySQLC(rt)
+	// Built here (not InitServices) because InitWorker runs first and wires this
+	// as the incident notification emitter (spec 072).
+	app.NotificationFeedService = service.NewNotificationFeedService(app.NotificationFeedRepo)
+
+	app.DashboardRepo = store.NewDashboardRepositorySQLC(rt)
+	app.DashboardService = service.NewDashboardService(app.DashboardRepo)
+
+	// Reports (spec 076): built here (not InitServices) because InitWorker runs
+	// first and registers the scheduled report generator.
+	app.ReportSettingsRepo = store.NewReportSettingsRepositorySQLC(rt)
+	app.ReportHistoryRepo = store.NewReportHistoryRepositorySQLC(rt)
+	app.ReportService = service.NewReportService(
+		app.ReportSettingsRepo,
+		app.ReportHistoryRepo,
+		app.ResourceRepo,
+		app.UptimeDailyAggRepo,
+		app.IncidentRepo,
+		app.NotificationChannelRepo,
+	)
+
+	// Announcement banners (option 2) — instance-wide operator messages.
+	app.AnnouncementRepo = store.NewAnnouncementRepositorySQLC(rt)
+	app.AnnouncementService = service.NewAnnouncementService(app.AnnouncementRepo)
+
+	// Config-derived observability integrations (spec 077) — read-only.
+	app.IntegrationsService = svcintegrations.NewIntegrationsService(app.ResourceRepo, app.ComponentRepo)
+
+	// Seed-time services that the worker layer depends on must be built
+	// before InitWorker runs (InitServices is too late). The full
+	// PublicStatusService stays in InitServices since it has no worker dep.
+	app.IncidentUpdateService = service.NewIncidentUpdateService(app.IncidentUpdateRepo)
 }

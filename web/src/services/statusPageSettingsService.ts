@@ -1,23 +1,47 @@
-import axiosHelper from '../libs/axios.helper'
-import type { StatusPageSettingsRequest, StatusPageSettingsResponse } from '@/types'
+import { getAuthenticatedClient, request } from '@/core/http/client'
+import type {
+  StatusPageLogoSlot,
+  StatusPageSettingsRequest,
+  StatusPageSettingsResponse,
+} from '@/types'
 
-/**
- * Fetch status page settings
- */
 export const getStatusPageSettings = async (): Promise<StatusPageSettingsResponse> => {
-  const { data } = await axiosHelper.get<StatusPageSettingsResponse>('/settings/statuspage')
-  return data
+  return await request<StatusPageSettingsResponse>(getAuthenticatedClient(), 'settings/statuspage')
 }
 
-/**
- * Update status page settings
- */
 export const updateStatusPageSettings = async (
   settings: StatusPageSettingsRequest,
 ): Promise<StatusPageSettingsResponse> => {
-  const { data } = await axiosHelper.put<StatusPageSettingsResponse>(
-    '/settings/statuspage',
-    settings,
+  return await request<StatusPageSettingsResponse>(
+    getAuthenticatedClient(),
+    'settings/statuspage',
+    { method: 'PUT', json: settings },
   )
-  return data
+}
+
+export const verifyStatusPageDomain = async (): Promise<StatusPageSettingsResponse> => {
+  return await request<StatusPageSettingsResponse>(
+    getAuthenticatedClient(),
+    'settings/statuspage/verify-domain',
+    { method: 'POST', json: {} },
+  )
+}
+
+export const uploadStatusPageLogo = async (
+  slot: StatusPageLogoSlot,
+  file: File,
+): Promise<StatusPageSettingsResponse> => {
+  const body = new FormData()
+  body.append('file', file)
+  return await request<StatusPageSettingsResponse>(
+    getAuthenticatedClient(),
+    `settings/statuspage/logo?slot=${slot}`,
+    { method: 'POST', body },
+  )
+}
+
+export const deleteStatusPageLogo = async (slot: StatusPageLogoSlot): Promise<void> => {
+  await request<unknown>(getAuthenticatedClient(), `settings/statuspage/logo?slot=${slot}`, {
+    method: 'DELETE',
+  })
 }

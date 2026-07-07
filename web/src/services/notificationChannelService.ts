@@ -1,4 +1,4 @@
-import axiosHelper from '../libs/axios.helper'
+import { getAuthenticatedClient, request } from '@/core/http/client'
 import type {
   NotificationChannel,
   CreateNotificationChannel,
@@ -6,63 +6,70 @@ import type {
   TestNotificationChannelConfig,
 } from '@/types'
 
-/**
- * Fetch all notification channels
- */
 export const fetchChannels = async (): Promise<NotificationChannel[]> => {
-  const { data } = await axiosHelper.get<NotificationChannel[]>('/notification-channels')
-  return data
+  return await request<NotificationChannel[]>(getAuthenticatedClient(), 'notification-channels')
 }
 
-/**
- * Fetch a single notification channel by ID
- */
 export const fetchChannel = async (id: string): Promise<NotificationChannel> => {
-  const { data } = await axiosHelper.get<NotificationChannel>(`/notification-channels/${id}`)
-  return data
+  return await request<NotificationChannel>(getAuthenticatedClient(), `notification-channels/${id}`)
 }
 
-/**
- * Create a new notification channel
- */
 export const createChannel = async (
   payload: CreateNotificationChannel,
 ): Promise<NotificationChannel> => {
-  const { data } = await axiosHelper.post<NotificationChannel>('/notification-channels', payload)
-  return data
+  return await request<NotificationChannel>(getAuthenticatedClient(), 'notification-channels', {
+    method: 'POST',
+    json: payload,
+  })
 }
 
-/**
- * Update an existing notification channel
- */
 export const updateChannel = async (
   id: string,
   payload: UpdateNotificationChannel,
 ): Promise<NotificationChannel> => {
-  const { data } = await axiosHelper.patch<NotificationChannel>(
-    `/notification-channels/${id}`,
-    payload,
+  return await request<NotificationChannel>(
+    getAuthenticatedClient(),
+    `notification-channels/${id}`,
+    { method: 'PATCH', json: payload },
   )
-  return data
 }
 
-/**
- * Delete a notification channel
- */
 export const deleteChannel = async (id: string): Promise<void> => {
-  await axiosHelper.delete(`/notification-channels/${id}`)
+  await request<void>(getAuthenticatedClient(), `notification-channels/${id}`, {
+    method: 'DELETE',
+  })
 }
 
-/**
- * Test a notification channel by sending a test message
- */
-export const testChannel = async (id: string): Promise<void> => {
-  await axiosHelper.post(`/notification-channels/${id}/test`, {})
+export interface ChannelTestResult {
+  delivered: boolean
+  error?: string
+  latency_ms: number
 }
 
-/**
- * Validate and test a channel configuration without saving
- */
+export const testChannel = async (id: string): Promise<ChannelTestResult> => {
+  const started = performance.now()
+  try {
+    await request<void>(getAuthenticatedClient(), `notification-channels/${id}/test`, {
+      method: 'POST',
+      json: {},
+    })
+    return { delivered: true, latency_ms: Math.round(performance.now() - started) }
+  } catch (e) {
+    return {
+      delivered: false,
+      error: e instanceof Error ? e.message : 'Test failed',
+      latency_ms: Math.round(performance.now() - started),
+    }
+  }
+}
+
+export const setDefault = async (id: string): Promise<void> => {
+  await updateChannel(id, { enabled_by_default: true })
+}
+
 export const testChannelConfig = async (payload: TestNotificationChannelConfig): Promise<void> => {
-  await axiosHelper.post('/notification-channels/test-config', payload)
+  await request<void>(getAuthenticatedClient(), 'notification-channels/test-config', {
+    method: 'POST',
+    json: payload,
+  })
 }

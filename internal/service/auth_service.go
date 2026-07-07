@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"io"
+	"log/slog"
 	"strings"
 	"time"
 
@@ -19,7 +20,7 @@ import (
 
 const (
 	// DefaultPassword is the initial password for new accounts
-	DefaultPassword = "ogu3n3@rd"
+	DefaultPassword = "password"
 	// BCryptCost is the cost factor for bcrypt hashing
 	BCryptCost = 12
 	// OTPLength is the length of the OTP code
@@ -32,6 +33,7 @@ const (
 type AuthService struct {
 	userRepo       port.UserRepository
 	jwtManager     *JWTManager
+	sessionService *SessionService
 	legacyEmail    string
 	legacyPassword string
 }
@@ -42,6 +44,18 @@ func NewAuthService(userRepo port.UserRepository, jwtManager *JWTManager) *AuthS
 		userRepo:   userRepo,
 		jwtManager: jwtManager,
 	}
+}
+
+// SetSessionService wires the session service so login flows can issue a
+// session row + bind the JWT to it via the sid claim (spec 059 FR-009).
+func (s *AuthService) SetSessionService(svc *SessionService) {
+	s.sessionService = svc
+}
+
+// LoginContext carries request metadata used to attach a session to a token.
+type LoginContext struct {
+	UserAgent string
+	IP        string
 }
 
 // NewLegacyAuthService creates a service with hardcoded credentials (deprecated, for backward compat)
@@ -109,8 +123,8 @@ func (s *AuthService) Login(ctx context.Context, email, password string) (*dto.L
 		return resp, nil
 	}
 
-	// Generate JWT token
-	token, err := s.jwtManager.Generate(ctx, email, user.ID)
+	// Generate JWT token, optionally bound to a session row.
+	token, err := s.issueTokenWithSession(ctx, email, user.ID)
 	if err != nil {
 		return resp, err
 	}
@@ -122,6 +136,42 @@ func (s *AuthService) Login(ctx context.Context, email, password string) (*dto.L
 	resp.ForcePasswordChange = user.ForcePasswordChange
 	resp.PasswordInitialized = user.PasswordInitialized
 	return resp, nil
+}
+
+// issueTokenWithSession issues a session (when wired) + a JWT bound to it.
+// Falls back to a sessionless token when session service is unavailable.
+func (s *AuthService) issueTokenWithSession(ctx context.Context, email, userID string) (string, error) {
+	if s.sessionService == nil {
+		slog.Warn("auth: session service unwired — issuing token without sid",
+			"user_id", userID,
+		)
+		return s.jwtManager.Generate(ctx, email, userID)
+	}
+	meta, _ := ctx.Value(loginCtxKey{}).(LoginContext)
+	sess, err := s.sessionService.Issue(ctx, userID, meta.UserAgent, meta.IP)
+	if err != nil {
+		// Don't block login on session insert failures — fall back to legacy.
+		slog.Warn("auth: session insert failed — issuing token without sid",
+			"user_id", userID,
+			"error", err,
+		)
+		return s.jwtManager.Generate(ctx, email, userID)
+	}
+	slog.Info("auth: session issued",
+		"user_id", userID,
+		"session_id", sess.ID,
+		"browser", sess.Browser,
+		"os", sess.OS,
+	)
+	return s.jwtManager.GenerateWithSession(ctx, email, userID, sess.ID)
+}
+
+type loginCtxKey struct{}
+
+// WithLoginContext attaches request metadata so login flows can use it without
+// changing public signatures everywhere.
+func WithLoginContext(ctx context.Context, meta LoginContext) context.Context {
+	return context.WithValue(ctx, loginCtxKey{}, meta)
 }
 
 // Verify2FA validates the OTP and issues JWT if valid
@@ -143,8 +193,8 @@ func (s *AuthService) Verify2FA(ctx context.Context, email, otp string) (string,
 		return "", errors.New("invalid OTP")
 	}
 
-	// Generate JWT token
-	token, err := s.jwtManager.Generate(ctx, email, user.ID)
+	// Generate JWT token bound to a fresh session row.
+	token, err := s.issueTokenWithSession(ctx, email, user.ID)
 	if err != nil {
 		return "", err
 	}
@@ -291,7 +341,14 @@ func (s *AuthService) Disable2FA(ctx context.Context, userID, password string) e
 	return s.userRepo.UpdateTwoFactorSecret(ctx, userID, "", false)
 }
 
-// ValidateToken validates a JWT token and returns the email and user ID
+// IssueTokenForUser is the handler-facing wrapper around issueTokenWithSession.
+// Used by flows like InitializePassword that auto-login after a non-credential
+// state change. Honors WithLoginContext.
+func (s *AuthService) IssueTokenForUser(ctx context.Context, email, userID string) (string, error) {
+	return s.issueTokenWithSession(ctx, email, userID)
+}
+
+// ValidateToken validates a JWT token and returns the email and user ID.
 func (s *AuthService) ValidateToken(tokenString string) (string, string, error) {
 	claims, err := s.jwtManager.Validate(tokenString)
 	if err != nil {
@@ -299,6 +356,16 @@ func (s *AuthService) ValidateToken(tokenString string) (string, string, error) 
 	}
 
 	return claims.Email, claims.UserID, nil
+}
+
+// ValidateTokenFull is like ValidateToken but also returns the session ID
+// embedded in the token (empty when the token predates session binding).
+func (s *AuthService) ValidateTokenFull(tokenString string) (email, userID, sessionID string, err error) {
+	claims, err := s.jwtManager.Validate(tokenString)
+	if err != nil {
+		return "", "", "", ErrInvalidToken
+	}
+	return claims.Email, claims.UserID, claims.SessionID, nil
 }
 
 // UpdateProfile updates user name and email
@@ -389,8 +456,8 @@ func (s *AuthService) handleLegacyLogin(ctx context.Context, email string) (*dto
 		return &dto.LoginResponse{Email: email}, ErrInvalidCredentials
 	}
 
-	// Generate token
-	token, err := s.jwtManager.Generate(ctx, email, user.ID)
+	// Generate token bound to a session row when available.
+	token, err := s.issueTokenWithSession(ctx, email, user.ID)
 	if err != nil {
 		return &dto.LoginResponse{Email: email}, err
 	}

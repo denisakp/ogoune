@@ -54,6 +54,9 @@ type Config struct {
 	MetricsEnabled bool
 	MetricsToken   string
 
+	// Notification feed retention (spec 072)
+	NotificationRetentionDays int
+
 	// Swagger configuration
 	EnableSwagger bool
 
@@ -63,6 +66,13 @@ type Config struct {
 
 	// Environment
 	AppEnv string
+
+	// SSL provider for custom domains (spec 059 FR-030 / FR-040).
+	// One of: "letsencrypt" | "external" | "disabled". Default "external".
+	SSLProvider string
+
+	// Public base URL of the app, used for magic-link emails (FR-012a).
+	AppBaseURL string
 
 	// Security configuration
 	CORSAllowedOrigins    []string
@@ -94,10 +104,16 @@ func Load() Config {
 	enableICMP := parseBool(GetEnv("ENABLE_ICMP", "false"), false)
 	metricsEnabled := parseBool(GetEnv("ENABLE_METRICS", "false"), false)
 	metricsToken := GetEnv("METRICS_TOKEN", "")
+	notificationRetentionDays := parseInt(GetEnv("NOTIFICATION_RETENTION_DAYS", "90"))
+	if notificationRetentionDays <= 0 {
+		notificationRetentionDays = 90 // never 0 — would prune the entire feed
+	}
 	enableSwagger := parseBool(GetEnv("ENABLE_SWAGGER", "false"), false)
 	logFormat := GetEnv("LOG_FORMAT", "json")
 	logLevel := GetEnv("LOG_LEVEL", "info")
 	appEnv := GetEnv("APP_ENV", "development")
+	sslProvider := GetEnv("SSL_PROVIDER", "external")
+	appBaseURL := GetEnv("APP_BASE_URL", "http://localhost:5173")
 
 	// Security configuration
 	corsOrigins := parseCORSOrigins(GetEnv("CORS_ALLOWED_ORIGINS", ""))
@@ -110,12 +126,12 @@ func Load() Config {
 		DatabaseUrl:      GetEnv("DATABASE_URL", ""),
 		SQLitePath:       GetEnv("SQLITE_PATH", "ogoune.db"),
 		DBLogLevel:       GetEnv("DB_LOG_LEVEL", "error"),
-		Port:             GetEnv("PORT", "8080"),
+		Port:             GetEnv("APP_PORT", "9596"),
 		WebHookUrl:       webhookUrl,
 		WebHookSignature: GetEnv("WEBHOOK_SIGNATURE", ""),
 		WebHookIsEnabled: webhookIsEnabled,
 		StaticDir:        GetEnv("STATIC_DIR", "web/dist"),
-		AuthEmail:        GetEnv("AUTH_EMAIL", "admin@ogoune.test"),
+		AuthEmail:        GetEnv("AUTH_EMAIL", "zoltar@ogoune.test"),
 		AuthPassword:     GetEnv("AUTH_PASSWORD", ""),
 		JWTSecret:        GetEnv("JWT_SECRET", ""),
 
@@ -139,8 +155,11 @@ func Load() Config {
 		EnableICMP:                     enableICMP,
 		MetricsEnabled:                 metricsEnabled,
 		MetricsToken:                   metricsToken,
+		NotificationRetentionDays:      notificationRetentionDays,
 		EnableSwagger:                  enableSwagger,
 		AppEnv:                         appEnv,
+		SSLProvider:                    sslProvider,
+		AppBaseURL:                     appBaseURL,
 
 		CORSAllowedOrigins:    corsOrigins,
 		RateLimitAuth:         rateLimitAuthCount,
@@ -267,6 +286,15 @@ func MustInit() Config {
 	// Validate critical configuration for the selected driver.
 	if cfg.DBDriver != "sqlite" && cfg.DatabaseUrl == "" {
 		slog.Error("DATABASE_URL environment variable is required when DB_DRIVER is postgres")
+		os.Exit(1)
+	}
+
+	// Validate SSL_PROVIDER (spec 059 FR-030). Allowed: letsencrypt|external|disabled.
+	switch cfg.SSLProvider {
+	case "letsencrypt", "external", "disabled":
+		// ok
+	default:
+		slog.Error("SSL_PROVIDER invalid", "got", cfg.SSLProvider, "want", "letsencrypt|external|disabled")
 		os.Exit(1)
 	}
 

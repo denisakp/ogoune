@@ -14,8 +14,12 @@ export const useTagStore = defineStore('tag', () => {
   const updateError = ref<string | null>(null)
   const deleteLoading = ref(false)
   const deleteError = ref<string | null>(null)
-  const loading = computed(() => fetchLoading.value || addLoading.value || updateLoading.value || deleteLoading.value)
-  const error = computed(() => fetchError.value ?? addError.value ?? updateError.value ?? deleteError.value)
+  const loading = computed(
+    () => fetchLoading.value || addLoading.value || updateLoading.value || deleteLoading.value,
+  )
+  const error = computed(
+    () => fetchError.value ?? addError.value ?? updateError.value ?? deleteError.value,
+  )
 
   const fetchTags = () =>
     withStoreAction(fetchLoading, fetchError, async () => {

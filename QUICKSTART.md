@@ -46,8 +46,9 @@ docker run -d \
   --restart unless-stopped \
   -p 8080:8080 \
   -v ogoune_data:/data \
+  -e APP_SECRET_KEY=$(openssl rand -hex 32) \
   -e JWT_SECRET=change-me-before-production \
-  ogoune/community:latest
+  ghcr.io/denisakp/ogoune:latest
 ```
 
 Open **http://localhost:8080**
@@ -61,7 +62,7 @@ Create a `compose.yml`:
 ```yaml
 services:
   ogoune:
-    image: ogoune/community:latest
+    image: ghcr.io/denisakp/ogoune:latest
     container_name: ogoune
     restart: unless-stopped
     ports:
@@ -72,6 +73,7 @@ services:
       DB_DRIVER: sqlite
       SQLITE_PATH: /data/ogoune.db
       SCHEDULER_DRIVER: timingwheel
+      APP_SECRET_KEY: change-me-generate-with-openssl-rand-hex-32
       JWT_SECRET: change-me-before-production
       ADMIN_EMAIL: admin@ogoune.test
 
@@ -213,7 +215,7 @@ SQLITE_PATH=./ogoune.db
 SCHEDULER_MODE=timingwheel
 JWT_SECRET=dev-secret-change-in-production
 AUTH_EMAIL=admin@ogoune.test
-PORT=8080
+APP_PORT=9596
 STATIC_DIR=web/dist
 APP_SECRET_KEY=<output of: openssl rand -hex 32>
 ```
@@ -244,8 +246,16 @@ pnpm dev
 ### Run tests
 
 ```bash
-make test
+make test            # frontend + backend (SQLite-only)
 ```
+
+### Run tests against Postgres (dual-dialect)
+
+```bash
+make test-be-pg      # boots testcontainers postgres:16-alpine; needs Docker
+```
+
+Skips gracefully when Docker is unavailable. Repository contract tests run against both SQLite and Postgres via the helper at `internal/repository/internaltest/`. See that package's README for the full usage.
 
 ### Build from the repo root
 
@@ -258,6 +268,20 @@ This produces:
 - `web/dist/index.html`
 - `web/dist/status.html`
 
+### Type-safe DB queries (sqlc)
+
+Repository queries written under `internal/repository/sqlc/queries/{postgres,sqlite}/`
+are compiled to Go via [sqlc](https://sqlc.dev/). After editing or adding a `.sql`
+file:
+
+```bash
+make sqlc-generate      # regenerate Go code under internal/repository/sqlc/{pg,sqlite}/
+make sqlc-check         # fail if committed code drifts vs queries (also runs in CI)
+```
+
+`make build-be` runs `sqlc-check` automatically. The sqlc CLI is auto-installed
+at the pinned version on first run.
+
 ---
 
 ## First login
@@ -268,7 +292,7 @@ Regardless of which option you chose, the default credentials are:
 |---|---|
 | **URL** | http://localhost:8080 |
 | **Email** | `admin@ogoune.test` |
-| **Password** | `ogu3n3@rd` |
+| **Password** | `password` |
 
 **Change your password immediately** — Settings → Account → Change password.
 
@@ -594,7 +618,7 @@ CONFIRMATION_INTERVAL=30      # Seconds between confirmation checks
 EXPIRY_ALERT_THRESHOLDS=30,14,7,1  # Days before SSL/domain expiry to alert
 
 # ── Application ──────────────────────────────────────────────────────────────
-APP_PORT=8080
+APP_APP_PORT=9596
 APP_ENV=production            # development | production
 ENABLE_ICMP=false             # Optional ICMP monitoring
 
@@ -681,10 +705,10 @@ You must mount a volume. Without `-v ogoune_data:/data`, data is lost when the c
 
 ```bash
 # Correct
-docker run -v ogoune_data:/data ogoune/community:latest
+docker run -v ogoune_data:/data ghcr.io/denisakp/ogoune:latest
 
 # Wrong — data lost on restart
-docker run ogoune/community:latest
+docker run ghcr.io/denisakp/ogoune:latest
 ```
 
 ---

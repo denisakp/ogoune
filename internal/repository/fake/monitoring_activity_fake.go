@@ -32,12 +32,7 @@ func (f *MonitoringActivityFake) Create(ctx context.Context, activity *domain.Mo
 	f.mu.Lock()
 	defer f.mu.Unlock()
 
-	// ID should be set by BeforeCreate hook in the domain model
-	if activity.ID == "" {
-		if err := activity.BeforeCreate(nil); err != nil {
-			return repository.ErrInvalidInput
-		}
-	}
+	activity.EnsureID()
 	if activity.CreatedAt.IsZero() {
 		activity.CreatedAt = time.Now()
 	}

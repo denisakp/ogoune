@@ -1,12 +1,17 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import authService from '@/services/authService'
-import { message } from 'ant-design-vue'
+import { useToast } from '@nuxt/ui/composables/useToast'
+
+import authService, { type SignupRequest, type ResetPasswordRequest } from '@/services/authService'
+import { ValidationError } from '@/core/errors'
 import type { User } from '@/types'
 
-const TK = 'ogoune_auth_token', EK = 'ogoune_user_email', UK = 'ogoune_user_id'
+const TK = 'ogoune_auth_token',
+  EK = 'ogoune_user_email',
+  UK = 'ogoune_user_id'
 
 export const useAuthStore = defineStore('auth', () => {
+  const toast = useToast()
   const token = ref<string | null>(localStorage.getItem(TK))
   const email = ref<string | null>(localStorage.getItem(EK))
   const userId = ref<string | null>(localStorage.getItem(UK))
@@ -18,58 +23,148 @@ export const useAuthStore = defineStore('auth', () => {
   const isAuthenticated = computed(() => !!token.value)
 
   function setAuth(t: string, e: string) {
-    token.value = t; email.value = e
-    localStorage.setItem(TK, t); localStorage.setItem(EK, e)
+    token.value = t
+    email.value = e
+    localStorage.setItem(TK, t)
+    localStorage.setItem(EK, e)
   }
 
   async function login(emailInput: string, password: string): Promise<boolean> {
     isLoading.value = true
     try {
       const r = await authService.login(emailInput, password)
-      requiresPasswordInit.value = false; requires2FA.value = false; pending2FAEmail.value = null
-      email.value = r.email; localStorage.setItem(EK, r.email)
+      requiresPasswordInit.value = false
+      requires2FA.value = false
+      pending2FAEmail.value = null
+      email.value = r.email
+      localStorage.setItem(EK, r.email)
       if (r.force_password_change) {
-        requiresPasswordInit.value = true; message.warning('You must set up your password before continuing'); return false
+        requiresPasswordInit.value = true
+        toast.add({ title: 'You must set up your password before continuing', color: 'warning' })
+        return false
       }
       if (r.requires_2fa) {
-        requires2FA.value = true; pending2FAEmail.value = r.email
-        token.value = null; localStorage.removeItem(TK); message.info('Please verify with 2FA'); return false
+        requires2FA.value = true
+        pending2FAEmail.value = r.email
+        token.value = null
+        localStorage.removeItem(TK)
+        toast.add({ title: 'Please verify with 2FA', color: 'info' })
+        return false
       }
-      setAuth(r.token, r.email); message.success('Successfully logged in!'); return true
-    } catch { return false } finally { isLoading.value = false }
+      setAuth(r.token, r.email)
+      toast.add({ title: 'Successfully logged in!', color: 'success' })
+      return true
+    } catch (e) {
+      if (e instanceof ValidationError) throw e
+      return false
+    } finally {
+      isLoading.value = false
+    }
   }
 
   async function verifyTwoFactor(otp: string): Promise<boolean> {
-    if (!pending2FAEmail.value) { message.error('Session expired. Please log in again.'); return false }
+    if (!pending2FAEmail.value) {
+      toast.add({ title: 'Session expired. Please log in again.', color: 'error' })
+      return false
+    }
     isLoading.value = true
     try {
       const r = await authService.verify2FA({ email: pending2FAEmail.value, otp })
-      setAuth(r.token, r.email); requires2FA.value = false; pending2FAEmail.value = null
-      await verify(); message.success('2FA verified successfully!'); return true
-    } catch { return false } finally { isLoading.value = false }
+      setAuth(r.token, r.email)
+      requires2FA.value = false
+      pending2FAEmail.value = null
+      await verify()
+      toast.add({ title: '2FA verified successfully!', color: 'success' })
+      return true
+    } catch {
+      return false
+    } finally {
+      isLoading.value = false
+    }
   }
 
   async function verify(): Promise<boolean> {
     if (!token.value) return false
     try {
       const r = await authService.verify()
-      email.value = r.email; userId.value = r.user_id; user.value = r as User
-      localStorage.setItem(EK, r.email); localStorage.setItem(UK, r.user_id); return true
-    } catch { logout(); return false }
+      email.value = r.email
+      userId.value = r.user_id
+      user.value = r as User
+      localStorage.setItem(EK, r.email)
+      localStorage.setItem(UK, r.user_id)
+      return true
+    } catch {
+      logout()
+      return false
+    }
+  }
+
+  async function signUp(input: SignupRequest): Promise<boolean> {
+    isLoading.value = true
+    try {
+      const r = await authService.signUp(input)
+      setAuth(r.token, r.email)
+      toast.add({ title: 'Account created', color: 'success' })
+      return true
+    } catch (e) {
+      if (e instanceof ValidationError) throw e
+      return false
+    } finally {
+      isLoading.value = false
+    }
+  }
+
+  async function resetPasswordWithToken(input: ResetPasswordRequest): Promise<boolean> {
+    isLoading.value = true
+    try {
+      const r = await authService.resetPasswordWithToken(input)
+      setAuth(r.token, r.email)
+      return true
+    } catch (e) {
+      if (e instanceof ValidationError) throw e
+      return false
+    } finally {
+      isLoading.value = false
+    }
   }
 
   function logout() {
-    token.value = null; email.value = null; userId.value = null; user.value = null
-    requiresPasswordInit.value = false; requires2FA.value = false; pending2FAEmail.value = null
-    localStorage.removeItem(TK); localStorage.removeItem(EK); localStorage.removeItem(UK)
-    message.info('You have been logged out')
+    token.value = null
+    email.value = null
+    userId.value = null
+    user.value = null
+    requiresPasswordInit.value = false
+    requires2FA.value = false
+    pending2FAEmail.value = null
+    localStorage.removeItem(TK)
+    localStorage.removeItem(EK)
+    localStorage.removeItem(UK)
+    toast.add({ title: 'You have been logged out', color: 'info' })
   }
 
   return {
-    token, email, userId, user, isLoading, requiresPasswordInit, requires2FA, pending2FAEmail,
-    isAuthenticated, login, verify, verifyTwoFactor, logout,
+    token,
+    email,
+    userId,
+    user,
+    isLoading,
+    requiresPasswordInit,
+    requires2FA,
+    pending2FAEmail,
+    isAuthenticated,
+    login,
+    signUp,
+    resetPasswordWithToken,
+    verify,
+    verifyTwoFactor,
+    logout,
     getToken: () => token.value,
-    clearPasswordInitRequired: () => { requiresPasswordInit.value = false },
-    clear2FARequired: () => { requires2FA.value = false; pending2FAEmail.value = null },
+    clearPasswordInitRequired: () => {
+      requiresPasswordInit.value = false
+    },
+    clear2FARequired: () => {
+      requires2FA.value = false
+      pending2FAEmail.value = null
+    },
   }
 })

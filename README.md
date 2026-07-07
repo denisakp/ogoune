@@ -6,14 +6,14 @@
 
 **Uptime monitoring that confirms before it cries wolf.**
 
-![License](https://img.shields.io/badge/license-AGPL%20v3-blue)
-![Version](https://img.shields.io/badge/version-v1.0.0-green)
+![License: Apache 2.0 (core)](https://img.shields.io/badge/license-Apache_2.0-blue) ![License: EE](https://img.shields.io/badge/internal%2Fee-LicenseRef--Ogoune--EE-orange)
+![Version](https://img.shields.io/badge/version-v1.0.0--beta-yellow)
 ![Go](https://img.shields.io/badge/go-1.24%2B-00ADD8)
 ![Vue](https://img.shields.io/badge/vue-3.x-4FC08D)
 ![Docker](https://img.shields.io/badge/docker-ready-2496ED)
 [![GitHub Stars](https://img.shields.io/github/stars/denisakp/ogoune?style=flat)](https://github.com/denisakp/ogoune)
 [![GitHub Actions](https://img.shields.io/badge/GitHub%20Actions-passing-brightgreen?logo=github)](https://github.com/denisakp/ogoune/actions)
-[![GitLab CI/CD](https://img.shields.io/badge/GitLab%20CI-ready-orange?logo=gitlab)](./specs/021-gitlab-ci-workflows/quickstart.md)
+[![Documentation](https://img.shields.io/badge/docs-nebula-6E56CF)](https://github.com/denisakp/ogoune/tree/main/nebula)
 
 Ogoune monitors your websites, APIs, and services. When something goes down, it **verifies the failure** before 
 alerting you. No more 3am pages for a 2-second network blip.
@@ -22,6 +22,8 @@ alerting you. No more 3am pages for a 2-second network blip.
 > Every alert is real.
 
 <img src="./static/dashboard.png" alt="Ogoune Dashboard" width="100%" style="border-radius: 8px; margin-top: 16px;" />
+
+📚 **Documentation:** [`nebula/`](./nebula/) — guides, self-hosting, Enterprise, and the API reference (VitePress). Hosted site at `docs.ogoune.io` coming soon.
 
 ---
 
@@ -40,7 +42,7 @@ Open **http://localhost:8080** and log in:
 | | |
 |---|---|
 | Email | `admin@ogoune.test` |
-| Password | `ogu3n3@rd` |
+| Password | `password` |
 
 No PostgreSQL. No Redis. No reverse proxy. One container.
 
@@ -115,6 +117,7 @@ Set `confirmation_checks: 1` to restore immediate alerts.
 | ICMP ping checks | Optional host reachability monitoring when the runtime has raw-socket capability |
 | Heartbeat / Push monitoring | Verify cron jobs and background workers actually ran |
 | Keyword / content check monitor | Verify response body contains (or does not contain) a string — catches HTTP 200s with degraded content |
+| Protocol-aware monitors | Redis (PING + optional `AUTH`), MongoDB (BSON hello), FTP, SSH, MySQL & PostgreSQL (TCP fallback or authenticated handshake), RabbitMQ (AMQP 0-9-1 `connection.start` handshake), Kafka (Metadata Request v1 against a comma-separated bootstrap broker list with sequential failover). TLS is auto-detected from the target URL (`rediss://`, `?tls=true`, `sslmode=require`). Credentials are encrypted at rest with AES-256-GCM. |
 | SSL expiry warnings | Get notified before certs expire |
 | Domain expiry warnings | Get notified before domains expire |
 | Confirmation window | N consecutive failures before alerting |
@@ -129,6 +132,7 @@ Set `confirmation_checks: 1` to restore immediate alerts.
 | Tags & components | Organize your monitors |
 | API keys | Programmatic access (`read` / `read_write`) |
 | Uptime statistics | 2h / 24h / 7d / 30d aggregates |
+| Bulk import / export | Onboard or migrate hundreds of monitors via YAML — see [`docs/import/`](./docs/import/) |
 
 ---
 
@@ -155,7 +159,7 @@ SCHEDULER_DRIVER=asynq         # Production (requires Redis)
 | Flap detection | ✅ | ❌ | ❌ | Manual |
 | SSL + domain expiry | ✅ | ✅ / ❌ | Paid | Manual |
 | DNS monitoring | ✅ | ✅ | Paid | Manual |
-| Open source | AGPL v3 | MIT | ❌ | Apache |
+| Open source | Apache 2.0 | MIT | ❌ | Apache 2.0 |
 | Go backend | ✅ | ❌ | — | ✅ |
 | Setup complexity | Low | Low | None | Very high |
 
@@ -163,79 +167,15 @@ SCHEDULER_DRIVER=asynq         # Production (requires Redis)
 
 ## Configuration
 
-All settings via environment variables. See [`.env.example`](./.env.example).
+Everything is configured through environment variables — start from
+[`.env.example`](./.env.example). Only `APP_SECRET_KEY` (64-char hex,
+`openssl rand -hex 32`) and `JWT_SECRET` are mandatory before production.
 
-```env
-# Database
-DB_DRIVER=sqlite
-SQLITE_PATH=/data/ogoune.db
-
-# Scheduler
-SCHEDULER_DRIVER=timingwheel
-
-# Security — generate before production
-JWT_SECRET=change-me
-APP_SECRET_KEY=change-me    # openssl rand -hex 32
-
-# Open Core
-ENTERPRISE_LICENSE_KEY=     # leave empty for Community Edition
-```
-
-### Generate `APP_SECRET_KEY`
-
-`APP_SECRET_KEY` is mandatory and must be a 64-character hex string.
-
-```bash
-# Generate a key value
-openssl rand -hex 32
-
-# Optional: write it directly to .env
-echo "APP_SECRET_KEY=$(openssl rand -hex 32)" >> .env
-```
-
-If you export it in your shell instead of `.env`, verify length:
-
-```bash
-echo -n "$APP_SECRET_KEY" | wc -c
-```
-
-### Optional ICMP monitoring
-
-ICMP monitoring is opt-in because raw ICMP sockets depend on host/container capabilities that are not universally available by default.
-
-Enable it only when you want ping-based monitoring or ICMP-backed network diagnostics for incidents:
-
-```env
-ENABLE_ICMP=true
-```
-
-When `ENABLE_ICMP=false` (default), Ogoune keeps HTTP, TCP, and DNS behavior unchanged and skips ICMP-specific checks and diagnostics.
-
-When `ENABLE_ICMP=true`, Ogoune starts normally in both cases:
-
-- if the runtime has the required capability, ICMP monitor creation and ICMP-backed diagnostics are available
-- if the runtime does not have the required capability, startup continues, the UI/API report ICMP as unavailable, and ICMP monitor creation is rejected until capability is granted
-
----
-
-### Heartbeat / Push monitoring
-
-Heartbeat monitoring lets you verify that cron jobs and background workers actually ran. Instead of Ogoune polling a target, your job calls Ogoune at the end of a successful run.
-
-```bash
-# At the end of your script, ping Ogoune
-curl -fsS "https://your-ogoune-host/ping/<slug>" >/dev/null
-```
-
-**How it works:**
-- Create a Heartbeat monitor with an interval and grace period.
-- Copy the generated ping URL and add it to your script.
-- Ogoune waits. If no ping arrives within interval + grace seconds, an incident is created.
-- A recovery ping resolves the incident automatically.
-
-**No authentication required.** The slug itself is the token (UUID v4, unguessable). A per-slug rate limit of 100 requests/min applies.
-
-See [QUICKSTART.md](./QUICKSTART.md) for step-by-step integration.
+Full setup walkthrough (Community, full stack, source), the env-var reference,
+ICMP opt-in, heartbeat integration, and troubleshooting live in
+**[QUICKSTART.md](./QUICKSTART.md)**. For the `SSL_PROVIDER` matrix, magic-link
+reset flow, and session-revocation semantics see
+[`docs/runbooks/settings-env.md`](./docs/runbooks/settings-env.md).
 
 ---
 
@@ -243,69 +183,16 @@ See [QUICKSTART.md](./QUICKSTART.md) for step-by-step integration.
 
 See [ROADMAP.md](./ROADMAP.md) for the full roadmap.
 
-**Coming in H2:** Keyword checks, Prometheus metrics, IMAP/SMTP, Telegram, Digest
-notifications, API v1, credential encryption.
-
-**Coming in H3:** Toolbox, Enterprise Edition (multi-tenancy, SSO, billing, agent device monitoring).
+**Shipped since v1.0:** Keyword checks, Prometheus metrics, protocol-aware monitors,
+bulk import/export, heartbeat monitoring, API v1, credential encryption.
 
 ---
 
-## Prometheus Metrics Endpoint
+## Observability
 
-Ogoune exposes a standard Prometheus-compatible `GET /metrics` endpoint for observability.
-
-### Configuration
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `ENABLE_METRICS` | `false` | Set to `true` to enable the `/metrics` endpoint |
-| `METRICS_TOKEN` | _(empty)_ | Optional bearer token. When set, requests must include `Authorization: Bearer <token>`. Leave empty only on private/firewalled networks (a startup warning is logged). |
-
-### Access modes
-
-| `ENABLE_METRICS` | `METRICS_TOKEN` | Result |
-|-----------------|-----------------|--------|
-| `false` | any | `404 Not Found` — route not registered |
-| `true` | _(empty)_ | `200 OK` — unauthenticated (startup warning logged) |
-| `true` | `<token>` | `200 OK` with correct `Authorization: Bearer <token>` header; `401` otherwise |
-
-### Available metrics
-
-| Metric | Type | Description |
-|--------|------|-------------|
-| `go_goroutines` | Gauge | Active goroutines |
-| `go_memstats_heap_alloc_bytes` | Gauge | Heap memory in use |
-| `go_gc_duration_seconds` | Summary | GC pause durations |
-| `ogoune_resource_up` | Gauge | `1`=up, `0`=down per resource |
-| `ogoune_resource_status` | Gauge | `0`=unknown `1`=up `2`=down `3`=paused |
-| `ogoune_check_duration_seconds` | Histogram | Check latency in seconds |
-| `ogoune_checks_total` | Counter | Check executions by `status` label (`success`/`failure`/`timeout`) |
-| `ogoune_incidents_total` | Gauge | All-time incident count per resource |
-| `ogoune_incidents_active` | Gauge | Currently open incidents per resource |
-| `ogoune_uptime_ratio` | Gauge | Uptime `0.0–1.0` for `window` label `24h`, `7d`, `30d` |
-
-All `ogoune_*` metrics carry labels: `id`, `name`, `type`.
-
-### Prometheus scrape config
-
-Without authentication:
-```yaml
-scrape_configs:
-  - job_name: ogoune
-    scrape_interval: 30s
-    static_configs:
-      - targets: ["ogoune:8080"]
-```
-
-With bearer token:
-```yaml
-scrape_configs:
-  - job_name: ogoune
-    scrape_interval: 30s
-    bearer_token: your-secret-token-here
-    static_configs:
-      - targets: ["ogoune:8080"]
-```
+Ogoune exposes a Prometheus-compatible `GET /metrics` endpoint (opt-in via
+`ENABLE_METRICS=true`, optional bearer token). Metric catalogue, access modes,
+and scrape config: [`docs/observability/prometheus.md`](./docs/observability/prometheus.md).
 
 ---
 
@@ -323,14 +210,14 @@ All contributors must sign the **CLA** — the bot handles this automatically on
 
 ## Licence
 
-Ogoune is licensed under **AGPL v3** — see [LICENSE](./LICENSE).
+Ogoune uses an Open Core dual-licensing model:
 
-The `internal/ee/` directory contains Enterprise Edition features and is covered by a separate proprietary licence.
-see [LICENSE_EE](./LICENSE_EE).
+- **Core** (everything outside `internal/ee/`): **Apache License 2.0** — see [LICENSE](./LICENSE). Free, self-hostable, modifiable, and redistributable under standard permissive terms.
+- **Enterprise Edition**: any file under `internal/ee/` or carrying the SPDX identifier `LicenseRef-Ogoune-EE` is governed by a separate commercial source-available licence — see [LICENSE.ee](./LICENSE.ee). The source is visible for evaluation, development, testing, and contribution, but production use requires a commercial licence (`hello@ogoune.com`).
 
-A valid licence key is required to use those features, whether self-hosted or via our Cloud. The rest of the codebase 
-is free, open source, and self-hostable with no licence key required. See [ROADMAP.md](./ROADMAP.md) for the Open Core
-model.
+Contributions to either scope require accepting the Contributor License Agreement — see [cla.md](./cla.md). The CLA bot prompts you on your first pull request.
+
+**Prior licensing**: Ogoune's core was previously licensed under **AGPL v3**. The relicensing to Apache 2.0 predates any tagged release — no version was ever published under AGPL. Any copy obtained under AGPL remains governed by AGPL; the open-core model above governs the current source tree and all releases from `v1.0.0-beta` onward.
 
 
 ---

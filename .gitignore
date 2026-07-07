@@ -25,5 +25,12 @@ Thumbs.db
 
 .vroom
 .prds/
+.private/
 .claude/
 .scannerwork/
+bench-output.txt
+api-bench-output.txt
+
+# VitePress docs (nebula/)
+nebula/.vitepress/cache/
+nebula/.vitepress/dist/

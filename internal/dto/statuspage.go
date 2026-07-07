@@ -15,7 +15,8 @@ type StatusPageData struct {
 type StatusPageSettings struct {
 	Name                 string `json:"name"`
 	HomepageURL          string `json:"homepage_url,omitempty"`
-	GoogleAnalyticsID    string `json:"google_analytics_id,omitempty"`
+	UmamiWebsiteID       string `json:"umami_website_id,omitempty"`
+	UmamiScriptURL       string `json:"umami_script_url,omitempty"`
 	EnableDetailsPage    bool   `json:"enable_details_page"`
 	ShowUptimePercentage bool   `json:"show_uptime_percentage"`
 }

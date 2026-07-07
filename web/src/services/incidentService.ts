@@ -1,53 +1,35 @@
+import { getAuthenticatedClient, request } from '@/core/http/client'
 import type { Incident, IncidentsQueryParams, PaginatedResponse } from '@/types'
-import axiosHelper from '../libs/axios.helper'
 
 /**
- * Fetch all incidents with optional filters
+ * Fetch all incidents with optional filters. Null/undefined keys are omitted.
  */
 export const fetchIncidents = async (
   params?: IncidentsQueryParams,
 ): Promise<Incident[] | PaginatedResponse<Incident>> => {
-  const queryParams = new URLSearchParams()
+  const searchParams: Record<string, string | number | boolean> = {}
+  if (params?.unresolved !== undefined) searchParams.unresolved = params.unresolved
+  if (params?.limit !== undefined) searchParams.limit = params.limit
+  if (params?.offset !== undefined) searchParams.offset = params.offset
+  if (params?.resource_id !== undefined) searchParams.resource_id = params.resource_id
 
-  if (params?.unresolved !== undefined) {
-    queryParams.append('unresolved', String(params.unresolved))
-  }
-  if (params?.limit !== undefined) {
-    queryParams.append('limit', String(params.limit))
-  }
-  if (params?.offset !== undefined) {
-    queryParams.append('offset', String(params.offset))
-  }
-  if (params?.resource_id !== undefined) {
-    queryParams.append('resource_id', params.resource_id)
-  }
-
-  const queryString = queryParams.toString()
-  const url = queryString ? `/incidents?${queryString}` : '/incidents'
-
-  const { data } = await axiosHelper.get<Incident[] | PaginatedResponse<Incident>>(url)
-  return data
+  return await request<Incident[] | PaginatedResponse<Incident>>(
+    getAuthenticatedClient(),
+    'incidents',
+    { searchParams },
+  )
 }
 
-/**
- * Fetch a single incident by ID
- */
 export const fetchIncidentById = async (id: string): Promise<Incident> => {
-  const { data } = await axiosHelper.get<Incident>(`/incidents/${id}`)
-  return data
+  return await request<Incident>(getAuthenticatedClient(), `incidents/${id}`)
 }
 
-/**
- * Mark an incident as resolved
- */
 export const resolveIncident = async (id: string): Promise<Incident> => {
-  const { data } = await axiosHelper.patch<Incident>(`/incidents/${id}/resolve`)
-  return data
+  return await request<Incident>(getAuthenticatedClient(), `incidents/${id}/resolve`, {
+    method: 'PATCH',
+  })
 }
 
-/**
- * Fetch unresolved incidents only
- */
 export const fetchUnresolvedIncidents = async (): Promise<Incident[]> => {
   return fetchIncidents({ unresolved: true }) as Promise<Incident[]>
 }

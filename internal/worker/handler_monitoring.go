@@ -27,6 +27,19 @@ func normalizeConfirmationChecks(value int) int {
 	return value
 }
 
+// monitoringStateFromResource builds the partial-update request the worker
+// writes after every check. Mirrors the pre-pointer-port column set: Status,
+// FailureCount, LastChecked, LastStatusTransition, FlapStartedAt.
+func monitoringStateFromResource(r *domain.Resource) port.UpdateMonitoringStateRequest {
+	return port.UpdateMonitoringStateRequest{
+		Status:               &r.Status,
+		FailureCount:         &r.FailureCount,
+		LastChecked:          &r.LastChecked,
+		LastStatusTransition: &r.LastStatusTransition,
+		FlapStartedAt:        &r.FlapStartedAt,
+	}
+}
+
 // incidentManager is satisfied by port.MonitoringIncidentProcessor.
 type incidentManager interface {
 	CreateIncident(ctx context.Context, r *domain.Resource, result domain.CheckResult) error
@@ -190,7 +203,7 @@ func (h *MonitoringTaskHandler) ProcessTask(ctx context.Context, task *asynq.Tas
 		// Reset failure count and update status to UP
 		resource.FailureCount = 0
 		resource.Status = domain.StatusUp
-		if err := h.resources.UpdateMonitoringState(ctx, resource); err != nil {
+		if err := h.resources.UpdateMonitoringState(ctx, resource.ID, monitoringStateFromResource(resource)); err != nil {
 			return fmt.Errorf("failed to update resource status: %w", err)
 		}
 
@@ -204,7 +217,7 @@ func (h *MonitoringTaskHandler) ProcessTask(ctx context.Context, task *asynq.Tas
 		resource.FailureCount++
 		fmt.Printf("[FAILURE] Resource %s failed (failure_count: %d, previous_status: %s)\n", resource.ID, resource.FailureCount, previousStatus)
 		resource.Status = domain.StatusDown
-		if err := h.resources.UpdateMonitoringState(ctx, resource); err != nil {
+		if err := h.resources.UpdateMonitoringState(ctx, resource.ID, monitoringStateFromResource(resource)); err != nil {
 			fmt.Printf("[WARNING] failed to persist failure progression for resource %s; skipping incident creation this cycle and retrying later: %v\n", resource.ID, err)
 			if h.scheduler != nil {
 				_ = h.scheduler.ScheduleWithInterval(ctx, resource, time.Duration(confirmationInterval)*time.Second)
@@ -248,7 +261,7 @@ func (h *MonitoringTaskHandler) ProcessTask(ctx context.Context, task *asynq.Tas
 	default:
 		// Handle other statuses (error, unknown, etc.)
 		resource.Status = currentResultStatus
-		if err := h.resources.UpdateMonitoringState(ctx, resource); err != nil {
+		if err := h.resources.UpdateMonitoringState(ctx, resource.ID, monitoringStateFromResource(resource)); err != nil {
 			return fmt.Errorf("failed to update resource status: %w", err)
 		}
 	}
@@ -309,7 +322,7 @@ func (h *MonitoringTaskHandler) handleFlapping(ctx context.Context, resource *do
 
 			resource.Status = domain.StatusFlapping
 			resource.FailureCount = 0
-			if err := h.resources.UpdateMonitoringState(ctx, resource); err != nil {
+			if err := h.resources.UpdateMonitoringState(ctx, resource.ID, monitoringStateFromResource(resource)); err != nil {
 				return true, fmt.Errorf("failed to persist flapping resource state: %w", err)
 			}
 			if h.scheduler != nil {
@@ -321,7 +334,7 @@ func (h *MonitoringTaskHandler) handleFlapping(ctx context.Context, resource *do
 		resource.Status = domain.StatusFlapping
 		resource.FlapStartedAt = &now
 		resource.FailureCount = 0
-		if err := h.resources.UpdateMonitoringState(ctx, resource); err != nil {
+		if err := h.resources.UpdateMonitoringState(ctx, resource.ID, monitoringStateFromResource(resource)); err != nil {
 			return true, fmt.Errorf("failed to persist flapping entry state: %w", err)
 		}
 		if err := h.incidents.NotifyFlapping(ctx, resource, transitions, flapWindowSeconds, flapMaxDurationMinutes); err != nil {

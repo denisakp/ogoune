@@ -24,7 +24,7 @@ func newResourceServiceForTest() (*ResourceService, *fake.ResourceFake, *fake.Sc
 	enrichmentService := NewEnrichmentService(30 * time.Second)
 	componentService := NewComponentService(componentRepo, resourceRepo, channelRepo)
 
-	service := NewResourceService(resourceRepo, incidentRepo, tagsRepo, schedulerFake, monitoringActivityRepo, enrichmentService, componentService)
+	service := NewResourceService(resourceRepo, incidentRepo, tagsRepo, channelRepo, schedulerFake, monitoringActivityRepo, enrichmentService, componentService)
 	return service, resourceRepo, schedulerFake
 }
 

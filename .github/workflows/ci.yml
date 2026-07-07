@@ -25,8 +25,56 @@ jobs:
         with:
           go-version: '1.25.1'
 
+      - name: cache Go modules
+        uses: actions/cache@v5
+        with:
+          path: |
+            ~/go/pkg/mod
+            ~/.cache/go-build
+            ~/go/bin
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+
+      - name: sqlc check (fail on drift)
+        run: make sqlc-check
+
+      - name: migrations drift check
+        run: make migrations-drift-check
+
       - name: run backend tests
         run: go test -C ./ ./...
+
+      - name: concurrent-update soak (spec 049 US3 — race detector ON)
+        run: go test -race -count=1 -timeout 90s -run TestResourceRepository_Update_ConcurrentSoak ./internal/repository/store/...
+
+  test-be-postgres:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: setup Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: '1.25.1'
+
+      - name: cache Go modules
+        uses: actions/cache@v5
+        with:
+          path: |
+            ~/go/pkg/mod
+            ~/.cache/go-build
+            ~/go/bin
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+
+      - name: pre-pull postgres image
+        run: docker pull postgres:16-alpine
+
+      - name: dual-dialect tests (Postgres + SQLite via testcontainers)
+        run: make test-be-pg
 
   build-and-push:
     needs: backend-tests
@@ -53,8 +101,6 @@ jobs:
           echo "owner_lower=$OWNER_LOWER" >> "$GITHUB_OUTPUT"
           echo "image_repo=${{ env.REGISTRY }}/$OWNER_LOWER/${{ env.IMAGE_NAME }}" >> "$GITHUB_OUTPUT"
       
-      - uses: docker/setup-qemu-action@v3
-
       - uses: docker/setup-buildx-action@v4
       
       - name: Log in to GitHub Container Registry
@@ -71,7 +117,6 @@ jobs:
           context: .
           file: Dockerfile
           push: true
-          platforms: linux/amd64,linux/arm64
           cache-from: type=gha,scope=${{ env.IMAGE_NAME }}
           cache-to: type=gha,mode=max,scope=${{ env.IMAGE_NAME }}
           tags: |

@@ -2,6 +2,7 @@ package monitoring
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -15,6 +16,14 @@ import (
 	"github.com/hibiken/asynq"
 )
 
+// IncidentUpdateSeeder is the minimal surface the incident lifecycle needs
+// to seed user-facing status updates (spec 060 / US7). Defined inline to
+// avoid pulling internal/service into the monitoring package.
+type IncidentUpdateSeeder interface {
+	AutoSeedOnDetect(ctx context.Context, incidentID, message string)
+	AutoSeedOnResolve(ctx context.Context, incidentID, message string)
+}
+
 // IncidentService manages incident creation and resolution with dynamic notification dispatch.
 // It creates incidents only after 3 consecutive failures and tracks the full lifecycle.
 // Notifications are sent via user-configured notification channels (SMTP, Webhook, etc.).
@@ -25,7 +34,15 @@ type IncidentService struct {
 	notificationChannels port.NotificationChannelRepository
 	diagnostics          port.IncidentDiagnosticsRepository
 	components           port.ComponentRepository
+	updates              IncidentUpdateSeeder
+	notificationEmitter  NotificationEmitter
 	client               *asynq.Client
+}
+
+// NotificationEmitter is the optional in-app notification-feed producer (spec 072).
+// Implemented by *service.NotificationFeedService. Emission is fire-and-forget.
+type NotificationEmitter interface {
+	Emit(ctx context.Context, n domain.EmittedNotification) error
 }
 
 // NewIncidentService creates a new incident service with the given dependencies.
@@ -47,9 +64,45 @@ func NewIncidentService(
 	}
 }
 
+// SetUpdateSeeder wires the optional incident-update auto-seeder. When nil,
+// the lifecycle silently skips public status updates.
+func (s *IncidentService) SetUpdateSeeder(seeder IncidentUpdateSeeder) {
+	s.updates = seeder
+}
+
 // SetComponentRepository sets the component repository for notification resolution
 func (s *IncidentService) SetComponentRepository(repo port.ComponentRepository) {
 	s.components = repo
+}
+
+// SetNotificationEmitter wires the optional in-app notification-feed producer (spec 072).
+// When nil, no feed notifications are emitted.
+func (s *IncidentService) SetNotificationEmitter(e NotificationEmitter) {
+	s.notificationEmitter = e
+}
+
+// emitFeedNotification publishes an incident feed notification fire-and-forget:
+// it never blocks or fails incident handling; errors are logged only (SC-004).
+func (s *IncidentService) emitFeedNotification(incident *domain.Incident, severity, title string) {
+	if s.notificationEmitter == nil {
+		return
+	}
+	deepLink := "/incidents/" + incident.ID
+	payload, _ := json.Marshal(map[string]string{"incident_id": incident.ID, "resource_id": incident.ResourceID})
+	n := domain.EmittedNotification{
+		Category:   domain.NotificationCategoryIncident,
+		Severity:   severity,
+		Title:      title,
+		DeepLink:   &deepLink,
+		Payload:    payload,
+		OccurredAt: time.Now(),
+	}
+	emitter := s.notificationEmitter
+	go func() {
+		if err := emitter.Emit(context.Background(), n); err != nil {
+			slog.Warn("failed to emit incident feed notification", "incident_id", incident.ID, "error", err)
+		}
+	}()
 }
 
 // CreateIncident creates a new incident when a resource reaches 3 consecutive failures.
@@ -96,6 +149,9 @@ func (s *IncidentService) CreateIncident(ctx context.Context, r *domain.Resource
 
 	slog.Info("incident created", "incident_id", incident.ID, "resource_id", r.ID, "cause", cause)
 
+	// Spec 072: surface in the in-app feed (fire-and-forget, never blocks).
+	s.emitFeedNotification(incident, domain.NotificationSeverityError, fmt.Sprintf("%s is down", r.Name))
+
 	// Persist incident diagnostics immediately after creation
 	// This captures error details, network timing, and other technical context
 	diag := s.buildIncidentDiagnostics(incident.ID, result, r)
@@ -115,6 +171,11 @@ func (s *IncidentService) CreateIncident(ctx context.Context, r *domain.Resource
 
 	if _, err := s.eventSteps.Create(ctx, detectedStep); err != nil {
 		slog.Warn("failed to create detected event step", "incident_id", incident.ID, "error", err)
+	}
+
+	// Seed the first public-facing status update (US7).
+	if s.updates != nil {
+		s.updates.AutoSeedOnDetect(ctx, incident.ID, "")
 	}
 
 	if _, err := s.eventSteps.FindLastByIncidentAndStep(ctx, incident.ID, domain.IncidentEventStepDownAlert); err == nil {
@@ -169,9 +230,15 @@ func (s *IncidentService) CreateIncident(ctx context.Context, r *domain.Resource
 				if markErr := s.notifications.MarkAsFailed(ctx, notificationEvent.ID, err.Error(), processedAt); markErr != nil {
 					slog.Warn("failed to mark notification event as failed", "notification_id", notificationEvent.ID, "error", markErr)
 				}
+				if markErr := s.notificationChannels.MarkFailure(ctx, channel.ID, processedAt); markErr != nil {
+					slog.Warn("failed to bump channel failure counter", "channel_id", channel.ID, "error", markErr)
+				}
 			} else {
 				if markErr := s.notifications.MarkAsSent(ctx, notificationEvent.ID, processedAt); markErr != nil {
 					slog.Warn("failed to mark notification event as sent", "notification_id", notificationEvent.ID, "error", markErr)
+				}
+				if markErr := s.notificationChannels.MarkSent(ctx, channel.ID, processedAt); markErr != nil {
+					slog.Warn("failed to bump channel last_sent_at", "channel_id", channel.ID, "error", markErr)
 				}
 			}
 		}
@@ -259,13 +326,21 @@ func (s *IncidentService) SendReminderIfDue(ctx context.Context, r *domain.Resou
 		}}, channel); err != nil {
 			slog.Warn("failed to dispatch reminder notification", "channel_id", channel.ID, "channel_type", channel.Type, "incident_id", activeIncident.ID, "error", err)
 			if eventCreated {
-				if markErr := s.notifications.MarkAsFailed(ctx, notificationEvent.ID, err.Error(), time.Now()); markErr != nil {
+				now := time.Now()
+				if markErr := s.notifications.MarkAsFailed(ctx, notificationEvent.ID, err.Error(), now); markErr != nil {
 					slog.Warn("failed to mark reminder notification event as failed", "notification_id", notificationEvent.ID, "error", markErr)
+				}
+				if markErr := s.notificationChannels.MarkFailure(ctx, channel.ID, now); markErr != nil {
+					slog.Warn("failed to bump channel failure counter", "channel_id", channel.ID, "error", markErr)
 				}
 			}
 		} else if eventCreated {
-			if markErr := s.notifications.MarkAsSent(ctx, notificationEvent.ID, time.Now()); markErr != nil {
+			now := time.Now()
+			if markErr := s.notifications.MarkAsSent(ctx, notificationEvent.ID, now); markErr != nil {
 				slog.Warn("failed to mark reminder notification event as sent", "notification_id", notificationEvent.ID, "error", markErr)
+			}
+			if markErr := s.notificationChannels.MarkSent(ctx, channel.ID, now); markErr != nil {
+				slog.Warn("failed to bump channel last_sent_at", "channel_id", channel.ID, "error", markErr)
 			}
 		}
 	}
@@ -347,7 +422,15 @@ func (s *IncidentService) ResolveIncident(ctx context.Context, r *domain.Resourc
 		return fmt.Errorf("failed to resolve incident: %w", err)
 	}
 
+	// Seed the public "resolved" status update (US7).
+	if s.updates != nil {
+		s.updates.AutoSeedOnResolve(ctx, activeIncident.ID, "")
+	}
+
 	slog.Info("incident resolved", "incident_id", activeIncident.ID, "resource_id", r.ID)
+
+	// Spec 072: surface recovery in the in-app feed (fire-and-forget).
+	s.emitFeedNotification(activeIncident, domain.NotificationSeveritySuccess, fmt.Sprintf("%s recovered", r.Name))
 
 	// Step 1: Create "resolved" event step
 	resolvedStep := &domain.IncidentEventStep{
@@ -405,9 +488,15 @@ func (s *IncidentService) ResolveIncident(ctx context.Context, r *domain.Resourc
 				if markErr := s.notifications.MarkAsFailed(ctx, notificationEvent.ID, err.Error(), processedAt); markErr != nil {
 					slog.Warn("failed to mark notification event as failed", "notification_id", notificationEvent.ID, "error", markErr)
 				}
+				if markErr := s.notificationChannels.MarkFailure(ctx, channel.ID, processedAt); markErr != nil {
+					slog.Warn("failed to bump channel failure counter", "channel_id", channel.ID, "error", markErr)
+				}
 			} else {
 				if markErr := s.notifications.MarkAsSent(ctx, notificationEvent.ID, processedAt); markErr != nil {
 					slog.Warn("failed to mark notification event as sent", "notification_id", notificationEvent.ID, "error", markErr)
+				}
+				if markErr := s.notificationChannels.MarkSent(ctx, channel.ID, processedAt); markErr != nil {
+					slog.Warn("failed to bump channel last_sent_at", "channel_id", channel.ID, "error", markErr)
 				}
 			}
 		}

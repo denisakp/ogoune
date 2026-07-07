@@ -1,15 +1,89 @@
 # Changelog
 
-All notable changes to this project will be documented in this file.
+All notable changes to this project will be documented in this file. Format
+follows [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+_Nothing yet._
+
+---
+
+## [1.0.0-beta] - 2026-07-06
+
+First public release of Ogoune — uptime monitoring that **confirms failures
+before alerting** (N consecutive failures required before an incident is
+raised). Distributed under the Open Core model: Community Edition (Apache 2.0,
+SQLite + TimingWheel) and Enterprise Edition (`LicenseRef-Ogoune-EE`, Postgres
++ Redis/Asynq).
+
+This beta consolidates all pre-release development, including the completed
+sqlc migration (specs 041–052) that made sqlc the sole data layer. See
+[ADR 0003](docs/adrs/0003-sqlc-replaces-gorm.md) for the decision record and
+lessons learned.
+
+Beta scope: the public HTTP API (`/api/v1/*`) is considered stable. Please
+report issues on the
+[GitHub Discussions](https://github.com/denisakp/ogoune/discussions) thread
+linked in the release notes.
+
 ### Added
 
-- **Keyword / content check monitor** — new monitor type (`keyword`) that performs an HTTP GET and verifies the response body contains or does not contain a literal string. Detects content failures that return HTTP 200 with degraded content.
-- **`contains` / `not_contains` modes** — case-sensitive keyword matching. `contains` raises an incident when the keyword is absent; `not_contains` raises one when the keyword is present.
-- **512 KB body cap** — the strategy reads at most 512 KB of the response body; content beyond this limit is silently discarded and `body_truncated` is set to `true`.
-- **Keyword failure diagnostics** — `IncidentDiagnostics` extended with `keyword`, `keyword_mode`, and `keyword_found` fields, populated for keyword monitor incidents only.
-- **Enriched notifications** — alert emails and webhook payloads include keyword, match mode, and human-readable cause message for keyword monitor failures (FR-013).
-- **Incident detail view** — keyword diagnostics panel in `IncidentView.vue` showing keyword, mode, match result, body excerpt, body size, and truncation flag.
-- **DB migration `0011_keyword_fields`** — additive nullable columns on `resources` and `incident_diagnostics` for both SQLite and PostgreSQL.
+- **Monitor types** — HTTP, TCP, DNS, ICMP, Keyword/content, and application
+  Protocol checks.
+- **Confirmation window** — incidents are only raised after N consecutive
+  failed checks, eliminating false alerts from transient blips.
+- **Incident lifecycle** — detection, confirmation, flap detection, alert
+  grouping, and resolution, with per-step event history.
+- **Multi-channel notifications** — SMTP, Slack, Discord, Google Chat, Teams,
+  and generic webhooks. Channel credentials encrypted at rest (AES-256-GCM).
+- **Status pages, monthly reports, and YAML bulk import/export** for
+  resources.
+- **Keyword / content check monitor** — HTTP GET that verifies the response
+  body contains (`contains`) or does not contain (`not_contains`) a literal
+  string, catching content failures behind an HTTP 200. Reads at most 512 KB of
+  the body (`body_truncated` flag set beyond the cap). Failure diagnostics
+  (`keyword`, `keyword_mode`, `keyword_found`) surface in the incident detail
+  view and in enriched alert emails / webhook payloads.
+- **DB migration `0011_keyword_fields`** — additive nullable columns on
+  `resources` and `incident_diagnostics` for both SQLite and PostgreSQL.
+
+### Changed
+
+- All repositories are backed by sqlc-generated query bindings. Every
+  `internal/repository/store/*_sqlc.go` wrapper is the sole implementation of
+  its `port.*Repository` interface.
+- Postgres is driven directly by `pgx/v5` + `pgxpool`; SQLite by
+  `modernc.org/sqlite` via `database/sql`.
+- Migrations are applied by a thin `database/sql` runner over the SQL files
+  under `internal/database/migrations/{postgres,sqlite}/`. Startup fails fast on
+  any apply error, wrapping the failing file + dialect in the returned error.
+
+### Removed
+
+- No GORM dependency: the tree ships without `gorm.io/*` or
+  `github.com/glebarez/sqlite`, and without GORM struct tags or lifecycle
+  hooks. ID generation, encryption, and decryption live explicitly in the sqlc
+  Create/Update wrappers; `EnsureID()` is the remaining plain method on `Base`.
+
+### Deprecated
+
+- **Legacy `SQLC_*` environment flags** (16 vars) are no longer read by the
+  binary. They are silently ignored — leaving them in your `.env` is safe and
+  has no effect. The regression test `TestLegacyFlagsSilentlyIgnored` guards
+  this behaviour going forward.
+
+### Performance
+
+- `GET /api/v1/monitors` and `GET /api/v1/incidents` p95 latency, and cold-boot
+  p95, are all within ±10 % of the pre-migration baseline captured before the
+  GORM-removal commit.
+
+### Documentation
+
+- **ADR reference**: [`docs/adrs/0003-sqlc-replaces-gorm.md`](docs/adrs/0003-sqlc-replaces-gorm.md)
+  — the strategic decision record covering context, alternatives, and the
+  migration plan.
+- **Contributor guide**: `internal/repository/sqlc/README.md` — 9-step
+  walkthrough for adding a new repository, sqlc-only.
+- **Patterns catalogue**: `internal/repository/sqlc/PATTERNS.md`.

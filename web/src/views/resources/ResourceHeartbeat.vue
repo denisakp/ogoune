@@ -1,17 +1,22 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { message } from 'ant-design-vue'
+import { useToast } from '@nuxt/ui/composables/useToast'
 import type { Resource } from '@/types'
 import { formatDate } from '@/utils/formatters'
 
 const props = defineProps<{ resource: Resource; nowTs: number }>()
+const toast = useToast()
 
 const pingUrl = computed(() => {
   if (!props.resource.heartbeat_slug) return ''
   const apiBase = import.meta.env.VITE_API_BASE_URL as string | undefined
   let origin: string
   if (apiBase && apiBase.startsWith('http')) {
-    try { origin = new URL(apiBase).origin } catch { origin = window.location.origin }
+    try {
+      origin = new URL(apiBase).origin
+    } catch {
+      origin = window.location.origin
+    }
   } else {
     origin = window.location.origin
   }
@@ -42,42 +47,57 @@ const heartbeatSnippet = computed(() => {
 
 const copyPingUrl = async () => {
   if (!pingUrl.value) return
-  try { await navigator.clipboard.writeText(pingUrl.value); message.success('Ping URL copied!') }
-  catch { message.error('Failed to copy') }
+  try {
+    await navigator.clipboard.writeText(pingUrl.value)
+    toast.add({ title: 'Ping URL copied!', color: 'success' })
+  } catch {
+    toast.add({ title: 'Failed to copy', color: 'error' })
+  }
 }
 </script>
 
 <template>
-  <a-card style="margin-bottom: 16px" data-testid="heartbeat-integration-card">
-    <template #title>
-      <div style="font-size: 14px; font-weight: 600">Heartbeat integration</div>
+  <UCard class="mb-4" data-testid="heartbeat-integration-card">
+    <template #header>
+      <div class="text-sm font-semibold">Heartbeat integration</div>
     </template>
-    <div style="display: flex; flex-direction: column; gap: 16px">
+    <div class="flex flex-col gap-4">
       <div>
-        <div style="font-size: 12px; color: rgba(0, 0, 0, 0.45); margin-bottom: 4px">Ping URL</div>
-        <div style="display: flex; align-items: center; gap: 8px">
-          <code data-testid="ping-url" style="flex: 1; font-size: 12px; background: rgba(0,0,0,0.04); padding: 6px 10px; border-radius: 4px; word-break: break-all;">{{ pingUrl }}</code>
-          <a-button size="small" @click="copyPingUrl">Copy</a-button>
+        <div class="text-xs text-muted mb-1">Ping URL</div>
+        <div class="flex items-center gap-2">
+          <code
+            data-testid="ping-url"
+            class="flex-1 text-xs bg-muted px-2.5 py-1.5 rounded break-all"
+            >{{ pingUrl }}</code
+          >
+          <UButton size="xs" color="neutral" variant="soft" @click="copyPingUrl">Copy</UButton>
         </div>
       </div>
       <div>
-        <div style="font-size: 12px; color: rgba(0, 0, 0, 0.45); margin-bottom: 4px">Last ping received</div>
-        <div style="font-size: 14px; font-weight: 500" data-testid="last-ping-at">{{ lastPingAtFormatted }}</div>
+        <div class="text-xs text-muted mb-1">Last ping received</div>
+        <div class="text-sm font-medium" data-testid="last-ping-at">
+          {{ lastPingAtFormatted }}
+        </div>
       </div>
       <div v-if="resource.last_ping_at">
-        <div style="font-size: 12px; color: rgba(0, 0, 0, 0.45); margin-bottom: 4px">Next deadline</div>
-        <div style="font-size: 14px; font-weight: 500" data-testid="next-ping-countdown"
-          :style="{ color: nextExpectedPingCountdown === 'Overdue' ? '#ff4d4f' : 'inherit' }">
+        <div class="text-xs text-muted mb-1">Next deadline</div>
+        <div
+          class="text-sm font-medium"
+          data-testid="next-ping-countdown"
+          :style="{ color: nextExpectedPingCountdown === 'Overdue' ? '#ff4d4f' : 'inherit' }"
+        >
           {{ nextExpectedPingCountdown }}
         </div>
       </div>
       <div>
-        <div style="font-size: 12px; color: rgba(0, 0, 0, 0.45); margin-bottom: 8px">Add to your script</div>
-        <div data-testid="heartbeat-snippet"
-          style="font-family: monospace; font-size: 12px; background: rgba(0,0,0,0.04); padding: 12px; border-radius: 4px; word-break: break-all;">
+        <div class="text-xs text-muted mb-2">Add to your script</div>
+        <div
+          data-testid="heartbeat-snippet"
+          class="font-mono text-xs bg-muted p-3 rounded break-all"
+        >
           {{ heartbeatSnippet }}
         </div>
       </div>
     </div>
-  </a-card>
+  </UCard>
 </template>

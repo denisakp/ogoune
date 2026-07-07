@@ -3,8 +3,8 @@ package api
 import (
 	"log/slog"
 	"net/http"
-	"os"
 
+	"github.com/denisakp/ogoune/api/openapi"
 	"github.com/denisakp/ogoune/internal/api/handler"
 	v1handler "github.com/denisakp/ogoune/internal/api/handler/v1"
 	"github.com/denisakp/ogoune/internal/api/middleware"
@@ -19,8 +19,10 @@ import (
 )
 
 const (
-	contentTypeJSON   = "application/json"
-	headerContentType = "Content-Type"
+	contentTypeJSON      = "application/json"
+	headerContentType    = "Content-Type"
+	routeCredentials     = "/{id}/credentials"
+	routeCredentialsTest = "/{id}/credentials/test"
 )
 
 // NewRouter creates and configures the main HTTP router with all JSON API routes.
@@ -32,16 +34,24 @@ func NewRouter(
 	tagHandler *handler.TagHandler,
 	componentHandler *handler.ComponentHandler,
 	statusPageHandler *handler.StatusPageHandler,
+	publicStatusHandler *handler.PublicStatusHandler,
+	publicCacheMetrics middleware.PublicStatusCacheRecorder,
 	statusPageSettingsHandler *handler.StatusPageSettingsHandler,
 	incidentHandler *handler.IncidentHandler,
+	incidentUpdateHandler *handler.IncidentUpdateHandler,
 	notificationHandler *handler.NotificationHandler,
 	maintenanceHandler *handler.MaintenanceHandler,
 	statsHandler *handler.StatsHandler,
 	systemHandler *handler.SystemHandler,
+	runtimeConfigHandler *handler.RuntimeConfigHandler,
 	authHandler *handler.AuthHandler,
 	accountHandler *handler.AccountHandler,
 	authService *service.AuthService,
 	apiKeyService *service.APIKeyService,
+	sessionService *service.SessionService,
+	sessionHandler *handler.SessionHandler,
+	twoFactorV1Handler *v1handler.TwoFactorHandler,
+	escalationV1Handler *v1handler.EscalationHandler,
 	monitorV1Handler *v1handler.MonitorHandler,
 	incidentV1Handler *v1handler.IncidentHandler,
 	channelV1Handler *v1handler.NotificationChannelHandler,
@@ -49,6 +59,14 @@ func NewRouter(
 	tagV1Handler *v1handler.TagHandler,
 	statusPageV1Handler *v1handler.StatusPageV1Handler,
 	heartbeatV1Handler *v1handler.HeartbeatV1Handler,
+	credentialV1Handler *v1handler.ResourceCredentialHandler,
+	toolboxV1Handler *v1handler.ToolboxHandler,
+	notificationFeedV1Handler *v1handler.NotificationFeedHandler,
+	dashboardV1Handler *v1handler.DashboardHandler,
+	reportV1Handler *v1handler.ReportHandler,
+	announcementV1Handler *v1handler.AnnouncementHandler,
+	integrationsV1Handler *v1handler.IntegrationsHandler,
+	resourceImportV1Handler *v1handler.ResourceImportHandler,
 	enableSwagger bool,
 	cfg *config.Config,
 ) http.Handler {
@@ -105,17 +123,29 @@ func NewRouter(
 		r.Post("/initialize-password", authHandler.InitializePassword) // POST /auth/initialize-password
 		r.Post("/verify-2fa", authHandler.Verify2FA)                   // POST /auth/verify-2fa
 		r.Get("/verify", authHandler.Verify)                           // GET /auth/verify - verify JWT token
+		// Public 2FA reset flow (no auth — user lost their authenticator).
+		r.Post("/2fa/reset-request", twoFactorV1Handler.RequestReset)
+		r.Post("/2fa/reset", twoFactorV1Handler.ConfirmReset)
 	})
 
 	// Public heartbeat ping endpoint (unauthenticated by design)
 	r.Get("/ping/{slug}", pingHandler.Ping)
 	r.Post("/ping/{slug}", pingHandler.Ping)
 
-	// Public status page (returns JSON status data)
-	r.Get("/status", statusPageHandler.HandleStatusPage)
-	r.Get("/status/{resourceId}", statusPageHandler.HandleResourceDetailStatus) // GET /status/{resourceId} - get detailed status for a specific resource
+	// Public status page (spec 060) — short-cached JSON, no auth.
+	r.Group(func(r chi.Router) {
+		r.Use(middleware.PublicStatusCache(60, 30, publicCacheMetrics))
+		r.Get("/status", publicStatusHandler.GetCurrent)
+		r.Get("/status/incidents", publicStatusHandler.GetIncidents)
+		r.Get("/status/incidents/{id}", publicStatusHandler.GetIncidentDetail)
+		r.Get("/status/uptime", publicStatusHandler.GetUptime)
+		r.Get("/status/resource/{id}/windows", publicStatusHandler.GetResourceWindows)
+	})
+	// Legacy resource detail endpoint — replaced by /status/resource/:id/windows in US3.
+	r.Get("/status/{resourceId}", statusPageHandler.HandleResourceDetailStatus)
 	r.Get("/system/edition", systemHandler.GetEdition)
 	r.Get("/system/capabilities", systemHandler.GetCapabilities)
+	r.Get("/config/runtime", runtimeConfigHandler.Get)
 
 	// ========================================
 	// Protected Routes (authentication required)
@@ -123,7 +153,7 @@ func NewRouter(
 	// ========================================
 	r.Group(func(r chi.Router) {
 		// Apply auth middleware to all routes in this group
-		r.Use(middleware.AuthMiddleware(authService, apiKeyService))
+		r.Use(middleware.AuthMiddleware(authService, apiKeyService, sessionService))
 		// Global rate limiting for authenticated endpoints
 		r.Use(httprate.LimitByIP(cfg.RateLimitGlobal, cfg.RateLimitGlobalWindow))
 		r.Use(rateLimitLogger("global"))
@@ -142,6 +172,32 @@ func NewRouter(
 			r.With(middleware.RequireJWTOnly).Delete("/api-keys/{id}", accountHandler.RevokeAPIKey)
 		})
 
+		// Sessions API — spec 059 FR-008/009.
+		r.Route("/me/sessions", func(r chi.Router) {
+			r.Use(middleware.RequireJWTOnly)
+			r.Get("/", sessionHandler.List)
+			r.Delete("/others", sessionHandler.RevokeOthers)
+			r.Delete("/{id}", sessionHandler.Revoke)
+		})
+
+		// 2FA setup / verify / disable — spec 059 FR-010..FR-012.
+		r.Route("/me/2fa", func(r chi.Router) {
+			r.Use(middleware.RequireJWTOnly)
+			r.Post("/setup", twoFactorV1Handler.Setup)
+			r.Post("/verify", twoFactorV1Handler.Verify)
+			r.Post("/disable", twoFactorV1Handler.Disable)
+		})
+
+		// Escalation policies — spec 059 FR-023..FR-026a.
+		r.Route("/escalation-policies", func(r chi.Router) {
+			r.Use(middleware.RequireJWTOnly)
+			r.Get("/", escalationV1Handler.List)
+			r.Post("/", escalationV1Handler.Create)
+			r.Patch("/reorder", escalationV1Handler.Reorder)
+			r.Patch("/{id}", escalationV1Handler.Update)
+			r.Delete("/{id}", escalationV1Handler.Delete)
+		})
+
 		// Resources (Monitors) API
 		r.Route("/resources", func(r chi.Router) {
 			r.Get("/", resourceHandler.ListResources)                                                                       // GET /resources - list all resources
@@ -155,6 +211,13 @@ func NewRouter(
 			r.With(middleware.RequireReadWrite).Post("/{resourceID}/tags", resourceHandler.AddTagsToResource)               // POST /resources/{resourceID}/tags - add tags
 			r.With(middleware.RequireReadWrite).Delete("/{resourceID}/tags/{tagID}", resourceHandler.RemoveTagFromResource) // DELETE /resources/{resourceID}/tags/{tagID} - remove tag
 			r.Get("/{resourceId}/uptime-stats", activityHandler.GetUptimeStats)                                             // GET /resources/{resourceId}/uptime-stats - get hourly uptime stats
+
+			// Resource credentials (feature 028)
+			r.Get(routeCredentials, credentialV1Handler.Get)                                        // GET /resources/{id}/credentials - get masked credential
+			r.With(middleware.RequireReadWrite).Post(routeCredentials, credentialV1Handler.Set)      // POST /resources/{id}/credentials - create/replace credential
+			r.With(middleware.RequireReadWrite).Delete(routeCredentials, credentialV1Handler.Delete) // DELETE /resources/{id}/credentials - remove credential
+			r.With(middleware.RequireReadWrite, middleware.PerUserRateLimit(10)).
+				Post(routeCredentialsTest, credentialV1Handler.Test) // POST /resources/{id}/credentials/test - live-test (10 req/min/user)
 		})
 
 		// Components API
@@ -184,6 +247,11 @@ func NewRouter(
 			r.Get("/", incidentHandler.ListIncidents)                         // GET /incidents - list all incidents (supports ?unresolved=true, ?limit=x, ?offset=y)
 			r.Get("/{id}", incidentHandler.GetIncidentDetail)                 // GET /incidents/{id} - get incident details with event steps
 			r.Get("/{id}/event-steps", incidentHandler.GetIncidentEventSteps) // GET /incidents/{id}/event-steps - get event steps for incident
+			// Incident updates timeline (US7).
+			r.Get("/{id}/updates", incidentUpdateHandler.List)
+			r.With(middleware.RequireReadWrite).Post("/{id}/updates", incidentUpdateHandler.Create)
+			r.With(middleware.RequireReadWrite).Patch("/{id}/updates/{updateID}", incidentUpdateHandler.Update)
+			r.With(middleware.RequireReadWrite).Delete("/{id}/updates/{updateID}", incidentUpdateHandler.Delete)
 		})
 
 		// Notification Channels API
@@ -196,6 +264,9 @@ func NewRouter(
 			r.With(middleware.RequireReadWrite).Delete("/{id}", notificationHandler.DeleteNotificationChannel)         // DELETE /notification-channels/{id} - delete channel
 			r.With(middleware.RequireReadWrite).Post("/{id}/test", notificationHandler.TestNotificationChannelConfig)  // POST /notification-channels/{id}/test - test channel config
 		})
+
+		// Notification events stats (header counters in the admin dashboard).
+		r.Get("/notifications/stats", notificationHandler.GetStats)
 
 		// Maintenances API
 		r.Route("/maintenances", func(r chi.Router) {
@@ -234,11 +305,14 @@ func NewRouter(
 
 		// Authenticated v1 sub-group
 		r.Group(func(r chi.Router) {
-			r.Use(middleware.AuthMiddleware(authService, apiKeyService))
+			r.Use(middleware.AuthMiddleware(authService, apiKeyService, sessionService))
 			// Monitors
 			r.Route("/monitors", func(r chi.Router) {
 				r.Get("/", monitorV1Handler.List)
 				r.With(middleware.RequireReadWrite).Post("/", monitorV1Handler.Create)
+				// Bulk import/export (spec 078). Import is write-scoped; export is read.
+				r.With(middleware.RequireReadWrite).Post("/import", resourceImportV1Handler.Import)
+				r.Get("/export", resourceImportV1Handler.Export)
 				r.Get("/{id}", monitorV1Handler.Get)
 				r.With(middleware.RequireReadWrite).Put("/{id}", monitorV1Handler.Update)
 				r.With(middleware.RequireReadWrite).Delete("/{id}", monitorV1Handler.Delete)
@@ -277,6 +351,50 @@ func NewRouter(
 			// Status page routes — registered in T034
 			r.Route("/status-pages", func(r chi.Router) {
 				r.Get("/", statusPageV1Handler.List)
+			})
+			// Notification feed (spec 072). GET read; mark-read mutations write-scoped.
+			r.Route("/notifications", func(r chi.Router) {
+				r.Get("/", notificationFeedV1Handler.List)
+				r.With(middleware.RequireReadWrite).Post("/{id}/read", notificationFeedV1Handler.MarkRead)
+				r.With(middleware.RequireReadWrite).Post("/read-all", notificationFeedV1Handler.MarkAllRead)
+			})
+			// Custom dashboards (spec 075). Read instance-wide; mutations owner-only + write-scoped.
+			r.Route("/dashboards", func(r chi.Router) {
+				r.Get("/", dashboardV1Handler.List)
+				r.Get("/{id}", dashboardV1Handler.Get)
+				r.With(middleware.RequireReadWrite).Post("/", dashboardV1Handler.Create)
+				r.With(middleware.RequireReadWrite).Patch("/{id}", dashboardV1Handler.Update)
+				r.With(middleware.RequireReadWrite).Put("/{id}/layout", dashboardV1Handler.SaveLayout)
+				r.With(middleware.RequireReadWrite).Delete("/{id}", dashboardV1Handler.Delete)
+			})
+
+			// Monthly reports (spec 076) — instance-wide read; config write-scoped.
+			r.Route("/reports", func(r chi.Router) {
+				r.Get("/settings", reportV1Handler.GetSettings)
+				r.With(middleware.RequireReadWrite).Put("/settings", reportV1Handler.UpdateSettings)
+				r.Get("/history", reportV1Handler.History)
+				r.Get("/preview", reportV1Handler.Preview)
+			})
+
+			// Operator announcement banners — instance-wide read; publish/retract write-scoped.
+			r.Route("/announcements", func(r chi.Router) {
+				r.Get("/", announcementV1Handler.List)
+				r.With(middleware.RequireReadWrite).Post("/", announcementV1Handler.Create)
+				r.With(middleware.RequireReadWrite).Delete("/{id}", announcementV1Handler.Delete)
+			})
+
+			// Config-derived observability assets (spec 077) — read-only downloads.
+			r.Route("/integrations", func(r chi.Router) {
+				r.Get("/alert-rules", integrationsV1Handler.AlertRules)
+				r.Get("/grafana-dashboard", integrationsV1Handler.GrafanaDashboard)
+			})
+			// Toolbox — one-shot network tools (spec 071). Write-scoped + per-user
+			// rate-limited; port-scan strictest (5/min), others 20/min.
+			r.Route("/toolbox", func(r chi.Router) {
+				r.With(middleware.RequireReadWrite, middleware.PerUserRateLimit(20)).Post("/dns", toolboxV1Handler.DNS)
+				r.With(middleware.RequireReadWrite, middleware.PerUserRateLimit(5)).Post("/port-scan", toolboxV1Handler.PortScan)
+				r.With(middleware.RequireReadWrite, middleware.PerUserRateLimit(20)).Post("/ssl-check", toolboxV1Handler.SSL)
+				r.With(middleware.RequireReadWrite, middleware.PerUserRateLimit(20)).Post("/whois", toolboxV1Handler.WHOIS)
 			})
 		})
 	})
@@ -323,20 +441,13 @@ func rateLimitLogger(scope string) func(http.Handler) http.Handler {
 	}
 }
 
-// serveOpenAPISpec serves the generated OpenAPI spec JSON file.
-// Returns 503 SPEC_NOT_AVAILABLE if docs/swagger.json has not been generated yet.
+// serveOpenAPISpec serves the OpenAPI 3.1 contract embedded at build time
+// (api/openapi/v1.json via api/openapi.SpecJSON). Embedding removes the runtime
+// dependency on an on-disk file — no more 503 SPEC_NOT_AVAILABLE in containers.
 func serveOpenAPISpec(w http.ResponseWriter, r *http.Request) {
-	const specPath = "docs/swagger.json"
-	data, err := os.ReadFile(specPath)
-	if err != nil {
-		w.Header().Set(headerContentType, contentTypeJSON)
-		w.WriteHeader(http.StatusServiceUnavailable)
-		w.Write([]byte(`{"error":{"code":"SPEC_NOT_AVAILABLE","message":"OpenAPI spec not generated; run make swag"}}`))
-		return
-	}
 	w.Header().Set(headerContentType, contentTypeJSON)
 	w.WriteHeader(http.StatusOK)
-	w.Write(data)
+	w.Write(openapi.SpecJSON)
 }
 
 // registerSwaggerUI mounts the Swagger UI handler under /api/v1/docs/*.

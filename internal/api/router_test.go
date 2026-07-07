@@ -35,12 +35,15 @@ func TestNewRouter_PingIsPublicAndResourcesAreProtected(t *testing.T) {
 	tagHandler := handler.NewTagHandler(nil)
 	componentHandler := handler.NewComponentHandler(nil)
 	statusPageHandler := handler.NewStatusPageHandler(nil)
+	publicStatusHandler := handler.NewPublicStatusHandler(nil)
 	statusPageSettingsHandler := handler.NewStatusPageSettingsHandler(nil)
 	incidentHandler := handler.NewIncidentHandler(nil)
+	incidentUpdateHandler := handler.NewIncidentUpdateHandler(nil)
 	notificationHandler := handler.NewNotificationHandler(nil)
 	maintenanceHandler := handler.NewMaintenanceHandler(nil)
 	statsHandler := handler.NewStatsHandler(nil)
 	systemHandler := handler.NewSystemHandler()
+	runtimeConfigHandler := handler.NewRuntimeConfigHandler(&config.Config{SSLProvider: "external"}, "test")
 	authHandler := handler.NewAuthHandler(nil, nil)
 	accountHandler := handler.NewAccountHandler(nil, nil)
 
@@ -51,14 +54,30 @@ func TestNewRouter_PingIsPublicAndResourcesAreProtected(t *testing.T) {
 		tagHandler,
 		componentHandler,
 		statusPageHandler,
+		publicStatusHandler,
+		nil, // publicCacheMetrics
 		statusPageSettingsHandler,
 		incidentHandler,
+		incidentUpdateHandler,
 		notificationHandler,
 		maintenanceHandler,
 		statsHandler,
 		systemHandler,
+		runtimeConfigHandler,
 		authHandler,
 		accountHandler,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
 		nil,
 		nil,
 		nil,

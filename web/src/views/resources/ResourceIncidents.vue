@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { computed, ref } from 'vue'
 import type { Incident } from '@/types'
 import { formatDate, formatDuration } from '@/utils/formatters'
 
@@ -8,82 +8,120 @@ const props = defineProps<{ incidents: Incident[] }>()
 const incidentsToShow = ref(3)
 
 const sortedIncidents = computed(() =>
-  [...props.incidents].sort((a, b) => new Date(b.started_at).getTime() - new Date(a.started_at).getTime()),
+  [...props.incidents].sort(
+    (a, b) => new Date(b.started_at).getTime() - new Date(a.started_at).getTime(),
+  ),
 )
 const visibleIncidents = computed(() => sortedIncidents.value.slice(0, incidentsToShow.value))
 const hasMoreIncidents = computed(() => sortedIncidents.value.length > incidentsToShow.value)
-const loadMoreIncidents = () => { incidentsToShow.value += 3 }
+const loadMoreIncidents = () => {
+  incidentsToShow.value += 3
+}
 
-const getIncidentStatus = (incident: Incident) =>
+const getIncidentStatus = (incident: Incident): { text: string; color: 'success' | 'error' } =>
   incident.resolved_at ? { text: 'Resolved', color: 'success' } : { text: 'Active', color: 'error' }
 
 const decodeDetails = (details?: string): string => {
   if (!details) return 'No details available'
-  try { return atob(details) } catch { return details }
+  try {
+    return atob(details)
+  } catch {
+    return details
+  }
 }
+
+type TimelineItem = {
+  value: string
+  color: 'success' | 'error'
+  icon: string
+  incident: Incident
+}
+
+const timelineItems = computed<TimelineItem[]>(() =>
+  visibleIncidents.value.map((incident) => ({
+    value: incident.id,
+    color: incident.resolved_at ? 'success' : 'error',
+    icon: incident.resolved_at ? 'i-lucide-check' : 'i-lucide-circle',
+    incident,
+  })),
+)
 </script>
 
 <template>
-  <a-card>
-    <template #title>
-      <div style="display: flex; justify-content: space-between; align-items: center">
-        <span style="font-size: 14px; font-weight: 600">Recent incidents</span>
-        <a-badge :count="sortedIncidents.length" :number-style="{ backgroundColor: '#52c41a' }" />
+  <UCard>
+    <template #header>
+      <div class="flex justify-between items-center">
+        <span class="text-sm font-semibold">Recent incidents</span>
+        <UBadge color="success" variant="subtle">{{ sortedIncidents.length }}</UBadge>
       </div>
     </template>
     <template v-if="sortedIncidents.length > 0">
-      <a-timeline>
-        <a-timeline-item v-for="incident in visibleIncidents" :key="incident.id"
-          :color="incident.resolved_at ? 'green' : 'red'">
-          <template #dot>
-            <a-icon-clock-circle v-if="!incident.resolved_at" style="font-size: 16px; color: #f5222d" />
-            <a-icon-check-circle v-else style="font-size: 16px; color: #52c41a" />
-          </template>
-          <div style="padding-bottom: 16px">
-            <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 8px">
-              <div style="flex: 1">
-                <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px">
-                  <a-tag :color="getIncidentStatus(incident).color">{{ getIncidentStatus(incident).text }}</a-tag>
-                  <span style="font-size: 12px; color: rgba(0,0,0,0.45)">
-                    {{ formatDuration(incident.started_at, incident.resolved_at) }}
-                  </span>
-                </div>
-                <div style="font-weight: 500; margin-bottom: 4px">{{ incident.reason }}</div>
-                <div style="font-size: 12px; color: rgba(0,0,0,0.65); margin-bottom: 4px">
-                  <strong>Cause:</strong> {{ incident.cause }}
-                </div>
-              </div>
-            </div>
-            <div style="font-size: 12px; color: rgba(0,0,0,0.45); margin-bottom: 8px">
-              <div><a-icon-calendar style="margin-right: 4px" />Started: {{ formatDate(incident.started_at) }}</div>
-              <div v-if="incident.resolved_at" style="margin-top: 4px">
-                <a-icon-check style="margin-right: 4px" />Resolved: {{ formatDate(incident.resolved_at) }}
-              </div>
-              <div v-else style="margin-top: 4px; color: #f5222d">
-                <a-icon-exclamation-circle style="margin-right: 4px" />Still ongoing
-              </div>
-            </div>
-            <a-collapse v-if="incident.details" ghost size="small">
-              <a-collapse-panel key="1" header="Technical details">
-                <div style="font-size: 12px; font-family: monospace; background: rgba(0,0,0,0.02); padding: 12px; border-radius: 4px; word-break: break-word;">
-                  {{ decodeDetails(incident.details) }}
-                </div>
-              </a-collapse-panel>
-            </a-collapse>
+      <UTimeline :items="timelineItems">
+        <template #title="{ item }">
+          <div class="flex items-center gap-2">
+            <UBadge :color="getIncidentStatus(item.incident).color" variant="subtle">
+              {{ getIncidentStatus(item.incident).text }}
+            </UBadge>
+            <span class="text-xs text-muted">
+              {{ formatDuration(item.incident.started_at, item.incident.resolved_at) }}
+            </span>
           </div>
-        </a-timeline-item>
-      </a-timeline>
-      <div v-if="hasMoreIncidents" style="text-align: center; margin-top: 16px; padding-top: 16px; border-top: 1px solid rgba(0,0,0,0.06)">
-        <a-button @click="loadMoreIncidents">
-          <template #icon><a-icon-down /></template>
+          <div class="font-medium mt-1">{{ item.incident.reason }}</div>
+        </template>
+        <template #description="{ item }">
+          <div class="text-xs text-muted mb-1">
+            <strong>Cause:</strong> {{ item.incident.cause }}
+          </div>
+          <div class="text-xs text-muted mb-2">
+            <div class="flex items-center gap-1">
+              <UIcon name="i-lucide-calendar" class="size-3" />
+              <span>Started: {{ formatDate(item.incident.started_at) }}</span>
+            </div>
+            <div v-if="item.incident.resolved_at" class="mt-1 flex items-center gap-1">
+              <UIcon name="i-lucide-check" class="size-3" />
+              <span>Resolved: {{ formatDate(item.incident.resolved_at) }}</span>
+            </div>
+            <div v-else class="mt-1 flex items-center gap-1 text-red-500">
+              <UIcon name="i-lucide-circle-alert" class="size-3" />
+              <span>Still ongoing</span>
+            </div>
+          </div>
+          <UCollapsible v-if="item.incident.details">
+            <template #default="{ open }">
+              <UButton size="xs" color="neutral" variant="ghost">
+                <UIcon
+                  :name="open ? 'i-lucide-chevron-up' : 'i-lucide-chevron-down'"
+                  class="size-3"
+                />
+                Technical details
+              </UButton>
+            </template>
+            <template #content>
+              <div
+                class="mt-2 text-xs font-mono p-3 rounded bg-muted break-words"
+              >
+                {{ decodeDetails(item.incident.details) }}
+              </div>
+            </template>
+          </UCollapsible>
+        </template>
+      </UTimeline>
+      <div
+        v-if="hasMoreIncidents"
+        class="text-center mt-4 pt-4 border-t border-muted"
+      >
+        <UButton
+          color="neutral"
+          variant="soft"
+          icon="i-lucide-chevron-down"
+          @click="loadMoreIncidents"
+        >
           Load more incidents ({{ sortedIncidents.length - incidentsToShow }} remaining)
-        </a-button>
+        </UButton>
       </div>
     </template>
     <template v-else>
-      <a-empty description="No incidents recorded">
-        <template #image><a-icon-smile style="font-size: 48px; color: #52c41a" /></template>
-      </a-empty>
+      <UEmpty icon="i-lucide-smile" title="No incidents recorded" />
     </template>
-  </a-card>
+  </UCard>
 </template>

@@ -18,11 +18,12 @@ vi.mock('vue-router', () => ({
   useRoute: () => ({ params: { id: 'hb-1' } }),
 }))
 
-vi.mock('ant-design-vue', () => ({
-  message: {
-    error: messageErrorMock,
-    success: vi.fn(),
-  },
+vi.mock('@nuxt/ui/composables/useToast', () => ({
+  useToast: () => ({
+    add: (input: { title?: string; color?: string }) => {
+      if (input?.color === 'error') messageErrorMock(input.title)
+    },
+  }),
 }))
 
 vi.mock('@/libs/date-time.helper', () => ({
@@ -245,8 +246,6 @@ describe('ResourceView — heartbeat integration snippet visible by default (T04
     wrapper.unmount()
   })
 })
-
-
 
 describe('ResourceView — next expected ping countdown (T046)', () => {
   beforeEach(() => {

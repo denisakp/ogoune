@@ -1,5 +1,9 @@
-import axiosClient from '@/libs/axios.helper'
-import type { CustomAxiosConfig } from '@/libs/axios.helper'
+import { getAuthenticatedClient, request } from '@/core/http/client'
+
+const SKIP_SUCCESS = { headers: { 'x-skip-success-toast': '1' } }
+const SKIP_BOTH = {
+  headers: { 'x-skip-success-toast': '1', 'x-skip-error-toast': '1' },
+}
 
 export interface UserProfile {
   email: string
@@ -69,142 +73,99 @@ export interface CreateAPIKeyResponse {
 }
 
 const accountService = {
-  /**
-   * Get user profile
-   */
   async getProfile(): Promise<UserProfile> {
-    const config: CustomAxiosConfig = {
-      skipSuccessToast: true,
-    }
-
-    const response = await axiosClient.get<UserProfile>('/account/profile', config)
-    return response.data
+    return await request<UserProfile>(getAuthenticatedClient(), 'account/profile', SKIP_SUCCESS)
   },
 
-  /**
-   * Update user profile
-   */
   async updateProfile(name: string, email: string): Promise<UserProfile> {
-    const config: CustomAxiosConfig = {
-      skipSuccessToast: false,
-    }
-
-    const response = await axiosClient.patch<UserProfile>(
-      '/account/profile',
-      { name, email },
-      config,
-    )
-    return response.data
+    return await request<UserProfile>(getAuthenticatedClient(), 'account/profile', {
+      method: 'PATCH',
+      json: { name, email },
+    })
   },
 
-  /**
-   * Change password
-   */
   async changePassword(currentPassword: string, newPassword: string): Promise<{ message: string }> {
-    const config: CustomAxiosConfig = {
-      skipSuccessToast: false,
-    }
-
-    const response = await axiosClient.post<{ message: string }>(
-      '/account/change-password',
-      { current_password: currentPassword, new_password: newPassword },
-      config,
-    )
-    return response.data
+    return await request<{ message: string }>(getAuthenticatedClient(), 'account/change-password', {
+      method: 'POST',
+      json: { current_password: currentPassword, new_password: newPassword },
+    })
   },
 
-  /**
-   * Reset password to default
-   */
   async resetPassword(currentPassword: string): Promise<{ default_password: string }> {
-    const config: CustomAxiosConfig = {
-      skipSuccessToast: false,
-    }
-
-    const response = await axiosClient.post<{ default_password: string }>(
-      '/account/reset-password',
-      { current_password: currentPassword },
-      config,
+    return await request<{ default_password: string }>(
+      getAuthenticatedClient(),
+      'account/reset-password',
+      { method: 'POST', json: { current_password: currentPassword } },
     )
-    return response.data
   },
 
-  /**
-   * Enable 2FA and get QR code
-   */
   async enable2FA(): Promise<Enable2FAResponse> {
-    const config: CustomAxiosConfig = {
-      skipSuccessToast: true,
-    }
-
-    const response = await axiosClient.post<Enable2FAResponse>('/account/2fa/enable', {}, config)
-    return response.data
+    return await request<Enable2FAResponse>(getAuthenticatedClient(), 'account/2fa/enable', {
+      method: 'POST',
+      json: {},
+      ...SKIP_SUCCESS,
+    })
   },
 
-  /**
-   * Confirm 2FA setup with OTP
-   */
   async confirm2FA({ otp, secret }: Confirm2FARequest): Promise<{ message: string }> {
-    const config: CustomAxiosConfig = {
-      skipSuccessToast: false,
-    }
-
-    const response = await axiosClient.post<{ message: string }>(
-      '/account/2fa/confirm',
-      { otp, secret },
-      config,
-    )
-    return response.data
+    return await request<{ message: string }>(getAuthenticatedClient(), 'account/2fa/confirm', {
+      method: 'POST',
+      json: { otp, secret },
+    })
   },
 
-  /**
-   * Disable 2FA
-   */
   async disable2FA(otp: string): Promise<{ message: string }> {
-    const config: CustomAxiosConfig = {
-      skipSuccessToast: false,
-    }
-
-    const response = await axiosClient.post<{ message: string }>(
-      '/account/2fa/disable',
-      { otp },
-      config,
-    )
-    return response.data
+    return await request<{ message: string }>(getAuthenticatedClient(), 'account/2fa/disable', {
+      method: 'POST',
+      json: { otp },
+    })
   },
 
   async createAPIKey(payload: CreateAPIKeyRequest): Promise<CreateAPIKeyResponse> {
-    const config: CustomAxiosConfig = {
-      skipSuccessToast: false,
-    }
-
-    const response = await axiosClient.post<CreateAPIKeyResponse>(
-      '/account/api-keys',
-      payload,
-      config,
-    )
-    return response.data
+    return await request<CreateAPIKeyResponse>(getAuthenticatedClient(), 'account/api-keys', {
+      method: 'POST',
+      json: payload,
+    })
   },
 
   async listAPIKeys(): Promise<APIKey[]> {
-    const config: CustomAxiosConfig = {
-      skipSuccessToast: true,
-    }
-
-    const response = await axiosClient.get<APIKey[]>('/account/api-keys', config)
-    return response.data
+    return await request<APIKey[]>(getAuthenticatedClient(), 'account/api-keys', SKIP_SUCCESS)
   },
 
+  /**
+   * Revoke an API key. Server returns a `{ message: string }` body on success
+   * (Pattern B — body is consumed by caller, not a 204).
+   */
   async revokeAPIKey(id: string): Promise<{ message: string }> {
-    const config: CustomAxiosConfig = {
-      skipSuccessToast: false,
-    }
+    return await request<{ message: string }>(getAuthenticatedClient(), `account/api-keys/${id}`, {
+      method: 'DELETE',
+    })
+  },
 
-    const response = await axiosClient.delete<{ message: string }>(
-      `/account/api-keys/${id}`,
-      config,
+  async getOnboardingState(): Promise<{ status: 'pending' | 'done' }> {
+    // Onboarding endpoint is best-effort: it may legitimately return 404 on
+    // a fresh install (no row yet) — the composable defaults silently to
+    // "no wizard". Silence the toast so reloads don't flash error modals.
+    return await request<{ status: 'pending' | 'done' }>(
+      getAuthenticatedClient(),
+      'v1/me/onboarding-state',
+      SKIP_BOTH,
     )
-    return response.data
+  },
+
+  async deleteAccount(typedEmail: string): Promise<{ message: string }> {
+    return await request<{ message: string }>(getAuthenticatedClient(), 'account', {
+      method: 'DELETE',
+      json: { confirm_email: typedEmail },
+    })
+  },
+
+  async markOnboardingDone(): Promise<{ status: 'done' }> {
+    return await request<{ status: 'done' }>(getAuthenticatedClient(), 'v1/me/onboarding-state', {
+      method: 'PATCH',
+      json: { status: 'done' },
+      ...SKIP_SUCCESS,
+    })
   },
 }
 

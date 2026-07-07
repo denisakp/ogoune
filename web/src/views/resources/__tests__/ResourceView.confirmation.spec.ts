@@ -22,10 +22,12 @@ vi.mock('vue-router', () => ({
   }),
 }))
 
-vi.mock('ant-design-vue', () => ({
-  message: {
-    error: messageErrorMock,
-  },
+vi.mock('@nuxt/ui/composables/useToast', () => ({
+  useToast: () => ({
+    add: (input: { title?: string; color?: string }) => {
+      if (input?.color === 'error') messageErrorMock(input.title)
+    },
+  }),
 }))
 
 vi.mock('@/libs/date-time.helper', () => ({

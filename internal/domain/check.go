@@ -61,6 +61,9 @@ const (
 	// protocol
 	ProtocolHandshakeFailed    CheckFailureCause = "Protocol Handshake Failed"
 	ProtocolUnexpectedResponse CheckFailureCause = "Unexpected Protocol Response"
+	ProtocolAuthFailed         CheckFailureCause = "Authentication Failed"
+	ProtocolTLSHandshakeFailed CheckFailureCause = "TLS Handshake Failed"
+	ProtocolDecryptFailed      CheckFailureCause = "Credential Decryption Failed"
 )
 
 // KeywordCheckContext carries keyword-specific results from KeywordStrategy.Execute
@@ -136,14 +139,14 @@ func (e *CheckExecutor) ExecuteCheck(resource *Resource) (CheckResult, error) {
 	result, err := strategy.Execute(ctx, resource)
 	elapsed := time.Since(start)
 
-	var statusString string
-	switch result.Status {
-	case "timeout":
-		statusString = "timeout"
-	case "success":
+	// The metric's status label is success vs failure. A check succeeds when the
+	// strategy reports the resource up (StatusUp); everything else — down, error,
+	// timeout — is downtime, i.e. failure. NOTE: strategies emit domain status
+	// values ("up"/"down"/"error"), not "success"/"timeout"; matching those
+	// literals (the previous behavior) labelled every real check "failure".
+	statusString := "failure"
+	if result.Status == string(StatusUp) {
 		statusString = "success"
-	default:
-		statusString = "failure"
 	}
 	e.recorder.RecordCheck(resource.ID, resource.Name, resource.Type, elapsed, statusString)
 

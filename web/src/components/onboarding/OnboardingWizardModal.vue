@@ -1,0 +1,217 @@
+<script setup lang="ts">
+import { computed, ref } from 'vue'
+import { useOnboardingState } from '@/composables/useOnboardingState'
+
+interface Props {
+  open: boolean
+}
+const props = defineProps<Props>()
+const emit = defineEmits<{ close: [] }>()
+
+const { markDone } = useOnboardingState()
+
+const activeStep = ref(0)
+const totalSteps = 4
+
+const monitorName = ref('')
+const monitorUrl = ref('')
+const monitorType = ref<'http' | 'tcp'>('http')
+const channelKind = ref<'email' | 'slack' | 'webhook'>('email')
+
+const stepLabel = computed(() =>
+  activeStep.value === 0 ? 'WELCOME' : `STEP ${activeStep.value}/3`,
+)
+
+function next() {
+  if (activeStep.value < totalSteps - 1) activeStep.value++
+}
+function back() {
+  if (activeStep.value > 0) activeStep.value--
+}
+const doneCalled = ref(false)
+async function finish() {
+  if (!doneCalled.value) {
+    doneCalled.value = true
+    await markDone()
+  }
+  emit('close')
+}
+function skip() {
+  void finish()
+}
+
+const localOpen = computed({
+  get: () => props.open,
+  set: (v) => {
+    if (!v) emit('close')
+  },
+})
+
+defineExpose({ activeStep, next, back, finish, skip })
+</script>
+
+<template>
+  <UModal v-model:open="localOpen" :ui="{ content: 'sm:max-w-md' }">
+    <template #content>
+      <div class="flex flex-col bg-default rounded-xl overflow-hidden">
+        <div class="px-5 pt-4 pb-2.5 border-b border-default">
+          <div class="text-[10px] font-bold tracking-wider text-muted mb-2">
+            {{ stepLabel }}
+          </div>
+          <div class="flex items-center gap-3">
+            <!-- PRD-015 R6: UStepper dots-only mode is not feasible in NuxtUI 4.8.1
+                 without overriding ~10 ui keys. Hand-rolled dots retained as a
+                 documented exception (FR-013 fallback path per tasks.md T027). -->
+            <div class="flex items-center gap-1.5">
+              <span
+                v-for="i in totalSteps"
+                :key="i"
+                class="size-1.5 rounded-full"
+                :class="i - 1 <= activeStep ? 'bg-primary-600' : 'bg-muted'"
+              />
+            </div>
+            <div class="flex-1" />
+            <UButton
+              v-if="activeStep < totalSteps - 1"
+              variant="link"
+              color="neutral"
+              size="xs"
+              @click="skip"
+            >
+              Skip
+            </UButton>
+            <UButton
+              variant="ghost"
+              color="neutral"
+              size="2xs"
+              icon="i-lucide-x"
+              aria-label="Close"
+              @click="emit('close')"
+            />
+          </div>
+        </div>
+
+        <div class="px-6 py-5">
+          <div v-if="activeStep === 0" class="flex flex-col items-center text-center gap-3.5">
+            <div class="size-16 rounded-full bg-primary-600 flex items-center justify-center">
+              <UIcon name="i-lucide-sparkles" class="size-7 text-white" />
+            </div>
+            <h2 class="text-xl font-bold text-highlighted">Welcome to Ogoune</h2>
+            <p class="text-sm text-muted leading-relaxed max-w-xs">
+              Let's set up your first monitor in less than 2 minutes. We'll guide you.
+            </p>
+            <div
+              class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-muted border border-default text-[11px] text-muted"
+            >
+              <UIcon name="i-lucide-clock" class="size-3" />
+              ~2 minutes
+            </div>
+          </div>
+
+          <div v-else-if="activeStep === 1" class="space-y-3.5">
+            <div>
+              <h2 class="text-base font-semibold text-highlighted">Add your first monitor</h2>
+              <p class="text-xs text-muted mt-1">
+                A URL or host to watch. You can add more monitors later.
+              </p>
+            </div>
+            <div class="space-y-1.5">
+              <label class="text-xs font-medium text-highlighted">Name</label>
+              <UInput v-model="monitorName" placeholder="API Production" size="md" class="w-full" />
+            </div>
+            <div class="space-y-1.5">
+              <label class="text-xs font-medium text-highlighted">Type</label>
+              <USelect
+                v-model="monitorType"
+                :items="[
+                  { label: 'HTTP', value: 'http' },
+                  { label: 'TCP', value: 'tcp' },
+                ]"
+                class="w-full"
+              />
+            </div>
+            <div class="space-y-1.5">
+              <label class="text-xs font-medium text-highlighted">URL</label>
+              <UInput
+                v-model="monitorUrl"
+                placeholder="https://api.acme.com/health"
+                size="md"
+                class="w-full"
+              />
+            </div>
+          </div>
+
+          <div v-else-if="activeStep === 2" class="space-y-3.5">
+            <div>
+              <h2 class="text-base font-semibold text-highlighted">How should we reach you?</h2>
+              <p class="text-xs text-muted mt-1">
+                Pick a channel for alerts. You can add more later.
+              </p>
+            </div>
+            <URadioGroup
+              v-model="channelKind"
+              :items="[
+                { label: 'Email', value: 'email', icon: 'i-lucide-mail' },
+                { label: 'Slack', value: 'slack', icon: 'i-lucide-slack' },
+                { label: 'Webhook', value: 'webhook', icon: 'i-lucide-webhook' },
+              ]"
+              :ui="{
+                root: 'space-y-2',
+                item: 'flex items-center gap-3 px-3.5 py-3 rounded-md border border-default',
+              }"
+            />
+          </div>
+
+          <div v-else class="flex flex-col items-center text-center gap-3.5">
+            <div
+              class="size-14 rounded-full flex items-center justify-center"
+              style="background-color: rgba(16, 185, 129, 0.08)"
+            >
+              <UIcon name="i-lucide-check" class="size-6 text-emerald-600" />
+            </div>
+            <h2 class="text-lg font-bold text-highlighted">You're all set</h2>
+            <p class="text-xs text-muted leading-relaxed max-w-xs">
+              {{ monitorName || 'Your monitor' }} is being watched. First check running now.
+            </p>
+            <div class="w-full bg-muted rounded-lg p-3.5 text-left text-xs space-y-1">
+              <div class="font-semibold text-highlighted">Next steps</div>
+              <ul class="text-muted space-y-0.5">
+                <li>Invite teammates from Settings</li>
+                <li>Create a status page</li>
+                <li>Configure SLO targets</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <div
+          class="flex items-center px-5 py-3.5 bg-muted border-t border-default"
+          :class="activeStep > 0 && activeStep < totalSteps - 1 ? 'justify-between' : 'justify-end'"
+        >
+          <UButton
+            v-if="activeStep > 0 && activeStep < totalSteps - 1"
+            variant="link"
+            color="neutral"
+            size="sm"
+            @click="back"
+          >
+            Back
+          </UButton>
+          <UButton
+            v-if="activeStep < totalSteps - 1"
+            color="primary"
+            size="md"
+            class="h-9"
+            @click="next"
+          >
+            {{ activeStep === 0 ? 'Get started' : 'Continue' }}
+            <UIcon name="i-lucide-arrow-right" class="size-3.5" />
+          </UButton>
+          <UButton v-else color="primary" size="md" class="h-9" @click="finish">
+            Go to Overview
+          </UButton>
+        </div>
+      </div>
+    </template>
+  </UModal>
+</template>

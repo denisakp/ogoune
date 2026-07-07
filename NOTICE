@@ -1,0 +1,12 @@
+Ogoune
+Copyright 2026 Denis Akpagnonite
+
+This product includes software developed as part of the Ogoune project
+(https://github.com/denisakp/ogoune).
+
+The Ogoune core (everything outside the `internal/ee/` directory) is
+licensed under the Apache License, Version 2.0. See the LICENSE file.
+
+Files located under `internal/ee/` and files marked with the SPDX
+identifier `LicenseRef-Ogoune-EE` are licensed under a separate
+commercial source-available license. See the LICENSE.ee file.

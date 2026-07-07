@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/denisakp/ogoune/internal/domain"
+	"github.com/denisakp/ogoune/internal/port"
 )
 
 // PauseMonitoring pauses monitoring for a specific resource by setting IsActive to false
@@ -97,5 +98,11 @@ func (s *ResourceService) asyncEnrichAndPersist(r *domain.Resource) {
 	}
 
 	// Persist the metadata without touching tags/associations
-	_ = s.resources.UpdateMetadata(context.Background(), r.ID, metadata)
+	req := port.UpdateMetadataRequest{
+		SSLExpirationDate:    &metadata.SSLExpirationDate,
+		SSLIssuer:            &metadata.SSLIssuer,
+		DomainExpirationDate: &metadata.DomainExpirationDate,
+		DomainRegistrar:      &metadata.DomainRegistrar,
+	}
+	_ = s.resources.UpdateMetadata(context.Background(), r.ID, req)
 }

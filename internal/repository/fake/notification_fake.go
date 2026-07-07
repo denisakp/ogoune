@@ -31,10 +31,7 @@ func (r *NotificationFake) Create(ctx context.Context, notification *domain.Noti
 		return ErrInvalidInput
 	}
 
-	if notification.ID == "" {
-		// Generate ID if not set
-		notification.BeforeCreate(nil)
-	}
+	notification.EnsureID()
 
 	if _, exists := r.notifications[notification.ID]; exists {
 		return ErrDuplicate

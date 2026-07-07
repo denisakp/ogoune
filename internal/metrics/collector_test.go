@@ -7,7 +7,9 @@ import (
 	"time"
 
 	"github.com/denisakp/ogoune/internal/domain"
+	"github.com/denisakp/ogoune/internal/port"
 	"github.com/denisakp/ogoune/internal/repository"
+	"github.com/denisakp/ogoune/internal/repository/sqlc/dynquery"
 	"github.com/prometheus/client_golang/prometheus"
 	dto "github.com/prometheus/client_model/go"
 	"github.com/stretchr/testify/assert"
@@ -55,14 +57,17 @@ func (s *stubResourceRepo) UpdateLastPingAt(ctx context.Context, id string, at t
 func (s *stubResourceRepo) UpdateStatus(ctx context.Context, id string, status domain.ResourceStatus) error {
 	return nil
 }
-func (s *stubResourceRepo) UpdateMonitoringState(ctx context.Context, resource *domain.Resource) error {
+func (s *stubResourceRepo) UpdateMonitoringState(ctx context.Context, id string, req port.UpdateMonitoringStateRequest) error {
 	return nil
 }
-func (s *stubResourceRepo) UpdateMetadata(ctx context.Context, id string, metadata *domain.ResourceMetaData) error {
+func (s *stubResourceRepo) UpdateMetadata(ctx context.Context, id string, req port.UpdateMetadataRequest) error {
 	return nil
 }
 func (s *stubResourceRepo) FindScheduledResources(ctx context.Context) ([]*domain.Resource, error) {
 	return nil, nil
+}
+func (s *stubResourceRepo) ListResourcesByFilter(ctx context.Context, f dynquery.MonitorFilter, page, perPage int) ([]*domain.Resource, int, error) {
+	return nil, 0, nil
 }
 
 type stubIncidentRepo struct {
@@ -99,6 +104,9 @@ func (s *stubIncidentRepo) GetIncidentStats(ctx context.Context, hours int) (int
 func (s *stubIncidentRepo) HasActiveIncident(ctx context.Context) (bool, error) { return false, nil }
 func (s *stubIncidentRepo) FindLastResolved(ctx context.Context) (*domain.Incident, error) {
 	return nil, repository.ErrNotFound
+}
+func (s *stubIncidentRepo) ListIncidentsByFilter(ctx context.Context, f dynquery.IncidentFilter, page, perPage int) ([]*domain.Incident, int, error) {
+	return nil, 0, nil
 }
 
 type stubActivityRepo struct {

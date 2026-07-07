@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/denisakp/ogoune/internal/domain"
+	"github.com/denisakp/ogoune/internal/repository/sqlc/dynquery"
 )
 
 // TagsRepository manages tag lifecycle.
@@ -16,6 +17,29 @@ type TagsRepository interface {
 	List(ctx context.Context, limit, offset int) ([]*domain.Tags, error)
 	Update(ctx context.Context, t *domain.Tags) error
 	Delete(ctx context.Context, id string) error
+}
+
+// UpdateMonitoringStateRequest carries the columns mutated by the monitoring
+// worker after a check cycle. Pointer semantics: nil preserves the existing
+// column value; a non-nil pointer writes it. For nullable timestamp columns
+// the outer pointer is double-indirected so callers can distinguish
+// "preserve" (outer nil) from "set to NULL" (outer non-nil, inner nil).
+type UpdateMonitoringStateRequest struct {
+	Status               *domain.ResourceStatus
+	FailureCount         *int
+	LastChecked          **time.Time
+	LastStatusTransition **time.Time
+	FlapStartedAt        **time.Time
+}
+
+// UpdateMetadataRequest carries the SSL/domain expiry fields populated by the
+// metadata-enrichment path. Same nil-vs-non-nil semantics as
+// UpdateMonitoringStateRequest; nullable timestamps use **time.Time.
+type UpdateMetadataRequest struct {
+	SSLExpirationDate    **time.Time
+	SSLIssuer            *string
+	DomainExpirationDate **time.Time
+	DomainRegistrar      *string
 }
 
 // ResourceRepository manages monitored resources.
@@ -33,9 +57,10 @@ type ResourceRepository interface {
 	FindMissedHeartbeats(ctx context.Context, now time.Time, limit int) ([]*domain.Resource, error)
 	UpdateLastPingAt(ctx context.Context, id string, at time.Time) error
 	UpdateStatus(ctx context.Context, id string, status domain.ResourceStatus) error
-	UpdateMonitoringState(ctx context.Context, resource *domain.Resource) error
-	UpdateMetadata(ctx context.Context, id string, metadata *domain.ResourceMetaData) error
+	UpdateMonitoringState(ctx context.Context, id string, req UpdateMonitoringStateRequest) error
+	UpdateMetadata(ctx context.Context, id string, req UpdateMetadataRequest) error
 	FindScheduledResources(ctx context.Context) ([]*domain.Resource, error)
+	ListResourcesByFilter(ctx context.Context, f dynquery.MonitorFilter, page, perPage int) ([]*domain.Resource, int, error)
 }
 
 // ComponentRepository manages logical component groups.
@@ -62,6 +87,7 @@ type IncidentRepository interface {
 	HasActiveIncident(ctx context.Context) (bool, error)
 	FindLastResolved(ctx context.Context) (*domain.Incident, error)
 	CountByResourceID(ctx context.Context, resourceID string) (int64, error)
+	ListIncidentsByFilter(ctx context.Context, f dynquery.IncidentFilter, page, perPage int) ([]*domain.Incident, int, error)
 }
 
 // IncidentEventStepRepository manages lifecycle steps.
@@ -110,6 +136,14 @@ type ResourceScheduler interface {
 }
 
 // NotificationChannelRepository manages notification channels.
+// ResourceCredentialRepository manages optional auth credentials for protocol-aware resources.
+type ResourceCredentialRepository interface {
+	Get(ctx context.Context, resourceID string) (*domain.ResourceCredential, error)
+	Upsert(ctx context.Context, cred *domain.ResourceCredential) error
+	Delete(ctx context.Context, resourceID string) error
+	Exists(ctx context.Context, resourceID string) (bool, error)
+}
+
 type NotificationChannelRepository interface {
 	Create(ctx context.Context, channel *domain.NotificationChannel) error
 	FindByID(ctx context.Context, id string) (*domain.NotificationChannel, error)
@@ -120,6 +154,9 @@ type NotificationChannelRepository interface {
 	FindDefaultChannels(ctx context.Context) ([]*domain.NotificationChannel, error)
 	FindByResourceID(ctx context.Context, resourceID string) ([]*domain.NotificationChannel, error)
 	FindByComponentID(ctx context.Context, componentID string) ([]*domain.NotificationChannel, error)
+	// Spec 060 follow-up — per-channel dispatch counters.
+	MarkSent(ctx context.Context, channelID string, at time.Time) error
+	MarkFailure(ctx context.Context, channelID string, at time.Time) error
 }
 
 // MaintenanceRepository manages maintenance windows.
@@ -175,4 +212,102 @@ type ExpiryNotificationLogRepository interface {
 	Create(ctx context.Context, log *domain.ExpiryNotificationLog) error
 	DeleteByResourceIDAndType(ctx context.Context, resourceID, expiryType string) error
 	DeleteOlderThan(ctx context.Context, cutoff time.Time) error
+}
+
+// DashboardRepository persists custom dashboards (spec 075). Config-only.
+type DashboardRepository interface {
+	Create(ctx context.Context, d *domain.Dashboard) (*domain.Dashboard, error)
+	FindByID(ctx context.Context, id string) (*domain.Dashboard, error)
+	List(ctx context.Context, limit, offset int) ([]*domain.Dashboard, error)
+	Update(ctx context.Context, d *domain.Dashboard) error
+	UpdateWidgets(ctx context.Context, id string, widgets []domain.WidgetInstance, at time.Time) error
+	Delete(ctx context.Context, id string) error
+}
+
+// AnnouncementRepository persists operator announcement banners (option 2).
+type AnnouncementRepository interface {
+	Create(ctx context.Context, a *domain.Announcement) (*domain.Announcement, error)
+	ListActive(ctx context.Context) ([]*domain.Announcement, error)
+	Delete(ctx context.Context, id string) error
+}
+
+// ReportSettingsRepository persists the single instance-wide monthly-report
+// configuration (spec 076). Get returns repository.ErrNotFound when unsaved.
+type ReportSettingsRepository interface {
+	Get(ctx context.Context) (*domain.ReportSettings, error)
+	Upsert(ctx context.Context, s *domain.ReportSettings) (*domain.ReportSettings, error)
+}
+
+// ReportHistoryRepository persists generated monthly reports (spec 076).
+type ReportHistoryRepository interface {
+	Create(ctx context.Context, r *domain.ReportHistory) (*domain.ReportHistory, error)
+	ListRecent(ctx context.Context, limit int) ([]*domain.ReportHistory, error)
+	FindByPeriod(ctx context.Context, period string) (*domain.ReportHistory, error)
+}
+
+// NotificationFeedRepository persists in-app notification-feed items (spec 072).
+// Distinct from NotificationRepository (outbound dispatch events).
+type NotificationFeedRepository interface {
+	Create(ctx context.Context, n *domain.FeedNotification) (*domain.FeedNotification, error)
+	ListForUser(ctx context.Context, userID string, category *string, limit, offset int) ([]*domain.FeedNotification, error)
+	CountForUser(ctx context.Context, userID string, category *string) (int64, error)
+	MarkRead(ctx context.Context, id string, at time.Time) (int64, error)
+	MarkAllRead(ctx context.Context, userID string, before, at time.Time) (int64, error)
+	DeleteOlderThan(ctx context.Context, cutoff time.Time) (int64, error)
+}
+
+// SessionRepository — spec 059 FR-008/009/009a.
+type SessionRepository interface {
+	Create(ctx context.Context, s *domain.Session) error
+	FindByID(ctx context.Context, id string) (*domain.Session, error)
+	ListActiveByUser(ctx context.Context, userID string) ([]*domain.Session, error)
+	UpdateLastActive(ctx context.Context, id string, at time.Time) error
+	Revoke(ctx context.Context, id string, at time.Time) error
+	RevokeAllExcept(ctx context.Context, userID, currentSessionID string, at time.Time) (int64, error)
+}
+
+// TwoFactorResetTokenRepository — spec 059 FR-012a magic-link recovery.
+type TwoFactorResetTokenRepository interface {
+	Create(ctx context.Context, t *domain.TwoFactorResetToken) error
+	ConsumeByHash(ctx context.Context, tokenHash string, at time.Time) (*domain.TwoFactorResetToken, error)
+	CountRecentByUser(ctx context.Context, userID string, since time.Time) (int64, error)
+	DeleteExpired(ctx context.Context, cutoff time.Time) error
+}
+
+// EscalationRepository — spec 059 FR-023..FR-026a.
+type EscalationRepository interface {
+	Create(ctx context.Context, p *domain.EscalationPolicy) error
+	FindByID(ctx context.Context, id string) (*domain.EscalationPolicy, error)
+	List(ctx context.Context) ([]*domain.EscalationPolicy, error)
+	Update(ctx context.Context, p *domain.EscalationPolicy) error
+	Delete(ctx context.Context, id string) error
+	Reorder(ctx context.Context, order []string) error
+	NextPriority(ctx context.Context) (int, error)
+}
+
+// Custom-domain DNS state has been folded into StatusPageSettings — see
+// migration 0018. The standalone CustomDomainRepository has been removed.
+
+// UptimeDailyAggRepository — spec 060 FR-004 / FR-008 / FR-026.
+// Persists per-resource, per-UTC-day uptime aggregates produced by the cron.
+type UptimeDailyAggRepository interface {
+	// Upsert inserts or updates the row for (ResourceID, Day).
+	Upsert(ctx context.Context, agg *domain.UptimeDailyAgg) error
+	// FindRange returns aggregates for the given resources between [from, to] (inclusive).
+	FindRange(ctx context.Context, resourceIDs []string, from, to time.Time) ([]*domain.UptimeDailyAgg, error)
+	// FindForResource returns the daily aggregates of one resource over [from, to].
+	FindForResource(ctx context.Context, resourceID string, from, to time.Time) ([]*domain.UptimeDailyAgg, error)
+	// FindEarliestDay returns the smallest Day across all resources.
+	// Returns the zero time when the table is empty.
+	FindEarliestDay(ctx context.Context) (time.Time, error)
+}
+
+// IncidentUpdateRepository — spec 060 / US7. Persists per-incident lifecycle
+// status updates (investigating / identified / monitoring / resolved).
+type IncidentUpdateRepository interface {
+	Create(ctx context.Context, u *domain.IncidentUpdate) (*domain.IncidentUpdate, error)
+	FindByID(ctx context.Context, id string) (*domain.IncidentUpdate, error)
+	ListByIncident(ctx context.Context, incidentID string) ([]*domain.IncidentUpdate, error)
+	Update(ctx context.Context, u *domain.IncidentUpdate) error
+	Delete(ctx context.Context, id string) error
 }

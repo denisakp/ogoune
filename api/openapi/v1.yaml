@@ -1,0 +1,3099 @@
+components:
+  schemas:
+    github_com_denisakp_ogoune_internal_dto.ProblemDetail:
+      properties:
+        code:
+          type: string
+        detail:
+          type: string
+        status:
+          type: integer
+        title:
+          type: string
+        type:
+          type: string
+      type: object
+    github_com_denisakp_ogoune_internal_dto.PublicAggregatedState:
+      enum:
+      - up
+      - degraded
+      - down
+      - maintenance
+      - unknown
+      type: string
+      x-enum-varnames:
+      - PublicStateUp
+      - PublicStateDegraded
+      - PublicStateDown
+      - PublicStateMaintenance
+      - PublicStateUnknown
+    github_com_denisakp_ogoune_internal_dto.PublicBranding:
+      properties:
+        favicon_url:
+          type: string
+        homepage_url:
+          type: string
+        logo_url_dark:
+          type: string
+        logo_url_light:
+          type: string
+        name:
+          type: string
+        primary_color:
+          type: string
+        umami_script_url:
+          type: string
+        umami_website_id:
+          type: string
+      type: object
+    github_com_denisakp_ogoune_internal_dto.PublicComponent:
+      properties:
+        aggregated_state:
+          $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto.PublicAggregatedState'
+        id:
+          type: string
+        name:
+          type: string
+        resources:
+          items:
+            $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto.PublicResource'
+          type: array
+          uniqueItems: false
+      type: object
+    github_com_denisakp_ogoune_internal_dto.PublicIncidentDetail:
+      properties:
+        component_id:
+          type: string
+        id:
+          type: string
+        resolved_at:
+          type: string
+        resource_id:
+          type: string
+        severity:
+          $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto.PublicIncidentSeverity'
+        started_at:
+          type: string
+        title:
+          type: string
+        updates:
+          items:
+            $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto.PublicIncidentUpdate'
+          type: array
+          uniqueItems: false
+      type: object
+    github_com_denisakp_ogoune_internal_dto.PublicIncidentMonth:
+      properties:
+        count:
+          type: integer
+        incidents:
+          items:
+            $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto.PublicIncidentSummary'
+          type: array
+          uniqueItems: false
+        year_month:
+          type: string
+      type: object
+    github_com_denisakp_ogoune_internal_dto.PublicIncidentSeverity:
+      enum:
+      - minor
+      - major
+      - critical
+      type: string
+      x-enum-varnames:
+      - PublicSeverityMinor
+      - PublicSeverityMajor
+      - PublicSeverityCritical
+    github_com_denisakp_ogoune_internal_dto.PublicIncidentSummary:
+      properties:
+        component_id:
+          type: string
+        id:
+          type: string
+        resolved_at:
+          type: string
+        resource_id:
+          type: string
+        severity:
+          $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto.PublicIncidentSeverity'
+        started_at:
+          type: string
+        title:
+          type: string
+      type: object
+    github_com_denisakp_ogoune_internal_dto.PublicIncidentUpdate:
+      properties:
+        id:
+          type: string
+        message:
+          type: string
+        posted_at:
+          type: string
+        status:
+          $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto.PublicIncidentUpdateStatus'
+      type: object
+    github_com_denisakp_ogoune_internal_dto.PublicIncidentUpdateStatus:
+      enum:
+      - investigating
+      - identified
+      - monitoring
+      - resolved
+      type: string
+      x-enum-varnames:
+      - PublicUpdateInvestigating
+      - PublicUpdateIdentified
+      - PublicUpdateMonitoring
+      - PublicUpdateResolved
+    github_com_denisakp_ogoune_internal_dto.PublicIncidentsResponse:
+      properties:
+        generated_at:
+          type: string
+        months:
+          items:
+            $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto.PublicIncidentMonth'
+          type: array
+          uniqueItems: false
+        total:
+          type: integer
+      type: object
+    github_com_denisakp_ogoune_internal_dto.PublicResource:
+      properties:
+        current_state:
+          $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto.PublicAggregatedState'
+        host:
+          type: string
+        id:
+          type: string
+        name:
+          type: string
+        uptime_90d_ratio:
+          type: number
+        uptime_ribbon:
+          items:
+            $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto.PublicRibbonEntry'
+          type: array
+          uniqueItems: false
+      type: object
+    github_com_denisakp_ogoune_internal_dto.PublicResourceWindowsResponse:
+      properties:
+        daily_30d:
+          items:
+            $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto.PublicRibbonEntry'
+          type: array
+          uniqueItems: false
+        id:
+          type: string
+        name:
+          type: string
+        recent_incidents:
+          items:
+            $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto.PublicIncidentSummary'
+          type: array
+          uniqueItems: false
+        windows:
+          additionalProperties:
+            $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto.PublicWindowStats'
+          type: object
+      type: object
+    github_com_denisakp_ogoune_internal_dto.PublicRibbonEntry:
+      properties:
+        day:
+          type: string
+        ratio:
+          type: number
+      type: object
+    github_com_denisakp_ogoune_internal_dto.PublicStatus:
+      properties:
+        branding:
+          $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto.PublicBranding'
+        components:
+          items:
+            $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto.PublicComponent'
+          type: array
+          uniqueItems: false
+        current_month_incidents:
+          items:
+            $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto.PublicIncidentSummary'
+          type: array
+          uniqueItems: false
+        generated_at:
+          type: string
+        standalone_resources:
+          items:
+            $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto.PublicResource'
+          type: array
+          uniqueItems: false
+        uptime_window:
+          $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto.PublicUptimeWindow'
+        verdict:
+          $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto.PublicVerdict'
+      type: object
+    github_com_denisakp_ogoune_internal_dto.PublicUptimeDay:
+      properties:
+        day:
+          type: string
+        downtime_seconds:
+          type: integer
+        incidents:
+          type: integer
+        related_incidents:
+          items:
+            $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto.PublicIncidentSummary'
+          type: array
+          uniqueItems: false
+        samples:
+          type: integer
+        uptime_ratio:
+          type: number
+      type: object
+    github_com_denisakp_ogoune_internal_dto.PublicUptimeResponse:
+      properties:
+        days:
+          items:
+            $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto.PublicUptimeDay'
+          type: array
+          uniqueItems: false
+        generated_at:
+          type: string
+      type: object
+    github_com_denisakp_ogoune_internal_dto.PublicUptimeWindow:
+      properties:
+        earliest_day:
+          description: |-
+            EarliestDay is the first day for which any uptime data exists, in
+            YYYY-MM-DD UTC. Empty when no data yet.
+          type: string
+        latest_day:
+          description: LatestDay is the most recent day we can report on (today UTC).
+          type: string
+      type: object
+    github_com_denisakp_ogoune_internal_dto.PublicVerdict:
+      properties:
+        color:
+          type: string
+        label:
+          type: string
+        status:
+          $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto.PublicVerdictStatus'
+      type: object
+    github_com_denisakp_ogoune_internal_dto.PublicVerdictStatus:
+      enum:
+      - operational
+      - partial_degradation
+      - major_outage
+      type: string
+      x-enum-varnames:
+      - VerdictOperational
+      - VerdictPartialDegradation
+      - VerdictMajorOutage
+    github_com_denisakp_ogoune_internal_dto.PublicWindowStats:
+      properties:
+        incidents:
+          type: integer
+        uptime_ratio:
+          type: number
+      type: object
+    github_com_denisakp_ogoune_internal_dto_v1.AnnouncementResponse:
+      properties:
+        createdAt:
+          type: string
+        description:
+          type: string
+        dismissible:
+          type: boolean
+        id:
+          type: string
+        severity:
+          type: string
+        title:
+          type: string
+      type: object
+    github_com_denisakp_ogoune_internal_dto_v1.ChannelResponse:
+      properties:
+        config:
+          items:
+            type: integer
+          type: array
+          uniqueItems: false
+        created_at:
+          type: string
+        id:
+          type: string
+        is_default:
+          type: boolean
+        is_enabled:
+          type: boolean
+        type:
+          type: string
+        updated_at:
+          type: string
+      type: object
+    github_com_denisakp_ogoune_internal_dto_v1.ComponentResponse:
+      properties:
+        created_at:
+          type: string
+        description:
+          type: string
+        id:
+          type: string
+        name:
+          type: string
+        updated_at:
+          type: string
+      type: object
+    github_com_denisakp_ogoune_internal_dto_v1.CreateAnnouncementRequest:
+      properties:
+        description:
+          type: string
+        dismissible:
+          type: boolean
+        severity:
+          type: string
+        title:
+          type: string
+      type: object
+    github_com_denisakp_ogoune_internal_dto_v1.CreateChannelRequest:
+      properties:
+        config:
+          items:
+            type: integer
+          type: array
+          uniqueItems: false
+        is_default:
+          type: boolean
+        is_enabled:
+          description: defaults to true if omitted
+          type: boolean
+        name:
+          type: string
+        type:
+          type: string
+      type: object
+    github_com_denisakp_ogoune_internal_dto_v1.CreateComponentRequest:
+      properties:
+        description:
+          type: string
+        name:
+          type: string
+      type: object
+    github_com_denisakp_ogoune_internal_dto_v1.CreateDashboardRequest:
+      properties:
+        defaultTimeRange:
+          type: string
+        name:
+          type: string
+        refreshInterval:
+          type: string
+        scope:
+          $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.DashboardScope'
+        visibility:
+          type: string
+        widgets:
+          items:
+            $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.WidgetInstance'
+          type: array
+          uniqueItems: false
+      type: object
+    github_com_denisakp_ogoune_internal_dto_v1.CreateMonitorRequest:
+      properties:
+        component_id:
+          type: string
+        interval:
+          type: integer
+        keyword:
+          type: string
+        name:
+          type: string
+        protocol_port:
+          type: integer
+        protocol_type:
+          type: string
+        tags:
+          items:
+            type: string
+          type: array
+          uniqueItems: false
+        target:
+          type: string
+        timeout:
+          type: integer
+        type:
+          type: string
+      type: object
+    github_com_denisakp_ogoune_internal_dto_v1.CreateTagRequest:
+      properties:
+        color:
+          type: string
+        description:
+          type: string
+        name:
+          type: string
+      type: object
+    github_com_denisakp_ogoune_internal_dto_v1.CredentialCreateRequest:
+      properties:
+        options:
+          additionalProperties: {}
+          type: object
+        password:
+          type: string
+        username:
+          type: string
+      type: object
+    github_com_denisakp_ogoune_internal_dto_v1.CredentialResponse:
+      properties:
+        created_at:
+          type: string
+        has_credentials:
+          type: boolean
+        password:
+          description: always PasswordMask
+          type: string
+        resource_id:
+          type: string
+        updated_at:
+          type: string
+        username:
+          type: string
+      type: object
+    github_com_denisakp_ogoune_internal_dto_v1.CredentialTestResponse:
+      properties:
+        cause:
+          description: present on failure
+          type: string
+        latency_ms:
+          type: integer
+        status:
+          description: '"ok" or "failed"'
+          type: string
+      type: object
+    github_com_denisakp_ogoune_internal_dto_v1.DNSLookupRequest:
+      properties:
+        custom_resolver:
+          type: string
+        domain:
+          type: string
+        record_types:
+          items:
+            type: string
+          type: array
+          uniqueItems: false
+        resolver:
+          type: string
+      type: object
+    github_com_denisakp_ogoune_internal_dto_v1.DNSLookupResponse:
+      properties:
+        query_ms:
+          type: integer
+        records:
+          items:
+            $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.DNSRecord'
+          type: array
+          uniqueItems: false
+        resolver_used:
+          type: string
+      type: object
+    github_com_denisakp_ogoune_internal_dto_v1.DNSRecord:
+      properties:
+        ttl:
+          type: integer
+        type:
+          type: string
+        value:
+          type: string
+      type: object
+    github_com_denisakp_ogoune_internal_dto_v1.DashboardResponse:
+      properties:
+        createdAt:
+          type: string
+        defaultTimeRange:
+          type: string
+        id:
+          type: string
+        name:
+          type: string
+        ownerId:
+          type: string
+        ownerName:
+          type: string
+        refreshInterval:
+          type: string
+        scope:
+          $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.DashboardScope'
+        updatedAt:
+          type: string
+        visibility:
+          type: string
+        widgets:
+          items:
+            $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.WidgetInstance'
+          type: array
+          uniqueItems: false
+      type: object
+    github_com_denisakp_ogoune_internal_dto_v1.DashboardScope:
+      properties:
+        mode:
+          type: string
+        payload:
+          $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.DashboardScopePayload'
+      type: object
+    github_com_denisakp_ogoune_internal_dto_v1.DashboardScopePayload:
+      properties:
+        componentIds:
+          items:
+            type: string
+          type: array
+          uniqueItems: false
+        resourceIds:
+          items:
+            type: string
+          type: array
+          uniqueItems: false
+        tagIds:
+          items:
+            type: string
+          type: array
+          uniqueItems: false
+        types:
+          items:
+            type: string
+          type: array
+          uniqueItems: false
+      type: object
+    github_com_denisakp_ogoune_internal_dto_v1.ErrorDetail:
+      properties:
+        code:
+          type: string
+        fields:
+          items:
+            $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.FieldError'
+          type: array
+          uniqueItems: false
+        message:
+          type: string
+      type: object
+    github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse:
+      properties:
+        error:
+          $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.ErrorDetail'
+      type: object
+    github_com_denisakp_ogoune_internal_dto_v1.FieldError:
+      properties:
+        field:
+          type: string
+        message:
+          type: string
+      type: object
+    github_com_denisakp_ogoune_internal_dto_v1.HeartbeatPingResponse:
+      properties:
+        received_at:
+          type: string
+      type: object
+    github_com_denisakp_ogoune_internal_dto_v1.ImportReport:
+      properties:
+        created:
+          type: integer
+        dry_run:
+          type: boolean
+        failed:
+          type: integer
+        rows:
+          items:
+            $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.RowResult'
+          type: array
+          uniqueItems: false
+        skipped:
+          type: integer
+        total:
+          type: integer
+      type: object
+    github_com_denisakp_ogoune_internal_dto_v1.IncidentResponse:
+      properties:
+        cause:
+          type: string
+        created_at:
+          type: string
+        id:
+          type: string
+        monitor_id:
+          type: string
+        resolved_at:
+          type: string
+        started_at:
+          type: string
+        status:
+          description: '"open" or "resolved"'
+          type: string
+      type: object
+    github_com_denisakp_ogoune_internal_dto_v1.MarkAllReadResponse:
+      properties:
+        marked:
+          type: integer
+      type: object
+    github_com_denisakp_ogoune_internal_dto_v1.MetaResponse:
+      properties:
+        page:
+          type: integer
+        per_page:
+          type: integer
+        total:
+          type: integer
+      type: object
+    github_com_denisakp_ogoune_internal_dto_v1.MonitorResponse:
+      properties:
+        component_id:
+          type: string
+        created_at:
+          type: string
+        id:
+          type: string
+        interval:
+          type: integer
+        last_checked_at: {}
+        name:
+          type: string
+        status:
+          type: string
+        tags:
+          items:
+            type: string
+          type: array
+          uniqueItems: false
+        target:
+          type: string
+        timeout:
+          type: integer
+        type:
+          type: string
+        updated_at:
+          type: string
+      type: object
+    github_com_denisakp_ogoune_internal_dto_v1.PortResult:
+      properties:
+        banner:
+          type: string
+        port:
+          type: integer
+        service:
+          type: string
+        status:
+          description: open | closed | filtered
+          type: string
+      type: object
+    github_com_denisakp_ogoune_internal_dto_v1.PortScanRequest:
+      properties:
+        ports:
+          items:
+            type: integer
+          type: array
+          uniqueItems: false
+        preset:
+          type: string
+        target:
+          type: string
+        timeout_ms:
+          type: integer
+      type: object
+    github_com_denisakp_ogoune_internal_dto_v1.PortScanResponse:
+      properties:
+        open_count:
+          type: integer
+        results:
+          items:
+            $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.PortResult'
+          type: array
+          uniqueItems: false
+        scanned_count:
+          type: integer
+      type: object
+    github_com_denisakp_ogoune_internal_dto_v1.ReportBreakdown:
+      properties:
+        incidents:
+          type: integer
+        name:
+          type: string
+        uptimePct:
+          type: number
+      type: object
+    github_com_denisakp_ogoune_internal_dto_v1.ReportHistoryResponse:
+      properties:
+        downtimeSeconds:
+          type: integer
+        id:
+          type: string
+        incidentCount:
+          type: integer
+        period:
+          type: string
+        recipientEmail:
+          type: string
+        resourceBreakdown:
+          items:
+            $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.ReportBreakdown'
+          type: array
+          uniqueItems: false
+        sentAt:
+          type: string
+        status:
+          type: string
+        uptimePct:
+          type: number
+      type: object
+    github_com_denisakp_ogoune_internal_dto_v1.ReportSettingsResponse:
+      properties:
+        enabled:
+          type: boolean
+        lastSentAt:
+          type: string
+        recipientEmail:
+          type: string
+        schedule:
+          type: string
+        scope:
+          type: string
+      type: object
+    github_com_denisakp_ogoune_internal_dto_v1.RowAction:
+      enum:
+      - create
+      - skip
+      - error
+      type: string
+      x-enum-varnames:
+      - RowActionCreate
+      - RowActionSkip
+      - RowActionError
+    github_com_denisakp_ogoune_internal_dto_v1.RowResult:
+      properties:
+        action:
+          $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.RowAction'
+        errors:
+          items:
+            type: string
+          type: array
+          uniqueItems: false
+        index:
+          type: integer
+        name:
+          type: string
+        valid:
+          type: boolean
+      type: object
+    github_com_denisakp_ogoune_internal_dto_v1.SSLCertificate:
+      properties:
+        chain:
+          items:
+            type: string
+          type: array
+          uniqueItems: false
+        cipher:
+          type: string
+        issuer:
+          type: string
+        sans:
+          items:
+            type: string
+          type: array
+          uniqueItems: false
+        subject:
+          type: string
+        valid_from:
+          type: string
+        valid_to:
+          type: string
+      type: object
+    github_com_denisakp_ogoune_internal_dto_v1.SSLCheckRequest:
+      properties:
+        domain:
+          type: string
+        port:
+          type: integer
+      type: object
+    github_com_denisakp_ogoune_internal_dto_v1.SSLCheckResponse:
+      properties:
+        certificate:
+          $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.SSLCertificate'
+        days_to_expiry:
+          type: integer
+        expiring_soon:
+          type: boolean
+        vulnerabilities:
+          items:
+            $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.SSLVulnCheck'
+          type: array
+          uniqueItems: false
+      type: object
+    github_com_denisakp_ogoune_internal_dto_v1.SSLVulnCheck:
+      properties:
+        name:
+          type: string
+        status:
+          description: pass | warn
+          type: string
+      type: object
+    github_com_denisakp_ogoune_internal_dto_v1.SaveLayoutRequest:
+      properties:
+        widgets:
+          items:
+            $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.WidgetInstance'
+          type: array
+          uniqueItems: false
+      type: object
+    github_com_denisakp_ogoune_internal_dto_v1.SingleResponse-github_com_denisakp_ogoune_internal_dto_v1_AnnouncementResponse:
+      properties:
+        data:
+          $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.AnnouncementResponse'
+        meta:
+          $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.MetaResponse'
+      type: object
+    github_com_denisakp_ogoune_internal_dto_v1.SingleResponse-github_com_denisakp_ogoune_internal_dto_v1_ChannelResponse:
+      properties:
+        data:
+          $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.ChannelResponse'
+        meta:
+          $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.MetaResponse'
+      type: object
+    github_com_denisakp_ogoune_internal_dto_v1.SingleResponse-github_com_denisakp_ogoune_internal_dto_v1_ComponentResponse:
+      properties:
+        data:
+          $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.ComponentResponse'
+        meta:
+          $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.MetaResponse'
+      type: object
+    github_com_denisakp_ogoune_internal_dto_v1.SingleResponse-github_com_denisakp_ogoune_internal_dto_v1_CredentialResponse:
+      properties:
+        data:
+          $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.CredentialResponse'
+        meta:
+          $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.MetaResponse'
+      type: object
+    github_com_denisakp_ogoune_internal_dto_v1.SingleResponse-github_com_denisakp_ogoune_internal_dto_v1_DNSLookupResponse:
+      properties:
+        data:
+          $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.DNSLookupResponse'
+        meta:
+          $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.MetaResponse'
+      type: object
+    github_com_denisakp_ogoune_internal_dto_v1.SingleResponse-github_com_denisakp_ogoune_internal_dto_v1_DashboardResponse:
+      properties:
+        data:
+          $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.DashboardResponse'
+        meta:
+          $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.MetaResponse'
+      type: object
+    github_com_denisakp_ogoune_internal_dto_v1.SingleResponse-github_com_denisakp_ogoune_internal_dto_v1_HeartbeatPingResponse:
+      properties:
+        data:
+          $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.HeartbeatPingResponse'
+        meta:
+          $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.MetaResponse'
+      type: object
+    github_com_denisakp_ogoune_internal_dto_v1.SingleResponse-github_com_denisakp_ogoune_internal_dto_v1_ImportReport:
+      properties:
+        data:
+          $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.ImportReport'
+        meta:
+          $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.MetaResponse'
+      type: object
+    github_com_denisakp_ogoune_internal_dto_v1.SingleResponse-github_com_denisakp_ogoune_internal_dto_v1_IncidentResponse:
+      properties:
+        data:
+          $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.IncidentResponse'
+        meta:
+          $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.MetaResponse'
+      type: object
+    github_com_denisakp_ogoune_internal_dto_v1.SingleResponse-github_com_denisakp_ogoune_internal_dto_v1_MarkAllReadResponse:
+      properties:
+        data:
+          $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.MarkAllReadResponse'
+        meta:
+          $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.MetaResponse'
+      type: object
+    github_com_denisakp_ogoune_internal_dto_v1.SingleResponse-github_com_denisakp_ogoune_internal_dto_v1_MonitorResponse:
+      properties:
+        data:
+          $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.MonitorResponse'
+        meta:
+          $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.MetaResponse'
+      type: object
+    github_com_denisakp_ogoune_internal_dto_v1.SingleResponse-github_com_denisakp_ogoune_internal_dto_v1_PortScanResponse:
+      properties:
+        data:
+          $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.PortScanResponse'
+        meta:
+          $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.MetaResponse'
+      type: object
+    github_com_denisakp_ogoune_internal_dto_v1.SingleResponse-github_com_denisakp_ogoune_internal_dto_v1_ReportHistoryResponse:
+      properties:
+        data:
+          $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.ReportHistoryResponse'
+        meta:
+          $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.MetaResponse'
+      type: object
+    github_com_denisakp_ogoune_internal_dto_v1.SingleResponse-github_com_denisakp_ogoune_internal_dto_v1_ReportSettingsResponse:
+      properties:
+        data:
+          $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.ReportSettingsResponse'
+        meta:
+          $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.MetaResponse'
+      type: object
+    github_com_denisakp_ogoune_internal_dto_v1.SingleResponse-github_com_denisakp_ogoune_internal_dto_v1_SSLCheckResponse:
+      properties:
+        data:
+          $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.SSLCheckResponse'
+        meta:
+          $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.MetaResponse'
+      type: object
+    github_com_denisakp_ogoune_internal_dto_v1.SingleResponse-github_com_denisakp_ogoune_internal_dto_v1_TagResponse:
+      properties:
+        data:
+          $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.TagResponse'
+        meta:
+          $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.MetaResponse'
+      type: object
+    github_com_denisakp_ogoune_internal_dto_v1.SingleResponse-github_com_denisakp_ogoune_internal_dto_v1_WhoisResponse:
+      properties:
+        data:
+          $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.WhoisResponse'
+        meta:
+          $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.MetaResponse'
+      type: object
+    github_com_denisakp_ogoune_internal_dto_v1.TagResponse:
+      properties:
+        color:
+          type: string
+        created_at:
+          type: string
+        description:
+          type: string
+        id:
+          type: string
+        name:
+          type: string
+      type: object
+    github_com_denisakp_ogoune_internal_dto_v1.UpdateChannelRequest:
+      properties:
+        config:
+          items:
+            type: integer
+          type: array
+          uniqueItems: false
+        is_default:
+          type: boolean
+        is_enabled:
+          type: boolean
+        name:
+          type: string
+        type:
+          type: string
+      type: object
+    github_com_denisakp_ogoune_internal_dto_v1.UpdateComponentRequest:
+      properties:
+        description:
+          type: string
+        name:
+          type: string
+      type: object
+    github_com_denisakp_ogoune_internal_dto_v1.UpdateDashboardRequest:
+      properties:
+        defaultTimeRange:
+          type: string
+        name:
+          type: string
+        refreshInterval:
+          type: string
+        scope:
+          $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.DashboardScope'
+        visibility:
+          type: string
+        widgets:
+          items:
+            $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.WidgetInstance'
+          type: array
+          uniqueItems: false
+      type: object
+    github_com_denisakp_ogoune_internal_dto_v1.UpdateMonitorRequest:
+      properties:
+        component_id:
+          type: string
+        interval:
+          type: integer
+        keyword:
+          type: string
+        name:
+          type: string
+        protocol_port:
+          type: integer
+        protocol_type:
+          type: string
+        tags:
+          items:
+            type: string
+          type: array
+          uniqueItems: false
+        target:
+          type: string
+        timeout:
+          type: integer
+        type:
+          type: string
+      type: object
+    github_com_denisakp_ogoune_internal_dto_v1.UpdateReportSettingsRequest:
+      properties:
+        enabled:
+          type: boolean
+        recipientEmail:
+          type: string
+        schedule:
+          type: string
+        scope:
+          type: string
+      type: object
+    github_com_denisakp_ogoune_internal_dto_v1.UpdateTagRequest:
+      properties:
+        color:
+          type: string
+        description:
+          type: string
+        name:
+          type: string
+      type: object
+    github_com_denisakp_ogoune_internal_dto_v1.WhoisRequest:
+      properties:
+        domain:
+          type: string
+      type: object
+    github_com_denisakp_ogoune_internal_dto_v1.WhoisResponse:
+      properties:
+        days_to_expiry:
+          type: integer
+        dnssec:
+          type: boolean
+        expires_at:
+          type: string
+        nameservers:
+          items:
+            type: string
+          type: array
+          uniqueItems: false
+        privacy:
+          type: boolean
+        registered_at:
+          type: string
+        registrar:
+          type: string
+        status:
+          items:
+            type: string
+          type: array
+          uniqueItems: false
+        updated_at:
+          type: string
+      type: object
+    github_com_denisakp_ogoune_internal_dto_v1.WidgetInstance:
+      properties:
+        config:
+          additionalProperties: {}
+          type: object
+        id:
+          type: string
+        position:
+          type: integer
+        title:
+          type: string
+        widgetTypeId:
+          type: string
+      type: object
+  securitySchemes:
+    BearerAuth:
+      in: header
+      name: Authorization
+      type: apiKey
+externalDocs:
+  description: Ogoune repository
+  url: https://github.com/denisakp/ogoune
+info:
+  description: Ogoune uptime monitoring — Public REST API v1.
+  title: Ogoune Public API
+  version: "1.0"
+openapi: 3.1.0
+paths:
+  /announcements:
+    get:
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                additionalProperties: {}
+                type: object
+          description: OK
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse'
+          description: Unauthorized
+      security:
+      - BearerAuth: []
+      summary: List active announcement banners
+      tags:
+      - announcements
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              oneOf:
+              - type: object
+              - $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.CreateAnnouncementRequest'
+                description: Announcement
+                summary: body
+        description: Announcement
+        required: true
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.SingleResponse-github_com_denisakp_ogoune_internal_dto_v1_AnnouncementResponse'
+          description: Created
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse'
+          description: Forbidden
+        "422":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse'
+          description: Unprocessable Entity
+      security:
+      - BearerAuth: []
+      summary: Publish an announcement banner
+      tags:
+      - announcements
+  /announcements/{id}:
+    delete:
+      parameters:
+      - description: Announcement ID
+        in: path
+        name: id
+        required: true
+        schema:
+          type: string
+      responses:
+        "204":
+          description: No Content
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse'
+          description: Forbidden
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse'
+          description: Not Found
+      security:
+      - BearerAuth: []
+      summary: Retract an announcement banner
+      tags:
+      - announcements
+  /components:
+    get:
+      parameters:
+      - description: Page number (default 1)
+        in: query
+        name: page
+        schema:
+          type: integer
+      - description: Items per page (1-100, default 20)
+        in: query
+        name: per_page
+        schema:
+          type: integer
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                additionalProperties: {}
+                type: object
+          description: OK
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse'
+          description: Unauthorized
+      security:
+      - BearerAuth: []
+      summary: List components
+      tags:
+      - components
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              oneOf:
+              - type: object
+              - $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.CreateComponentRequest'
+                description: Component payload
+                summary: body
+        description: Component payload
+        required: true
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.SingleResponse-github_com_denisakp_ogoune_internal_dto_v1_ComponentResponse'
+          description: Created
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse'
+          description: Forbidden
+        "422":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse'
+          description: Unprocessable Entity
+      security:
+      - BearerAuth: []
+      summary: Create a component
+      tags:
+      - components
+  /components/{id}:
+    delete:
+      parameters:
+      - description: Component ID
+        in: path
+        name: id
+        required: true
+        schema:
+          type: string
+      responses:
+        "204":
+          description: No Content
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse'
+          description: Forbidden
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse'
+          description: Not Found
+      security:
+      - BearerAuth: []
+      summary: Delete a component
+      tags:
+      - components
+    get:
+      parameters:
+      - description: Component ID
+        in: path
+        name: id
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.SingleResponse-github_com_denisakp_ogoune_internal_dto_v1_ComponentResponse'
+          description: OK
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse'
+          description: Not Found
+      security:
+      - BearerAuth: []
+      summary: Get a component by ID
+      tags:
+      - components
+    put:
+      parameters:
+      - description: Component ID
+        in: path
+        name: id
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              oneOf:
+              - type: object
+              - $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.UpdateComponentRequest'
+                description: Update payload
+                summary: body
+        description: Update payload
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.SingleResponse-github_com_denisakp_ogoune_internal_dto_v1_ComponentResponse'
+          description: OK
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse'
+          description: Forbidden
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse'
+          description: Not Found
+      security:
+      - BearerAuth: []
+      summary: Update a component
+      tags:
+      - components
+  /dashboards:
+    get:
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                additionalProperties: {}
+                type: object
+          description: OK
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse'
+          description: Unauthorized
+      security:
+      - BearerAuth: []
+      summary: List all dashboards (instance-wide, newest-updated first)
+      tags:
+      - dashboards
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              oneOf:
+              - type: object
+              - $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.CreateDashboardRequest'
+                description: Dashboard
+                summary: body
+        description: Dashboard
+        required: true
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.SingleResponse-github_com_denisakp_ogoune_internal_dto_v1_DashboardResponse'
+          description: Created
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse'
+          description: Forbidden
+        "422":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse'
+          description: Unprocessable Entity
+      security:
+      - BearerAuth: []
+      summary: Create a dashboard (owner = caller)
+      tags:
+      - dashboards
+  /dashboards/{id}:
+    delete:
+      parameters:
+      - description: Dashboard ID
+        in: path
+        name: id
+        required: true
+        schema:
+          type: string
+      responses:
+        "204":
+          description: No Content
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse'
+          description: Forbidden
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse'
+          description: Not Found
+      security:
+      - BearerAuth: []
+      summary: Delete a dashboard (owner only)
+      tags:
+      - dashboards
+    get:
+      parameters:
+      - description: Dashboard ID
+        in: path
+        name: id
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.SingleResponse-github_com_denisakp_ogoune_internal_dto_v1_DashboardResponse'
+          description: OK
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse'
+          description: Not Found
+      security:
+      - BearerAuth: []
+      summary: Get a dashboard
+      tags:
+      - dashboards
+    patch:
+      parameters:
+      - description: Dashboard ID
+        in: path
+        name: id
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              oneOf:
+              - type: object
+              - $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.UpdateDashboardRequest'
+                description: Partial patch
+                summary: body
+        description: Partial patch
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.SingleResponse-github_com_denisakp_ogoune_internal_dto_v1_DashboardResponse'
+          description: OK
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse'
+          description: Forbidden
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse'
+          description: Not Found
+        "422":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse'
+          description: Unprocessable Entity
+      security:
+      - BearerAuth: []
+      summary: Update a dashboard (partial patch; owner only)
+      tags:
+      - dashboards
+  /dashboards/{id}/layout:
+    put:
+      parameters:
+      - description: Dashboard ID
+        in: path
+        name: id
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              oneOf:
+              - type: object
+              - $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.SaveLayoutRequest'
+                description: Ordered widgets
+                summary: body
+        description: Ordered widgets
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.SingleResponse-github_com_denisakp_ogoune_internal_dto_v1_DashboardResponse'
+          description: OK
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse'
+          description: Forbidden
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse'
+          description: Not Found
+      security:
+      - BearerAuth: []
+      summary: Save a dashboard's widget layout (owner only)
+      tags:
+      - dashboards
+  /heartbeat/ping/{slug}:
+    post:
+      parameters:
+      - description: Heartbeat slug
+        in: path
+        name: slug
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.SingleResponse-github_com_denisakp_ogoune_internal_dto_v1_HeartbeatPingResponse'
+          description: OK
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse'
+          description: monitor is paused
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse'
+          description: monitor not found
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse'
+          description: rate limit exceeded
+      summary: Record a heartbeat ping
+      tags:
+      - heartbeat
+  /incidents:
+    get:
+      parameters:
+      - description: Page number
+        in: query
+        name: page
+        schema:
+          type: integer
+      - description: Items per page (1-100)
+        in: query
+        name: per_page
+        schema:
+          type: integer
+      - description: Filter by monitor ID
+        in: query
+        name: monitor_id
+        schema:
+          type: string
+      - description: Filter by status (open|resolved)
+        in: query
+        name: status
+        schema:
+          type: string
+      - description: Filter incidents started_at >= (RFC 3339)
+        in: query
+        name: from
+        schema:
+          type: string
+      - description: Filter incidents started_at <= (RFC 3339)
+        in: query
+        name: to
+        schema:
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                additionalProperties: {}
+                type: object
+          description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse'
+          description: Bad Request
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse'
+          description: Unauthorized
+        "422":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse'
+          description: Unprocessable Entity
+      security:
+      - BearerAuth: []
+      summary: List incidents
+      tags:
+      - incidents
+  /incidents/{id}:
+    get:
+      parameters:
+      - description: Incident ID
+        in: path
+        name: id
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.SingleResponse-github_com_denisakp_ogoune_internal_dto_v1_IncidentResponse'
+          description: OK
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse'
+          description: Not Found
+      security:
+      - BearerAuth: []
+      summary: Get an incident by ID
+      tags:
+      - incidents
+  /integrations/alert-rules:
+    get:
+      parameters:
+      - description: Uptime alert threshold percent (default 99)
+        in: query
+        name: uptimeThreshold
+        schema:
+          type: integer
+      responses:
+        "200":
+          content:
+            text/yaml:
+              schema:
+                type: string
+          description: Prometheus rules YAML
+      security:
+      - BearerAuth: []
+      summary: Download config-derived Prometheus alerting rules (YAML)
+      tags:
+      - integrations
+  /integrations/grafana-dashboard:
+    get:
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                additionalProperties: {}
+                type: object
+          description: Grafana dashboard model
+      security:
+      - BearerAuth: []
+      summary: Download config-derived Grafana dashboard (JSON)
+      tags:
+      - integrations
+  /monitors:
+    get:
+      parameters:
+      - description: Page number (default 1)
+        in: query
+        name: page
+        schema:
+          type: integer
+      - description: Items per page (1-100, default 20)
+        in: query
+        name: per_page
+        schema:
+          type: integer
+      - description: Filter by exact tag name
+        in: query
+        name: tag
+        schema:
+          type: string
+      - description: Filter by monitor type (http|tcp|dns|icmp|keyword|protocol|heartbeat)
+        in: query
+        name: type
+        schema:
+          type: string
+      - description: Filter by active state (default true)
+        in: query
+        name: is_active
+        schema:
+          type: boolean
+      - description: Substring search on name + target (case-insensitive)
+        in: query
+        name: q
+        schema:
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                additionalProperties: {}
+                type: object
+          description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse'
+          description: Bad Request
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse'
+          description: Unauthorized
+        "422":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse'
+          description: Unprocessable Entity
+      security:
+      - BearerAuth: []
+      summary: List monitors
+      tags:
+      - monitors
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              oneOf:
+              - type: object
+              - $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.CreateMonitorRequest'
+                description: Monitor payload
+                summary: body
+        description: Monitor payload
+        required: true
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.SingleResponse-github_com_denisakp_ogoune_internal_dto_v1_MonitorResponse'
+          description: Created
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse'
+          description: Forbidden
+        "422":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse'
+          description: Unprocessable Entity
+      security:
+      - BearerAuth: []
+      summary: Create a monitor
+      tags:
+      - monitors
+  /monitors/{id}:
+    delete:
+      parameters:
+      - description: Monitor ID
+        in: path
+        name: id
+        required: true
+        schema:
+          type: string
+      responses:
+        "204":
+          description: No Content
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse'
+          description: Forbidden
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse'
+          description: Not Found
+      security:
+      - BearerAuth: []
+      summary: Delete a monitor
+      tags:
+      - monitors
+    get:
+      parameters:
+      - description: Monitor ID
+        in: path
+        name: id
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.SingleResponse-github_com_denisakp_ogoune_internal_dto_v1_MonitorResponse'
+          description: OK
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse'
+          description: Not Found
+      security:
+      - BearerAuth: []
+      summary: Get a monitor by ID
+      tags:
+      - monitors
+    put:
+      parameters:
+      - description: Monitor ID
+        in: path
+        name: id
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              oneOf:
+              - type: object
+              - $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.UpdateMonitorRequest'
+                description: Update payload
+                summary: body
+        description: Update payload
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.SingleResponse-github_com_denisakp_ogoune_internal_dto_v1_MonitorResponse'
+          description: OK
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse'
+          description: Forbidden
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse'
+          description: Not Found
+      security:
+      - BearerAuth: []
+      summary: Update a monitor
+      tags:
+      - monitors
+  /monitors/{id}/pause:
+    post:
+      parameters:
+      - description: Monitor ID
+        in: path
+        name: id
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.SingleResponse-github_com_denisakp_ogoune_internal_dto_v1_MonitorResponse'
+          description: OK
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse'
+          description: Forbidden
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse'
+          description: Not Found
+      security:
+      - BearerAuth: []
+      summary: Pause a monitor
+      tags:
+      - monitors
+  /monitors/{id}/resume:
+    post:
+      parameters:
+      - description: Monitor ID
+        in: path
+        name: id
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.SingleResponse-github_com_denisakp_ogoune_internal_dto_v1_MonitorResponse'
+          description: OK
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse'
+          description: Forbidden
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse'
+          description: Not Found
+      security:
+      - BearerAuth: []
+      summary: Resume a monitor
+      tags:
+      - monitors
+  /monitors/export:
+    get:
+      responses:
+        "200":
+          content:
+            text/yaml:
+              schema:
+                type: string
+          description: YAML manifest
+      security:
+      - BearerAuth: []
+      summary: Export all monitors as a YAML manifest
+      tags:
+      - monitors
+  /monitors/import:
+    post:
+      parameters:
+      - description: Validate only, write nothing
+        in: query
+        name: dryRun
+        schema:
+          type: boolean
+      - description: How to treat existing names (skip|error, default skip)
+        in: query
+        name: duplicatePolicy
+        schema:
+          type: string
+      requestBody:
+        content:
+          text/plain:
+            schema:
+              oneOf:
+              - type: string
+              - title: body
+                type: string
+        description: YAML manifest
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.SingleResponse-github_com_denisakp_ogoune_internal_dto_v1_ImportReport'
+          description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse'
+          description: Bad Request
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse'
+          description: Forbidden
+        "422":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.SingleResponse-github_com_denisakp_ogoune_internal_dto_v1_ImportReport'
+          description: Unprocessable Entity
+      security:
+      - BearerAuth: []
+      summary: Bulk-import monitors from a YAML manifest
+      tags:
+      - monitors
+  /notification-channels:
+    get:
+      parameters:
+      - description: Page number (default 1)
+        in: query
+        name: page
+        schema:
+          type: integer
+      - description: Items per page (1-100, default 20)
+        in: query
+        name: per_page
+        schema:
+          type: integer
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                additionalProperties: {}
+                type: object
+          description: OK
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse'
+          description: Unauthorized
+      security:
+      - BearerAuth: []
+      summary: List notification channels
+      tags:
+      - notification-channels
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              oneOf:
+              - type: object
+              - $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.CreateChannelRequest'
+                description: Channel payload
+                summary: body
+        description: Channel payload
+        required: true
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.SingleResponse-github_com_denisakp_ogoune_internal_dto_v1_ChannelResponse'
+          description: Created
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse'
+          description: Forbidden
+        "422":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse'
+          description: Unprocessable Entity
+      security:
+      - BearerAuth: []
+      summary: Create a notification channel
+      tags:
+      - notification-channels
+  /notification-channels/{id}:
+    delete:
+      parameters:
+      - description: Channel ID
+        in: path
+        name: id
+        required: true
+        schema:
+          type: string
+      responses:
+        "204":
+          description: No Content
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse'
+          description: Forbidden
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse'
+          description: Not Found
+      security:
+      - BearerAuth: []
+      summary: Delete a notification channel
+      tags:
+      - notification-channels
+    get:
+      parameters:
+      - description: Channel ID
+        in: path
+        name: id
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.SingleResponse-github_com_denisakp_ogoune_internal_dto_v1_ChannelResponse'
+          description: OK
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse'
+          description: Not Found
+      security:
+      - BearerAuth: []
+      summary: Get a notification channel by ID
+      tags:
+      - notification-channels
+    put:
+      parameters:
+      - description: Channel ID
+        in: path
+        name: id
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              oneOf:
+              - type: object
+              - $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.UpdateChannelRequest'
+                description: Update payload
+                summary: body
+        description: Update payload
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.SingleResponse-github_com_denisakp_ogoune_internal_dto_v1_ChannelResponse'
+          description: OK
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse'
+          description: Forbidden
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse'
+          description: Not Found
+      security:
+      - BearerAuth: []
+      summary: Update a notification channel
+      tags:
+      - notification-channels
+  /notifications:
+    get:
+      parameters:
+      - description: Page number (default 1)
+        in: query
+        name: page
+        schema:
+          type: integer
+      - description: Items per page (1-200, default 50)
+        in: query
+        name: per_page
+        schema:
+          type: integer
+      - description: 'Filter: incident|system|general'
+        in: query
+        name: category
+        schema:
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                additionalProperties: {}
+                type: object
+          description: OK
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse'
+          description: Unauthorized
+        "422":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse'
+          description: Unprocessable Entity
+      security:
+      - BearerAuth: []
+      summary: List the in-app notification feed (newest-first, paginated)
+      tags:
+      - notifications
+  /notifications/{id}/read:
+    post:
+      parameters:
+      - description: Notification ID
+        in: path
+        name: id
+        required: true
+        schema:
+          type: string
+      responses:
+        "204":
+          description: No Content
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse'
+          description: Forbidden
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse'
+          description: Not Found
+      security:
+      - BearerAuth: []
+      summary: Mark a single notification read
+      tags:
+      - notifications
+  /notifications/read-all:
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.SingleResponse-github_com_denisakp_ogoune_internal_dto_v1_MarkAllReadResponse'
+          description: OK
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse'
+          description: Forbidden
+      security:
+      - BearerAuth: []
+      summary: Mark all visible notifications read (optional before_timestamp cursor)
+      tags:
+      - notifications
+  /reports/history:
+    get:
+      parameters:
+      - description: Max entries (default 6, max 50)
+        in: query
+        name: limit
+        schema:
+          type: integer
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                additionalProperties: {}
+                type: object
+          description: OK
+      security:
+      - BearerAuth: []
+      summary: List generated reports (newest first)
+      tags:
+      - reports
+  /reports/preview:
+    get:
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.SingleResponse-github_com_denisakp_ogoune_internal_dto_v1_ReportHistoryResponse'
+          description: OK
+      security:
+      - BearerAuth: []
+      summary: Preview the current in-progress period (not persisted)
+      tags:
+      - reports
+  /reports/settings:
+    get:
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.SingleResponse-github_com_denisakp_ogoune_internal_dto_v1_ReportSettingsResponse'
+          description: OK
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse'
+          description: Unauthorized
+      security:
+      - BearerAuth: []
+      summary: Get the monthly-report configuration
+      tags:
+      - reports
+    put:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              oneOf:
+              - type: object
+              - $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.UpdateReportSettingsRequest'
+                description: Report settings
+                summary: body
+        description: Report settings
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.SingleResponse-github_com_denisakp_ogoune_internal_dto_v1_ReportSettingsResponse'
+          description: OK
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse'
+          description: Forbidden
+        "422":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse'
+          description: Unprocessable Entity
+      security:
+      - BearerAuth: []
+      summary: Update the monthly-report configuration
+      tags:
+      - reports
+  /resources/{id}/credentials:
+    delete:
+      parameters:
+      - description: Resource ID
+        in: path
+        name: id
+        required: true
+        schema:
+          type: string
+      responses:
+        "204":
+          description: No Content
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse'
+          description: Not Found
+      security:
+      - BearerAuth: []
+      summary: Remove credentials for a resource (revert to no-auth behavior)
+      tags:
+      - resource-credentials
+    get:
+      parameters:
+      - description: Resource ID
+        in: path
+        name: id
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.SingleResponse-github_com_denisakp_ogoune_internal_dto_v1_CredentialResponse'
+          description: OK
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse'
+          description: Not Found
+      security:
+      - BearerAuth: []
+      summary: Get the credential metadata for a resource (password masked)
+      tags:
+      - resource-credentials
+    post:
+      parameters:
+      - description: Resource ID
+        in: path
+        name: id
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              oneOf:
+              - type: object
+              - $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.CredentialCreateRequest'
+                description: Credential payload
+                summary: body
+        description: Credential payload
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.SingleResponse-github_com_denisakp_ogoune_internal_dto_v1_CredentialResponse'
+          description: OK
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.SingleResponse-github_com_denisakp_ogoune_internal_dto_v1_CredentialResponse'
+          description: Created
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse'
+          description: Forbidden
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse'
+          description: Not Found
+        "422":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse'
+          description: Unprocessable Entity
+      security:
+      - BearerAuth: []
+      summary: Create or replace credentials for a resource
+      tags:
+      - resource-credentials
+  /resources/{id}/credentials/test:
+    post:
+      parameters:
+      - description: Resource ID
+        in: path
+        name: id
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              oneOf:
+              - type: object
+              - $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.CredentialCreateRequest'
+                description: Credential payload (not persisted)
+                summary: body
+        description: Credential payload (not persisted)
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.CredentialTestResponse'
+          description: OK
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse'
+          description: Not Found
+        "422":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse'
+          description: Unprocessable Entity
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse'
+          description: Too Many Requests
+      security:
+      - BearerAuth: []
+      summary: Live-test credentials without persisting (rate-limited 10/min)
+      tags:
+      - resource-credentials
+  /status:
+    get:
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto.PublicStatus'
+          description: OK
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto.ProblemDetail'
+          description: Internal Server Error
+      summary: Public status page snapshot
+      tags:
+      - public-status
+  /status-pages:
+    get:
+      parameters:
+      - description: Page number (default 1)
+        in: query
+        name: page
+        schema:
+          type: integer
+      - description: Items per page (1-100, default 20)
+        in: query
+        name: per_page
+        schema:
+          type: integer
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                additionalProperties: {}
+                type: object
+          description: OK
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse'
+          description: Unauthorized
+      security:
+      - BearerAuth: []
+      summary: List status pages (component-based, read-only)
+      tags:
+      - status-pages
+  /status/incidents:
+    get:
+      parameters:
+      - description: 'ISO date (default: 90 days ago)'
+        in: query
+        name: from
+        schema:
+          type: string
+      - description: 'ISO date (default: now)'
+        in: query
+        name: to
+        schema:
+          type: string
+      - description: filter by component
+        in: query
+        name: component_id
+        schema:
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto.PublicIncidentsResponse'
+          description: OK
+        "422":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto.ProblemDetail'
+          description: Unprocessable Entity
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto.ProblemDetail'
+          description: Internal Server Error
+      summary: Incident archive grouped by month
+      tags:
+      - public-status
+  /status/incidents/{id}:
+    get:
+      parameters:
+      - description: Incident ID
+        in: path
+        name: id
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto.PublicIncidentDetail'
+          description: OK
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto.ProblemDetail'
+          description: Not Found
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto.ProblemDetail'
+          description: Internal Server Error
+      summary: Single incident with its lifecycle updates timeline
+      tags:
+      - public-status
+  /status/resource/{id}/windows:
+    get:
+      parameters:
+      - description: Resource ID
+        in: path
+        name: id
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto.PublicResourceWindowsResponse'
+          description: OK
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto.ProblemDetail'
+          description: Not Found
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto.ProblemDetail'
+          description: Internal Server Error
+      summary: Per-resource 24h / 7d / 30d / 90d windows + 30-day daily + recent incidents
+      tags:
+      - public-status
+  /status/uptime:
+    get:
+      parameters:
+      - description: ISO date
+        in: query
+        name: from
+        required: true
+        schema:
+          type: string
+      - description: ISO date
+        in: query
+        name: to
+        required: true
+        schema:
+          type: string
+      - description: filter by component
+        in: query
+        name: component_id
+        schema:
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto.PublicUptimeResponse'
+          description: OK
+        "422":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto.ProblemDetail'
+          description: Unprocessable Entity
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto.ProblemDetail'
+          description: Internal Server Error
+      summary: Daily uptime aggregates over a range
+      tags:
+      - public-status
+  /tags:
+    get:
+      parameters:
+      - description: Page number (default 1)
+        in: query
+        name: page
+        schema:
+          type: integer
+      - description: Items per page (1-100, default 20)
+        in: query
+        name: per_page
+        schema:
+          type: integer
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                additionalProperties: {}
+                type: object
+          description: OK
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse'
+          description: Unauthorized
+      security:
+      - BearerAuth: []
+      summary: List tags
+      tags:
+      - tags
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              oneOf:
+              - type: object
+              - $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.CreateTagRequest'
+                description: Tag payload
+                summary: body
+        description: Tag payload
+        required: true
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.SingleResponse-github_com_denisakp_ogoune_internal_dto_v1_TagResponse'
+          description: Created
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse'
+          description: Forbidden
+        "422":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse'
+          description: Unprocessable Entity
+      security:
+      - BearerAuth: []
+      summary: Create a tag
+      tags:
+      - tags
+  /tags/{id}:
+    delete:
+      parameters:
+      - description: Tag ID
+        in: path
+        name: id
+        required: true
+        schema:
+          type: string
+      responses:
+        "204":
+          description: No Content
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse'
+          description: Forbidden
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse'
+          description: Not Found
+      security:
+      - BearerAuth: []
+      summary: Delete a tag
+      tags:
+      - tags
+    get:
+      parameters:
+      - description: Tag ID
+        in: path
+        name: id
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.SingleResponse-github_com_denisakp_ogoune_internal_dto_v1_TagResponse'
+          description: OK
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse'
+          description: Not Found
+      security:
+      - BearerAuth: []
+      summary: Get a tag by ID
+      tags:
+      - tags
+    put:
+      parameters:
+      - description: Tag ID
+        in: path
+        name: id
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              oneOf:
+              - type: object
+              - $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.UpdateTagRequest'
+                description: Update payload
+                summary: body
+        description: Update payload
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.SingleResponse-github_com_denisakp_ogoune_internal_dto_v1_TagResponse'
+          description: OK
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse'
+          description: Forbidden
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse'
+          description: Not Found
+      security:
+      - BearerAuth: []
+      summary: Update a tag
+      tags:
+      - tags
+  /toolbox/dns:
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              oneOf:
+              - type: object
+              - $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.DNSLookupRequest'
+                description: DNS lookup request
+                summary: body
+        description: DNS lookup request
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.SingleResponse-github_com_denisakp_ogoune_internal_dto_v1_DNSLookupResponse'
+          description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse'
+          description: Bad Request
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse'
+          description: Forbidden
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse'
+          description: Too Many Requests
+      security:
+      - BearerAuth: []
+      summary: Run a one-off DNS lookup
+      tags:
+      - toolbox
+  /toolbox/port-scan:
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              oneOf:
+              - type: object
+              - $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.PortScanRequest'
+                description: Port scan request
+                summary: body
+        description: Port scan request
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.SingleResponse-github_com_denisakp_ogoune_internal_dto_v1_PortScanResponse'
+          description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse'
+          description: Bad Request
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse'
+          description: Forbidden
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse'
+          description: Too Many Requests
+      security:
+      - BearerAuth: []
+      summary: Scan ports on a registered monitor host (rate-limited 5/min)
+      tags:
+      - toolbox
+  /toolbox/ssl-check:
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              oneOf:
+              - type: object
+              - $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.SSLCheckRequest'
+                description: SSL check request
+                summary: body
+        description: SSL check request
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.SingleResponse-github_com_denisakp_ogoune_internal_dto_v1_SSLCheckResponse'
+          description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse'
+          description: Bad Request
+        "422":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse'
+          description: Unprocessable Entity
+      security:
+      - BearerAuth: []
+      summary: Inspect a TLS certificate
+      tags:
+      - toolbox
+  /toolbox/whois:
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              oneOf:
+              - type: object
+              - $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.WhoisRequest'
+                description: WHOIS request
+                summary: body
+        description: WHOIS request
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.SingleResponse-github_com_denisakp_ogoune_internal_dto_v1_WhoisResponse'
+          description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse'
+          description: Bad Request
+        "422":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse'
+          description: Unprocessable Entity
+      security:
+      - BearerAuth: []
+      summary: Look up domain registration data
+      tags:
+      - toolbox
+servers:
+- url: localhost:9596/api/v1

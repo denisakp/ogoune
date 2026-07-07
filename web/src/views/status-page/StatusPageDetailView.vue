@@ -1,8 +1,6 @@
 <script setup lang="ts">
 import { onMounted, computed, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { ArrowLeftOutlined } from '@ant-design/icons-vue'
-
 import StatusPageDetail from '@/components/status-page/StatusPageDetail.vue'
 import { storeToRefs } from 'pinia'
 import { useStatusPageStore } from '@/stores/statusPageStore'
@@ -96,12 +94,15 @@ const goBack = () => {
     <div class="status-header">
       <div class="container">
         <div class="header-content">
-          <a-button type="text" class="back-button" @click="goBack">
-            <template #icon>
-              <ArrowLeftOutlined />
-            </template>
+          <UButton
+            color="neutral"
+            variant="ghost"
+            class="back-button"
+            icon="i-lucide-arrow-left"
+            @click="goBack"
+          >
             Back to Status Page
-          </a-button>
+          </UButton>
 
           <div v-if="pageConfig.showLogo" class="logo">
             {{ pageConfig.companyName }}
@@ -257,12 +258,6 @@ const goBack = () => {
     text-align: center;
     gap: 8px;
   }
-}
-
-/* Remove any default layout styling */
-:deep(.ant-layout),
-:deep(.ant-layout-content) {
-  background: transparent !important;
 }
 
 /* Override MonitorStatusDetail component background */

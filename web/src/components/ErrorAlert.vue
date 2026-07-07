@@ -6,14 +6,11 @@ defineProps<{
 </script>
 
 <template>
-  <a-alert type="error" show-icon>
-    <template #message v-if="title">
-      {{ title }}
-    </template>
-    <template #description>
-      {{ message }}
-    </template>
-  </a-alert>
+  <UAlert
+    color="error"
+    variant="soft"
+    icon="i-lucide-circle-alert"
+    :title="title"
+    :description="message"
+  />
 </template>
-
-<style scoped></style>

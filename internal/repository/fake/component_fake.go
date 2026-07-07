@@ -23,9 +23,7 @@ func (c *ComponentFake) Create(ctx context.Context, component *domain.Component)
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	if err := component.BeforeCreate(nil); err != nil {
-		return nil, ErrInvalidInput
-	}
+	component.EnsureID()
 
 	if _, exists := c.components[component.ID]; exists {
 		return nil, ErrDuplicate

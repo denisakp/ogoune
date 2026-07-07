@@ -9,6 +9,7 @@ import (
 	"github.com/denisakp/ogoune/internal/api/response"
 	"github.com/denisakp/ogoune/internal/domain"
 	"github.com/denisakp/ogoune/internal/dto"
+	"github.com/denisakp/ogoune/internal/service"
 	"github.com/go-chi/chi/v5"
 )
 
@@ -21,6 +22,7 @@ type NotificationServiceInterface interface {
 	DeleteNotificationChannel(ctx context.Context, id string) error
 	TestNotificationChannel(ctx context.Context, id string) error
 	ValidateAndTestChannelConfig(ctx context.Context, channelType domain.NotificationChannelType, config json.RawMessage) error
+	Stats(ctx context.Context) (*service.NotificationStats, error)
 }
 
 // NotificationHandler handles HTTP requests for notification operations.
@@ -203,4 +205,15 @@ func (h *NotificationHandler) ValidateAndTestChannelConfig(w http.ResponseWriter
 	response.JSON(w, http.StatusOK, map[string]string{
 		"message": "Configuration validated and tested successfully",
 	})
+}
+
+// GetStats handles GET /notifications/stats — counters surfaced in the
+// admin notification dashboard header (sent_30d / pending / failed_24h).
+func (h *NotificationHandler) GetStats(w http.ResponseWriter, r *http.Request) {
+	stats, err := h.notificationService.Stats(r.Context())
+	if err != nil {
+		response.Error(w, http.StatusInternalServerError, "Failed to load notification stats: "+err.Error())
+		return
+	}
+	response.JSON(w, http.StatusOK, stats)
 }

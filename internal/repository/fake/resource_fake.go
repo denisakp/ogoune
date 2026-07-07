@@ -3,10 +3,13 @@ package fake
 import (
 	"context"
 	"sort"
+	"strings"
 	"sync"
 	"time"
 
 	domain "github.com/denisakp/ogoune/internal/domain"
+	"github.com/denisakp/ogoune/internal/port"
+	"github.com/denisakp/ogoune/internal/repository/sqlc/dynquery"
 )
 
 // ResourceFake provides an in-memory implementation of ResourceRepository for testing.
@@ -29,10 +32,7 @@ func (r *ResourceFake) Create(ctx context.Context, resource *domain.Resource) (*
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	// Call BeforeCreate hook like GORM does - generates ID if not set
-	if err := resource.BeforeCreate(nil); err != nil {
-		return nil, ErrInvalidInput
-	}
+	resource.EnsureID()
 
 	if _, exists := r.resources[resource.ID]; exists {
 		return nil, ErrDuplicate
@@ -129,7 +129,7 @@ func (r *ResourceFake) FailNextUpdate(err error) {
 	r.updateErr = err
 }
 
-func (r *ResourceFake) UpdateMetadata(ctx context.Context, id string, metadata *domain.ResourceMetaData) error {
+func (r *ResourceFake) UpdateMetadata(ctx context.Context, id string, req port.UpdateMetadataRequest) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
@@ -137,12 +137,20 @@ func (r *ResourceFake) UpdateMetadata(ctx context.Context, id string, metadata *
 	if !exists {
 		return ErrNotFound
 	}
-	// Set metadata pointer to a copy to avoid external mutation
-	if metadata != nil {
-		mdCopy := *metadata
-		res.Metadata = &mdCopy
-	} else {
-		res.Metadata = nil
+	if res.Metadata == nil {
+		res.Metadata = &domain.ResourceMetaData{}
+	}
+	if req.SSLExpirationDate != nil {
+		res.Metadata.SSLExpirationDate = *req.SSLExpirationDate
+	}
+	if req.SSLIssuer != nil {
+		res.Metadata.SSLIssuer = *req.SSLIssuer
+	}
+	if req.DomainExpirationDate != nil {
+		res.Metadata.DomainExpirationDate = *req.DomainExpirationDate
+	}
+	if req.DomainRegistrar != nil {
+		res.Metadata.DomainRegistrar = *req.DomainRegistrar
 	}
 	return nil
 }
@@ -223,7 +231,7 @@ func (r *ResourceFake) UpdateLastPingAt(ctx context.Context, id string, at time.
 	return nil
 }
 
-func (r *ResourceFake) UpdateMonitoringState(ctx context.Context, resource *domain.Resource) error {
+func (r *ResourceFake) UpdateMonitoringState(ctx context.Context, id string, req port.UpdateMonitoringStateRequest) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
@@ -233,15 +241,25 @@ func (r *ResourceFake) UpdateMonitoringState(ctx context.Context, resource *doma
 		return err
 	}
 
-	res, exists := r.resources[resource.ID]
+	res, exists := r.resources[id]
 	if !exists {
 		return ErrNotFound
 	}
-	res.Status = resource.Status
-	res.FailureCount = resource.FailureCount
-	res.LastChecked = resource.LastChecked
-	res.LastStatusTransition = resource.LastStatusTransition
-	res.FlapStartedAt = resource.FlapStartedAt
+	if req.Status != nil {
+		res.Status = *req.Status
+	}
+	if req.FailureCount != nil {
+		res.FailureCount = *req.FailureCount
+	}
+	if req.LastChecked != nil {
+		res.LastChecked = *req.LastChecked
+	}
+	if req.LastStatusTransition != nil {
+		res.LastStatusTransition = *req.LastStatusTransition
+	}
+	if req.FlapStartedAt != nil {
+		res.FlapStartedAt = *req.FlapStartedAt
+	}
 	return nil
 }
 
@@ -342,6 +360,61 @@ func (r *ResourceFake) FindByTag(ctx context.Context, tagName string, limit, off
 	}
 
 	return tagged[offset:end], nil
+}
+
+// ListResourcesByFilter applies the dynamic filter in memory (spec 051 fake).
+func (r *ResourceFake) ListResourcesByFilter(ctx context.Context, f dynquery.MonitorFilter, page, perPage int) ([]*domain.Resource, int, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	matched := make([]*domain.Resource, 0)
+	for _, res := range r.resources {
+		if f.IsActive != nil {
+			if res.IsActive != *f.IsActive {
+				continue
+			}
+		} else if !res.IsActive {
+			continue
+		}
+		if f.Type != nil && string(res.Type) != *f.Type {
+			continue
+		}
+		if f.Tag != nil {
+			has := false
+			for _, t := range res.Tags {
+				if t != nil && t.Name == *f.Tag {
+					has = true
+					break
+				}
+			}
+			if !has {
+				continue
+			}
+		}
+		if f.Q != nil {
+			needle := strings.ToLower(*f.Q)
+			if !strings.Contains(strings.ToLower(res.Name), needle) &&
+				!strings.Contains(strings.ToLower(res.Target), needle) {
+				continue
+			}
+		}
+		copy := *res
+		matched = append(matched, &copy)
+	}
+
+	sort.Slice(matched, func(i, j int) bool {
+		return matched[i].CreatedAt.After(matched[j].CreatedAt)
+	})
+	total := len(matched)
+	offset := (page - 1) * perPage
+	if offset >= total {
+		return []*domain.Resource{}, total, nil
+	}
+	end := offset + perPage
+	if end > total {
+		end = total
+	}
+	return matched[offset:end], total, nil
 }
 
 // AddTag is a helper for tests to associate tags with resources

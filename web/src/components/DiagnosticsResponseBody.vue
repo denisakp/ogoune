@@ -82,11 +82,11 @@ const copyToClipboard = async () => {
   try {
     const text = displayBody.value || ''
     await navigator.clipboard.writeText(text)
-    const { message } = await import('ant-design-vue')
-    message.success('Copied to clipboard')
+    const { useToast } = await import('@nuxt/ui/composables/useToast')
+    useToast().add({ title: 'Copied to clipboard', color: 'success' })
   } catch {
-    const { message } = await import('ant-design-vue')
-    message.error('Failed to copy')
+    const { useToast } = await import('@nuxt/ui/composables/useToast')
+    useToast().add({ title: 'Failed to copy', color: 'error' })
   }
 }
 </script>
@@ -94,68 +94,83 @@ const copyToClipboard = async () => {
 <template>
   <div>
     <!-- Empty State -->
-    <div v-if="!body" style="color: rgba(0, 0, 0, 0.45); font-size: 12px">&lt;empty&gt;</div>
+    <div v-if="!body" class="empty-state">&lt;empty&gt;</div>
 
     <!-- Body Display -->
     <div v-else>
       <!-- Controls -->
-      <div
-        v-if="isEncoded"
-        style="margin-bottom: 12px; display: flex; align-items: center; gap: 8px"
-      >
-        <a-switch v-model:checked="showDecoded" />
-        <span style="font-size: 12px; color: rgba(0, 0, 0, 0.65)">
+      <div v-if="isEncoded" class="mb-3 flex items-center gap-2">
+        <USwitch v-model="showDecoded" />
+        <span class="text-xs text-muted">
           {{ showDecoded ? 'Showing decoded' : 'Showing encoded (base64)' }}
         </span>
       </div>
 
       <!-- Truncation Warning -->
-      <a-alert
+      <UAlert
         v-if="isTruncated"
-        message="Response body was truncated"
+        color="warning"
+        variant="soft"
+        icon="i-lucide-triangle-alert"
+        title="Response body was truncated"
         description="The response body exceeds 5KB and has been truncated to avoid excessive storage."
-        type="warning"
-        show-icon
-        style="margin-bottom: 12px"
+        class="mb-3"
       />
 
       <!-- Size Info -->
-      <div
-        v-if="responseSize"
-        style="font-size: 12px; color: rgba(0, 0, 0, 0.65); margin-bottom: 12px"
-      >
+      <div v-if="responseSize" class="size-info">
         Response size: {{ (responseSize / 1024).toFixed(2) }} KB
-        <span v-if="isTruncated" style="color: #faad14">(truncated)</span>
+        <span v-if="isTruncated" class="truncated">(truncated)</span>
       </div>
 
       <!-- Body Content -->
-      <div
-        style="
-          background-color: #1f1f1f;
-          color: #d4d4d4;
-          padding: 12px;
-          border-radius: 4px;
-          font-family: monospace;
-          font-size: 11px;
-          max-height: 400px;
-          overflow-y: auto;
-          white-space: pre-wrap;
-          word-break: break-all;
-          line-height: 1.4;
-        "
-      >
+      <div class="body-content&">
         {{ formattedBody }}
       </div>
 
       <!-- Copy Button -->
-      <div style="margin-top: 12px">
-        <a-button size="small" @click="copyToClipboard">
-          <template #icon>
-            <a-icon-copy />
-          </template>
+      <div class="mt-3">
+        <UButton
+          size="xs"
+          color="neutral"
+          variant="soft"
+          icon="i-lucide-copy"
+          @click="copyToClipboard"
+        >
           Copy
-        </a-button>
+        </UButton>
       </div>
     </div>
   </div>
 </template>
+
+<style scoped lang="css">
+.body-content {
+  background-color: #1f1f1f;
+  color: #d4d4d4;
+  padding: 12px;
+  border-radius: 4px;
+  font-family: monospace;
+  font-size: 11px;
+  max-height: 400px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  word-break: break-all;
+  line-height: 1.4;
+}
+
+.size-info {
+  font-size: 12px;
+  color: rgba(0, 0, 0, 0.65);
+  margin-bottom: 12px;
+}
+
+.truncated {
+  color: #faad14;
+}
+
+.empty-state {
+  font-size: 14px;
+  color: rgba(0, 0, 0, 0.65);
+}
+</style>

@@ -8,10 +8,13 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 )
 
-// JWTClaims represents the JWT claims structure with UserID
+// JWTClaims represents the JWT claims structure with UserID and optional SessionID.
+// SessionID (sid) ties the token to a row in sessions; when present, the auth
+// middleware MUST consult sessions.revoked_at on every request (spec 059 FR-009).
 type JWTClaims struct {
-	Email  string `json:"email"`
-	UserID string `json:"user_id"`
+	Email     string `json:"email"`
+	UserID    string `json:"user_id"`
+	SessionID string `json:"sid,omitempty"`
 	jwt.RegisteredClaims
 }
 
@@ -31,12 +34,18 @@ func NewJWTManager(secretKey string, issuer string, duration time.Duration) *JWT
 	}
 }
 
-// Generate creates a new JWT token for the given email and userID
+// Generate creates a new JWT token for the given email and userID (no session binding).
 func (m *JWTManager) Generate(ctx context.Context, email, userID string) (string, error) {
+	return m.GenerateWithSession(ctx, email, userID, "")
+}
+
+// GenerateWithSession issues a token bound to a sessions.id row. Spec 059 FR-009.
+func (m *JWTManager) GenerateWithSession(_ context.Context, email, userID, sessionID string) (string, error) {
 	now := time.Now()
 	claims := JWTClaims{
-		Email:  email,
-		UserID: userID,
+		Email:     email,
+		UserID:    userID,
+		SessionID: sessionID,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(now.Add(m.duration)),
 			IssuedAt:  jwt.NewNumericDate(now),

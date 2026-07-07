@@ -10,7 +10,6 @@ import (
 	"github.com/denisakp/ogoune/internal/domain"
 	"github.com/denisakp/ogoune/internal/maintenance"
 	"github.com/denisakp/ogoune/internal/monitoring"
-	"github.com/denisakp/ogoune/internal/repository/store"
 	"github.com/denisakp/ogoune/internal/scheduler"
 	"github.com/denisakp/ogoune/internal/service"
 	"github.com/denisakp/ogoune/internal/worker"
@@ -82,12 +81,56 @@ func initTimingWheelWorker(app *App, enrichmentService *service.EnrichmentServic
 		app.IncidentDiagnosticsRepo,
 		nil,
 	)
+	if app.IncidentUpdateService != nil {
+		incidentService.SetUpdateSeeder(app.IncidentUpdateService)
+	}
+	if app.NotificationFeedService != nil {
+		incidentService.SetNotificationEmitter(app.NotificationFeedService)
+	}
 	app.DetectorIncidentSvc = incidentService
 
 	monitoringHandler := worker.NewMonitoringTaskHandler(app.ResourceRepo, app.MonitoringActivityRepo, app.MaintenanceRepo, app.IncidentDiagnosticsRepo, executor, incidentService, app.ComponentService, app.ConfirmationScheduler)
 
 	startTimingWheelDispatcher(tw, monitoringHandler, app.SchedulerCfg.TimingWheel.MaxWorkers)
 	startTimingWheelExpiryCheck(app, enrichmentService)
+	startTimingWheelNotificationRetention(app)
+	startTimingWheelReportCheck(app)
+}
+
+// startTimingWheelReportCheck runs the monthly report catch-up scan in-process
+// (spec 076): once at startup (self-heals a missed month on restart) then daily.
+func startTimingWheelReportCheck(app *App) {
+	if app.ReportService == nil {
+		return
+	}
+	handler := worker.NewReportTaskHandler(app.ReportService)
+	_ = handler.ProcessTask(context.Background(), asynq.NewTask(worker.TypeReportCheck, nil)) // startup catch-up
+	go func() {
+		ticker := time.NewTicker(24 * time.Hour)
+		defer ticker.Stop()
+		for range ticker.C {
+			_ = handler.ProcessTask(context.Background(), asynq.NewTask(worker.TypeReportCheck, nil))
+		}
+	}()
+	slog.Info("TimingWheel daily report check scheduled")
+}
+
+// startTimingWheelNotificationRetention runs the daily feed-retention prune in-process (spec 072).
+func startTimingWheelNotificationRetention(app *App) {
+	if app.NotificationFeedRepo == nil {
+		return
+	}
+	handler := worker.NewNotificationRetentionHandler(app.NotificationFeedRepo, app.Cfg.NotificationRetentionDays)
+	go func() {
+		ticker := time.NewTicker(24 * time.Hour)
+		defer ticker.Stop()
+		for range ticker.C {
+			if err := handler.ProcessTask(context.Background(), asynq.NewTask(worker.TypeNotificationRetention, nil)); err != nil {
+				slog.Error("TimingWheel notification:retention failed", "error", err)
+			}
+		}
+	}()
+	slog.Info("TimingWheel daily notification retention scheduled", "retention_days", app.Cfg.NotificationRetentionDays)
 }
 
 func startTimingWheelDispatcher(tw *scheduler.TimingWheelScheduler, handler *worker.MonitoringTaskHandler, maxWorkers int) {
@@ -124,7 +167,7 @@ func processTimingWheelJob(job *scheduler.CheckJob, handler *worker.MonitoringTa
 }
 
 func startTimingWheelExpiryCheck(app *App, enrichmentService *service.EnrichmentService) {
-	twExpiryNotificationLogRepo := store.NewExpiryNotificationLogRepository(app.DB)
+	twExpiryNotificationLogRepo := app.ExpiryNotificationLogRepo
 	twExpiryService := service.NewExpiryNotificationService(
 		twExpiryNotificationLogRepo,
 		app.NotificationChannelRepo,
@@ -132,12 +175,18 @@ func startTimingWheelExpiryCheck(app *App, enrichmentService *service.Enrichment
 	)
 	twExpiryHandler := worker.NewExpiryTaskHandler(app.ResourceRepo, app.NotificationChannelRepo, enrichmentService, twExpiryService)
 	go func() {
-		ticker := time.NewTicker(24 * time.Hour)
-		defer ticker.Stop()
-		for range ticker.C {
+		runExpiry := func() {
 			if err := twExpiryHandler.ProcessTask(context.Background(), asynq.NewTask(worker.TypeExpiryCheck, nil)); err != nil {
 				slog.Error("TimingWheel expiry:check failed", "error", err)
 			}
+		}
+		// Startup catch-up so freshly-renewed certificates are refreshed without
+		// waiting up to 24h for the first tick.
+		runExpiry()
+		ticker := time.NewTicker(24 * time.Hour)
+		defer ticker.Stop()
+		for range ticker.C {
+			runExpiry()
 		}
 	}()
 	slog.Info("TimingWheel daily expiry check scheduled")
@@ -197,12 +246,18 @@ func initAsynqProcessor(app *App, enrichmentService *service.EnrichmentService) 
 		app.IncidentDiagnosticsRepo,
 		app.AsynqClient,
 	)
+	if app.IncidentUpdateService != nil {
+		incidentService.SetUpdateSeeder(app.IncidentUpdateService)
+	}
+	if app.NotificationFeedService != nil {
+		incidentService.SetNotificationEmitter(app.NotificationFeedService)
+	}
 	app.DetectorIncidentSvc = incidentService
 
 	monitoringHandler := worker.NewMonitoringTaskHandler(app.ResourceRepo, app.MonitoringActivityRepo, app.MaintenanceRepo, app.IncidentDiagnosticsRepo, executor, incidentService, app.ComponentService, app.ConfirmationScheduler)
 	maintenanceTaskHandler := maintenance.NewTaskHandler(app.MaintenanceRepo, &maintenance.AsynqClientAdapter{Client: app.AsynqClient})
 
-	expiryNotificationLogRepo := store.NewExpiryNotificationLogRepository(app.DB)
+	expiryNotificationLogRepo := app.ExpiryNotificationLogRepo
 	expiryService := service.NewExpiryNotificationService(
 		expiryNotificationLogRepo,
 		app.NotificationChannelRepo,
@@ -214,7 +269,24 @@ func initAsynqProcessor(app *App, enrichmentService *service.EnrichmentService) 
 		slog.Error("failed to register expiry:check scheduler", "error", err)
 	}
 
-	app.Processor = worker.NewProcessor(app.RedisOpt, monitoringHandler, maintenanceTaskHandler, expiryTaskHandler, worker.Config{
+	var retentionHandler *worker.NotificationRetentionHandler
+	if app.NotificationFeedRepo != nil {
+		retentionHandler = worker.NewNotificationRetentionHandler(app.NotificationFeedRepo, app.Cfg.NotificationRetentionDays)
+		if _, err := app.AsynqScheduler.Register("@daily", asynq.NewTask(worker.TypeNotificationRetention, nil)); err != nil {
+			slog.Error("failed to register notification:retention scheduler", "error", err)
+		}
+	}
+
+	// Monthly report catch-up scan (spec 076) — daily tick, idempotent per period.
+	var reportHandler *worker.ReportTaskHandler
+	if app.ReportService != nil {
+		reportHandler = worker.NewReportTaskHandler(app.ReportService)
+		if _, err := app.AsynqScheduler.Register("@daily", asynq.NewTask(worker.TypeReportCheck, nil)); err != nil {
+			slog.Error("failed to register report:check scheduler", "error", err)
+		}
+	}
+
+	app.Processor = worker.NewProcessor(app.RedisOpt, monitoringHandler, maintenanceTaskHandler, expiryTaskHandler, retentionHandler, reportHandler, worker.Config{
 		Concurrency: app.SchedulerCfg.Asynq.Concurrency,
 	})
 

@@ -1,5 +1,30 @@
-/* Ant Design Vue styles are automatically imported */
-/* Global styles can be added here */
+@import 'tailwindcss';
+@import '@nuxt/ui';
+
+@theme {
+  /* Brand — Indigo */
+  --color-primary-50: #eef2ff;
+  --color-primary-100: #e0e7ff;
+  --color-primary-500: #4f46e5;
+  --color-primary-600: #4338ca;
+  --color-primary-700: #3730a3;
+
+  /* Semantic status colors */
+  --color-status-up: #10b981;
+  --color-status-down: #ef4444;
+  --color-status-warning: #f59e0b;
+  --color-status-maintenance: #0ea5e9;
+  --color-status-unknown: #94a3b8;
+
+  /* Typography */
+  --font-sans: 'Inter', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', 'IBM Plex Mono', monospace;
+
+  /* Radius (restrained scale) */
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+}
 
 :root {
   color-scheme: light dark;
@@ -13,4 +38,53 @@ body {
     'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+/* NuxtUI v4 form controls — stretch to fill their UFormField container.
+   Default is inline-block; override so labels + inputs span the full row. */
+[data-slot='root'] > [class*='container'] > * {
+  width: 100%;
+}
+[data-slot='root'] > [class*='container'] > * > input,
+[data-slot='root'] > [class*='container'] > * > button {
+  width: 100%;
+}
+
+/* PRD-014 — shared auth-page background gradient. */
+.auth-gradient {
+  background: linear-gradient(135deg, #eef2ff 0%, #f8fafc 50%, #e0e7ff 100%);
+}
+
+/* PRD-016 fix — NuxtUI v4 UModal renders the content card with bg-default/95
+   + backdrop-blur by default. On pages where a UTable sits behind the modal
+   (Notifications, Escalation), the table's header/body separator bleeds through.
+
+   Two fixes:
+   1. Remove the bottom border on UTable <thead> (root cause — no line behind = no bleed).
+   2. Force every dialog content element fully opaque (safety net for any other
+      hairlines behind the modal). Multiple selectors because NuxtUI v4 wraps the
+      Radix/Reka dialog in elements that vary by version. */
+table thead {
+  border-bottom: 0 !important;
+}
+table thead [data-slot='separator'] {
+  display: none !important;
+}
+table tbody > tr:first-child {
+  border-top: 0 !important;
+}
+
+[role='dialog'],
+[data-radix-dialog-content],
+[data-reka-dialog-content],
+[aria-modal='true'] {
+  background-color: white !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+.dark [role='dialog'],
+.dark [data-radix-dialog-content],
+.dark [data-reka-dialog-content],
+.dark [aria-modal='true'] {
+  background-color: #111827 !important; /* gray-900 */
 }

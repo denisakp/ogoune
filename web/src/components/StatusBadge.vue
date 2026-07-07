@@ -1,10 +1,18 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 
-type StatusType = 'up' | 'down' | 'paused' | 'pending' | 'error' | 'unknown' | 'flapping' | 'waiting'
+type StatusType =
+  | 'up'
+  | 'down'
+  | 'paused'
+  | 'pending'
+  | 'error'
+  | 'unknown'
+  | 'flapping'
+  | 'waiting'
 
 interface StatusConfig {
-  color: string
+  color: 'success' | 'error' | 'warning' | 'info' | 'neutral'
   label: string
   pulse?: boolean
 }
@@ -16,14 +24,14 @@ interface Props {
 const props = defineProps<Props>()
 
 const statusConfigMap: Record<StatusType, StatusConfig> = {
-  up: { color: 'green', label: 'UP' },
-  down: { color: 'red', label: 'DOWN' },
-  paused: { color: 'orange', label: 'PAUSED' },
-  pending: { color: 'blue', label: 'PENDING' },
-  error: { color: 'red', label: 'ERROR' },
-  unknown: { color: 'default', label: 'UNKNOWN' },
+  up: { color: 'success', label: 'UP' },
+  down: { color: 'error', label: 'DOWN' },
+  paused: { color: 'warning', label: 'PAUSED' },
+  pending: { color: 'info', label: 'PENDING' },
+  error: { color: 'error', label: 'ERROR' },
+  unknown: { color: 'neutral', label: 'UNKNOWN' },
   flapping: { color: 'warning', label: 'FLAPPING', pulse: true },
-  waiting: { color: 'default', label: 'WAITING' },
+  waiting: { color: 'neutral', label: 'WAITING' },
 }
 
 const statusInfo = computed<StatusConfig>(() => {
@@ -32,9 +40,14 @@ const statusInfo = computed<StatusConfig>(() => {
 </script>
 
 <template>
-  <a-tag :color="statusInfo.color" :class="{ 'flapping-pulse': statusInfo.pulse }">
+  <UBadge
+    :color="statusInfo.color"
+    variant="subtle"
+    size="sm"
+    :class="{ 'flapping-pulse': statusInfo.pulse }"
+  >
     {{ statusInfo.label }}
-  </a-tag>
+  </UBadge>
 </template>
 
 <style scoped>

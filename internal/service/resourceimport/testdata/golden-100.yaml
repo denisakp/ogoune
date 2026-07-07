@@ -1,0 +1,405 @@
+version: 1
+defaults:
+  interval: 60
+  timeout: 10
+resources:
+  - name: Heartbeat 001
+    type: heartbeat
+    heartbeat_interval: 3600
+    heartbeat_grace: 300
+  - name: Heartbeat 002
+    type: heartbeat
+    heartbeat_interval: 3600
+    heartbeat_grace: 300
+  - name: Heartbeat 003
+    type: heartbeat
+    heartbeat_interval: 3600
+    heartbeat_grace: 300
+  - name: Heartbeat 004
+    type: heartbeat
+    heartbeat_interval: 3600
+    heartbeat_grace: 300
+  - name: Heartbeat 005
+    type: heartbeat
+    heartbeat_interval: 3600
+    heartbeat_grace: 300
+  - name: Heartbeat 006
+    type: heartbeat
+    heartbeat_interval: 3600
+    heartbeat_grace: 300
+  - name: Heartbeat 007
+    type: heartbeat
+    heartbeat_interval: 3600
+    heartbeat_grace: 300
+  - name: Heartbeat 008
+    type: heartbeat
+    heartbeat_interval: 3600
+    heartbeat_grace: 300
+  - name: Heartbeat 009
+    type: heartbeat
+    heartbeat_interval: 3600
+    heartbeat_grace: 300
+  - name: Heartbeat 010
+    type: heartbeat
+    heartbeat_interval: 3600
+    heartbeat_grace: 300
+  - name: Heartbeat 011
+    type: heartbeat
+    heartbeat_interval: 3600
+    heartbeat_grace: 300
+  - name: Heartbeat 012
+    type: heartbeat
+    heartbeat_interval: 3600
+    heartbeat_grace: 300
+  - name: Heartbeat 013
+    type: heartbeat
+    heartbeat_interval: 3600
+    heartbeat_grace: 300
+  - name: Heartbeat 014
+    type: heartbeat
+    heartbeat_interval: 3600
+    heartbeat_grace: 300
+  - name: Heartbeat 015
+    type: heartbeat
+    heartbeat_interval: 3600
+    heartbeat_grace: 300
+  - name: Heartbeat 016
+    type: heartbeat
+    heartbeat_interval: 3600
+    heartbeat_grace: 300
+  - name: Heartbeat 017
+    type: heartbeat
+    heartbeat_interval: 3600
+    heartbeat_grace: 300
+  - name: Heartbeat 018
+    type: heartbeat
+    heartbeat_interval: 3600
+    heartbeat_grace: 300
+  - name: Heartbeat 019
+    type: heartbeat
+    heartbeat_interval: 3600
+    heartbeat_grace: 300
+  - name: Heartbeat 020
+    type: heartbeat
+    heartbeat_interval: 3600
+    heartbeat_grace: 300
+  - name: Heartbeat 021
+    type: heartbeat
+    heartbeat_interval: 3600
+    heartbeat_grace: 300
+  - name: Heartbeat 022
+    type: heartbeat
+    heartbeat_interval: 3600
+    heartbeat_grace: 300
+  - name: Heartbeat 023
+    type: heartbeat
+    heartbeat_interval: 3600
+    heartbeat_grace: 300
+  - name: Heartbeat 024
+    type: heartbeat
+    heartbeat_interval: 3600
+    heartbeat_grace: 300
+  - name: Heartbeat 025
+    type: heartbeat
+    heartbeat_interval: 3600
+    heartbeat_grace: 300
+  - name: Heartbeat 026
+    type: heartbeat
+    heartbeat_interval: 3600
+    heartbeat_grace: 300
+  - name: Heartbeat 027
+    type: heartbeat
+    heartbeat_interval: 3600
+    heartbeat_grace: 300
+  - name: Heartbeat 028
+    type: heartbeat
+    heartbeat_interval: 3600
+    heartbeat_grace: 300
+  - name: Heartbeat 029
+    type: heartbeat
+    heartbeat_interval: 3600
+    heartbeat_grace: 300
+  - name: Heartbeat 030
+    type: heartbeat
+    heartbeat_interval: 3600
+    heartbeat_grace: 300
+  - name: Heartbeat 031
+    type: heartbeat
+    heartbeat_interval: 3600
+    heartbeat_grace: 300
+  - name: Heartbeat 032
+    type: heartbeat
+    heartbeat_interval: 3600
+    heartbeat_grace: 300
+  - name: Heartbeat 033
+    type: heartbeat
+    heartbeat_interval: 3600
+    heartbeat_grace: 300
+  - name: Heartbeat 034
+    type: heartbeat
+    heartbeat_interval: 3600
+    heartbeat_grace: 300
+  - name: Heartbeat 035
+    type: heartbeat
+    heartbeat_interval: 3600
+    heartbeat_grace: 300
+  - name: Heartbeat 036
+    type: heartbeat
+    heartbeat_interval: 3600
+    heartbeat_grace: 300
+  - name: Heartbeat 037
+    type: heartbeat
+    heartbeat_interval: 3600
+    heartbeat_grace: 300
+  - name: Heartbeat 038
+    type: heartbeat
+    heartbeat_interval: 3600
+    heartbeat_grace: 300
+  - name: Heartbeat 039
+    type: heartbeat
+    heartbeat_interval: 3600
+    heartbeat_grace: 300
+  - name: Heartbeat 040
+    type: heartbeat
+    heartbeat_interval: 3600
+    heartbeat_grace: 300
+  - name: Heartbeat 041
+    type: heartbeat
+    heartbeat_interval: 3600
+    heartbeat_grace: 300
+  - name: Heartbeat 042
+    type: heartbeat
+    heartbeat_interval: 3600
+    heartbeat_grace: 300
+  - name: Heartbeat 043
+    type: heartbeat
+    heartbeat_interval: 3600
+    heartbeat_grace: 300
+  - name: Heartbeat 044
+    type: heartbeat
+    heartbeat_interval: 3600
+    heartbeat_grace: 300
+  - name: Heartbeat 045
+    type: heartbeat
+    heartbeat_interval: 3600
+    heartbeat_grace: 300
+  - name: Heartbeat 046
+    type: heartbeat
+    heartbeat_interval: 3600
+    heartbeat_grace: 300
+  - name: Heartbeat 047
+    type: heartbeat
+    heartbeat_interval: 3600
+    heartbeat_grace: 300
+  - name: Heartbeat 048
+    type: heartbeat
+    heartbeat_interval: 3600
+    heartbeat_grace: 300
+  - name: Heartbeat 049
+    type: heartbeat
+    heartbeat_interval: 3600
+    heartbeat_grace: 300
+  - name: Heartbeat 050
+    type: heartbeat
+    heartbeat_interval: 3600
+    heartbeat_grace: 300
+  - name: Heartbeat 051
+    type: heartbeat
+    heartbeat_interval: 3600
+    heartbeat_grace: 300
+  - name: Heartbeat 052
+    type: heartbeat
+    heartbeat_interval: 3600
+    heartbeat_grace: 300
+  - name: Heartbeat 053
+    type: heartbeat
+    heartbeat_interval: 3600
+    heartbeat_grace: 300
+  - name: Heartbeat 054
+    type: heartbeat
+    heartbeat_interval: 3600
+    heartbeat_grace: 300
+  - name: Heartbeat 055
+    type: heartbeat
+    heartbeat_interval: 3600
+    heartbeat_grace: 300
+  - name: Heartbeat 056
+    type: heartbeat
+    heartbeat_interval: 3600
+    heartbeat_grace: 300
+  - name: Heartbeat 057
+    type: heartbeat
+    heartbeat_interval: 3600
+    heartbeat_grace: 300
+  - name: Heartbeat 058
+    type: heartbeat
+    heartbeat_interval: 3600
+    heartbeat_grace: 300
+  - name: Heartbeat 059
+    type: heartbeat
+    heartbeat_interval: 3600
+    heartbeat_grace: 300
+  - name: Heartbeat 060
+    type: heartbeat
+    heartbeat_interval: 3600
+    heartbeat_grace: 300
+  - name: Heartbeat 061
+    type: heartbeat
+    heartbeat_interval: 3600
+    heartbeat_grace: 300
+  - name: Heartbeat 062
+    type: heartbeat
+    heartbeat_interval: 3600
+    heartbeat_grace: 300
+  - name: Heartbeat 063
+    type: heartbeat
+    heartbeat_interval: 3600
+    heartbeat_grace: 300
+  - name: Heartbeat 064
+    type: heartbeat
+    heartbeat_interval: 3600
+    heartbeat_grace: 300
+  - name: Heartbeat 065
+    type: heartbeat
+    heartbeat_interval: 3600
+    heartbeat_grace: 300
+  - name: Heartbeat 066
+    type: heartbeat
+    heartbeat_interval: 3600
+    heartbeat_grace: 300
+  - name: Heartbeat 067
+    type: heartbeat
+    heartbeat_interval: 3600
+    heartbeat_grace: 300
+  - name: Heartbeat 068
+    type: heartbeat
+    heartbeat_interval: 3600
+    heartbeat_grace: 300
+  - name: Heartbeat 069
+    type: heartbeat
+    heartbeat_interval: 3600
+    heartbeat_grace: 300
+  - name: Heartbeat 070
+    type: heartbeat
+    heartbeat_interval: 3600
+    heartbeat_grace: 300
+  - name: Heartbeat 071
+    type: heartbeat
+    heartbeat_interval: 3600
+    heartbeat_grace: 300
+  - name: Heartbeat 072
+    type: heartbeat
+    heartbeat_interval: 3600
+    heartbeat_grace: 300
+  - name: Heartbeat 073
+    type: heartbeat
+    heartbeat_interval: 3600
+    heartbeat_grace: 300
+  - name: Heartbeat 074
+    type: heartbeat
+    heartbeat_interval: 3600
+    heartbeat_grace: 300
+  - name: Heartbeat 075
+    type: heartbeat
+    heartbeat_interval: 3600
+    heartbeat_grace: 300
+  - name: Heartbeat 076
+    type: heartbeat
+    heartbeat_interval: 3600
+    heartbeat_grace: 300
+  - name: Heartbeat 077
+    type: heartbeat
+    heartbeat_interval: 3600
+    heartbeat_grace: 300
+  - name: Heartbeat 078
+    type: heartbeat
+    heartbeat_interval: 3600
+    heartbeat_grace: 300
+  - name: Heartbeat 079
+    type: heartbeat
+    heartbeat_interval: 3600
+    heartbeat_grace: 300
+  - name: Heartbeat 080
+    type: heartbeat
+    heartbeat_interval: 3600
+    heartbeat_grace: 300
+  - name: Heartbeat 081
+    type: heartbeat
+    heartbeat_interval: 3600
+    heartbeat_grace: 300
+  - name: Heartbeat 082
+    type: heartbeat
+    heartbeat_interval: 3600
+    heartbeat_grace: 300
+  - name: Heartbeat 083
+    type: heartbeat
+    heartbeat_interval: 3600
+    heartbeat_grace: 300
+  - name: Heartbeat 084
+    type: heartbeat
+    heartbeat_interval: 3600
+    heartbeat_grace: 300
+  - name: Heartbeat 085
+    type: heartbeat
+    heartbeat_interval: 3600
+    heartbeat_grace: 300
+  - name: Heartbeat 086
+    type: heartbeat
+    heartbeat_interval: 3600
+    heartbeat_grace: 300
+  - name: Heartbeat 087
+    type: heartbeat
+    heartbeat_interval: 3600
+    heartbeat_grace: 300
+  - name: Heartbeat 088
+    type: heartbeat
+    heartbeat_interval: 3600
+    heartbeat_grace: 300
+  - name: Heartbeat 089
+    type: heartbeat
+    heartbeat_interval: 3600
+    heartbeat_grace: 300
+  - name: Heartbeat 090
+    type: heartbeat
+    heartbeat_interval: 3600
+    heartbeat_grace: 300
+  - name: Heartbeat 091
+    type: heartbeat
+    heartbeat_interval: 3600
+    heartbeat_grace: 300
+  - name: Heartbeat 092
+    type: heartbeat
+    heartbeat_interval: 3600
+    heartbeat_grace: 300
+  - name: Heartbeat 093
+    type: heartbeat
+    heartbeat_interval: 3600
+    heartbeat_grace: 300
+  - name: Heartbeat 094
+    type: heartbeat
+    heartbeat_interval: 3600
+    heartbeat_grace: 300
+  - name: Heartbeat 095
+    type: heartbeat
+    heartbeat_interval: 3600
+    heartbeat_grace: 300
+  - name: Heartbeat 096
+    type: heartbeat
+    heartbeat_interval: 3600
+    heartbeat_grace: 300
+  - name: Heartbeat 097
+    type: heartbeat
+    heartbeat_interval: 3600
+    heartbeat_grace: 300
+  - name: Heartbeat 098
+    type: heartbeat
+    heartbeat_interval: 3600
+    heartbeat_grace: 300
+  - name: Heartbeat 099
+    type: heartbeat
+    heartbeat_interval: 3600
+    heartbeat_grace: 300
+  - name: Heartbeat 100
+    type: heartbeat
+    heartbeat_interval: 3600
+    heartbeat_grace: 300

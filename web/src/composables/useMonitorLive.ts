@@ -1,8 +1,8 @@
 import { computed, onMounted, onUnmounted, readonly, ref } from 'vue'
-import type { AxiosError } from 'axios'
 
 import type { LiveSnapshot } from '@/types'
 import { fetchLiveSnapshot } from '@/services/liveService'
+import { NotFoundError } from '@/core/errors'
 
 type IntervalInput = number | undefined | (() => number | undefined)
 type WaitingInput = boolean | undefined | (() => boolean | undefined)
@@ -52,8 +52,7 @@ export const useMonitorLive = (
       lastUpdated.value = new Date()
       error.value = null
     } catch (err) {
-      const axiosError = err as AxiosError
-      if (axiosError.response?.status === 404) {
+      if (err instanceof NotFoundError) {
         isTerminated.value = true
         error.value = 'This monitor no longer exists - showing last known data'
         stopPolling()

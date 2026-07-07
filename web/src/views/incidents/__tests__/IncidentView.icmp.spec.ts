@@ -10,17 +10,9 @@ vi.mock('vue-router', () => ({
   useRoute: () => ({ params: { id: 'test-incident-id' } }),
 }))
 
-vi.mock('ant-design-vue', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('ant-design-vue')>()
-  return {
-    ...actual,
-    message: {
-      error: vi.fn(),
-      success: vi.fn(),
-      info: vi.fn(),
-    },
-  }
-})
+vi.mock('@nuxt/ui/composables/useToast', () => ({
+  useToast: () => ({ add: vi.fn() }),
+}))
 
 const getIncidentByIdMock = vi.fn()
 const resolveIncidentMock = vi.fn()
