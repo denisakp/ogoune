@@ -6,8 +6,8 @@ hero:
   text: Uptime monitoring that confirms before it cries wolf.
   tagline: Verifies failures before alerting. No more 3am pages for a 2-second network blip.
   image:
-    src: /logo.png
-    alt: Ogoune
+    src: /dashboard.png
+    alt: Ogoune dashboard
   actions:
     - theme: brand
       text: Get started
