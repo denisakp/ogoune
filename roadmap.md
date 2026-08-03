@@ -169,7 +169,7 @@ Community Edition — expanding monitoring coverage, observability, and security
 - [x] **Custom domain status page** — serve your status page on `status.yourdomain.com`. **Community Edition.**
 - [ ] **White-label status page** — customize logo, colors, hide "Powered by Ogoune". **Community Edition.**
   The EE differentiator is the removal of "Powered by Ogoune" from generated PDFs and email branding.
-- [ ] **Live incident updates** *(exploratory, post-H3)* — editorial updates posted during an active incident (Investigating → Identified → Monitoring → Resolved), shown live on the public status page alongside the auto-detected uptime. Closes the loop between automatic detection and the planned Postmortem editor. Optional follow-ups: scheduled maintenance announcements, manual component degradation override, subscriber notifications (email/RSS). **Community Edition.** Effort estimate ~10-15 days backend + 5-7 days frontend across multiple sub-features. Not committed; revisit after Slice 4 (Status Page family) ships.
+- [x] **Live incident updates** — editorial updates posted during an active incident (Investigating → Identified → Monitoring → Resolved), shown live on the public status page alongside the auto-detected uptime. Closes the loop between automatic detection and the planned Postmortem editor. **Community Edition.** Optional follow-ups not yet shipped: scheduled maintenance announcements, manual component degradation override, subscriber notifications (email/RSS).
 
 ### Reporting
 
@@ -179,7 +179,7 @@ Community Edition — expanding monitoring coverage, observability, and security
 
 ### Alerting & integrations
 
-- [ ] **Escalation policies — Community** — native multi-step alert ladders. No PagerDuty required.
+- [x] **Escalation policies — Community** — native multi-step alert ladders. No PagerDuty required.
   Step N → wait X minutes → step N+1, with different channels per step. **Community Edition.**
 - [ ] **PagerDuty / OpsGenie** — integration channels. Standard webhook + API. **Community Edition.**
 - [ ] **Cloud integrations** — Vercel, Cloudflare, Coolify, Azure. OAuth flow + auto-discovery of resources.
@@ -193,7 +193,7 @@ Community Edition — expanding monitoring coverage, observability, and security
 
 ### Toolbox & utilities
 
-- [ ] **Toolbox** — one-off network checks. DNS lookup, Port scanner, SSL checker, WHOIS lookup. Manual
+- [x] **Toolbox** — one-off network checks. DNS lookup, Port scanner, SSL checker, WHOIS lookup. Manual
   triggers, no scheduling. CTA "Save as monitor" from results. **Community Edition.**
 
 ### Observability — deferred from H2
