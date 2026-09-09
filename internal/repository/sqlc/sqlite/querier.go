@@ -11,13 +11,20 @@ import (
 )
 
 type Querier interface {
-	// Reduce a bounded correlation window to its peaks and sample count. The peaks
-	// are computed here rather than in Go so no numeric column ever crosses the wire
-	// (spec 089, FR-021). A window with no samples returns sample_count = 0; the
-	// caller turns that into an absent context, never a zero-filled one.
+	// Reduce a bounded correlation window to its peaks and sample count, and carry
+	// back the disk documents for the same window, in ONE round trip. Mirrors the
+	// Postgres query exactly in name and result shape.
+	//
+	// The peaks are computed by the database via window functions so no numeric
+	// column is ever reduced in Go (spec 089, FR-021); they repeat identically on
+	// every row, which costs a few bytes and saves a round trip. The disks column
+	// rides along because it is a stored document and nothing in this codebase
+	// reaches inside JSON from SQL on either dialect (FR-021a).
+	//
 	// The range predicate mirrors ListHostMetricsInRange exactly -- no strftime is
 	// needed for a plain comparison, only for extracting epoch seconds.
-	AggregateHostMetricsInWindow(ctx context.Context, arg AggregateHostMetricsInWindowParams) (AggregateHostMetricsInWindowRow, error)
+	// Keep this file pure ASCII: sqlc slices SQLite query text by byte offset.
+	AggregateHostMetricsInWindow(ctx context.Context, arg AggregateHostMetricsInWindowParams) ([]AggregateHostMetricsInWindowRow, error)
 	AvgResponseTimeByResourceInWindow(ctx context.Context, arg AvgResponseTimeByResourceInWindowParams) (sql.NullFloat64, error)
 	// One round-trip bulk avg grouped by resource. Used by the list path to
 	// enrich each resource with its avg response time over a sliding window (30d).
@@ -171,11 +178,6 @@ type Querier interface {
 	ListEscalationPolicies(ctx context.Context) ([]EscalationPolicy, error)
 	ListEscalationStepsByPolicy(ctx context.Context, policyID string) ([]EscalationStep, error)
 	ListHostCredentialsByHost(ctx context.Context, hostID string) ([]HostCredential, error)
-	// The disks column only, for the same bounded window. Deliberately a narrow
-	// projection: disk usage is a stored document and nothing in this codebase
-	// reaches inside JSON from SQL on either dialect, so the worst mount is picked
-	// in Go (spec 089, FR-021a). Rows returned are bounded by the window.
-	ListHostDisksInWindow(ctx context.Context, arg ListHostDisksInWindowParams) ([]sql.NullString, error)
 	ListHostMetricsInRange(ctx context.Context, arg ListHostMetricsInRangeParams) ([]HostMetric, error)
 	ListHosts(ctx context.Context, arg ListHostsParams) ([]Host, error)
 	ListIncidentDiagnosticsByIncidentIDs(ctx context.Context, incidentIds []string) ([]IncidentDiagnostic, error)

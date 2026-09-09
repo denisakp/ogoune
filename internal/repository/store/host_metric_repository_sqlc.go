@@ -113,11 +113,12 @@ func (r *HostMetricRepositorySQLC) ListInRange(ctx context.Context, hostID strin
 }
 
 // AggregateWindow reduces a bounded correlation window to its peaks and sample
-// count. Two queries run behind this one method: the database computes the
-// numeric peaks so no numeric column crosses the wire, and a narrow projection
-// brings back only the disk documents, which have to be decoded in Go because
-// nothing in this codebase reaches inside stored JSON from SQL on either dialect
-// (spec 089, FR-021 / FR-021a).
+// count. One query, one round trip: the database computes the numeric peaks via
+// window functions so no numeric column is reduced in Go (spec 089, FR-021), and
+// the disk documents ride along on the same rows because nothing in this codebase
+// reaches inside stored JSON from SQL on either dialect (FR-021a). The aggregates
+// repeat on every row; a few duplicated bytes are cheaper than a second round
+// trip on a per-view read.
 //
 // Returns nil, nil when the window holds no samples. A zero-filled aggregate
 // would be indistinguishable from an idle host, so absence is expressed by
@@ -125,7 +126,7 @@ func (r *HostMetricRepositorySQLC) ListInRange(ctx context.Context, hostID strin
 func (r *HostMetricRepositorySQLC) AggregateWindow(ctx context.Context, hostID string, from, to time.Time) (*domain.HostMetricsWindowAggregate, error) {
 	switch {
 	case r.pgQ != nil:
-		agg, err := r.pgQ.AggregateHostMetricsInWindow(ctx, pgsqlc.AggregateHostMetricsInWindowParams{
+		rows, err := r.pgQ.AggregateHostMetricsInWindow(ctx, pgsqlc.AggregateHostMetricsInWindowParams{
 			HostID:      hostID,
 			SampledAt:   pgtype.Timestamptz{Time: from, Valid: true},
 			SampledAt_2: pgtype.Timestamptz{Time: to, Valid: true},
@@ -133,56 +134,46 @@ func (r *HostMetricRepositorySQLC) AggregateWindow(ctx context.Context, hostID s
 		if err != nil {
 			return nil, fmt.Errorf("sqlc: aggregate host metrics: %w", err)
 		}
-		if agg.SampleCount == 0 {
+		if len(rows) == 0 {
 			return nil, nil
 		}
-		raw, err := r.pgQ.ListHostDisksInWindow(ctx, pgsqlc.ListHostDisksInWindowParams{
-			HostID:      hostID,
-			SampledAt:   pgtype.Timestamptz{Time: from, Valid: true},
-			SampledAt_2: pgtype.Timestamptz{Time: to, Valid: true},
-		})
-		if err != nil {
-			return nil, fmt.Errorf("sqlc: list host disks: %w", err)
-		}
-		return buildWindowAggregate(agg.PeakCpuPct, agg.PeakMemPct, agg.SampleCount, raw)
-	case r.sqliteQ != nil:
-		agg, err := r.sqliteQ.AggregateHostMetricsInWindow(ctx, sqlitesqlc.AggregateHostMetricsInWindowParams{
-			HostID:      hostID,
-			SampledAt:   from,
-			SampledAt_2: to,
-		})
-		if err != nil {
-			return nil, fmt.Errorf("sqlc: aggregate host metrics: %w", err)
-		}
-		if agg.SampleCount == 0 {
-			return nil, nil
-		}
-		raw, err := r.sqliteQ.ListHostDisksInWindow(ctx, sqlitesqlc.ListHostDisksInWindowParams{
-			HostID:      hostID,
-			SampledAt:   from,
-			SampledAt_2: to,
-		})
-		if err != nil {
-			return nil, fmt.Errorf("sqlc: list host disks: %w", err)
-		}
-		// SQLite stores the document as TEXT, so the projection comes back as
-		// nullable strings rather than the JSONB bytes Postgres returns.
-		docs := make([][]byte, 0, len(raw))
-		for _, v := range raw {
-			if v.Valid && v.String != "" {
-				docs = append(docs, []byte(v.String))
+		docs := make([][]byte, 0, len(rows))
+		for _, row := range rows {
+			if len(row.Disks) > 0 {
+				docs = append(docs, row.Disks)
 			}
 		}
-		return buildWindowAggregate(agg.PeakCpuPct, agg.PeakMemPct, agg.SampleCount, docs)
+		return buildWindowAggregate(rows[0].PeakCpuPct, rows[0].PeakMemPct, rows[0].SampleCount, docs)
+	case r.sqliteQ != nil:
+		rows, err := r.sqliteQ.AggregateHostMetricsInWindow(ctx, sqlitesqlc.AggregateHostMetricsInWindowParams{
+			HostID:      hostID,
+			SampledAt:   from,
+			SampledAt_2: to,
+		})
+		if err != nil {
+			return nil, fmt.Errorf("sqlc: aggregate host metrics: %w", err)
+		}
+		if len(rows) == 0 {
+			return nil, nil
+		}
+		// SQLite stores the document as TEXT, so it comes back as a nullable
+		// string rather than the JSONB bytes Postgres returns.
+		docs := make([][]byte, 0, len(rows))
+		for _, row := range rows {
+			if row.Disks.Valid && row.Disks.String != "" {
+				docs = append(docs, []byte(row.Disks.String))
+			}
+		}
+		return buildWindowAggregate(rows[0].PeakCpuPct, rows[0].PeakMemPct, rows[0].SampleCount, docs)
 	default:
 		return nil, r.unconfigured()
 	}
 }
 
-// buildWindowAggregate decodes the projected disk documents and assembles the
-// aggregate. A document that will not decode is skipped rather than failing the
-// whole window: one malformed sample must not cost the operator the CPU and
-// memory peaks that decoded fine (spec 089, FR-012).
+// buildWindowAggregate decodes the disk documents and assembles the aggregate. A
+// document that will not decode is skipped rather than failing the whole window:
+// one malformed sample must not cost the operator the CPU and memory peaks that
+// decoded fine (spec 089, FR-012).
 func buildWindowAggregate(peakCPU, peakMem float64, count int64, raw [][]byte) (*domain.HostMetricsWindowAggregate, error) {
 	disks := make([][]domain.DiskUsage, 0, len(raw))
 	for _, b := range raw {

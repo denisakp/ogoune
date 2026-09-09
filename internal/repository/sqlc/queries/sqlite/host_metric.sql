@@ -27,25 +27,24 @@ WHERE host_metrics.sampled_at < ?1
     GROUP BY hm.host_id, substr(hm.sampled_at, 1, 16)
   );
 
--- name: AggregateHostMetricsInWindow :one
--- Reduce a bounded correlation window to its peaks and sample count. The peaks
--- are computed here rather than in Go so no numeric column ever crosses the wire
--- (spec 089, FR-021). A window with no samples returns sample_count = 0; the
--- caller turns that into an absent context, never a zero-filled one.
+-- name: AggregateHostMetricsInWindow :many
+-- Reduce a bounded correlation window to its peaks and sample count, and carry
+-- back the disk documents for the same window, in ONE round trip. Mirrors the
+-- Postgres query exactly in name and result shape.
+--
+-- The peaks are computed by the database via window functions so no numeric
+-- column is ever reduced in Go (spec 089, FR-021); they repeat identically on
+-- every row, which costs a few bytes and saves a round trip. The disks column
+-- rides along because it is a stored document and nothing in this codebase
+-- reaches inside JSON from SQL on either dialect (FR-021a).
+--
 -- The range predicate mirrors ListHostMetricsInRange exactly -- no strftime is
 -- needed for a plain comparison, only for extracting epoch seconds.
+-- Keep this file pure ASCII: sqlc slices SQLite query text by byte offset.
 SELECT
-    CAST(COALESCE(MAX(cpu_pct), 0.0) AS REAL) AS peak_cpu_pct,
-    CAST(COALESCE(MAX(mem_pct), 0.0) AS REAL) AS peak_mem_pct,
-    COUNT(*) AS sample_count
+    CAST(COALESCE(MAX(cpu_pct) OVER (), 0.0) AS REAL) AS peak_cpu_pct,
+    CAST(COALESCE(MAX(mem_pct) OVER (), 0.0) AS REAL) AS peak_mem_pct,
+    COUNT(*) OVER () AS sample_count,
+    disks
 FROM host_metrics
 WHERE host_id = ?1 AND sampled_at >= ?2 AND sampled_at <= ?3;
-
--- name: ListHostDisksInWindow :many
--- The disks column only, for the same bounded window. Deliberately a narrow
--- projection: disk usage is a stored document and nothing in this codebase
--- reaches inside JSON from SQL on either dialect, so the worst mount is picked
--- in Go (spec 089, FR-021a). Rows returned are bounded by the window.
-SELECT disks FROM host_metrics
-WHERE host_id = ?1 AND sampled_at >= ?2 AND sampled_at <= ?3
-  AND disks IS NOT NULL;
