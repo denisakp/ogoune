@@ -56,8 +56,9 @@ sha256sum -c SHA256SUMS --ignore-missing
 sudo install -m755 ogoune-agent-linux-arm64 /usr/local/bin/ogoune-agent
 ```
 
-(Building from source is still possible — `make build-agent` → `dist/ogoune-agent`
-— but most operators just download the release binary.)
+(Building from source is still possible — `make build-agent` → `dist/ogoune-agent`,
+which always targets Linux regardless of the machine you build on — but most
+operators just download the release binary.)
 
 **2. Write the config** at `/etc/ogoune/agent.cfg` (mode `0600` — it holds the
 secret). This is an **env-style `KEY=value`** file: the same file serves as the

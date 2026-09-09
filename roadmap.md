@@ -144,12 +144,14 @@ Community Edition — expanding monitoring coverage, observability, and security
 
 ### Agent device monitoring — the killer feature
 
-- [x] **Lightweight agent (Go)** — cross-platform device monitoring agent (Linux, macOS, Windows),
+- [x] **Lightweight agent (Go)** — **Linux** device monitoring agent (amd64 + arm64),
   shipped ahead of schedule in the v1.0.0-beta (specs 079-083). CPU, memory, per-mount disk, and network
   metrics streamed over a WebSocket via a reverse tunnel (agent initiates outbound connection), no
   inbound ports required. Single language across backend + agent (shared domain types via
   `pkg/agentwire`). Ships as a distroless container image + static release binaries, with a systemd
-  unit and agent-down alerting. No eBPF/kernel-event interception yet — see below.
+  unit and agent-down alerting. **Linux only, deliberately** — the packaging is systemd-based, and the
+  servers this targets are Linux. macOS would need a launchd story and Windows a service wrapper, and
+  neither is testable for us today. No eBPF/kernel-event interception yet — see below.
 - [ ] **Kernel-level event interception (eBPF)** — via `cilium/ebpf`, intercept kernel events on Linux
   (OOMKills, segfaults, syscall latency spikes) at the source, feeding Flash Correlation below.
   **Community Edition.**
