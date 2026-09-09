@@ -75,11 +75,11 @@ func TestFeed_UnreadForEscalation_Contract(t *testing.T) {
 		}
 		readAt := now.Add(-10 * time.Minute)
 
-		mk(domain.NotificationCategoryIncident, domain.NotificationSeverityError, old, nil, nil)   // qualifies
-		mk(domain.NotificationCategoryHost, domain.NotificationSeverityError, old, nil, nil)       // qualifies
-		mk(domain.NotificationCategoryGeneral, domain.NotificationSeverityInfo, old, nil, nil)     // excluded: not actionable
+		mk(domain.NotificationCategoryIncident, domain.NotificationSeverityError, old, nil, nil)     // qualifies
+		mk(domain.NotificationCategoryHost, domain.NotificationSeverityError, old, nil, nil)         // qualifies
+		mk(domain.NotificationCategoryGeneral, domain.NotificationSeverityInfo, old, nil, nil)       // excluded: not actionable
 		mk(domain.NotificationCategoryIncident, domain.NotificationSeverityError, old, &readAt, nil) // excluded: read
-		mk(domain.NotificationCategoryIncident, domain.NotificationSeverityError, recent, nil, nil) // excluded: too recent
+		mk(domain.NotificationCategoryIncident, domain.NotificationSeverityError, recent, nil, nil)  // excluded: too recent
 		mk(domain.NotificationCategoryIncident, domain.NotificationSeverityError, old, nil, &user)   // excluded: user-targeted
 
 		cutoff := now.Add(-30 * time.Minute)

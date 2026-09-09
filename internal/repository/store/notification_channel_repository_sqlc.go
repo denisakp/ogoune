@@ -10,12 +10,12 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 
-	"github.com/denisakp/ogoune/pkg/crypto"
 	domain "github.com/denisakp/ogoune/internal/domain"
 	"github.com/denisakp/ogoune/internal/port"
 	"github.com/denisakp/ogoune/internal/repository"
 	pgsqlc "github.com/denisakp/ogoune/internal/repository/sqlc/pg"
 	sqlitesqlc "github.com/denisakp/ogoune/internal/repository/sqlc/sqlite"
+	"github.com/denisakp/ogoune/pkg/crypto"
 )
 
 type NotificationChannelRepositorySQLC struct {

@@ -41,7 +41,7 @@ func TestNotificationFeedRepository_Contract(t *testing.T) {
 		})
 
 		t.Run("List_scopes_instance_wide_plus_user_and_orders_desc", func(t *testing.T) {
-			_, _ = repo.Create(ctx, mk(nil, domain.NotificationCategorySystem, 3*time.Minute))    // instance-wide
+			_, _ = repo.Create(ctx, mk(nil, domain.NotificationCategorySystem, 3*time.Minute))               // instance-wide
 			_, _ = repo.Create(ctx, mk(strptr("user-A"), domain.NotificationCategoryGeneral, 1*time.Minute)) // user-A
 			_, _ = repo.Create(ctx, mk(strptr("user-B"), domain.NotificationCategoryGeneral, 1*time.Minute)) // user-B (not visible to A)
 

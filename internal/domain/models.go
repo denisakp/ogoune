@@ -290,6 +290,15 @@ type IncidentDiagnostics struct {
 	ICMPReachable *bool  `json:"icmp_reachable"`  // whether host replied to ICMP echo
 	ICMPRttMs     *int   `json:"icmp_rtt_ms"`     // round-trip time in ms; null when unreachable
 	RootCauseHint string `json:"root_cause_hint"` // enum: icmp_unavailable|host_unreachable|service_down|""
+
+	// Database health frozen at incident creation (spec 088). Answers "how was
+	// this database when the check broke" -- distinct from ResourceHealth, which
+	// is overwritten on every check and answers "how is it right now". All four
+	// are null for any incident on a monitor that is not a database.
+	DbConnectionsActive     *int64   `json:"db_connections_active,omitempty"`
+	DbConnectionsMax        *int64   `json:"db_connections_max,omitempty"`
+	DbLongestQuerySeconds   *float64 `json:"db_longest_query_seconds,omitempty"`
+	DbReplicationLagSeconds *float64 `json:"db_replication_lag_seconds,omitempty"`
 }
 
 // WithICMP merges ICMP enrichment results into diagnostics.
@@ -962,6 +971,27 @@ type HostMetricSample struct {
 	NetIn     int64
 	NetOut    int64
 	Disks     []DiskUsage
+}
+
+// ResourceHealth is the latest database health for one monitor (spec 088). At
+// most one per monitor, replaced on every check and deleted when a check collects
+// nothing, so stale figures never pass as current. Storage is therefore constant
+// per monitor and needs no retention job.
+//
+// Held in its own table rather than on the monitor row: that table is wide and
+// read on every list endpoint under a benchmark gate, and these columns are null
+// for every monitor that is not a database.
+type ResourceHealth struct {
+	ResourceID  string
+	CollectedAt time.Time
+	// The same four independently nullable metrics DatabaseHealth carries, with
+	// the same meaning and the same units.
+	ConnectionsActive     *int64
+	ConnectionsMax        *int64
+	LongestQuerySeconds   *float64
+	ReplicationLagSeconds *float64
+	PrivilegeLimited      bool
+	UnsupportedVersion    bool
 }
 
 // HostContextResolution says how much the figures in a HostContext can be

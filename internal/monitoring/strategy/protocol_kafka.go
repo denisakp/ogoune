@@ -13,13 +13,13 @@ import (
 )
 
 const (
-	kafkaAPIKeyMetadata    = int16(3)
-	kafkaAPIVersion        = int16(1)
-	kafkaCorrelationID     = int32(1)
-	kafkaClientID          = "ogoune-monitor"
-	kafkaMaxResponseSize   = 1 * 1024 * 1024
-	kafkaMaxStringLen      = 64 * 1024
-	kafkaDefaultPerBroker  = 5 * time.Second
+	kafkaAPIKeyMetadata   = int16(3)
+	kafkaAPIVersion       = int16(1)
+	kafkaCorrelationID    = int32(1)
+	kafkaClientID         = "ogoune-monitor"
+	kafkaMaxResponseSize  = 1 * 1024 * 1024
+	kafkaMaxStringLen     = 64 * 1024
+	kafkaDefaultPerBroker = 5 * time.Second
 )
 
 // parseKafkaBootstrap splits a comma-separated `host:port` list, trims whitespace,

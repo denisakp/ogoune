@@ -43,8 +43,8 @@ func buildMetadataResponseV1(corrID int32, nBrokers int) []byte {
 		binary.Write(body, binary.BigEndian, int32(9092)) // port
 		binary.Write(body, binary.BigEndian, int16(-1))   // rack = null
 	}
-	binary.Write(body, binary.BigEndian, int32(0))  // controller_id
-	binary.Write(body, binary.BigEndian, int32(0))  // topics count = 0
+	binary.Write(body, binary.BigEndian, int32(0)) // controller_id
+	binary.Write(body, binary.BigEndian, int32(0)) // topics count = 0
 	out := bytes.NewBuffer(nil)
 	binary.Write(out, binary.BigEndian, int32(body.Len()))
 	out.Write(body.Bytes())

@@ -40,7 +40,7 @@ func buildConnectionCloseFrame(replyCode uint16) []byte {
 		0x00, 0x0A, // class-id = 10
 		0x00, 0x32, // method-id = 50 (close)
 		byte(replyCode >> 8), byte(replyCode & 0xFF),
-		0x00, // reply-text shortstr len = 0
+		0x00,       // reply-text shortstr len = 0
 		0x00, 0x00, // failing-class
 		0x00, 0x00, // failing-method
 	}

@@ -30,7 +30,7 @@ func TestRedis_Auth_LegacyForm_Success(t *testing.T) {
 	r := protoResource(host, port, "redis")
 	r.Credential = &domain.ResourceCredential{Password: []byte("s3cret!")}
 
-	result, err := newTestProtocolStrategy(2 * time.Second).Execute(context.Background(), r)
+	result, err := newTestProtocolStrategy(2*time.Second).Execute(context.Background(), r)
 	require.NoError(t, err)
 	assert.Equal(t, string(domain.StatusUp), result.Status)
 	assert.Equal(t, "AUTH s3cret!", received)
@@ -52,7 +52,7 @@ func TestRedis_Auth_ACLForm_Success(t *testing.T) {
 	r := protoResource(host, port, "redis")
 	r.Credential = &domain.ResourceCredential{Username: "monitor", Password: []byte("s3cret!")}
 
-	result, err := newTestProtocolStrategy(2 * time.Second).Execute(context.Background(), r)
+	result, err := newTestProtocolStrategy(2*time.Second).Execute(context.Background(), r)
 	require.NoError(t, err)
 	assert.Equal(t, string(domain.StatusUp), result.Status)
 	assert.Equal(t, "AUTH monitor s3cret!", received)
@@ -68,7 +68,7 @@ func TestRedis_Auth_WrongPassword(t *testing.T) {
 	r := protoResource(host, port, "redis")
 	r.Credential = &domain.ResourceCredential{Password: []byte("wrong")}
 
-	result, err := newTestProtocolStrategy(2 * time.Second).Execute(context.Background(), r)
+	result, err := newTestProtocolStrategy(2*time.Second).Execute(context.Background(), r)
 	require.NoError(t, err)
 	assert.Equal(t, string(domain.StatusDown), result.Status)
 	require.NotNil(t, result.Cause)
@@ -87,7 +87,7 @@ func TestRedis_Auth_NoCredential_FallsBackToPlainPing(t *testing.T) {
 
 	r := protoResource(host, port, "redis")
 	// r.Credential left nil
-	result, err := newTestProtocolStrategy(2 * time.Second).Execute(context.Background(), r)
+	result, err := newTestProtocolStrategy(2*time.Second).Execute(context.Background(), r)
 	require.NoError(t, err)
 	assert.Equal(t, string(domain.StatusUp), result.Status)
 }

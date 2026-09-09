@@ -48,6 +48,7 @@ var (
 	_ port.HostAlertStateRepository = (*HostAlertStateRepositorySQLC)(nil)
 
 	_ port.NotificationEscalationStateRepository = (*NotificationEscalationStateRepositorySQLC)(nil)
-	_ port.HostCredentialRepository = (*HostCredentialRepositorySQLC)(nil)
-	_ port.HostMetricsRepository    = (*HostMetricRepositorySQLC)(nil)
+	_ port.HostCredentialRepository              = (*HostCredentialRepositorySQLC)(nil)
+	_ port.HostMetricsRepository                 = (*HostMetricRepositorySQLC)(nil)
+	_ port.ResourceHealthRepository              = (*ResourceHealthRepositorySQLC)(nil)
 )

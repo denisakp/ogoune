@@ -16,11 +16,13 @@ import (
 // TestKafka_Integration runs against a real Kafka broker.
 //
 // Setup (KRaft single node):
-//   docker run --rm -d -p 9092:9092 --name ogoune-it-kafka apache/kafka:3.7.0
+//
+//	docker run --rm -d -p 9092:9092 --name ogoune-it-kafka apache/kafka:3.7.0
 //
 // Run:
-//   OGOUNE_INTEGRATION=1 go test -tags=integration -run Kafka_Integration \
-//     ./internal/monitoring/strategy/...
+//
+//	OGOUNE_INTEGRATION=1 go test -tags=integration -run Kafka_Integration \
+//	  ./internal/monitoring/strategy/...
 func TestKafka_Integration(t *testing.T) {
 	if os.Getenv("OGOUNE_INTEGRATION") != "1" {
 		t.Skip("OGOUNE_INTEGRATION=1 required")

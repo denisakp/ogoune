@@ -25,11 +25,11 @@ func TestMonitoringActivityRepository_SqlcContract(t *testing.T) {
 		// Create + List + FindByResourceID + GetGlobalUptimeStats happy paths.
 		now := time.Now()
 		require.NoError(t, repo.Create(ctx, &domain.MonitoringActivity{
-			Base: domain.Base{ID: "01MASQLC001", CreatedAt: now},
+			Base:       domain.Base{ID: "01MASQLC001", CreatedAt: now},
 			ResourceID: "res-ma-sqlc", Message: "ok", Success: true, ResponseTime: 120,
 		}))
 		require.NoError(t, repo.Create(ctx, &domain.MonitoringActivity{
-			Base: domain.Base{ID: "01MASQLC002", CreatedAt: now.Add(time.Second)},
+			Base:       domain.Base{ID: "01MASQLC002", CreatedAt: now.Add(time.Second)},
 			ResourceID: "res-ma-sqlc", Message: "fail", Success: false, ResponseTime: 0,
 		}))
 
