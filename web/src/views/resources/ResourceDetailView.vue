@@ -11,6 +11,7 @@ import ResourceModal from '@/components/resources/ResourceModal.vue'
 import IncidentsListBody from '@/components/incidents/IncidentsListBody.vue'
 import LinkHostControl from '@/components/hosts/LinkHostControl.vue'
 import MonitorHostPanel from '@/components/hosts/MonitorHostPanel.vue'
+import DatabaseHealthPanel from '@/components/monitors/DatabaseHealthPanel.vue'
 import { listMonitors } from '@/services/hostsService'
 import type { Resource, MonitoringActivity, HourlyUptimeStat } from '@/types'
 
@@ -438,6 +439,12 @@ async function onDelete() {
 // so derive the current monitor's host from the v1 monitors list.
 const monitorId = computed(() => String(route.params.id))
 const currentHostId = ref<string | null>(null)
+
+// Null on every monitor that is not a PostgreSQL or MySQL protocol check, and on
+// a database monitor whose last check collected nothing. The block is gated on
+// this and renders nothing at all otherwise -- no placeholder, no reserved space
+// (spec 088, FR-019).
+const databaseHealth = computed(() => resource.value?.database_health ?? null)
 async function loadHostLink() {
   try {
     const mons = await listMonitors()
@@ -549,6 +556,7 @@ defineExpose({ resource, activeTab, loadDetail, loadActivity, togglePause, onDel
                 @changed="onHostChanged"
               />
             </div>
+            <DatabaseHealthPanel v-if="databaseHealth" :health="databaseHealth" />
             <MonitorHostPanel
               v-if="currentHostId"
               :host-id="currentHostId"

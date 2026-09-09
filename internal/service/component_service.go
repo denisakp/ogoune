@@ -212,7 +212,6 @@ func (s *ComponentService) toComponentResponse(ctx context.Context, component *d
 	}, nil
 }
 
-
 // validateGroupingWindow validates the grouping_window_seconds value.
 // 0 means disabled; non-zero must be between 10 and 300 seconds.
 func validateGroupingWindow(seconds int) error {

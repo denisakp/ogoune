@@ -28,7 +28,7 @@ type CredentialResponse struct {
 // CredentialTestResponse is returned by POST /credentials/test.
 // @name CredentialTestResponse
 type CredentialTestResponse struct {
-	Status    string `json:"status"`           // "ok" or "failed"
-	Cause     string `json:"cause,omitempty"`  // present on failure
+	Status    string `json:"status"`          // "ok" or "failed"
+	Cause     string `json:"cause,omitempty"` // present on failure
 	LatencyMs int64  `json:"latency_ms"`
 }

@@ -122,6 +122,19 @@
                     "created_at": {
                         "type": "string"
                     },
+                    "db_connections_active": {
+                        "description": "Database health frozen at incident creation (spec 088). Answers \"how was\nthis database when the check broke\" -- distinct from ResourceHealth, which\nis overwritten on every check and answers \"how is it right now\". All four\nare null for any incident on a monitor that is not a database.",
+                        "type": "integer"
+                    },
+                    "db_connections_max": {
+                        "type": "integer"
+                    },
+                    "db_longest_query_seconds": {
+                        "type": "number"
+                    },
+                    "db_replication_lag_seconds": {
+                        "type": "number"
+                    },
                     "dns_duration": {
                         "description": "Milliseconds (0 if not measured)",
                         "type": "integer"
@@ -778,6 +791,39 @@
                 ],
                 "type": "object"
             },
+            "github_com_denisakp_ogoune_internal_dto.DatabaseHealthResponse": {
+                "description": "DatabaseHealth is what a PostgreSQL or MySQL monitor's server last reported\nabout itself (spec 088). Null on every other monitor type, and on a database\nmonitor whose last check collected nothing. Detail path only -- never loaded\non a list path, which sits under a benchmark gate.",
+                "properties": {
+                    "collected_at": {
+                        "description": "CollectedAt is when the check that produced these ran. Its age is how a\nclient tells current figures from a paused monitor's leftovers.",
+                        "type": "string"
+                    },
+                    "connections_active": {
+                        "description": "ConnectionsActive and ConnectionsMax are present together or not at all: a\nsaturation ratio needs the pair. Neither needs a grant.",
+                        "type": "integer"
+                    },
+                    "connections_max": {
+                        "type": "integer"
+                    },
+                    "longest_query_seconds": {
+                        "description": "LongestQuerySeconds is the age of the oldest running statement. Its duration\nonly -- the statement text is never collected, stored or returned.",
+                        "type": "number"
+                    },
+                    "privilege_limited": {
+                        "description": "PrivilegeLimited means a grant would unlock more. Present it as an\nopportunity, never as a failure or a requirement.",
+                        "type": "boolean"
+                    },
+                    "replication_lag_seconds": {
+                        "description": "ReplicationLagSeconds is null when the instance is not replicating. Never 0,\nwhich would claim it is perfectly in sync.",
+                        "type": "number"
+                    },
+                    "unsupported_version": {
+                        "description": "UnsupportedVersion means the server is below PostgreSQL 12 / MySQL 8.0.\nA different message to the operator than a missing grant: upgrade, not grant.",
+                        "type": "boolean"
+                    }
+                },
+                "type": "object"
+            },
             "github_com_denisakp_ogoune_internal_dto.LiveActiveIncident": {
                 "properties": {
                     "cause": {
@@ -1344,6 +1390,9 @@
                     },
                     "credential": {
                         "$ref": "#/components/schemas/github_com_denisakp_ogoune_internal_domain.ResourceCredential"
+                    },
+                    "database_health": {
+                        "$ref": "#/components/schemas/github_com_denisakp_ogoune_internal_dto.DatabaseHealthResponse"
                     },
                     "expiry_alert_thresholds": {
                         "type": "string"

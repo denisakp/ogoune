@@ -315,4 +315,3 @@ func (s *StatusPageService) GetResourceDetailStatus(ctx context.Context, resourc
 
 	return detail, nil
 }
-
