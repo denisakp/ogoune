@@ -25,6 +25,42 @@ export interface Host {
   updatedAt: string
   /** Count of monitors linked to this host — derived client-side. */
   serviceCount?: number
+  /**
+   * Kernel events this host's agent reported, newest first (spec 090).
+   *
+   * Undefined means "not loaded": the list endpoint does not fetch events, only
+   * the detail endpoint does. An empty array means "loaded, and there are none".
+   * The two are genuinely different and the type says so rather than flattening
+   * them into one.
+   */
+  events?: HostEvent[]
+}
+
+/**
+ * One kernel event. Aggregated per kind per collection interval, so an
+ * out-of-memory storm is one entry with `occurrences: 200` rather than two
+ * hundred entries.
+ */
+export interface HostEvent {
+  id: string
+  /** Open set — render an unrecognised kind rather than dropping it. */
+  kind: string
+  /** When the kernel reported it, not when it was stored. */
+  occurredAt: string
+  /** Which reader saw it; useful when investigating why events are missing. */
+  source: string
+  occurrences: number
+  detail: HostEventDetail | null
+}
+
+/** Classified fields of a kernel event. Never the raw kernel line. */
+export interface HostEventDetail {
+  process: string | null
+  pid: number | null
+  cgroup: string | null
+  /** Bounded; distinctTruncated says more were seen than this list holds. */
+  distinctProcesses: string[]
+  distinctTruncated: boolean
 }
 
 /** One point-in-time host metric sample (for detail graphs). */

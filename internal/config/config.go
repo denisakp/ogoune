@@ -65,7 +65,12 @@ type Config struct {
 
 	HostMetricsRetentionDays int           // purge samples older than this (default 30)
 	HostMetricsRawWindow     time.Duration // keep raw (undecimated) samples within this window (default 168h)
-	HostFreshnessThreshold   time.Duration // a host is "online" while last_seen_at is within this (default 45s)
+	// HostEventsRetentionDays purges kernel events older than this (default 90).
+	// Deliberately longer than the metrics window and never thinned: metrics are
+	// dense and individually cheap, a kernel event is rare, discrete, and is the
+	// point of the feature (ADR 0011).
+	HostEventsRetentionDays int
+	HostFreshnessThreshold  time.Duration // a host is "online" while last_seen_at is within this (default 45s)
 
 	// Agent-down alerting (spec 083). A recurring scan raises a feed alert when an
 	// agent-backed host has been continuously offline past the freshness threshold.
@@ -136,6 +141,10 @@ func Load() Config {
 		hostMetricsRetentionDays = 30 // never 0 — would purge all host metrics
 	}
 	hostMetricsRawWindow := parseDuration(GetEnv("HOST_METRICS_RAW_WINDOW", "168h"))
+	hostEventsRetentionDays := parseInt(GetEnv("HOST_EVENTS_RETENTION_DAYS", "90"))
+	if hostEventsRetentionDays <= 0 {
+		hostEventsRetentionDays = 90 // never 0 - would purge every kernel event
+	}
 	hostFreshnessThreshold := parseDuration(GetEnv("HOST_FRESHNESS_THRESHOLD", "45s"))
 	agentDownAlertsEnabled := parseBool(GetEnv("AGENT_DOWN_ALERTS_ENABLED", "true"), true)
 	agentDownScanInterval := parseDuration(GetEnv("AGENT_DOWN_SCAN_INTERVAL", "20s"))
@@ -203,6 +212,7 @@ func Load() Config {
 		NotificationRetentionDays:      notificationRetentionDays,
 		HostMetricsRetentionDays:       hostMetricsRetentionDays,
 		HostMetricsRawWindow:           hostMetricsRawWindow,
+		HostEventsRetentionDays:        hostEventsRetentionDays,
 		HostFreshnessThreshold:         hostFreshnessThreshold,
 		AgentDownAlertsEnabled:         agentDownAlertsEnabled,
 		AgentDownScanInterval:          agentDownScanInterval,

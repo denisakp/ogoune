@@ -20,6 +20,7 @@ import { timeAgo } from '@/libs/date-time.helper'
 import { useConfirm } from '@/composables/useConfirm'
 import { useHostMetrics } from '@/composables/useHostMetrics'
 import HostMetricChart from '@/components/hosts/HostMetricChart.vue'
+import HostEventsList from '@/components/hosts/HostEventsList.vue'
 import HostCredentialReveal from '@/components/hosts/HostCredentialReveal.vue'
 import HostServicesList, {
   type HostLinkedMonitor,
@@ -33,6 +34,13 @@ const route = useRoute()
 const hostId = computed(() => String(route.params.id ?? ''))
 
 const host = ref<Host | null>(null)
+
+// Kernel events reported by this host's agent (spec 090). Empty whenever there
+// are none, whenever the field was not loaded, and whenever capture is
+// unavailable on the host — which is the common case in a container. The block
+// is gated on this being non-empty and renders nothing at all otherwise, with no
+// placeholder and no reserved space (FR-022).
+const kernelEvents = computed(() => host.value?.events ?? [])
 const monitors = ref<HostLinkedMonitor[]>([])
 const loading = ref(true)
 const notFound = ref(false)
@@ -278,6 +286,7 @@ sudo systemctl enable --now ogoune-agent</pre>
       <div class="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-6">
         <!-- Charts -->
         <div class="space-y-4">
+          <HostEventsList v-if="kernelEvents.length" :events="kernelEvents" />
           <HostMetricChart :points="cpuSeries" label="CPU" unit="%" />
           <HostMetricChart :points="memSeries" label="Memory" unit="%" />
 

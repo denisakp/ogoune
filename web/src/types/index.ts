@@ -975,6 +975,8 @@ export type {
 export type {
   DiskUsage,
   Host,
+  HostEvent,
+  HostEventDetail,
   HostMetricSample,
   HostCredentialResult,
   RegisterHostResult,
