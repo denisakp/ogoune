@@ -3,7 +3,7 @@
 This document is public and intentionally transparent. It shows what we have built, what we are working on, and where 
 we are going.
 
-> **Last updated:** September 2026 — v1.0.0-beta.4
+> **Last updated:** September 2026 — v1.0.0-beta.4 · H3 observability track re-ordered per the Execution Directive
 > **Strategic context:** see [`BUSINESS-MODEL.md`](./BUSINESS-MODEL.md) for our open-core philosophy.
 
 ---
@@ -135,8 +135,9 @@ Community Edition — expanding monitoring coverage, observability, and security
   Depends on credential encryption (AES-256-GCM) shipped in H2. **Community Edition.**
 - [x] **Protocol-aware checks — broker support** — RabbitMQ (AMQP handshake), Kafka (Metadata Request).
   Community contribution candidates — architecture is extensible from H2. **Community Edition.**
-- [ ] **Database query performance** — slow query analysis on Postgres/MySQL via `pg_stat_statements` / 
-  `slow_query_log`. Identify the queries killing the DB, with alerts on regression. **Community Edition.**
+- [ ] **Database health checks** — service-health signals collected on the connection the Postgres and
+  MySQL protocol checks already open: connection pool saturation, replication lag, longest running
+  query. No server extension, no server restart, no extra credential. **Community Edition.**
   Extension naturelle des protocol-aware checks.
 - [ ] **Multi-location checks (self-hosted)** — deploy Ogoune workers in multiple regions of your own
   infrastructure. Require N of M regions to fail before alerting. **Community Edition.** Cf. EE for the
@@ -151,20 +152,18 @@ Community Edition — expanding monitoring coverage, observability, and security
   `pkg/agentwire`). Ships as a distroless container image + static release binaries, with a systemd
   unit and agent-down alerting. **Linux only, deliberately** — the packaging is systemd-based, and the
   servers this targets are Linux. macOS would need a launchd story and Windows a service wrapper, and
-  neither is testable for us today. No eBPF/kernel-event interception yet — see below.
-- [ ] **Kernel-level event interception (eBPF)** — via `cilium/ebpf`, intercept kernel events on Linux
-  (OOMKills, segfaults, syscall latency spikes) at the source, feeding Flash Correlation below.
-  **Community Edition.**
-  > **Note:** A Zig rewrite for sub-3MB footprint was previously planned but dropped. eBPF tooling is
-  > mature in Go (Cilium, Datadog, Parca, Pixie all ship Go+eBPF in prod), Zig is pre-1.0 with weak
-  > Windows/macOS coverage, and footprint <30MB is not a real adoption blocker — Flash Correlation is
-  > the differentiator, not the language. If a future profile proves footprint matters commercially,
-  > Rust would be preferred over Zig for eBPF ecosystem maturity.
-- [ ] **Flash Correlation** — the game-changer. When a synthetic check fails (e.g. HTTP 502), the backend
-  queries the agent through the reverse tunnel: "What did the kernel observe at that moment?" Alerts
-  combine the external failure with the internal cause: *"Site went down BECAUSE the kernel OOMKilled
-  the container due to memory saturation."* **Community Edition.** No competitor offers this combination
-  in open source today.
+  neither is testable for us today. `nebula/self-host/agent.md` is the source of truth for platform
+  support. No kernel-event capture yet — see Flash Correlation below.
+- [ ] **Flash Correlation (host metrics + kernel events)** — the game-changer. When a synthetic check
+  fails (e.g. HTTP 502), the incident is enriched with what the host was doing at that moment: the
+  metrics the agent already streams, plus OOMKills and segfaults read from `/dev/kmsg` and cgroup v2
+  `memory.events`. Alerts combine the external failure with the internal cause: *"Site went down
+  BECAUSE the kernel OOMKilled the container due to memory saturation."* **Community Edition.**
+  No competitor offers this combination in open source today.
+  > **How it works.** The agent tunnel is outbound and write-only by design: the agent pushes, the
+  > backend never queries it. Correlation is therefore a backend-side join over data the agent has
+  > already sent, not a request/response round trip. This needs no eBPF — plain file reads on the
+  > agent side are enough for the flagship claim above.
 
 ### Status pages & branding
 
@@ -284,7 +283,22 @@ the managed service itself live here. Everything else is in CE.
 
 ### Community Edition
 
-- [ ] **Log aggregation lite** — structured logs shipped by the Zig agent (eBPF events, kernel state at
+- [ ] **Flash Correlation — eBPF depth** — the signals that genuinely require kernel instrumentation:
+  syscall latency, TCP retransmits, packet drops. Via `cilium/ebpf`. Deferred out of H3 deliberately:
+  the differentiator is the correlation, not the capture, and Flash Correlation ships without it.
+  eBPF carries a real cost (BTF/CO-RE kernel floor, `bpf2go` toolchain, privileged load, Linux-only
+  dev environment) for the least legible signals. **CE.**
+  > **Note:** A Zig rewrite for sub-3MB footprint was previously planned and dropped. eBPF tooling is
+  > mature in Go (Cilium, Datadog, Parca, Pixie all ship Go+eBPF in prod), Zig is pre-1.0 with weak
+  > Windows/macOS coverage, and footprint <30MB is not a real adoption blocker. If a future profile
+  > proves footprint matters commercially, Rust would be preferred over Zig for eBPF ecosystem maturity.
+- [ ] **Slow query analysis (via agent)** — per-query performance and regression detection on
+  Postgres/MySQL, read locally by the agent (`performance_schema`, log files) rather than over a
+  network credential. Split out of the H3 "Database query performance" item. **CE, exploratory —
+  APM boundary, re-arbitrate before committing.** Two reasons it is not in H3: `pg_stat_statements`
+  requires `shared_preload_libraries` and therefore a **server restart**, which is fatal to trial
+  adoption; and per-query analysis sits against the APM boundary this roadmap declares out of scope.
+- [ ] **Log aggregation lite** — structured logs shipped by the host agent (kernel events, host state at
   failure moments). Not a full log search engine; a timeline view tied to incidents. **CE.**
 - [ ] **AI / Predictive analytics** — detect anomalies before they cause incidents. Use the agent metrics
   + incident history. Run locally (no LLM API calls required). **CE.**
@@ -326,7 +340,9 @@ The H3 roadmap was significantly rebalanced in May 2026 after a strategic review
 
 EE is smaller, but more defensible: it's the managed service, multi-user infrastructure, and certified compliance — not features arbitrarily fenced off.
 
-Two features were added : DB query performance and Log aggregation lite (from the Zig agent).
+Two features were added: database query performance and Log aggregation lite (from the agent).
+The database item was later split — health checks stayed in H3, per-query analysis moved to H4 — and
+the agent shipped in Go, not Zig.
 Three features were explicitly cut to avoid scope creep: RUM, Synthetic transactions, Full distributed tracing.
 
 ---

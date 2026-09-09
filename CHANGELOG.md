@@ -24,6 +24,22 @@ follows [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/).
   always a static Linux binary meant for a container/VM. `cmd/agent/README.md` and
   `nebula/self-host/agent.md` say so.
 
+- **H3 observability track re-ordered (WI-0)** — `roadmap.md` now matches the approved execution
+  directive. The eBPF entry is no longer a prerequisite of Flash Correlation: **Flash Correlation
+  (host metrics + kernel events)** stays in H3 and ships without a line of BPF — the agent already
+  streams host metrics, and OOMKills/segfaults come from plain `/dev/kmsg` and cgroup v2
+  `memory.events` reads — while **Flash Correlation — eBPF depth** (syscall latency, TCP
+  retransmits, packet drops) moves to H4. The roadmap also no longer claims the backend queries the
+  agent through the tunnel: the tunnel is outbound and write-only by design, so correlation is a
+  backend-side join over pushed data. **Database query performance** is split in two: **Database
+  health checks** (connection saturation, replication lag, longest running query, on the session the
+  protocol checks already open) stays in H3, and per-query **Slow query analysis** moves to H4 as
+  exploratory — `pg_stat_statements` needs `shared_preload_libraries` and therefore a server
+  restart, and per-query analysis sits against the APM boundary this roadmap declares out of scope.
+  Two stale references fixed in passing: the agent ships in Go, not Zig, and
+  `nebula/self-host/agent.md` is now stated as the source of truth for platform support, with
+  Linux-only recorded as a settled decision rather than a temporary limitation.
+
 ### Fixed
 
 - **Documentation drift after the root→v1 convergence** — `CLAUDE.md` still described the

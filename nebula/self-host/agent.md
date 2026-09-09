@@ -210,5 +210,10 @@ Configure it on the **server** (not the agent):
 
 ## Scope
 
-Linux only for now. Windows/macOS agents and kernel-level (eBPF) capture are
-planned separately.
+**Linux only.** This is a settled decision, not a temporary limitation: the packaging is a systemd
+unit, the servers this targets run Linux, and macOS would need a launchd story while Windows would need
+a service wrapper — neither of which we can test. macOS and Windows agents are not planned.
+
+Kernel-event capture — OOMKills and segfaults, read from `/dev/kmsg` and cgroup v2 `memory.events` — is
+planned and needs no eBPF. Deeper kernel instrumentation (syscall latency, TCP retransmits, packet
+drops) does require eBPF and is deferred to a later horizon.
