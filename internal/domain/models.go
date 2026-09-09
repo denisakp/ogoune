@@ -248,6 +248,10 @@ type Incident struct {
 	Details             []byte               `json:"details"`
 	EventStep           []IncidentEventStep  `json:"event_steps"`
 	IncidentDiagnostics *IncidentDiagnostics `json:"diagnostics"`
+	// HostContext is computed on read, never persisted: what the monitor's host
+	// was doing around StartedAt. Nil whenever there is nothing to say
+	// (spec 089).
+	HostContext *HostContext `json:"-"`
 }
 
 // IncidentDiagnostics contains enriched diagnostic information about an incident

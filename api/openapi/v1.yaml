@@ -1365,6 +1365,35 @@ components:
         received_at:
           type: string
       type: object
+    github_com_denisakp_ogoune_internal_dto_v1.HostContextResponse:
+      properties:
+        host_id:
+          type: string
+        host_name:
+          type: string
+        peak_cpu_pct:
+          type: number
+        peak_mem_pct:
+          type: number
+        resolution:
+          description: Resolution is "full" or "reduced". Treat an unknown value as
+            "reduced".
+          type: string
+        sample_count:
+          description: |-
+            SampleCount is always >= 1 when this object is present, so a two-sample
+            aggregate is never mistaken for a full one.
+          type: integer
+        window_from:
+          type: string
+        window_to:
+          description: |-
+            WindowTo may be earlier than the nominal window end while the window is
+            still elapsing on a fresh incident.
+          type: string
+        worst_disk:
+          $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.WorstDiskResponse'
+      type: object
     github_com_denisakp_ogoune_internal_dto_v1.HostResponse:
       properties:
         agent_version:
@@ -1432,6 +1461,8 @@ components:
             $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_domain.IncidentEventStep'
           type: array
           uniqueItems: false
+        host_context:
+          $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.HostContextResponse'
         id:
           type: string
         monitor_id:
@@ -2099,6 +2130,16 @@ components:
           type: string
         widgetTypeId:
           type: string
+      type: object
+    github_com_denisakp_ogoune_internal_dto_v1.WorstDiskResponse:
+      description: |-
+        WorstDisk is the highest-utilisation mount seen in the window, or null when
+        the host reported none. Its absence never suppresses the other figures.
+      properties:
+        mount:
+          type: string
+        used_pct:
+          type: number
       type: object
   securitySchemes:
     BearerAuth:

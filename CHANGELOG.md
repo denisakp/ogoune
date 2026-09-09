@@ -5,6 +5,45 @@ follows [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+
+- **Host context on incidents (Flash Correlation v0, WI-1)** — when an incident opens on a
+  monitor attached to a host, the incident page now shows what that machine was doing around
+  the failure: peak CPU, peak memory, the busiest mount, and how many samples the figures
+  came from. Nothing new is collected — the agent already streams these metrics, and
+  `resources.host_id` already links a monitor to a host, so this is a read-side aggregate over
+  data that was already there. The API gains one additive, nullable `host_context` object on
+  `GET /api/v1/incidents/{id}`; every existing field keeps its name, type and nullability.
+  The block disappears entirely when there is nothing to show — no host attached, no samples,
+  out of retention, or a failed lookup — and none of those can fail the request.
+  Figures carry a **resolution marker**: `full` while every sample is at the agent's native
+  rate, `reduced` once retention has thinned them to one per minute, in which case the
+  interface presents them as minute-level rather than as exact peaks. The marker is derived
+  from the configured retention window, never from the samples themselves — the agent's
+  interval is configurable, so a host reporting once a minute natively would otherwise be
+  mislabelled as degraded while its data is intact.
+  `ogoune_incident_host_context_absent_total` counts why a context could not be produced
+  (`no_samples`, `out_of_retention`, `lookup_error`), so a silently broken correlation is
+  visible rather than invisible.
+
+### Changed
+
+- **Host metrics are kept longer by default (ADR 0011)** — `HOST_METRICS_RAW_WINDOW` moves
+  from `48h` to `168h` and `HOST_METRICS_RETENTION_DAYS` from `7` to `30`. Incident host
+  context is only exact inside the raw window, so the old defaults would have made the
+  feature above understate peaks after two days and lose them entirely after a week —
+  precisely when a post-mortem needs them. Budget roughly 20 MB per host at the agent's
+  default 10-second interval; both knobs remain configurable and **existing `.env` files are
+  untouched**, so an installation that pinned the old values keeps the old behaviour.
+
+### Known limitations
+
+- The monitor-to-host link is resolved when an incident is **viewed**, not frozen when it
+  opened. Re-attaching a monitor to a different host therefore changes what its past
+  incidents display. Documented in `nebula/self-host/agent.md`; freezing it would require
+  snapshotting the context at incident resolution, which ADR 0011 records as deferred.
+
+
 ### Changed
 
 - **Release image build ~5x faster** — `Dockerfile` and `Dockerfile.agent` builder stages now

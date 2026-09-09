@@ -221,6 +221,33 @@ export interface IncidentDiagnostics {
 /**
  * Incident represents a detected downtime event
  */
+/** A single mount and its utilisation percentage. */
+export interface WorstDisk {
+  mount: string
+  used_pct: number
+}
+
+/**
+ * Host context attached to an incident. `resolution` says how much the peaks can
+ * be trusted: `full` when every sample is at the agent's native rate, `reduced`
+ * when retention has thinned them to one per minute. Treat any unknown value as
+ * `reduced` -- the conservative reading.
+ */
+export interface HostContext {
+  host_id: string
+  host_name: string
+  peak_cpu_pct: number
+  peak_mem_pct: number
+  /** Null when the host reported no mounts; never suppresses the other figures. */
+  worst_disk?: WorstDisk | null
+  /** Always >= 1 when the object is present. */
+  sample_count: number
+  resolution: 'full' | 'reduced'
+  window_from: string
+  /** May be earlier than the nominal window end while the window is still elapsing. */
+  window_to: string
+}
+
 export interface Incident {
   id: string
   resource_id: string
@@ -231,6 +258,13 @@ export interface Incident {
   resolved_at?: string | null
   details?: string
   diagnostics?: IncidentDiagnostics
+  /**
+   * What the monitor's host was doing around the moment the incident opened
+   * (spec 089). Null whenever there is nothing to say: no host attached, no
+   * samples in the correlation window, out of retention, or a failed lookup.
+   * Absence is always null -- never a zero-filled object.
+   */
+  host_context?: HostContext | null
   event_steps?: IncidentEventStep[]
   created_at: string
   updated_at: string

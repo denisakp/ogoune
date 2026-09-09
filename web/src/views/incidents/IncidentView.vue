@@ -5,6 +5,7 @@ import { useIncidentStore } from '@/stores/incidentStore'
 import IncidentHeader from '@/components/incidents/IncidentHeader.vue'
 import IncidentTimeline from '@/components/incidents/IncidentTimeline.vue'
 import DiagnosticsPanel from '@/components/incidents/DiagnosticsPanel.vue'
+import HostContextPanel from '@/components/incidents/HostContextPanel.vue'
 import NotificationsPanel from '@/components/incidents/NotificationsPanel.vue'
 import IncidentStatusUpdates from '@/components/incidents/IncidentStatusUpdates.vue'
 import type { Incident } from '@/types'
@@ -35,6 +36,7 @@ function onAction(p: { kind: 'back' }) {
 
 const events = computed(() => incident.value?.event_steps ?? [])
 const diagnostics = computed(() => incident.value?.diagnostics ?? null)
+const hostContext = computed(() => incident.value?.host_context ?? null)
 
 onMounted(() => {
   void loadIncident()
@@ -73,6 +75,7 @@ defineExpose({ incident, loadIncident, onAction })
         </div>
 
         <div class="flex flex-col gap-5">
+          <HostContextPanel v-if="hostContext" :context="hostContext" />
           <DiagnosticsPanel :diagnostics="diagnostics" />
           <NotificationsPanel :events="events" />
         </div>

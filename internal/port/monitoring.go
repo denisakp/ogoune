@@ -29,3 +29,20 @@ type MaintenanceScheduler interface {
 type ConfirmationRescheduler interface {
 	ScheduleWithInterval(ctx context.Context, r *domain.Resource, interval time.Duration) error
 }
+
+// HostContextMetrics counts why an incident's host context came back empty.
+//
+// The enrichment is invisible when it produces nothing, so without a counter an
+// operator cannot tell "this incident had no host data" from "the correlation has
+// been broken for a week" (spec 089, FR-013a). Deliberately a one-method
+// consumer-side contract rather than a method on domain.MetricsRecorder, which
+// declares RecordCheck alone and exists for the check executor: an incident-read
+// concern does not belong on it.
+//
+// no_host_attached is intentionally not a reason. It is the normal state of most
+// monitors, not a signal.
+type HostContextMetrics interface {
+	// RecordHostContextAbsent increments the counter for one absence reason:
+	// "no_samples", "out_of_retention" or "lookup_error".
+	RecordHostContextAbsent(reason string)
+}

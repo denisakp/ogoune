@@ -208,6 +208,37 @@ Configure it on the **server** (not the agent):
 | `NOTIFICATION_ESCALATION_SCAN_INTERVAL` | `15m` | How often the server scans the feed for unread alerts |
 | `NOTIFICATION_ESCALATION_UNREAD_AGE` | `30m` | How long an actionable notification stays unread before it's escalated |
 
+## Metrics retention, and how far back incidents can look
+
+The server keeps every sample the agent sends, then thins and finally purges it:
+
+| Setting | Default | What it governs |
+|---|---|---|
+| `HOST_METRICS_RAW_WINDOW` | `168h` (7 days) | samples newer than this are kept exactly as reported |
+| `HOST_METRICS_RETENTION_DAYS` | `30` | samples older than this are deleted |
+
+Between the two, samples are thinned to at most one per minute. A daily job does both,
+with a catch-up run at startup.
+
+This is also what decides how much an **incident's host context** can tell you. When an
+incident opens on a monitor attached to a host, the incident page shows what that machine
+was doing around the failure — peak CPU, peak memory, the busiest mount. Those figures are:
+
+- **exact** for incidents inside the raw window (7 days by default);
+- **minute-level** between the raw window and the purge horizon, and labelled as such on
+  the page so you never read an approximation as an exact peak;
+- **absent** past the purge horizon — the block simply does not appear.
+
+Budget roughly **20 MB per host** at the agent's default 10-second interval with these
+defaults. On a large fleet, lower both knobs; the cost is seeing less history on older
+incidents, and nothing else. Existing installations keep whatever their `.env` already
+sets — only the defaults changed.
+
+> **Re-attaching a monitor rewrites what its past incidents show.** The monitor-to-host
+> link is read when you open the incident, not frozen when it happened. Point a monitor at
+> a different host and its older incidents will display the new host's metrics. Detach
+> rather than re-point if an incident's history matters to you.
+
 ## Scope
 
 **Linux only.** This is a settled decision, not a temporary limitation: the packaging is a systemd

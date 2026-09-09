@@ -21,10 +21,44 @@ type IncidentResponse struct {
 	Details     string                      `json:"details"`
 	EventSteps  []domain.IncidentEventStep  `json:"event_steps"`
 	Diagnostics *domain.IncidentDiagnostics `json:"diagnostics"`
+	HostContext *HostContextResponse        `json:"host_context"`
 	StartedAt   string                      `json:"started_at"`
 	ResolvedAt  *string                     `json:"resolved_at"`
 	CreatedAt   string                      `json:"created_at"`
 	UpdatedAt   string                      `json:"updated_at"`
+}
+
+// HostContextResponse is what the monitor's host was doing around the moment the
+// incident opened (spec 089). Optional and nullable: absent whenever the monitor
+// has no host attached, the host reported no samples in the window, the window
+// predates retention, or the lookup failed. Absence is expressed by a null
+// object, never by a zero-filled one.
+//
+// Owned by the v1 layer rather than embedded from the domain, so a domain change
+// cannot silently alter the public contract.
+type HostContextResponse struct {
+	HostID     string  `json:"host_id"`
+	HostName   string  `json:"host_name"`
+	PeakCPUPct float64 `json:"peak_cpu_pct"`
+	PeakMemPct float64 `json:"peak_mem_pct"`
+	// WorstDisk is the highest-utilisation mount seen in the window, or null when
+	// the host reported none. Its absence never suppresses the other figures.
+	WorstDisk *WorstDiskResponse `json:"worst_disk"`
+	// SampleCount is always >= 1 when this object is present, so a two-sample
+	// aggregate is never mistaken for a full one.
+	SampleCount int `json:"sample_count"`
+	// Resolution is "full" or "reduced". Treat an unknown value as "reduced".
+	Resolution string `json:"resolution"`
+	WindowFrom string `json:"window_from"`
+	// WindowTo may be earlier than the nominal window end while the window is
+	// still elapsing on a fresh incident.
+	WindowTo string `json:"window_to"`
+}
+
+// WorstDiskResponse is a single mount and its utilisation percentage.
+type WorstDiskResponse struct {
+	Mount   string  `json:"mount"`
+	UsedPct float64 `json:"used_pct"`
 }
 
 // IncidentListFilters holds validated query parameters for listing incidents.

@@ -5078,6 +5078,26 @@ export interface components {
         "github_com_denisakp_ogoune_internal_dto_v1.HeartbeatPingResponse": {
             received_at?: string;
         };
+        "github_com_denisakp_ogoune_internal_dto_v1.HostContextResponse": {
+            host_id?: string;
+            host_name?: string;
+            peak_cpu_pct?: number;
+            peak_mem_pct?: number;
+            /** @description Resolution is "full" or "reduced". Treat an unknown value as "reduced". */
+            resolution?: string;
+            /**
+             * @description SampleCount is always >= 1 when this object is present, so a two-sample
+             *     aggregate is never mistaken for a full one.
+             */
+            sample_count?: number;
+            window_from?: string;
+            /**
+             * @description WindowTo may be earlier than the nominal window end while the window is
+             *     still elapsing on a fresh incident.
+             */
+            window_to?: string;
+            worst_disk?: components["schemas"]["github_com_denisakp_ogoune_internal_dto_v1.WorstDiskResponse"];
+        };
         "github_com_denisakp_ogoune_internal_dto_v1.HostResponse": {
             agent_version?: string;
             created_at?: string;
@@ -5108,6 +5128,7 @@ export interface components {
             details?: string;
             diagnostics?: components["schemas"]["github_com_denisakp_ogoune_internal_domain.IncidentDiagnostics"];
             event_steps?: components["schemas"]["github_com_denisakp_ogoune_internal_domain.IncidentEventStep"][];
+            host_context?: components["schemas"]["github_com_denisakp_ogoune_internal_dto_v1.HostContextResponse"];
             id?: string;
             monitor_id?: string;
             resolved_at?: string;
@@ -5451,6 +5472,14 @@ export interface components {
             position?: number;
             title?: string;
             widgetTypeId?: string;
+        };
+        /**
+         * @description WorstDisk is the highest-utilisation mount seen in the window, or null when
+         *     the host reported none. Its absence never suppresses the other figures.
+         */
+        "github_com_denisakp_ogoune_internal_dto_v1.WorstDiskResponse": {
+            mount?: string;
+            used_pct?: number;
         };
     };
     responses: never;
