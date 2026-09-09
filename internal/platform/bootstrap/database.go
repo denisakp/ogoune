@@ -96,6 +96,7 @@ func InitDatabase(app *App) {
 	app.HostCredentialRepo = store.NewHostCredentialRepositorySQLC(rt)
 	app.HostMetricsRepo = store.NewHostMetricRepositorySQLC(rt)
 	app.ResourceHealthRepo = store.NewResourceHealthRepositorySQLC(rt)
+	app.HostEventRepo = store.NewHostEventRepositorySQLC(rt)
 	app.HostAlertStateRepo = store.NewHostAlertStateRepositorySQLC(rt)
 	app.NotificationEscalationStateRepo = store.NewNotificationEscalationStateRepositorySQLC(rt)
 	app.HostCredentialService = service.NewHostCredentialService(app.HostCredentialRepo)

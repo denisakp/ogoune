@@ -102,7 +102,8 @@ func InitRouter(app *App) {
 
 	// Agent device monitoring
 	hostV1Handler := v1handler.NewHostHandler(app.HostService, app.HostMetricsService)
-	agentStreamV1Handler := v1handler.NewAgentStreamHandler(app.HostMetricsService)
+	agentStreamV1Handler := v1handler.NewAgentStreamHandler(app.HostMetricsService).
+		WithEvents(app.HostEventRepo)
 
 	// Set APP_VERSION env
 	err := os.Setenv("APP_VERSION", AppVersion)
