@@ -24,7 +24,7 @@ INSERT INTO incident_diagnostics (
 )
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15,
         $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28)
-RETURNING id, created_at, updated_at, incident_id, request_method, request_url, request_headers, request_timeout, http_status_code, response_headers, response_body, response_size, failure_type, error_message, error_summary, total_duration, dns_duration, tls_duration, first_byte_duration, body_truncated, body_encoded, icmp_available, icmp_reachable, icmp_rtt_ms, root_cause_hint, keyword, keyword_mode, keyword_found
+RETURNING id, created_at, updated_at, incident_id, request_method, request_url, request_headers, request_timeout, http_status_code, response_headers, response_body, response_size, failure_type, error_message, error_summary, total_duration, dns_duration, tls_duration, first_byte_duration, body_truncated, body_encoded, icmp_available, icmp_reachable, icmp_rtt_ms, root_cause_hint, keyword, keyword_mode, keyword_found, db_connections_active, db_connections_max, db_longest_query_seconds, db_replication_lag_seconds
 `
 
 type CreateIncidentDiagnosticsParams struct {
@@ -119,6 +119,10 @@ func (q *Queries) CreateIncidentDiagnostics(ctx context.Context, arg CreateIncid
 		&i.Keyword,
 		&i.KeywordMode,
 		&i.KeywordFound,
+		&i.DbConnectionsActive,
+		&i.DbConnectionsMax,
+		&i.DbLongestQuerySeconds,
+		&i.DbReplicationLagSeconds,
 	)
 	return i, err
 }
@@ -136,7 +140,7 @@ func (q *Queries) DeleteIncidentDiagnostics(ctx context.Context, id string) (int
 }
 
 const findIncidentDiagnosticsByIncidentID = `-- name: FindIncidentDiagnosticsByIncidentID :one
-SELECT id, created_at, updated_at, incident_id, request_method, request_url, request_headers, request_timeout, http_status_code, response_headers, response_body, response_size, failure_type, error_message, error_summary, total_duration, dns_duration, tls_duration, first_byte_duration, body_truncated, body_encoded, icmp_available, icmp_reachable, icmp_rtt_ms, root_cause_hint, keyword, keyword_mode, keyword_found FROM incident_diagnostics WHERE incident_id = $1
+SELECT id, created_at, updated_at, incident_id, request_method, request_url, request_headers, request_timeout, http_status_code, response_headers, response_body, response_size, failure_type, error_message, error_summary, total_duration, dns_duration, tls_duration, first_byte_duration, body_truncated, body_encoded, icmp_available, icmp_reachable, icmp_rtt_ms, root_cause_hint, keyword, keyword_mode, keyword_found, db_connections_active, db_connections_max, db_longest_query_seconds, db_replication_lag_seconds FROM incident_diagnostics WHERE incident_id = $1
 `
 
 func (q *Queries) FindIncidentDiagnosticsByIncidentID(ctx context.Context, incidentID string) (IncidentDiagnostic, error) {
@@ -171,6 +175,10 @@ func (q *Queries) FindIncidentDiagnosticsByIncidentID(ctx context.Context, incid
 		&i.Keyword,
 		&i.KeywordMode,
 		&i.KeywordFound,
+		&i.DbConnectionsActive,
+		&i.DbConnectionsMax,
+		&i.DbLongestQuerySeconds,
+		&i.DbReplicationLagSeconds,
 	)
 	return i, err
 }
