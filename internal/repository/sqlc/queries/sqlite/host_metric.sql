@@ -26,3 +26,26 @@ WHERE host_metrics.sampled_at < ?1
     WHERE hm.sampled_at < ?1
     GROUP BY hm.host_id, substr(hm.sampled_at, 1, 16)
   );
+
+-- name: AggregateHostMetricsInWindow :one
+-- Reduce a bounded correlation window to its peaks and sample count. The peaks
+-- are computed here rather than in Go so no numeric column ever crosses the wire
+-- (spec 089, FR-021). A window with no samples returns sample_count = 0; the
+-- caller turns that into an absent context, never a zero-filled one.
+-- The range predicate mirrors ListHostMetricsInRange exactly -- no strftime is
+-- needed for a plain comparison, only for extracting epoch seconds.
+SELECT
+    CAST(COALESCE(MAX(cpu_pct), 0.0) AS REAL) AS peak_cpu_pct,
+    CAST(COALESCE(MAX(mem_pct), 0.0) AS REAL) AS peak_mem_pct,
+    COUNT(*) AS sample_count
+FROM host_metrics
+WHERE host_id = ?1 AND sampled_at >= ?2 AND sampled_at <= ?3;
+
+-- name: ListHostDisksInWindow :many
+-- The disks column only, for the same bounded window. Deliberately a narrow
+-- projection: disk usage is a stored document and nothing in this codebase
+-- reaches inside JSON from SQL on either dialect, so the worst mount is picked
+-- in Go (spec 089, FR-021a). Rows returned are bounded by the window.
+SELECT disks FROM host_metrics
+WHERE host_id = ?1 AND sampled_at >= ?2 AND sampled_at <= ?3
+  AND disks IS NOT NULL;

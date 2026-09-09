@@ -11,6 +11,40 @@ import (
 	"time"
 )
 
+const aggregateHostMetricsInWindow = `-- name: AggregateHostMetricsInWindow :one
+SELECT
+    CAST(COALESCE(MAX(cpu_pct), 0.0) AS REAL) AS peak_cpu_pct,
+    CAST(COALESCE(MAX(mem_pct), 0.0) AS REAL) AS peak_mem_pct,
+    COUNT(*) AS sample_count
+FROM host_metrics
+WHERE host_id = ?1 AND sampled_at >= ?2 AND sampled_at <= ?3
+`
+
+type AggregateHostMetricsInWindowParams struct {
+	HostID      string    `json:"host_id"`
+	SampledAt   time.Time `json:"sampled_at"`
+	SampledAt_2 time.Time `json:"sampled_at_2"`
+}
+
+type AggregateHostMetricsInWindowRow struct {
+	PeakCpuPct  float64 `json:"peak_cpu_pct"`
+	PeakMemPct  float64 `json:"peak_mem_pct"`
+	SampleCount int64   `json:"sample_count"`
+}
+
+// Reduce a bounded correlation window to its peaks and sample count. The peaks
+// are computed here rather than in Go so no numeric column ever crosses the wire
+// (spec 089, FR-021). A window with no samples returns sample_count = 0; the
+// caller turns that into an absent context, never a zero-filled one.
+// The range predicate mirrors ListHostMetricsInRange exactly -- no strftime is
+// needed for a plain comparison, only for extracting epoch seconds.
+func (q *Queries) AggregateHostMetricsInWindow(ctx context.Context, arg AggregateHostMetricsInWindowParams) (AggregateHostMetricsInWindowRow, error) {
+	row := q.db.QueryRowContext(ctx, aggregateHostMetricsInWindow, arg.HostID, arg.SampledAt, arg.SampledAt_2)
+	var i AggregateHostMetricsInWindowRow
+	err := row.Scan(&i.PeakCpuPct, &i.PeakMemPct, &i.SampleCount)
+	return i, err
+}
+
 const decimateHostMetrics = `-- name: DecimateHostMetrics :execrows
 DELETE FROM host_metrics
 WHERE host_metrics.sampled_at < ?1
@@ -83,6 +117,45 @@ func (q *Queries) InsertHostMetric(ctx context.Context, arg InsertHostMetricPara
 		arg.Disks,
 	)
 	return err
+}
+
+const listHostDisksInWindow = `-- name: ListHostDisksInWindow :many
+SELECT disks FROM host_metrics
+WHERE host_id = ?1 AND sampled_at >= ?2 AND sampled_at <= ?3
+  AND disks IS NOT NULL
+`
+
+type ListHostDisksInWindowParams struct {
+	HostID      string    `json:"host_id"`
+	SampledAt   time.Time `json:"sampled_at"`
+	SampledAt_2 time.Time `json:"sampled_at_2"`
+}
+
+// The disks column only, for the same bounded window. Deliberately a narrow
+// projection: disk usage is a stored document and nothing in this codebase
+// reaches inside JSON from SQL on either dialect, so the worst mount is picked
+// in Go (spec 089, FR-021a). Rows returned are bounded by the window.
+func (q *Queries) ListHostDisksInWindow(ctx context.Context, arg ListHostDisksInWindowParams) ([]sql.NullString, error) {
+	rows, err := q.db.QueryContext(ctx, listHostDisksInWindow, arg.HostID, arg.SampledAt, arg.SampledAt_2)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []sql.NullString{}
+	for rows.Next() {
+		var disks sql.NullString
+		if err := rows.Scan(&disks); err != nil {
+			return nil, err
+		}
+		items = append(items, disks)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const listHostMetricsInRange = `-- name: ListHostMetricsInRange :many

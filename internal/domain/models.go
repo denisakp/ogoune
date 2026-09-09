@@ -959,3 +959,49 @@ type HostMetricSample struct {
 	NetOut    int64
 	Disks     []DiskUsage
 }
+
+// HostContextResolution says how much the figures in a HostContext can be
+// trusted. It is derived from the configured raw-sample window, never from the
+// samples themselves: the agent's reporting interval is configurable, so a host
+// natively reporting once a minute would otherwise be mislabelled as degraded
+// while its data is in fact intact (spec 089, FR-007a).
+type HostContextResolution string
+
+const (
+	// HostContextFull means the whole window is more recent than the configured
+	// raw-sample window, so every sample is at the agent's native rate.
+	HostContextFull HostContextResolution = "full"
+	// HostContextReduced means the window is older than that threshold, or
+	// straddles it, so retention may have thinned the samples to one per minute.
+	// The marker errs toward reduced: understating confidence is harmless,
+	// overstating it is not.
+	HostContextReduced HostContextResolution = "reduced"
+)
+
+// HostContext is what a monitor's host was doing around the moment an incident
+// opened. It is computed on read from samples the agent already streamed, never
+// persisted, and it is nil — not zero-filled — whenever there is nothing to say:
+// no host attached, no samples in the window, out of retention, or a failed
+// lookup (spec 089, FR-010).
+type HostContext struct {
+	HostID      string
+	HostName    string
+	PeakCPUPct  float64
+	PeakMemPct  float64
+	WorstDisk   *DiskUsage // nil when the host reported no mounts; does not suppress the rest
+	SampleCount int        // always >= 1 when the context is non-nil
+	Resolution  HostContextResolution
+	WindowFrom  time.Time
+	WindowTo    time.Time // min(startedAt+after, now) — may be short while the window is still elapsing
+}
+
+// HostMetricsWindowAggregate is what the repository returns for a correlation
+// window: the peaks reduced by the database, and the disk documents for the same
+// window, which are decoded in Go because no query in this codebase reaches
+// inside stored JSON on either dialect (spec 089, FR-021a).
+type HostMetricsWindowAggregate struct {
+	PeakCPUPct  float64
+	PeakMemPct  float64
+	SampleCount int
+	Disks       [][]DiskUsage
+}
