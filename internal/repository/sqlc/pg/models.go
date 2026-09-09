@@ -126,6 +126,16 @@ type HostCredential struct {
 	LastUsedAt pgtype.Timestamptz `json:"last_used_at"`
 }
 
+type HostEvent struct {
+	ID          string             `json:"id"`
+	HostID      string             `json:"host_id"`
+	OccurredAt  pgtype.Timestamptz `json:"occurred_at"`
+	Kind        string             `json:"kind"`
+	Source      string             `json:"source"`
+	Occurrences int32              `json:"occurrences"`
+	Detail      []byte             `json:"detail"`
+}
+
 type HostMetric struct {
 	ID        string             `json:"id"`
 	HostID    string             `json:"host_id"`

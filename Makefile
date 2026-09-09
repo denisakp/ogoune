@@ -167,6 +167,15 @@ fuzz-dynquery:
 	go test -run=^$$ -fuzz=FuzzBuildMonitorsQuery -fuzztime=30s ./internal/repository/sqlc/dynquery/...
 	go test -run=^$$ -fuzz=FuzzBuildIncidentsQuery -fuzztime=30s ./internal/repository/sqlc/dynquery/...
 
+.PHONY: fuzz-kmsg
+fuzz-kmsg: ## 60s fuzz campaign over the kernel-log classifier (spec 090)
+	# The agent parses /dev/kmsg, whose input is not ours: every subsystem writes
+	# to it, formats change between kernel versions, lines can be cut mid-write,
+	# and nothing guarantees valid UTF-8. Table tests prove the shapes we thought
+	# of; this is for the ones we did not. Two real defects came out of the first
+	# campaign, both before any capture code existed.
+	go test -run=^$$ -fuzz=FuzzParseKmsgLine -fuzztime=60s ./cmd/agent/...
+
 .PHONY: lint-openapi
 lint-openapi: ## Lint the OpenAPI contract with Spectral (workspace binary — no global install)
 	@echo ">> Lint OpenAPI..."

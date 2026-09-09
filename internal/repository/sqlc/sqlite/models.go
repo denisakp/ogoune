@@ -127,6 +127,16 @@ type HostCredential struct {
 	LastUsedAt sql.NullTime `json:"last_used_at"`
 }
 
+type HostEvent struct {
+	ID          string         `json:"id"`
+	HostID      string         `json:"host_id"`
+	OccurredAt  time.Time      `json:"occurred_at"`
+	Kind        string         `json:"kind"`
+	Source      string         `json:"source"`
+	Occurrences int64          `json:"occurrences"`
+	Detail      sql.NullString `json:"detail"`
+}
+
 type HostMetric struct {
 	ID        string         `json:"id"`
 	HostID    string         `json:"host_id"`
