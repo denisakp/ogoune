@@ -14,6 +14,25 @@ follows [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/).
   steps also set `provenance: false`. Multi-arch release build drops from ~28min toward a few
   minutes; images and layout are unchanged.
 
+### Fixed
+
+- **Documentation drift after the root→v1 convergence** — `CLAUDE.md` still described the
+  legacy root API migration as "opportunistic, domain by domain" although specs 085 + 086
+  finished it (the duplicated root handlers are deleted and the SPA is repointed); it now
+  states what is done and enumerates the non-versioned groups that legitimately remain
+  (`/auth`, `/account`, `/me/*`, `/escalation-policies`, `/maintenances`, `/stats`, status
+  page settings, public surfaces). Its speckit footer no longer pins a shipped feature plan.
+- **Edition-gating claim corrected** — `CLAUDE.md` and `nebula/enterprise/index.md` both said
+  the licence "does not gate behavior yet". It gates one thing: `license.PoweredByRequired()`
+  drives the "Powered by Ogoune" attribution on the public status page
+  (`GET /api/config/runtime` → `PublicPageFooter.vue`) and the `x-ogoune-license` meta tag in
+  the static status build.
+- **`roadmap.md` white-label line** — status page branding (light/dark logo, primary colour,
+  theme overrides) has shipped and is now checked. The line previously advertised hiding the
+  "Powered by Ogoune" attribution as a *Community Edition* item, which contradicts the code:
+  Community always keeps the attribution, suppression is the Enterprise "White-label — strict"
+  lever. Roadmap date refreshed to the current release.
+
 ## [1.0.0-beta.4] - 2026-08-03
 
 ### Fixed

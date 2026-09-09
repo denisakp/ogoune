@@ -3,7 +3,7 @@
 This document is public and intentionally transparent. It shows what we have built, what we are working on, and where 
 we are going.
 
-> **Last updated:** July 2026 — v1.0.0-beta
+> **Last updated:** September 2026 — v1.0.0-beta.4
 > **Strategic context:** see [`BUSINESS-MODEL.md`](./BUSINESS-MODEL.md) for our open-core philosophy.
 
 ---
@@ -167,8 +167,10 @@ Community Edition — expanding monitoring coverage, observability, and security
 ### Status pages & branding
 
 - [x] **Custom domain status page** — serve your status page on `status.yourdomain.com`. **Community Edition.**
-- [ ] **White-label status page** — customize logo, colors, hide "Powered by Ogoune". **Community Edition.**
-  The EE differentiator is the removal of "Powered by Ogoune" from generated PDFs and email branding.
+- [x] **Status page branding** — custom logo (light/dark), primary color, and theme overrides on the
+  public status page. **Community Edition.** Removing the "Powered by Ogoune" attribution is *not* part
+  of this — it is an Enterprise lever (see "White-label — strict" below); Community Edition always
+  keeps the attribution.
 - [x] **Live incident updates** — editorial updates posted during an active incident (Investigating → Identified → Monitoring → Resolved), shown live on the public status page alongside the auto-detected uptime. Closes the loop between automatic detection and the planned Postmortem editor. **Community Edition.** Optional follow-ups not yet shipped: scheduled maintenance announcements, manual component degradation override, subscriber notifications (email/RSS).
 
 ### Reporting

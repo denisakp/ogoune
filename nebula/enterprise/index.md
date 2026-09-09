@@ -24,9 +24,10 @@ requires a valid license.
 ::: warning Most of this is still being built
 As of this writing, the features above are on the
 [roadmap](https://github.com/denisakp/ogoune/blob/main/roadmap.md#h3--enterprise-edition-q4-2026--q1-2027)
-for Q4 2026 / Q1 2027. Today, `internal/ee/license/` only detects which edition is running
-(via the `ENTERPRISE_LICENSE_KEY` prefix) — it doesn't yet gate any behavior. We'd rather say
-that plainly than ship a page that overclaims.
+for Q4 2026 / Q1 2027. Today, `internal/ee/license/` detects which edition is running
+(via the `ENTERPRISE_LICENSE_KEY` prefix) and gates exactly one thing: whether the public status
+page must show the "Powered by Ogoune" attribution. No other feature is behind the licence. We'd
+rather say that plainly than ship a page that overclaims.
 :::
 
 See [Licensing](/enterprise/licensing) for how edition detection works and how to obtain a
