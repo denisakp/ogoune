@@ -973,6 +973,47 @@ type HostMetricSample struct {
 	Disks     []DiskUsage
 }
 
+// HostEvent is what the kernel reported about processes on a host during one
+// collection interval (spec 090). One row per kind per interval, carrying how
+// many reports it aggregates: an out-of-memory storm is one event with
+// Occurrences=200, not two hundred events.
+//
+// Context, never a signal: nothing here alerts, changes a status, or affects
+// uptime. Turning events into a causal sentence is a later work item.
+type HostEvent struct {
+	Base
+	HostID string
+	// OccurredAt is when the KERNEL reported it, as the agent read it -- not when
+	// the backend stored it. A host with a wrong clock produces wrongly-timed
+	// events, and that is visible rather than silently corrected.
+	OccurredAt time.Time
+	// Kind is an open set: store one that is not recognised rather than drop it,
+	// so an older backend paired with a newer agent loses nothing.
+	Kind string
+	// Source is which reader saw it. Recorded because the same kill can be seen by
+	// more than one, and because an operator investigating missing events needs to
+	// know which reader was working.
+	Source      string
+	Occurrences int
+	Detail      *HostEventDetail
+}
+
+// HostEventDetail holds the classified fields of a kernel event. Never the raw
+// kernel line: /dev/kmsg carries every subsystem's output in formats that change
+// between kernel versions, and storing it would mean keeping content nobody has
+// examined (spec 090, FR-027a).
+type HostEventDetail struct {
+	Process string `json:"process,omitempty"`
+	PID     int    `json:"pid,omitempty"`
+	Cgroup  string `json:"cgroup,omitempty"`
+	// DistinctProcesses is bounded. It exists to tell a storm killing forty copies
+	// of one process from one killing forty different processes -- materially
+	// different problems. DistinctTruncated says more were seen than the list
+	// holds, so a partial list is never read as complete.
+	DistinctProcesses []string `json:"distinct_processes,omitempty"`
+	DistinctTruncated bool     `json:"distinct_truncated,omitempty"`
+}
+
 // ResourceHealth is the latest database health for one monitor (spec 088). At
 // most one per monitor, replaced on every check and deleted when a check collects
 // nothing, so stale figures never pass as current. Storage is therefore constant
