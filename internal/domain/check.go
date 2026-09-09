@@ -74,6 +74,42 @@ type KeywordCheckContext struct {
 	KeywordFound bool
 }
 
+// DatabaseHealth is what a PostgreSQL or MySQL server reported about itself on
+// the session a protocol check had already opened. Like KeywordCheckContext it is
+// transient: never persisted directly, always flattened into named typed columns
+// at each persistence point (spec 088).
+//
+// Every metric is independently nullable, and absence is meaningful. A field is
+// nil because the credential cannot read it correctly, because the value does not
+// apply, or because the server is too old -- never because collection guessed and
+// gave up. Nothing here may influence a check's verdict.
+type DatabaseHealth struct {
+	// ConnectionsActive and ConnectionsMax are present together or not at all: a
+	// saturation ratio needs both. They need no privilege beyond connecting.
+	ConnectionsActive *int64
+	ConnectionsMax    *int64
+	// LongestQuerySeconds is the age of the oldest still-executing statement, in
+	// seconds. Its DURATION only -- never its text (FR-007).
+	//
+	// Omitted, never estimated, when the credential cannot see other sessions. On
+	// PostgreSQL a role without the statistics grant still sees other sessions'
+	// rows with the needed columns withheld, so a naive maximum returns this
+	// monitor's own session age: a plausible, wrong, undetectable number.
+	LongestQuerySeconds *float64
+	// ReplicationLagSeconds is nil when the instance is not replicating, or when
+	// its primary/replica role could not be determined. Never 0 to mean "none".
+	ReplicationLagSeconds *float64
+	// PrivilegeLimited reports that at least one field was withheld for want of a
+	// grant. Drives the operator-facing note; never presented as a failure.
+	PrivilegeLimited bool
+	// UnsupportedVersion reports a server below PostgreSQL 12 / MySQL 8.0. Not a
+	// failure and not a misconfiguration -- the enrichment is simply skipped.
+	UnsupportedVersion bool
+	// CollectionDuration is what collection cost, so it is observable rather than
+	// assumed.
+	CollectionDuration time.Duration
+}
+
 // CheckResult represents the result of a health check execution.
 // It contains both the check outcome and rich diagnostic information to help
 // users understand what went wrong (if anything).
@@ -95,6 +131,7 @@ type CheckResult struct {
 	TLSDuration       time.Duration        // Time spent on TLS handshake
 	FirstByteDuration time.Duration        // Time to first byte of response
 	KeywordContext    *KeywordCheckContext // Non-nil for keyword monitor checks only
+	DatabaseHealth    *DatabaseHealth      // Non-nil for postgres/mysql protocol checks that collected something
 	ReadBodySize      int64                // Actual bytes read before excerpt truncation; 0 for non-keyword checks
 }
 

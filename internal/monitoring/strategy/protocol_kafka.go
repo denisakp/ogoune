@@ -13,13 +13,13 @@ import (
 )
 
 const (
-	kafkaAPIKeyMetadata    = int16(3)
-	kafkaAPIVersion        = int16(1)
-	kafkaCorrelationID     = int32(1)
-	kafkaClientID          = "ogoune-monitor"
-	kafkaMaxResponseSize   = 1 * 1024 * 1024
-	kafkaMaxStringLen      = 64 * 1024
-	kafkaDefaultPerBroker  = 5 * time.Second
+	kafkaAPIKeyMetadata   = int16(3)
+	kafkaAPIVersion       = int16(1)
+	kafkaCorrelationID    = int32(1)
+	kafkaClientID         = "ogoune-monitor"
+	kafkaMaxResponseSize  = 1 * 1024 * 1024
+	kafkaMaxStringLen     = 64 * 1024
+	kafkaDefaultPerBroker = 5 * time.Second
 )
 
 // parseKafkaBootstrap splits a comma-separated `host:port` list, trims whitespace,
@@ -54,7 +54,7 @@ func parseKafkaBootstrap(target string) ([]string, error) {
 // kafkaCheck sends a Metadata Request v1 (brokers-only, topics=-1) to each bootstrap
 // broker sequentially with per-broker timeout. First successful response wins; if all
 // fail, the last failure cause is reported.
-func kafkaCheck(ctx context.Context, r *domain.Resource, host string, port int, useTLS bool, timeout time.Duration, dial DialFunc) domain.CheckResult {
+func kafkaCheck(ctx context.Context, r *domain.Resource, host string, port int, useTLS bool, timeout time.Duration, dial DialFunc, _ dbHealthSkipFunc) domain.CheckResult {
 	bootstraps, err := parseKafkaBootstrap(r.Target)
 	if err != nil {
 		cause := domain.InvalidConfiguration

@@ -102,6 +102,9 @@ type Querier interface {
 	DeleteNotificationEvent(ctx context.Context, id string) error
 	DeleteNotificationsOlderThan(ctx context.Context, cutoff pgtype.Timestamptz) (int64, error)
 	DeleteResourceCredentialByResourceID(ctx context.Context, resourceID string) (int64, error)
+	// Called when a check collects nothing at all, so the interface shows no figures
+	// rather than yesterday's.
+	DeleteResourceHealth(ctx context.Context, resourceID string) error
 	DeleteTag(ctx context.Context, id string) (int64, error)
 	DeleteUser(ctx context.Context, id string) error
 	FindAPIKeyByIDForUser(ctx context.Context, arg FindAPIKeyByIDForUserParams) (ApiKey, error)
@@ -136,6 +139,7 @@ type Querier interface {
 	FindReportHistoryByPeriod(ctx context.Context, period string) (ReportHistory, error)
 	FindResourceByHeartbeatSlug(ctx context.Context, heartbeatSlug pgtype.Text) (Resource, error)
 	FindResourceByID(ctx context.Context, id string) (Resource, error)
+	FindResourceHealth(ctx context.Context, resourceID string) (ResourceHealth, error)
 	FindResourceIDsByTagName(ctx context.Context, arg FindResourceIDsByTagNameParams) ([]string, error)
 	FindResourcesByComponentID(ctx context.Context, componentID pgtype.Text) ([]Resource, error)
 	FindResourcesByIDs(ctx context.Context, dollar_1 []string) ([]Resource, error)
@@ -253,6 +257,9 @@ type Querier interface {
 	UpsertNotificationEscalationState(ctx context.Context, arg UpsertNotificationEscalationStateParams) error
 	UpsertReportSettings(ctx context.Context, arg UpsertReportSettingsParams) (ReportSetting, error)
 	UpsertResourceCredential(ctx context.Context, arg UpsertResourceCredentialParams) error
+	// At most one row per monitor: replace rather than accumulate. This is what makes
+	// storage constant per monitor and removes any need for a retention job.
+	UpsertResourceHealth(ctx context.Context, arg UpsertResourceHealthParams) error
 	UpsertUptimeDailyAgg(ctx context.Context, arg UpsertUptimeDailyAggParams) error
 }
 

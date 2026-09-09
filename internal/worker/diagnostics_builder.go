@@ -45,6 +45,20 @@ func BuildIncidentDiagnostics(incidentID string, result domain.CheckResult, reso
 		diag.KeywordFound = &found
 	}
 
+	// Database health frozen onto the incident (spec 088). Flattened into named
+	// columns exactly like the keyword block above -- DatabaseHealth is transient
+	// and never persisted directly.
+	//
+	// This is a SNAPSHOT: it answers "how was this database when the check broke"
+	// and must never change afterwards. resource_health answers "how is it right
+	// now" and is overwritten on every check. Two questions, two lifetimes.
+	if result.DatabaseHealth != nil {
+		diag.DbConnectionsActive = result.DatabaseHealth.ConnectionsActive
+		diag.DbConnectionsMax = result.DatabaseHealth.ConnectionsMax
+		diag.DbLongestQuerySeconds = result.DatabaseHealth.LongestQuerySeconds
+		diag.DbReplicationLagSeconds = result.DatabaseHealth.ReplicationLagSeconds
+	}
+
 	// For keyword monitors, use ReadBodySize as the authoritative response size
 	// and propagate the 512 KB truncation flag from the strategy.
 	if result.ReadBodySize > 0 {

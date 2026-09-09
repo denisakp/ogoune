@@ -9,9 +9,9 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/denisakp/ogoune/internal/domain"
-	"github.com/denisakp/ogoune/pkg/crypto"
 	"github.com/denisakp/ogoune/internal/repository/internaltest"
 	"github.com/denisakp/ogoune/internal/repository/store"
+	"github.com/denisakp/ogoune/pkg/crypto"
 )
 
 // TestResourceRepository_FindByIDPreloads_RoundTripBound verifies the same

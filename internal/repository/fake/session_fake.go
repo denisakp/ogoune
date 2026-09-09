@@ -12,8 +12,8 @@ import (
 
 // SessionRepository — in-memory implementation of port.SessionRepository for tests.
 type SessionRepository struct {
-	mu    sync.RWMutex
-	byID  map[string]*domain.Session
+	mu   sync.RWMutex
+	byID map[string]*domain.Session
 }
 
 func NewSessionRepository() *SessionRepository {

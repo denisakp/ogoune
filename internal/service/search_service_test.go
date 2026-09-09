@@ -43,8 +43,8 @@ func newSearch(rs []*domain.Resource, is []*domain.Incident) *SearchService {
 func TestSearch_ScoringOrder(t *testing.T) {
 	now := time.Now()
 	svc := newSearch([]*domain.Resource{
-		res("1", "my-api", "x", now),     // contained → 1
-		res("2", "api", "x", now),        // exact → 3
+		res("1", "my-api", "x", now),      // contained → 1
+		res("2", "api", "x", now),         // exact → 3
 		res("3", "api-gateway", "x", now), // prefix → 2
 	}, nil)
 	resp, err := svc.Search(context.Background(), "api", SearchOpts{Limit: 10, Categories: []string{"resource"}})

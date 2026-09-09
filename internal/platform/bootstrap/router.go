@@ -84,7 +84,7 @@ func InitRouter(app *App) {
 	escalationV1Handler := v1handler.NewEscalationHandler(app.EscalationService)
 
 	credentialService := service.NewResourceCredentialService(app.ResourceCredentialRepo, app.ResourceRepo)
-	credentialTester := service.NewResourceCredentialTester(app.ResourceRepo, BuildStrategies())
+	credentialTester := service.NewResourceCredentialTester(app.ResourceRepo, BuildStrategies(app.MetricsRecorder))
 	credentialV1Handler := v1handler.NewResourceCredentialHandler(credentialService, credentialTester)
 
 	toolboxService := service.NewToolboxService(app.ResourceRepo, 10*time.Second)

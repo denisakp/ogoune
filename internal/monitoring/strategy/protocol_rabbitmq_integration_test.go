@@ -17,11 +17,13 @@ import (
 // TestRabbitMQ_Integration runs against a real RabbitMQ broker.
 //
 // Setup (manual or compose):
-//   docker run --rm -d -p 5672:5672 --name ogoune-it-rabbit rabbitmq:3.13-management
+//
+//	docker run --rm -d -p 5672:5672 --name ogoune-it-rabbit rabbitmq:3.13-management
 //
 // Run:
-//   OGOUNE_INTEGRATION=1 go test -tags=integration -run RabbitMQ_Integration \
-//     ./internal/monitoring/strategy/...
+//
+//	OGOUNE_INTEGRATION=1 go test -tags=integration -run RabbitMQ_Integration \
+//	  ./internal/monitoring/strategy/...
 func TestRabbitMQ_Integration(t *testing.T) {
 	if os.Getenv("OGOUNE_INTEGRATION") != "1" {
 		t.Skip("OGOUNE_INTEGRATION=1 required")
@@ -37,7 +39,7 @@ func TestRabbitMQ_Integration(t *testing.T) {
 	}
 
 	r := protoResource(host, port, "rabbitmq")
-	res := rabbitmqCheck(context.Background(), r, host, port, false, 5*time.Second, unsafeDialer)
+	res := rabbitmqCheck(context.Background(), r, host, port, false, 5*time.Second, unsafeDialer, func(dbHealthSkipReason) {})
 	require.Equal(t, string(domain.StatusUp), res.Status, "ResponseData=%s", res.ResponseData)
 	assert.Contains(t, res.ResponseData, "AMQP")
 }

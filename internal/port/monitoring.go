@@ -46,3 +46,19 @@ type HostContextMetrics interface {
 	// "no_samples", "out_of_retention" or "lookup_error".
 	RecordHostContextAbsent(reason string)
 }
+
+// DatabaseHealthMetrics counts why a database check collected no health.
+//
+// All three reasons are invisible by design: the check passes and the field is
+// simply absent, so without a counter an operator cannot tell "my credential
+// lacks the grant" from "this has been broken since the last release"
+// (spec 088, FR-016a).
+//
+// A one-method consumer-side contract, following the HostContextMetrics
+// precedent, rather than a method on domain.MetricsRecorder -- that interface
+// declares RecordCheck alone and exists for the check executor.
+type DatabaseHealthMetrics interface {
+	// RecordDatabaseHealthSkipped increments the counter for one skip reason:
+	// "deadline", "privilege", "unsupported_version" or "no_fields".
+	RecordDatabaseHealthSkipped(reason string)
+}

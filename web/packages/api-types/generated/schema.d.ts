@@ -4490,6 +4490,16 @@ export interface components {
             /** @description true if response body was truncated */
             body_truncated?: boolean;
             created_at?: string;
+            /**
+             * @description Database health frozen at incident creation (spec 088). Answers "how was
+             *     this database when the check broke" -- distinct from ResourceHealth, which
+             *     is overwritten on every check and answers "how is it right now". All four
+             *     are null for any incident on a monitor that is not a database.
+             */
+            db_connections_active?: number;
+            db_connections_max?: number;
+            db_longest_query_seconds?: number;
+            db_replication_lag_seconds?: number;
             /** @description Milliseconds (0 if not measured) */
             dns_duration?: number;
             /** @description Machine-readable error from Go */
@@ -4699,6 +4709,45 @@ export interface components {
             timeout: number;
             type: components["schemas"]["github_com_denisakp_ogoune_internal_domain.ResourceType"];
         };
+        /**
+         * @description DatabaseHealth is what a PostgreSQL or MySQL monitor's server last reported
+         *     about itself (spec 088). Null on every other monitor type, and on a database
+         *     monitor whose last check collected nothing. Detail path only -- never loaded
+         *     on a list path, which sits under a benchmark gate.
+         */
+        "github_com_denisakp_ogoune_internal_dto.DatabaseHealthResponse": {
+            /**
+             * @description CollectedAt is when the check that produced these ran. Its age is how a
+             *     client tells current figures from a paused monitor's leftovers.
+             */
+            collected_at?: string;
+            /**
+             * @description ConnectionsActive and ConnectionsMax are present together or not at all: a
+             *     saturation ratio needs the pair. Neither needs a grant.
+             */
+            connections_active?: number;
+            connections_max?: number;
+            /**
+             * @description LongestQuerySeconds is the age of the oldest running statement. Its duration
+             *     only -- the statement text is never collected, stored or returned.
+             */
+            longest_query_seconds?: number;
+            /**
+             * @description PrivilegeLimited means a grant would unlock more. Present it as an
+             *     opportunity, never as a failure or a requirement.
+             */
+            privilege_limited?: boolean;
+            /**
+             * @description ReplicationLagSeconds is null when the instance is not replicating. Never 0,
+             *     which would claim it is perfectly in sync.
+             */
+            replication_lag_seconds?: number;
+            /**
+             * @description UnsupportedVersion means the server is below PostgreSQL 12 / MySQL 8.0.
+             *     A different message to the operator than a missing grant: upgrade, not grant.
+             */
+            unsupported_version?: boolean;
+        };
         "github_com_denisakp_ogoune_internal_dto.LiveActiveIncident": {
             cause?: string;
             id?: string;
@@ -4874,6 +4923,7 @@ export interface components {
             confirmation_interval?: number;
             created_at?: string;
             credential?: components["schemas"]["github_com_denisakp_ogoune_internal_domain.ResourceCredential"];
+            database_health?: components["schemas"]["github_com_denisakp_ogoune_internal_dto.DatabaseHealthResponse"];
             expiry_alert_thresholds?: string;
             expiry_status?: components["schemas"]["github_com_denisakp_ogoune_internal_domain.ExpiryStatus"];
             failure_count?: number;

@@ -58,6 +58,7 @@ type App struct {
 	HostRepo           port.HostRepository
 	HostCredentialRepo port.HostCredentialRepository
 	HostMetricsRepo    port.HostMetricsRepository
+	ResourceHealthRepo port.ResourceHealthRepository
 	// Spec 083 — agent-down alert state + unread-notification escalation state
 	HostAlertStateRepo              port.HostAlertStateRepository
 	NotificationEscalationStateRepo port.NotificationEscalationStateRepository

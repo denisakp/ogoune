@@ -101,6 +101,21 @@ type HostCredentialRepository interface {
 	DeleteByHost(ctx context.Context, hostID string) error
 }
 
+// ResourceHealthRepository persists the latest database health per monitor
+// (spec 088). No List: nothing ever enumerates this table, and it must never be
+// loaded on a monitor list path.
+type ResourceHealthRepository interface {
+	// Upsert replaces the monitor's record. There is at most one per monitor, so
+	// storage stays constant no matter how long a monitor runs.
+	Upsert(ctx context.Context, h *domain.ResourceHealth) error
+	// FindByResourceID returns nil, nil when the monitor has no record --
+	// absence is expressed by absence, never by a zero-filled struct.
+	FindByResourceID(ctx context.Context, resourceID string) (*domain.ResourceHealth, error)
+	// DeleteByResourceID clears the record when a check collected nothing, so
+	// stale figures never pass as current.
+	DeleteByResourceID(ctx context.Context, resourceID string) error
+}
+
 // HostMetricsRepository persists and prunes host metric samples.
 type HostMetricsRepository interface {
 	Insert(ctx context.Context, s *domain.HostMetricSample) error

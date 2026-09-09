@@ -40,7 +40,7 @@ func buildConnectionCloseFrame(replyCode uint16) []byte {
 		0x00, 0x0A, // class-id = 10
 		0x00, 0x32, // method-id = 50 (close)
 		byte(replyCode >> 8), byte(replyCode & 0xFF),
-		0x00, // reply-text shortstr len = 0
+		0x00,       // reply-text shortstr len = 0
 		0x00, 0x00, // failing-class
 		0x00, 0x00, // failing-method
 	}
@@ -60,7 +60,7 @@ func TestRabbitMQ_HappyPath(t *testing.T) {
 		conn.Write(buildConnectionStartFrame(0, 9))
 	})
 	r := protoResource(host, port, "rabbitmq")
-	res := rabbitmqCheck(context.Background(), r, host, port, false, 2*time.Second, unsafeDialer)
+	res := rabbitmqCheck(context.Background(), r, host, port, false, 2*time.Second, unsafeDialer, func(dbHealthSkipReason) {})
 	assert.Equal(t, string(domain.StatusUp), res.Status)
 	assert.Contains(t, res.ResponseData, "AMQP 0-9")
 }
@@ -72,7 +72,7 @@ func TestRabbitMQ_WrongProtocol(t *testing.T) {
 		conn.Write([]byte("HTTP/1.1 200 OK\r\n\r\n"))
 	})
 	r := protoResource(host, port, "rabbitmq")
-	res := rabbitmqCheck(context.Background(), r, host, port, false, 1*time.Second, unsafeDialer)
+	res := rabbitmqCheck(context.Background(), r, host, port, false, 1*time.Second, unsafeDialer, func(dbHealthSkipReason) {})
 	assert.Equal(t, string(domain.StatusDown), res.Status)
 	require.NotNil(t, res.Cause)
 	assert.Equal(t, domain.ProtocolHandshakeFailed, *res.Cause)
@@ -85,7 +85,7 @@ func TestRabbitMQ_AMQP10Reply(t *testing.T) {
 		conn.Write([]byte{'A', 'M', 'Q', 'P', 0x00, 0x01, 0x00, 0x00})
 	})
 	r := protoResource(host, port, "rabbitmq")
-	res := rabbitmqCheck(context.Background(), r, host, port, false, 1*time.Second, unsafeDialer)
+	res := rabbitmqCheck(context.Background(), r, host, port, false, 1*time.Second, unsafeDialer, func(dbHealthSkipReason) {})
 	assert.Equal(t, string(domain.StatusDown), res.Status)
 	require.NotNil(t, res.Cause)
 	assert.Equal(t, domain.ProtocolHandshakeFailed, *res.Cause)
@@ -99,7 +99,7 @@ func TestRabbitMQ_AuthRequired_Close530(t *testing.T) {
 		conn.Write(buildConnectionCloseFrame(530))
 	})
 	r := protoResource(host, port, "rabbitmq")
-	res := rabbitmqCheck(context.Background(), r, host, port, false, 1*time.Second, unsafeDialer)
+	res := rabbitmqCheck(context.Background(), r, host, port, false, 1*time.Second, unsafeDialer, func(dbHealthSkipReason) {})
 	assert.Equal(t, string(domain.StatusDown), res.Status)
 	require.NotNil(t, res.Cause)
 	assert.Equal(t, domain.ProtocolAuthFailed, *res.Cause)
@@ -113,7 +113,7 @@ func TestRabbitMQ_Timeout(t *testing.T) {
 		time.Sleep(2 * time.Second)
 	})
 	r := protoResource(host, port, "rabbitmq")
-	res := rabbitmqCheck(context.Background(), r, host, port, false, 300*time.Millisecond, unsafeDialer)
+	res := rabbitmqCheck(context.Background(), r, host, port, false, 300*time.Millisecond, unsafeDialer, func(dbHealthSkipReason) {})
 	assert.Equal(t, string(domain.StatusDown), res.Status)
 	require.NotNil(t, res.Cause)
 	assert.Equal(t, domain.ConnectionTimeout, *res.Cause)
@@ -121,7 +121,7 @@ func TestRabbitMQ_Timeout(t *testing.T) {
 
 func TestRabbitMQ_ConnectionFailed(t *testing.T) {
 	r := protoResource("127.0.0.1", 1, "rabbitmq")
-	res := rabbitmqCheck(context.Background(), r, "127.0.0.1", 1, false, 500*time.Millisecond, unsafeDialer)
+	res := rabbitmqCheck(context.Background(), r, "127.0.0.1", 1, false, 500*time.Millisecond, unsafeDialer, func(dbHealthSkipReason) {})
 	assert.Equal(t, string(domain.StatusDown), res.Status)
 	require.NotNil(t, res.Cause)
 }
@@ -135,7 +135,7 @@ func TestRabbitMQ_TLSNoise(t *testing.T) {
 		conn.Write(bytes.Repeat([]byte{0xAA}, 64))
 	})
 	r := protoResource(host, port, "rabbitmq")
-	res := rabbitmqCheck(context.Background(), r, host, port, false, 1*time.Second, unsafeDialer)
+	res := rabbitmqCheck(context.Background(), r, host, port, false, 1*time.Second, unsafeDialer, func(dbHealthSkipReason) {})
 	assert.Equal(t, string(domain.StatusDown), res.Status)
 	require.NotNil(t, res.Cause)
 	assert.Equal(t, domain.ProtocolHandshakeFailed, *res.Cause)

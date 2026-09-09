@@ -17,10 +17,10 @@ func newDashSvc() (*service.DashboardService, *fake.DashboardRepository) {
 
 func validDash(owner, name string) *domain.Dashboard {
 	return &domain.Dashboard{
-		OwnerID: owner,
-		Name:    name,
-		Scope:   domain.DashboardScope{Mode: domain.DashboardScopeModeTag, Payload: domain.DashboardScopePayload{TagIDs: []string{"t1"}}},
-		Widgets: []domain.WidgetInstance{{ID: "w1", WidgetTypeID: domain.WidgetTypeUptimeStat, Position: 0}},
+		OwnerID:          owner,
+		Name:             name,
+		Scope:            domain.DashboardScope{Mode: domain.DashboardScopeModeTag, Payload: domain.DashboardScopePayload{TagIDs: []string{"t1"}}},
+		Widgets:          []domain.WidgetInstance{{ID: "w1", WidgetTypeID: domain.WidgetTypeUptimeStat, Position: 0}},
 		DefaultTimeRange: "24h", RefreshInterval: "1m", Visibility: "team",
 	}
 }

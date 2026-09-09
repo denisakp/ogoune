@@ -36,7 +36,7 @@ func (m *mockIncidentUpdateProvider) Create(_ context.Context, incidentID string
 	m.lastPosted = postedBy
 	m.lastStatus = status
 	u := &domain.IncidentUpdate{
-		Base: domain.Base{ID: "upd-new", CreatedAt: time.Now(), UpdatedAt: time.Now()},
+		Base:       domain.Base{ID: "upd-new", CreatedAt: time.Now(), UpdatedAt: time.Now()},
 		IncidentID: incidentID, Status: status, Message: message, PostedBy: postedBy, PostedAt: time.Now(),
 	}
 	m.created = u

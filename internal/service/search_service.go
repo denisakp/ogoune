@@ -6,8 +6,8 @@ import (
 	"strings"
 	"time"
 
-	dtoV1 "github.com/denisakp/ogoune/internal/dto/v1"
 	"github.com/denisakp/ogoune/internal/domain"
+	dtoV1 "github.com/denisakp/ogoune/internal/dto/v1"
 	"github.com/denisakp/ogoune/internal/repository/sqlc/dynquery"
 )
 

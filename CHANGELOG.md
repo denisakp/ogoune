@@ -7,6 +7,37 @@ follows [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **Database health on Postgres and MySQL monitors (WI-4)** — a protocol monitor pointed at
+  PostgreSQL or MySQL already opened an authenticated session, pinged it and threw it away. It
+  now asks the server how it is doing on that same connection and shows the answer: active
+  connections against the configured maximum, the age of the longest running query, and
+  replication lag. **Nothing is required on the monitored database** — no extension, no restart,
+  no configuration change, no extra credential field.
+  The first signal is the one that earns its place: it lets an operator watch connection
+  saturation climb *before* the database starts refusing connections, and it needs no grant at
+  all. Query age and replication lag do; without the grant they are **absent, never estimated**.
+  That distinction is the point — on PostgreSQL a role without `pg_read_all_stats` still sees
+  other sessions' rows with the timing columns withheld, so a naive reading would report the
+  monitor's own session age as the database's longest running query: plausible, wrong, and
+  impossible for an operator to spot.
+  Only the *duration* of the longest query is read; the statement text is never queried, stored
+  or displayed. Replication lag is sourced from whichever side of replication is being monitored,
+  and a database with no replication reports absence rather than `0`, which would claim it is
+  perfectly in sync.
+  Whatever a failing check had collected is frozen onto the incident it opens. The monitor page
+  shows the current figures and they move; the incident shows what they were when it broke and
+  they never change, even once the database recovers.
+  Supported on PostgreSQL 12+ and MySQL 8.0+; older servers keep working as monitors with the
+  enrichment skipped, reported distinctly from a missing grant because the two need different
+  fixes. `ogoune_database_health_skipped_total` counts every skip by reason
+  (`deadline`, `privilege`, `unsupported_version`, `no_fields`), so a silently degraded
+  collection is visible rather than invisible.
+  Collection runs under its own bounded time allowance — a quarter of the monitor's configured
+  timeout, capped — rather than sharing the check's deadline. A saturated database answers
+  introspection slowly, and that is exactly the condition this feature exists to reveal: it must
+  never be the reason a slow database gets reported as a down one.
+
+
 - **Host context on incidents (Flash Correlation v0, WI-1)** — when an incident opens on a
   monitor attached to a host, the incident page now shows what that machine was doing around
   the failure: peak CPU, peak memory, the busiest mount, and how many samples the figures

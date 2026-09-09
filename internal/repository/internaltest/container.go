@@ -28,7 +28,7 @@ const templateDBName = "template_ogoune"
 // container OR an external DSN supplied via POSTGRES_TEST_DSN — and exposes
 // per-test isolated databases cloned from a migrated template.
 type pgContainer struct {
-	adminDSN string         // superuser DSN, base for CREATE/DROP per-test DBs
+	adminDSN string                        // superuser DSN, base for CREATE/DROP per-test DBs
 	tc       *tcpostgres.PostgresContainer // nil when using POSTGRES_TEST_DSN passthrough
 	once     sync.Once
 	initErr  error

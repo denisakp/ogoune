@@ -42,6 +42,8 @@ export interface Resource {
   response_times?: ResponseTime[] // Response time history
   metadata?: ResourceMetadata // SSL and domain metadata
   metadata_pending?: boolean // true when backend enrichment is in progress
+  /** Latest database health; detail path only, null on non-database monitors (spec 088) */
+  database_health?: DatabaseHealth | null
   flap_detection_enabled?: boolean
   flap_threshold?: number
   flap_window_seconds?: number
@@ -216,6 +218,14 @@ export interface IncidentDiagnostics {
   keyword?: string | null
   keyword_mode?: string | null
   keyword_found?: boolean | null
+
+  // Database health frozen at incident creation (spec 088). All four null on any
+  // incident whose monitor is not a PostgreSQL or MySQL check. Distinct from the
+  // monitor page's database_health, which is the CURRENT value and moves.
+  db_connections_active?: number | null
+  db_connections_max?: number | null
+  db_longest_query_seconds?: number | null
+  db_replication_lag_seconds?: number | null
 }
 
 /**
@@ -246,6 +256,28 @@ export interface HostContext {
   window_from: string
   /** May be earlier than the nominal window end while the window is still elapsing. */
   window_to: string
+}
+
+/**
+ * A database monitor's latest self-reported health (spec 088). Every metric is
+ * independently nullable and absence is meaningful: null because the credential
+ * cannot read it, because the value does not apply, or because the server is too
+ * old -- never because collection guessed.
+ */
+export interface DatabaseHealth {
+  /** Present together with connections_max or not at all: a ratio needs the pair. */
+  connections_active?: number | null
+  connections_max?: number | null
+  /** Age of the oldest running statement, in seconds. Its duration only -- never its text. */
+  longest_query_seconds?: number | null
+  /** Null when the instance is not replicating. Never 0, which would mean "in sync". */
+  replication_lag_seconds?: number | null
+  /** A grant would unlock more. Show it as an opportunity, never as a failure. */
+  privilege_limited: boolean
+  /** Server below PostgreSQL 12 / MySQL 8.0. Different advice than a missing grant. */
+  unsupported_version: boolean
+  /** When the producing check ran. Its age distinguishes current figures from a paused monitor's. */
+  collected_at: string
 }
 
 export interface Incident {

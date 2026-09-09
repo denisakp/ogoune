@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"sync"
 	"time"
 
@@ -62,8 +63,55 @@ type MonitoringTaskHandler struct {
 	components   *service.ComponentService
 	scheduler    port.ConfirmationRescheduler
 
+	// resourceHealth stores the latest database health per monitor (spec 088).
+	// Optional: a nil repository simply skips persistence, so no existing caller
+	// is forced to supply one.
+	resourceHealth port.ResourceHealthRepository
+
 	lockMu        sync.Mutex
 	resourceLocks map[string]*sync.Mutex
+}
+
+// WithResourceHealth attaches the database-health store. Separate from the
+// constructor to keep the wiring optional and every existing call site working
+// unchanged.
+func (h *MonitoringTaskHandler) WithResourceHealth(repo port.ResourceHealthRepository) *MonitoringTaskHandler {
+	h.resourceHealth = repo
+	return h
+}
+
+// persistResourceHealth records what the check learned about a database, or
+// clears the record when it learned nothing.
+//
+// Clearing matters as much as writing: a check that collects nothing must leave
+// no figures on display rather than yesterday's, which would look current and be
+// wrong (spec 088, FR-026). Failures here are logged and swallowed -- health is
+// diagnostic context, and losing it must never disturb the check that produced it.
+func (h *MonitoringTaskHandler) persistResourceHealth(ctx context.Context, resourceID string, health *domain.DatabaseHealth) {
+	if h.resourceHealth == nil {
+		return
+	}
+
+	if health == nil {
+		if err := h.resourceHealth.DeleteByResourceID(ctx, resourceID); err != nil {
+			slog.Debug("db health: clear failed", "resource_id", resourceID, "error", err)
+		}
+		return
+	}
+
+	err := h.resourceHealth.Upsert(ctx, &domain.ResourceHealth{
+		ResourceID:            resourceID,
+		CollectedAt:           time.Now().UTC(),
+		ConnectionsActive:     health.ConnectionsActive,
+		ConnectionsMax:        health.ConnectionsMax,
+		LongestQuerySeconds:   health.LongestQuerySeconds,
+		ReplicationLagSeconds: health.ReplicationLagSeconds,
+		PrivilegeLimited:      health.PrivilegeLimited,
+		UnsupportedVersion:    health.UnsupportedVersion,
+	})
+	if err != nil {
+		slog.Debug("db health: upsert failed", "resource_id", resourceID, "error", err)
+	}
 }
 
 // NewMonitoringTaskHandler creates a new monitoring task handler.
@@ -169,6 +217,9 @@ func (h *MonitoringTaskHandler) ProcessTask(ctx context.Context, task *asynq.Tas
 		// Log error but continue processing - we don't want to block incident logic
 		fmt.Printf("Warning: failed to persist monitoring activity: %v\n", err)
 	}
+
+	// Latest database health for this monitor (spec 088). Nil clears the record.
+	h.persistResourceHealth(ctx, resource.ID, result.DatabaseHealth)
 
 	currentResultStatus := domain.ResourceStatus(result.Status)
 	now := time.Now()

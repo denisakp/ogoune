@@ -16,14 +16,14 @@ import (
 var amqpProtocolHeader = []byte{'A', 'M', 'Q', 'P', 0x00, 0x00, 0x09, 0x01}
 
 const (
-	amqpMaxFrameSize  = 65536
-	amqpMethodFrame   = 0x01
-	amqpFrameEnd      = 0xCE
-	amqpClassConn     = 0x000A
-	amqpMethodStart   = 0x000A
-	amqpMethodClose   = 0x0032
-	amqpReplyAuth530  = 530
-	amqpReplyAuth403  = 403
+	amqpMaxFrameSize = 65536
+	amqpMethodFrame  = 0x01
+	amqpFrameEnd     = 0xCE
+	amqpClassConn    = 0x000A
+	amqpMethodStart  = 0x000A
+	amqpMethodClose  = 0x0032
+	amqpReplyAuth530 = 530
+	amqpReplyAuth403 = 403
 )
 
 // rabbitmqCheck performs an AMQP 0-9-1 protocol handshake. It sends the 8-byte
@@ -31,7 +31,7 @@ const (
 // frame. Reject is bounded: max 7-byte envelope + 65 KiB payload + 1 byte frame end.
 // Credentials are not supported (FR-009); auth-required brokers surface as
 // "authentication_required" via connection.close reply-code 530/403.
-func rabbitmqCheck(ctx context.Context, r *domain.Resource, host string, port int, useTLS bool, timeout time.Duration, dial DialFunc) domain.CheckResult {
+func rabbitmqCheck(ctx context.Context, r *domain.Resource, host string, port int, useTLS bool, timeout time.Duration, dial DialFunc, _ dbHealthSkipFunc) domain.CheckResult {
 	addr := net.JoinHostPort(host, strconv.Itoa(port))
 	start := time.Now()
 

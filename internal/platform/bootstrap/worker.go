@@ -99,7 +99,7 @@ func initTimingWheelWorker(app *App, enrichmentService *service.EnrichmentServic
 		return
 	}
 
-	strategies := BuildStrategies()
+	strategies := BuildStrategies(app.MetricsRecorder)
 	executor := domain.NewCheckExecutor(strategies, app.MetricsRecorder)
 
 	incidentService := monitoring.NewIncidentService(
@@ -118,7 +118,8 @@ func initTimingWheelWorker(app *App, enrichmentService *service.EnrichmentServic
 	}
 	app.DetectorIncidentSvc = incidentService
 
-	monitoringHandler := worker.NewMonitoringTaskHandler(app.ResourceRepo, app.MonitoringActivityRepo, app.MaintenanceRepo, app.IncidentDiagnosticsRepo, executor, incidentService, app.ComponentService, app.ConfirmationScheduler)
+	monitoringHandler := worker.NewMonitoringTaskHandler(app.ResourceRepo, app.MonitoringActivityRepo, app.MaintenanceRepo, app.IncidentDiagnosticsRepo, executor, incidentService, app.ComponentService, app.ConfirmationScheduler).
+		WithResourceHealth(app.ResourceHealthRepo)
 
 	startTimingWheelDispatcher(tw, monitoringHandler, app.SchedulerCfg.TimingWheel.MaxWorkers)
 	startTimingWheelExpiryCheck(app, enrichmentService)
@@ -285,7 +286,7 @@ func bootstrapAsynqScheduling(app *App) {
 func initAsynqProcessor(app *App, enrichmentService *service.EnrichmentService) {
 	slog.Info("initializing background worker for Asynq")
 
-	strategies := BuildStrategies()
+	strategies := BuildStrategies(app.MetricsRecorder)
 	executor := domain.NewCheckExecutor(strategies, app.MetricsRecorder)
 
 	incidentService := monitoring.NewIncidentService(
@@ -304,7 +305,8 @@ func initAsynqProcessor(app *App, enrichmentService *service.EnrichmentService) 
 	}
 	app.DetectorIncidentSvc = incidentService
 
-	monitoringHandler := worker.NewMonitoringTaskHandler(app.ResourceRepo, app.MonitoringActivityRepo, app.MaintenanceRepo, app.IncidentDiagnosticsRepo, executor, incidentService, app.ComponentService, app.ConfirmationScheduler)
+	monitoringHandler := worker.NewMonitoringTaskHandler(app.ResourceRepo, app.MonitoringActivityRepo, app.MaintenanceRepo, app.IncidentDiagnosticsRepo, executor, incidentService, app.ComponentService, app.ConfirmationScheduler).
+		WithResourceHealth(app.ResourceHealthRepo)
 	maintenanceTaskHandler := maintenance.NewTaskHandler(app.MaintenanceRepo, &maintenance.AsynqClientAdapter{Client: app.AsynqClient})
 
 	expiryNotificationLogRepo := app.ExpiryNotificationLogRepo
