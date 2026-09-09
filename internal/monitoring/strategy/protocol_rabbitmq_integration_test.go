@@ -39,7 +39,7 @@ func TestRabbitMQ_Integration(t *testing.T) {
 	}
 
 	r := protoResource(host, port, "rabbitmq")
-	res := rabbitmqCheck(context.Background(), r, host, port, false, 5*time.Second, unsafeDialer)
+	res := rabbitmqCheck(context.Background(), r, host, port, false, 5*time.Second, unsafeDialer, func(dbHealthSkipReason) {})
 	require.Equal(t, string(domain.StatusUp), res.Status, "ResponseData=%s", res.ResponseData)
 	assert.Contains(t, res.ResponseData, "AMQP")
 }

@@ -116,7 +116,7 @@ func (f *NotificationChannelFake) AssociateChannelWithResource(resourceID, chann
 }
 
 func (f *NotificationChannelFake) MarkSent(_ context.Context, channelID string, at time.Time) error {
-if ch, ok := f.channels[channelID]; ok {
+	if ch, ok := f.channels[channelID]; ok {
 		ts := at
 		ch.LastSentAt = &ts
 		ch.UpdatedAt = at
@@ -125,7 +125,7 @@ if ch, ok := f.channels[channelID]; ok {
 }
 
 func (f *NotificationChannelFake) MarkFailure(_ context.Context, channelID string, at time.Time) error {
-ch, ok := f.channels[channelID]
+	ch, ok := f.channels[channelID]
 	if !ok {
 		return nil
 	}

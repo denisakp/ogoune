@@ -218,6 +218,14 @@ export interface IncidentDiagnostics {
   keyword?: string | null
   keyword_mode?: string | null
   keyword_found?: boolean | null
+
+  // Database health frozen at incident creation (spec 088). All four null on any
+  // incident whose monitor is not a PostgreSQL or MySQL check. Distinct from the
+  // monitor page's database_health, which is the CURRENT value and moves.
+  db_connections_active?: number | null
+  db_connections_max?: number | null
+  db_longest_query_seconds?: number | null
+  db_replication_lag_seconds?: number | null
 }
 
 /**

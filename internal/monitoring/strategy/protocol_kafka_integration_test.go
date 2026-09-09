@@ -37,6 +37,6 @@ func TestKafka_Integration(t *testing.T) {
 	}
 
 	r := newKafkaResource(addr, 5)
-	res := kafkaCheck(context.Background(), r, "", 0, false, 5*time.Second, unsafeDialer)
+	res := kafkaCheck(context.Background(), r, "", 0, false, 5*time.Second, unsafeDialer, func(dbHealthSkipReason) {})
 	require.Equal(t, string(domain.StatusUp), res.Status, "ResponseData=%s", res.ResponseData)
 }

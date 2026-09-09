@@ -87,6 +87,27 @@ const keywordRows = computed<Row[]>(() => {
   ])
 })
 
+// Database health as it was when the incident opened (spec 088). A snapshot, not
+// a live reading: the monitor page shows the current figures and they move, these
+// do not. Every field is independently nullable, so the block shows only what the
+// check actually managed to read at that moment.
+const databaseRows = computed<Row[]>(() => {
+  const r = d.value
+  if (!r) return []
+  const seconds = (v: number) => (v < 60 ? `${v.toFixed(1)} s` : `${Math.round(v / 60)} min`)
+  return nonNull([
+    r.db_connections_active != null && r.db_connections_max != null
+      ? { label: 'Connections', value: `${r.db_connections_active} / ${r.db_connections_max}` }
+      : null,
+    r.db_longest_query_seconds != null
+      ? { label: 'Longest query', value: seconds(r.db_longest_query_seconds) }
+      : null,
+    r.db_replication_lag_seconds != null
+      ? { label: 'Replication lag', value: seconds(r.db_replication_lag_seconds) }
+      : null,
+  ])
+})
+
 const responseBody = computed(() => d.value?.response_body ?? '')
 const bodyTooLong = computed(() => responseBody.value.length > TRUNCATE_AT)
 const visibleBody = computed(() => {
@@ -170,6 +191,18 @@ const hasImpact = computed(() => !!impactText.value)
               <dd class="text-highlighted text-right" :class="row.mono ? 'font-mono' : ''">
                 {{ row.value }}
               </dd>
+            </template>
+          </dl>
+        </div>
+
+        <div v-if="databaseRows.length" class="px-5 py-3" data-test="diagnostics-db-health">
+          <div class="text-[10px] uppercase tracking-wider text-muted font-semibold mb-2">
+            Database at failure
+          </div>
+          <dl class="grid grid-cols-2 gap-y-1.5 gap-x-3 text-xs">
+            <template v-for="row in databaseRows" :key="row.label">
+              <dt class="text-muted">{{ row.label }}</dt>
+              <dd class="text-highlighted text-right">{{ row.value }}</dd>
             </template>
           </dl>
         </div>

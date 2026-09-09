@@ -99,7 +99,7 @@ func TestPostgresHealth_CollectsSaturation(t *testing.T) {
 	tgt := setupPgTarget(t)
 	r := monitorFor(tgt, tgt.user, tgt.password)
 
-	res := postgresCheck(context.Background(), r, tgt.host, tgt.port, false, 10*time.Second, unsafeDialer)
+	res := postgresCheck(context.Background(), r, tgt.host, tgt.port, false, 10*time.Second, unsafeDialer, func(dbHealthSkipReason) {})
 
 	require.Equal(t, string(domain.StatusUp), res.Status, "collection must never change the verdict")
 	assert.Empty(t, res.ErrorMessage)
@@ -122,7 +122,7 @@ func TestPostgresHealth_NoCredentialCollectsNothing(t *testing.T) {
 	port := tgt.port
 	r := &domain.Resource{Target: tgt.host, Timeout: 5, ProtocolType: &proto, ProtocolPort: &port}
 
-	res := postgresCheck(context.Background(), r, tgt.host, tgt.port, false, 5*time.Second, unsafeDialer)
+	res := postgresCheck(context.Background(), r, tgt.host, tgt.port, false, 5*time.Second, unsafeDialer, func(dbHealthSkipReason) {})
 	assert.Equal(t, string(domain.StatusUp), res.Status)
 	assert.Nil(t, res.DatabaseHealth, "no session, nothing to collect")
 }
@@ -133,7 +133,7 @@ func TestPostgresHealth_BadCredentialStillFailsTheCheck(t *testing.T) {
 	tgt := setupPgTarget(t)
 	r := monitorFor(tgt, tgt.user, "definitely-not-the-password")
 
-	res := postgresCheck(context.Background(), r, tgt.host, tgt.port, false, 10*time.Second, unsafeDialer)
+	res := postgresCheck(context.Background(), r, tgt.host, tgt.port, false, 10*time.Second, unsafeDialer, func(dbHealthSkipReason) {})
 	assert.Equal(t, string(domain.StatusDown), res.Status)
 	assert.Nil(t, res.DatabaseHealth)
 }
@@ -197,7 +197,7 @@ func TestPostgresHealth_PartialVisibilityOmitsRatherThanUnderReports(t *testing.
 	})
 
 	r := monitorFor(tgt, "ogoune_probe_limited", "probe")
-	res := postgresCheck(context.Background(), r, tgt.host, tgt.port, false, 10*time.Second, unsafeDialer)
+	res := postgresCheck(context.Background(), r, tgt.host, tgt.port, false, 10*time.Second, unsafeDialer, func(dbHealthSkipReason) {})
 
 	require.Equal(t, string(domain.StatusUp), res.Status, "a missing grant costs a field, never the check")
 	require.NotNil(t, res.DatabaseHealth)
@@ -218,7 +218,7 @@ func TestPostgresHealth_NoReplicationIsAbsentNotZero(t *testing.T) {
 	tgt := setupPgTarget(t)
 	r := monitorFor(tgt, tgt.user, tgt.password)
 
-	res := postgresCheck(context.Background(), r, tgt.host, tgt.port, false, 10*time.Second, unsafeDialer)
+	res := postgresCheck(context.Background(), r, tgt.host, tgt.port, false, 10*time.Second, unsafeDialer, func(dbHealthSkipReason) {})
 	require.NotNil(t, res.DatabaseHealth)
 	assert.Nil(t, res.DatabaseHealth.ReplicationLagSeconds,
 		"the fixture has no standby; absent, never 0")
@@ -250,7 +250,7 @@ func TestPostgresHealth_NeverCapturesQueryText(t *testing.T) {
 	time.Sleep(300 * time.Millisecond)
 
 	r := monitorFor(tgt, tgt.user, tgt.password)
-	res := postgresCheck(context.Background(), r, tgt.host, tgt.port, false, 10*time.Second, unsafeDialer)
+	res := postgresCheck(context.Background(), r, tgt.host, tgt.port, false, 10*time.Second, unsafeDialer, func(dbHealthSkipReason) {})
 	<-done
 
 	require.NotNil(t, res.DatabaseHealth)

@@ -3,6 +3,8 @@ package strategy
 import (
 	"context"
 	"time"
+
+	"github.com/denisakp/ogoune/internal/domain"
 )
 
 // Database health collection (spec 088) runs on the session a PostgreSQL or MySQL
@@ -74,3 +76,20 @@ const (
 	dbHealthSkipUnsupported dbHealthSkipReason = "unsupported_version"
 	dbHealthSkipNoFields    dbHealthSkipReason = "no_fields"
 )
+
+// dbHealthSkipFunc reports one skip reason. Passed rather than reached for, so
+// the engine check files stay free of any dependency on metrics.
+type dbHealthSkipFunc func(dbHealthSkipReason)
+
+// reportDBHealthOutcome counts the reasons that are only knowable after the
+// collection has run. The deadline case is decided before, by the caller.
+func reportDBHealthOutcome(h *domain.DatabaseHealth, onSkip dbHealthSkipFunc) {
+	switch {
+	case h == nil:
+		onSkip(dbHealthSkipNoFields)
+	case h.UnsupportedVersion:
+		onSkip(dbHealthSkipUnsupported)
+	case h.PrivilegeLimited:
+		onSkip(dbHealthSkipPrivilege)
+	}
+}

@@ -99,7 +99,7 @@ func initTimingWheelWorker(app *App, enrichmentService *service.EnrichmentServic
 		return
 	}
 
-	strategies := BuildStrategies()
+	strategies := BuildStrategies(app.MetricsRecorder)
 	executor := domain.NewCheckExecutor(strategies, app.MetricsRecorder)
 
 	incidentService := monitoring.NewIncidentService(
@@ -286,7 +286,7 @@ func bootstrapAsynqScheduling(app *App) {
 func initAsynqProcessor(app *App, enrichmentService *service.EnrichmentService) {
 	slog.Info("initializing background worker for Asynq")
 
-	strategies := BuildStrategies()
+	strategies := BuildStrategies(app.MetricsRecorder)
 	executor := domain.NewCheckExecutor(strategies, app.MetricsRecorder)
 
 	incidentService := monitoring.NewIncidentService(

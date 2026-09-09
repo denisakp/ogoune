@@ -31,7 +31,7 @@ const (
 // frame. Reject is bounded: max 7-byte envelope + 65 KiB payload + 1 byte frame end.
 // Credentials are not supported (FR-009); auth-required brokers surface as
 // "authentication_required" via connection.close reply-code 530/403.
-func rabbitmqCheck(ctx context.Context, r *domain.Resource, host string, port int, useTLS bool, timeout time.Duration, dial DialFunc) domain.CheckResult {
+func rabbitmqCheck(ctx context.Context, r *domain.Resource, host string, port int, useTLS bool, timeout time.Duration, dial DialFunc, _ dbHealthSkipFunc) domain.CheckResult {
 	addr := net.JoinHostPort(host, strconv.Itoa(port))
 	start := time.Now()
 

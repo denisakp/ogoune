@@ -62,7 +62,7 @@ func TestKafka_Happy_SingleBroker(t *testing.T) {
 		conn.Write(buildMetadataResponseV1(1, 3))
 	})
 	r := newKafkaResource(net.JoinHostPort(host, fmt.Sprint(port)), 2)
-	res := kafkaCheck(context.Background(), r, "", 0, false, 2*time.Second, unsafeDialer)
+	res := kafkaCheck(context.Background(), r, "", 0, false, 2*time.Second, unsafeDialer, func(dbHealthSkipReason) {})
 	assert.Equal(t, string(domain.StatusUp), res.Status)
 	assert.Contains(t, res.ResponseData, "3 brokers")
 }
@@ -74,13 +74,13 @@ func TestKafka_MultiBootstrap_FirstUnreachable(t *testing.T) {
 	})
 	target := fmt.Sprintf("127.0.0.1:1,%s", net.JoinHostPort(host, fmt.Sprint(port)))
 	r := newKafkaResource(target, 2)
-	res := kafkaCheck(context.Background(), r, "", 0, false, 2*time.Second, unsafeDialer)
+	res := kafkaCheck(context.Background(), r, "", 0, false, 2*time.Second, unsafeDialer, func(dbHealthSkipReason) {})
 	assert.Equal(t, string(domain.StatusUp), res.Status)
 }
 
 func TestKafka_AllUnreachable(t *testing.T) {
 	r := newKafkaResource("127.0.0.1:1,127.0.0.1:2", 1)
-	res := kafkaCheck(context.Background(), r, "", 0, false, 500*time.Millisecond, unsafeDialer)
+	res := kafkaCheck(context.Background(), r, "", 0, false, 500*time.Millisecond, unsafeDialer, func(dbHealthSkipReason) {})
 	assert.Equal(t, string(domain.StatusDown), res.Status)
 	require.NotNil(t, res.Cause)
 }
@@ -91,7 +91,7 @@ func TestKafka_CorrelationIDMismatch(t *testing.T) {
 		conn.Write(buildMetadataResponseV1(42, 1))
 	})
 	r := newKafkaResource(net.JoinHostPort(host, fmt.Sprint(port)), 1)
-	res := kafkaCheck(context.Background(), r, "", 0, false, 1*time.Second, unsafeDialer)
+	res := kafkaCheck(context.Background(), r, "", 0, false, 1*time.Second, unsafeDialer, func(dbHealthSkipReason) {})
 	assert.Equal(t, string(domain.StatusDown), res.Status)
 	require.NotNil(t, res.Cause)
 	assert.Equal(t, domain.ProtocolHandshakeFailed, *res.Cause)
@@ -103,7 +103,7 @@ func TestKafka_ZeroBrokers(t *testing.T) {
 		conn.Write(buildMetadataResponseV1(1, 0))
 	})
 	r := newKafkaResource(net.JoinHostPort(host, fmt.Sprint(port)), 1)
-	res := kafkaCheck(context.Background(), r, "", 0, false, 1*time.Second, unsafeDialer)
+	res := kafkaCheck(context.Background(), r, "", 0, false, 1*time.Second, unsafeDialer, func(dbHealthSkipReason) {})
 	assert.Equal(t, string(domain.StatusDown), res.Status)
 	require.NotNil(t, res.Cause)
 	assert.Equal(t, domain.ProtocolHandshakeFailed, *res.Cause)
@@ -115,7 +115,7 @@ func TestKafka_ConnCloseAfterRequest_AuthRequired(t *testing.T) {
 		conn.Close()
 	})
 	r := newKafkaResource(net.JoinHostPort(host, fmt.Sprint(port)), 1)
-	res := kafkaCheck(context.Background(), r, "", 0, false, 1*time.Second, unsafeDialer)
+	res := kafkaCheck(context.Background(), r, "", 0, false, 1*time.Second, unsafeDialer, func(dbHealthSkipReason) {})
 	assert.Equal(t, string(domain.StatusDown), res.Status)
 	require.NotNil(t, res.Cause)
 	assert.Equal(t, domain.ProtocolAuthFailed, *res.Cause)
@@ -128,7 +128,7 @@ func TestKafka_OversizedResponse(t *testing.T) {
 		binary.Write(conn, binary.BigEndian, int32(2*1024*1024))
 	})
 	r := newKafkaResource(net.JoinHostPort(host, fmt.Sprint(port)), 1)
-	res := kafkaCheck(context.Background(), r, "", 0, false, 1*time.Second, unsafeDialer)
+	res := kafkaCheck(context.Background(), r, "", 0, false, 1*time.Second, unsafeDialer, func(dbHealthSkipReason) {})
 	assert.Equal(t, string(domain.StatusDown), res.Status)
 	require.NotNil(t, res.Cause)
 	assert.Equal(t, domain.ProtocolHandshakeFailed, *res.Cause)
@@ -141,7 +141,7 @@ func TestKafka_TLSNoise(t *testing.T) {
 		conn.Write(bytes.Repeat([]byte{0xAA}, 64))
 	})
 	r := newKafkaResource(net.JoinHostPort(host, fmt.Sprint(port)), 1)
-	res := kafkaCheck(context.Background(), r, "", 0, false, 1*time.Second, unsafeDialer)
+	res := kafkaCheck(context.Background(), r, "", 0, false, 1*time.Second, unsafeDialer, func(dbHealthSkipReason) {})
 	assert.Equal(t, string(domain.StatusDown), res.Status)
 	require.NotNil(t, res.Cause)
 	assert.Equal(t, domain.ProtocolHandshakeFailed, *res.Cause)
@@ -162,7 +162,7 @@ func TestKafka_TimeoutDirectFromResource(t *testing.T) {
 		// and ensure it returns quickly (within timeout * N + slack).
 		r := newKafkaResource("127.0.0.1:1", c.timeout)
 		start := time.Now()
-		_ = kafkaCheck(context.Background(), r, "", 0, false, c.want, unsafeDialer)
+		_ = kafkaCheck(context.Background(), r, "", 0, false, c.want, unsafeDialer, func(dbHealthSkipReason) {})
 		elapsed := time.Since(start)
 		assert.Less(t, elapsed, c.want+2*time.Second, "timeout=%d should bound elapsed", c.timeout)
 	}

@@ -23,7 +23,7 @@ import (
 //
 // MySQL error 1045 (access denied) and 1044 (database access denied) map to
 // ProtocolAuthFailed; everything else maps to ProtocolHandshakeFailed.
-func mysqlCheck(ctx context.Context, r *domain.Resource, host string, port int, useTLS bool, timeout time.Duration, dial DialFunc) domain.CheckResult {
+func mysqlCheck(ctx context.Context, r *domain.Resource, host string, port int, useTLS bool, timeout time.Duration, dial DialFunc, onSkip dbHealthSkipFunc) domain.CheckResult {
 	addr := net.JoinHostPort(host, strconv.Itoa(port))
 	start := time.Now()
 
@@ -64,7 +64,13 @@ func mysqlCheck(ctx context.Context, r *domain.Resource, host string, port int, 
 	// Health enrichment (spec 088), on the handle that is already open and about
 	// to be discarded. Its own allowance, not the check's remaining deadline, and
 	// it may cost a field but never the check: the result above is already final.
-	result.DatabaseHealth = collectMySQLHealth(ctx, db, dbHealthBudget(dialCtx, timeout))
+	budget := dbHealthBudget(dialCtx, timeout)
+	if budget <= 0 {
+		onSkip(dbHealthSkipDeadline)
+	} else {
+		result.DatabaseHealth = collectMySQLHealth(ctx, db, budget)
+		reportDBHealthOutcome(result.DatabaseHealth, onSkip)
+	}
 
 	return result
 }

@@ -22,14 +22,14 @@ func TestMySQL_NoCredential_TCPFallback(t *testing.T) {
 
 	r := protoResource(host, port, "mysql")
 	r.Target = host // bare host, no URL scheme
-	result := mysqlCheck(context.Background(), r, host, port, false, 2*time.Second, unsafeDialer)
+	result := mysqlCheck(context.Background(), r, host, port, false, 2*time.Second, unsafeDialer, func(dbHealthSkipReason) {})
 	assert.Equal(t, string(domain.StatusUp), result.Status)
 	assert.Contains(t, result.ResponseData, "TCP connection")
 }
 
 func TestMySQL_NoCredential_TCPFallback_PortClosed(t *testing.T) {
 	r := protoResource("127.0.0.1", 1, "mysql")
-	result := mysqlCheck(context.Background(), r, "127.0.0.1", 1, false, 500*time.Millisecond, unsafeDialer)
+	result := mysqlCheck(context.Background(), r, "127.0.0.1", 1, false, 500*time.Millisecond, unsafeDialer, func(dbHealthSkipReason) {})
 	assert.Equal(t, string(domain.StatusDown), result.Status)
 	require.NotNil(t, result.Cause)
 }

@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/denisakp/ogoune/internal/domain"
+	"github.com/denisakp/ogoune/internal/port"
 	"github.com/denisakp/ogoune/pkg/safenet"
 )
 
@@ -32,7 +33,7 @@ type protocolHandler struct {
 	probe       []byte
 	expect      func([]byte) bool
 	successMsg  string
-	customExec  func(ctx context.Context, r *domain.Resource, host string, port int, useTLS bool, timeout time.Duration, dial DialFunc) domain.CheckResult
+	customExec  func(ctx context.Context, r *domain.Resource, host string, port int, useTLS bool, timeout time.Duration, dial DialFunc, onSkip dbHealthSkipFunc) domain.CheckResult
 }
 
 var (
@@ -149,10 +150,28 @@ func buildMongoOPMsg(key string) []byte {
 type ProtocolStrategy struct {
 	timeout  time.Duration
 	dialFunc DialFunc
+	// dbHealthMetrics counts skipped database health collection. Optional.
+	dbHealthMetrics port.DatabaseHealthMetrics
 }
 
 func NewProtocolStrategy(timeout time.Duration) *ProtocolStrategy {
 	return &ProtocolStrategy{timeout: timeout, dialFunc: safenet.SafeDial}
+}
+
+// WithDatabaseHealthMetrics attaches the counter for skipped health collection
+// (spec 088). Optional: nil records nothing, so no existing caller changes.
+func (s *ProtocolStrategy) WithDatabaseHealthMetrics(m port.DatabaseHealthMetrics) *ProtocolStrategy {
+	s.dbHealthMetrics = m
+	return s
+}
+
+// recordDBHealthSkip counts one reason a database check produced no health.
+// Every reason here is invisible to the operator by design -- the check passed
+// and a field is simply missing -- so the counter is the only way to see it.
+func (s *ProtocolStrategy) recordDBHealthSkip(reason dbHealthSkipReason) {
+	if s.dbHealthMetrics != nil {
+		s.dbHealthMetrics.RecordDatabaseHealthSkipped(string(reason))
+	}
 }
 
 func (s *ProtocolStrategy) Execute(ctx context.Context, r *domain.Resource) (domain.CheckResult, error) {
@@ -176,7 +195,7 @@ func (s *ProtocolStrategy) Execute(ctx context.Context, r *domain.Resource) (dom
 
 	// Driver-based protocols (MySQL, PostgreSQL) own their own connection lifecycle.
 	if h.customExec != nil {
-		return h.customExec(ctx, r, host, port, useTLS, timeout, s.dialFunc), nil
+		return h.customExec(ctx, r, host, port, useTLS, timeout, s.dialFunc, s.recordDBHealthSkip), nil
 	}
 
 	start := time.Now()
