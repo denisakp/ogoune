@@ -29,9 +29,12 @@ build-be: sqlc-check
 	go build -o $(BINARY) ./cmd/api/main.go
 
 # Host monitoring agent binary (spec 080). Version is stamped from git.
+# The agent is Linux-only (systemd packaging, Linux fleet), so this pins GOOS=linux
+# even on a macOS dev machine — the binary is meant to run in a Linux container/VM,
+# not on the host. GOARCH follows the host (use build-agent-linux to pick one).
 build-agent:
 	mkdir -p dist
-	go build -ldflags "-X main.version=$$(git describe --tags --always --dirty 2>/dev/null || echo dev)" -o dist/ogoune-agent ./cmd/agent
+	CGO_ENABLED=0 GOOS=linux go build -ldflags "-X main.version=$$(git describe --tags --always --dirty 2>/dev/null || echo dev)" -o dist/ogoune-agent ./cmd/agent
 
 # Cross-compile the agent for Linux (spec 082 — release binaries). Default arm64;
 # override with ARCH=amd64. Static, version stamped from git.

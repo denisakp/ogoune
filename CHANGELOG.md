@@ -14,6 +14,16 @@ follows [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/).
   steps also set `provenance: false`. Multi-arch release build drops from ~28min toward a few
   minutes; images and layout are unchanged.
 
+- **Host agent is Linux-only, stated and enforced** — the agent's packaging is systemd-based and
+  the fleet it targets is Linux, so macOS (no launchd story) and Windows (no service wrapper, and
+  untestable for us) are out of scope. `roadmap.md` claimed a "cross-platform (Linux, macOS,
+  Windows)" agent; it now says Linux amd64 + arm64 and gives the reason. Nothing changes in the
+  release pipeline — it already built `linux/amd64,linux/arm64` only, for both the image and the
+  release binaries. The one place a non-Linux binary could still appear was `make build-agent` run
+  on a macOS dev machine; it now pins `CGO_ENABLED=0 GOOS=linux` (host `GOARCH`), so the output is
+  always a static Linux binary meant for a container/VM. `cmd/agent/README.md` and
+  `nebula/self-host/agent.md` say so.
+
 ### Fixed
 
 - **Documentation drift after the root→v1 convergence** — `CLAUDE.md` still described the
