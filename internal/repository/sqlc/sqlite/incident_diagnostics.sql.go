@@ -20,41 +20,47 @@ INSERT INTO incident_diagnostics (
     total_duration, dns_duration, tls_duration, first_byte_duration,
     body_truncated, body_encoded,
     keyword, keyword_mode, keyword_found,
-    icmp_available, icmp_reachable, icmp_rtt_ms, root_cause_hint
+    icmp_available, icmp_reachable, icmp_rtt_ms, root_cause_hint,
+    db_connections_active, db_connections_max,
+    db_longest_query_seconds, db_replication_lag_seconds
 )
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 RETURNING id, created_at, updated_at, incident_id, request_method, request_url, request_headers, request_timeout, http_status_code, response_headers, response_body, response_size, failure_type, error_message, error_summary, total_duration, dns_duration, tls_duration, first_byte_duration, body_truncated, body_encoded, icmp_available, icmp_reachable, icmp_rtt_ms, root_cause_hint, keyword, keyword_mode, keyword_found, db_connections_active, db_connections_max, db_longest_query_seconds, db_replication_lag_seconds
 `
 
 type CreateIncidentDiagnosticsParams struct {
-	ID                string         `json:"id"`
-	CreatedAt         time.Time      `json:"created_at"`
-	UpdatedAt         time.Time      `json:"updated_at"`
-	IncidentID        string         `json:"incident_id"`
-	RequestMethod     string         `json:"request_method"`
-	RequestUrl        string         `json:"request_url"`
-	RequestHeaders    string         `json:"request_headers"`
-	RequestTimeout    int64          `json:"request_timeout"`
-	HttpStatusCode    int64          `json:"http_status_code"`
-	ResponseHeaders   string         `json:"response_headers"`
-	ResponseBody      string         `json:"response_body"`
-	ResponseSize      int64          `json:"response_size"`
-	FailureType       string         `json:"failure_type"`
-	ErrorMessage      string         `json:"error_message"`
-	ErrorSummary      string         `json:"error_summary"`
-	TotalDuration     int64          `json:"total_duration"`
-	DnsDuration       int64          `json:"dns_duration"`
-	TlsDuration       int64          `json:"tls_duration"`
-	FirstByteDuration int64          `json:"first_byte_duration"`
-	BodyTruncated     int64          `json:"body_truncated"`
-	BodyEncoded       int64          `json:"body_encoded"`
-	Keyword           sql.NullString `json:"keyword"`
-	KeywordMode       sql.NullString `json:"keyword_mode"`
-	KeywordFound      sql.NullBool   `json:"keyword_found"`
-	IcmpAvailable     sql.NullInt64  `json:"icmp_available"`
-	IcmpReachable     sql.NullInt64  `json:"icmp_reachable"`
-	IcmpRttMs         sql.NullInt64  `json:"icmp_rtt_ms"`
-	RootCauseHint     string         `json:"root_cause_hint"`
+	ID                      string          `json:"id"`
+	CreatedAt               time.Time       `json:"created_at"`
+	UpdatedAt               time.Time       `json:"updated_at"`
+	IncidentID              string          `json:"incident_id"`
+	RequestMethod           string          `json:"request_method"`
+	RequestUrl              string          `json:"request_url"`
+	RequestHeaders          string          `json:"request_headers"`
+	RequestTimeout          int64           `json:"request_timeout"`
+	HttpStatusCode          int64           `json:"http_status_code"`
+	ResponseHeaders         string          `json:"response_headers"`
+	ResponseBody            string          `json:"response_body"`
+	ResponseSize            int64           `json:"response_size"`
+	FailureType             string          `json:"failure_type"`
+	ErrorMessage            string          `json:"error_message"`
+	ErrorSummary            string          `json:"error_summary"`
+	TotalDuration           int64           `json:"total_duration"`
+	DnsDuration             int64           `json:"dns_duration"`
+	TlsDuration             int64           `json:"tls_duration"`
+	FirstByteDuration       int64           `json:"first_byte_duration"`
+	BodyTruncated           int64           `json:"body_truncated"`
+	BodyEncoded             int64           `json:"body_encoded"`
+	Keyword                 sql.NullString  `json:"keyword"`
+	KeywordMode             sql.NullString  `json:"keyword_mode"`
+	KeywordFound            sql.NullBool    `json:"keyword_found"`
+	IcmpAvailable           sql.NullInt64   `json:"icmp_available"`
+	IcmpReachable           sql.NullInt64   `json:"icmp_reachable"`
+	IcmpRttMs               sql.NullInt64   `json:"icmp_rtt_ms"`
+	RootCauseHint           string          `json:"root_cause_hint"`
+	DbConnectionsActive     sql.NullInt64   `json:"db_connections_active"`
+	DbConnectionsMax        sql.NullInt64   `json:"db_connections_max"`
+	DbLongestQuerySeconds   sql.NullFloat64 `json:"db_longest_query_seconds"`
+	DbReplicationLagSeconds sql.NullFloat64 `json:"db_replication_lag_seconds"`
 }
 
 func (q *Queries) CreateIncidentDiagnostics(ctx context.Context, arg CreateIncidentDiagnosticsParams) (IncidentDiagnostic, error) {
@@ -87,6 +93,10 @@ func (q *Queries) CreateIncidentDiagnostics(ctx context.Context, arg CreateIncid
 		arg.IcmpReachable,
 		arg.IcmpRttMs,
 		arg.RootCauseHint,
+		arg.DbConnectionsActive,
+		arg.DbConnectionsMax,
+		arg.DbLongestQuerySeconds,
+		arg.DbReplicationLagSeconds,
 	)
 	var i IncidentDiagnostic
 	err := row.Scan(
@@ -208,37 +218,45 @@ SET request_method = ?,
     icmp_reachable = ?,
     icmp_rtt_ms = ?,
     root_cause_hint = ?,
+    db_connections_active = ?,
+    db_connections_max = ?,
+    db_longest_query_seconds = ?,
+    db_replication_lag_seconds = ?,
     updated_at = ?
 WHERE id = ?
 `
 
 type UpdateIncidentDiagnosticsParams struct {
-	RequestMethod     string         `json:"request_method"`
-	RequestUrl        string         `json:"request_url"`
-	RequestHeaders    string         `json:"request_headers"`
-	RequestTimeout    int64          `json:"request_timeout"`
-	HttpStatusCode    int64          `json:"http_status_code"`
-	ResponseHeaders   string         `json:"response_headers"`
-	ResponseBody      string         `json:"response_body"`
-	ResponseSize      int64          `json:"response_size"`
-	FailureType       string         `json:"failure_type"`
-	ErrorMessage      string         `json:"error_message"`
-	ErrorSummary      string         `json:"error_summary"`
-	TotalDuration     int64          `json:"total_duration"`
-	DnsDuration       int64          `json:"dns_duration"`
-	TlsDuration       int64          `json:"tls_duration"`
-	FirstByteDuration int64          `json:"first_byte_duration"`
-	BodyTruncated     int64          `json:"body_truncated"`
-	BodyEncoded       int64          `json:"body_encoded"`
-	Keyword           sql.NullString `json:"keyword"`
-	KeywordMode       sql.NullString `json:"keyword_mode"`
-	KeywordFound      sql.NullBool   `json:"keyword_found"`
-	IcmpAvailable     sql.NullInt64  `json:"icmp_available"`
-	IcmpReachable     sql.NullInt64  `json:"icmp_reachable"`
-	IcmpRttMs         sql.NullInt64  `json:"icmp_rtt_ms"`
-	RootCauseHint     string         `json:"root_cause_hint"`
-	UpdatedAt         time.Time      `json:"updated_at"`
-	ID                string         `json:"id"`
+	RequestMethod           string          `json:"request_method"`
+	RequestUrl              string          `json:"request_url"`
+	RequestHeaders          string          `json:"request_headers"`
+	RequestTimeout          int64           `json:"request_timeout"`
+	HttpStatusCode          int64           `json:"http_status_code"`
+	ResponseHeaders         string          `json:"response_headers"`
+	ResponseBody            string          `json:"response_body"`
+	ResponseSize            int64           `json:"response_size"`
+	FailureType             string          `json:"failure_type"`
+	ErrorMessage            string          `json:"error_message"`
+	ErrorSummary            string          `json:"error_summary"`
+	TotalDuration           int64           `json:"total_duration"`
+	DnsDuration             int64           `json:"dns_duration"`
+	TlsDuration             int64           `json:"tls_duration"`
+	FirstByteDuration       int64           `json:"first_byte_duration"`
+	BodyTruncated           int64           `json:"body_truncated"`
+	BodyEncoded             int64           `json:"body_encoded"`
+	Keyword                 sql.NullString  `json:"keyword"`
+	KeywordMode             sql.NullString  `json:"keyword_mode"`
+	KeywordFound            sql.NullBool    `json:"keyword_found"`
+	IcmpAvailable           sql.NullInt64   `json:"icmp_available"`
+	IcmpReachable           sql.NullInt64   `json:"icmp_reachable"`
+	IcmpRttMs               sql.NullInt64   `json:"icmp_rtt_ms"`
+	RootCauseHint           string          `json:"root_cause_hint"`
+	DbConnectionsActive     sql.NullInt64   `json:"db_connections_active"`
+	DbConnectionsMax        sql.NullInt64   `json:"db_connections_max"`
+	DbLongestQuerySeconds   sql.NullFloat64 `json:"db_longest_query_seconds"`
+	DbReplicationLagSeconds sql.NullFloat64 `json:"db_replication_lag_seconds"`
+	UpdatedAt               time.Time       `json:"updated_at"`
+	ID                      string          `json:"id"`
 }
 
 func (q *Queries) UpdateIncidentDiagnostics(ctx context.Context, arg UpdateIncidentDiagnosticsParams) (int64, error) {
@@ -267,6 +285,10 @@ func (q *Queries) UpdateIncidentDiagnostics(ctx context.Context, arg UpdateIncid
 		arg.IcmpReachable,
 		arg.IcmpRttMs,
 		arg.RootCauseHint,
+		arg.DbConnectionsActive,
+		arg.DbConnectionsMax,
+		arg.DbLongestQuerySeconds,
+		arg.DbReplicationLagSeconds,
 		arg.UpdatedAt,
 		arg.ID,
 	)

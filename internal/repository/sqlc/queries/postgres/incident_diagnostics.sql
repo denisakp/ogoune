@@ -7,10 +7,12 @@ INSERT INTO incident_diagnostics (
     total_duration, dns_duration, tls_duration, first_byte_duration,
     body_truncated, body_encoded,
     keyword, keyword_mode, keyword_found,
-    icmp_available, icmp_reachable, icmp_rtt_ms, root_cause_hint
+    icmp_available, icmp_reachable, icmp_rtt_ms, root_cause_hint,
+    db_connections_active, db_connections_max,
+    db_longest_query_seconds, db_replication_lag_seconds
 )
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15,
-        $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28)
+        $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32)
 RETURNING *;
 
 -- name: FindIncidentDiagnosticsByIncidentID :one
@@ -42,7 +44,11 @@ SET request_method = $2,
     icmp_reachable = $23,
     icmp_rtt_ms = $24,
     root_cause_hint = $25,
-    updated_at = $26
+    db_connections_active = $26,
+    db_connections_max = $27,
+    db_longest_query_seconds = $28,
+    db_replication_lag_seconds = $29,
+    updated_at = $30
 WHERE id = $1;
 
 -- name: DeleteIncidentDiagnostics :execrows

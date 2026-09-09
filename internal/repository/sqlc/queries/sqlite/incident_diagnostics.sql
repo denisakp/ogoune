@@ -7,9 +7,11 @@ INSERT INTO incident_diagnostics (
     total_duration, dns_duration, tls_duration, first_byte_duration,
     body_truncated, body_encoded,
     keyword, keyword_mode, keyword_found,
-    icmp_available, icmp_reachable, icmp_rtt_ms, root_cause_hint
+    icmp_available, icmp_reachable, icmp_rtt_ms, root_cause_hint,
+    db_connections_active, db_connections_max,
+    db_longest_query_seconds, db_replication_lag_seconds
 )
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 RETURNING *;
 
 -- name: FindIncidentDiagnosticsByIncidentID :one
@@ -41,6 +43,10 @@ SET request_method = ?,
     icmp_reachable = ?,
     icmp_rtt_ms = ?,
     root_cause_hint = ?,
+    db_connections_active = ?,
+    db_connections_max = ?,
+    db_longest_query_seconds = ?,
+    db_replication_lag_seconds = ?,
     updated_at = ?
 WHERE id = ?;
 
