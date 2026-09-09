@@ -11,6 +11,19 @@ import (
 )
 
 type Querier interface {
+	// Reduce a bounded correlation window to its peaks and sample count, and carry
+	// back the disk documents for the same window, in ONE round trip.
+	//
+	// The peaks are computed by the database via window functions so no numeric
+	// column is ever reduced in Go (spec 089, FR-021); they repeat identically on
+	// every row, which costs a few bytes and saves a round trip. The disks column
+	// rides along because it is a stored document and nothing in this codebase
+	// reaches inside JSON from SQL on either dialect, so the worst mount is picked
+	// in Go (FR-021a).
+	//
+	// No rows means no samples: the caller turns that into an absent context, never
+	// a zero-filled one. Rows returned are bounded by the window (FR-021b).
+	AggregateHostMetricsInWindow(ctx context.Context, arg AggregateHostMetricsInWindowParams) ([]AggregateHostMetricsInWindowRow, error)
 	AvgResponseTimeByResourceInWindow(ctx context.Context, arg AvgResponseTimeByResourceInWindowParams) (float64, error)
 	// One round-trip bulk avg grouped by resource. Used by the list path to
 	// enrich each resource with its avg response time over a sliding window (30d).

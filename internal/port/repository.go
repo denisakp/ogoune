@@ -105,6 +105,12 @@ type HostCredentialRepository interface {
 type HostMetricsRepository interface {
 	Insert(ctx context.Context, s *domain.HostMetricSample) error
 	ListInRange(ctx context.Context, hostID string, from, to time.Time) ([]*domain.HostMetricSample, error)
+	// AggregateWindow reduces a bounded time window to its peaks and sample count.
+	// The numeric peaks are computed by the database; the disk documents come back
+	// undecided so the caller can pick the worst mount (spec 089, FR-021/FR-021a).
+	// Returns nil, nil when the window holds no samples — absence is expressed by
+	// absence, never by a zero-filled aggregate.
+	AggregateWindow(ctx context.Context, hostID string, from, to time.Time) (*domain.HostMetricsWindowAggregate, error)
 	DeleteOlderThan(ctx context.Context, cutoff time.Time) (int64, error)
 	DeleteByHost(ctx context.Context, hostID string) error
 	Decimate(ctx context.Context, cutoff time.Time) (int64, error)

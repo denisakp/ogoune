@@ -133,4 +133,113 @@ func runHostMetricContract(t *testing.T, repo port.HostMetricsRepository) {
 		// The post-cutoff sample is untouched.
 		assert.WithinDuration(t, recent, got[1].SampledAt.UTC(), time.Second)
 	})
+
+	t.Run("AggregateWindow_PeaksAreTrueMaxima", func(t *testing.T) {
+		hostID := "host-agg-peaks"
+		base := time.Date(2026, 3, 1, 10, 0, 0, 0, time.UTC)
+
+		// Three samples in the window, with the peaks on different rows so a
+		// per-column MAX is genuinely exercised, not a single "worst row".
+		hot := newSample(hostID, base.Add(10*time.Second))
+		hot.CPUPct, hot.MemPct = 91.5, 30.0
+		hot.Disks = []domain.DiskUsage{{Mount: "/", UsedPct: 50.0}}
+		require.NoError(t, repo.Insert(ctx, hot))
+
+		full := newSample(hostID, base.Add(20*time.Second))
+		full.CPUPct, full.MemPct = 12.0, 98.25
+		full.Disks = []domain.DiskUsage{{Mount: "/", UsedPct: 60.0}, {Mount: "/var", UsedPct: 97.5}}
+		require.NoError(t, repo.Insert(ctx, full))
+
+		calm := newSample(hostID, base.Add(30*time.Second))
+		calm.CPUPct, calm.MemPct = 5.0, 6.0
+		calm.Disks = nil // a sample that reported no mounts must not contribute a document
+		require.NoError(t, repo.Insert(ctx, calm))
+
+		agg, err := repo.AggregateWindow(ctx, hostID, base, base.Add(time.Minute))
+		require.NoError(t, err)
+		require.NotNil(t, agg)
+		assert.Equal(t, 3, agg.SampleCount)
+		assert.InDelta(t, 91.5, agg.PeakCPUPct, 0.001, "peak CPU is a true maximum, not an average or the first value")
+		assert.InDelta(t, 98.25, agg.PeakMemPct, 0.001, "peak memory comes from a different row than peak CPU")
+		require.Len(t, agg.Disks, 2, "only samples that reported mounts contribute disk documents")
+	})
+
+	t.Run("AggregateWindow_ExcludesSamplesOutsideTheWindow", func(t *testing.T) {
+		hostID := "host-agg-bounds"
+		base := time.Date(2026, 3, 2, 10, 0, 0, 0, time.UTC)
+
+		inside := newSample(hostID, base.Add(30*time.Second))
+		inside.CPUPct = 40.0
+		require.NoError(t, repo.Insert(ctx, inside))
+
+		// Just outside on both sides, and much hotter — if the range predicate
+		// leaks, the peak becomes 99 and this fails loudly.
+		before := newSample(hostID, base.Add(-time.Second))
+		before.CPUPct = 99.0
+		require.NoError(t, repo.Insert(ctx, before))
+		after := newSample(hostID, base.Add(2*time.Minute))
+		after.CPUPct = 99.0
+		require.NoError(t, repo.Insert(ctx, after))
+
+		agg, err := repo.AggregateWindow(ctx, hostID, base, base.Add(time.Minute))
+		require.NoError(t, err)
+		require.NotNil(t, agg)
+		assert.Equal(t, 1, agg.SampleCount)
+		assert.InDelta(t, 40.0, agg.PeakCPUPct, 0.001)
+	})
+
+	t.Run("AggregateWindow_EmptyWindowIsAbsentNotZeroed", func(t *testing.T) {
+		hostID := "host-agg-empty"
+		base := time.Date(2026, 3, 3, 10, 0, 0, 0, time.UTC)
+		require.NoError(t, repo.Insert(ctx, newSample(hostID, base.Add(-time.Hour))))
+
+		agg, err := repo.AggregateWindow(ctx, hostID, base, base.Add(time.Minute))
+		require.NoError(t, err)
+		assert.Nil(t, agg, "absence is expressed by absence, never by a zero-filled aggregate")
+	})
+
+	t.Run("AggregateWindow_OtherHostsAreNotAggregated", func(t *testing.T) {
+		base := time.Date(2026, 3, 4, 10, 0, 0, 0, time.UTC)
+		mine := newSample("host-agg-mine", base.Add(10*time.Second))
+		mine.CPUPct = 20.0
+		require.NoError(t, repo.Insert(ctx, mine))
+		theirs := newSample("host-agg-theirs", base.Add(10*time.Second))
+		theirs.CPUPct = 99.0
+		require.NoError(t, repo.Insert(ctx, theirs))
+
+		agg, err := repo.AggregateWindow(ctx, "host-agg-mine", base, base.Add(time.Minute))
+		require.NoError(t, err)
+		require.NotNil(t, agg)
+		assert.Equal(t, 1, agg.SampleCount)
+		assert.InDelta(t, 20.0, agg.PeakCPUPct, 0.001)
+	})
+
+	// FR-021b: what the aggregate brings back must be bounded by the window, not
+	// by how much history the host has. A host with hundreds of samples outside
+	// the window must cost exactly the same as one with none.
+	t.Run("AggregateWindow_TransferIsBoundedByTheWindowNotByHistory", func(t *testing.T) {
+		hostID := "host-agg-bounded"
+		base := time.Date(2026, 3, 5, 12, 0, 0, 0, time.UTC)
+
+		// 300 samples of history spread over the ten hours before the window.
+		for i := 0; i < 300; i++ {
+			old := newSample(hostID, base.Add(-time.Duration(i+1)*2*time.Minute))
+			old.CPUPct = 88.0
+			require.NoError(t, repo.Insert(ctx, old))
+		}
+		// Six samples inside the window, each reporting mounts.
+		for i := 0; i < 6; i++ {
+			in := newSample(hostID, base.Add(time.Duration(i*10)*time.Second))
+			in.CPUPct = float64(10 + i)
+			require.NoError(t, repo.Insert(ctx, in))
+		}
+
+		agg, err := repo.AggregateWindow(ctx, hostID, base, base.Add(time.Minute))
+		require.NoError(t, err)
+		require.NotNil(t, agg)
+		assert.Equal(t, 6, agg.SampleCount, "sample count reflects the window, not the history")
+		assert.InDelta(t, 15.0, agg.PeakCPUPct, 0.001, "history outside the window never reaches the peak")
+		assert.LessOrEqual(t, len(agg.Disks), 6,
+			"disk documents transferred are bounded by the window: 300 samples of history must not be read back")
+	})
 }

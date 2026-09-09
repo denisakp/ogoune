@@ -60,7 +60,35 @@ func mapIncidentResponse(inc *domain.Incident) dtoV1.IncidentResponse {
 		s := inc.ResolvedAt.UTC().Format(time.RFC3339)
 		resp.ResolvedAt = &s
 	}
+	resp.HostContext = mapHostContext(inc.HostContext)
 	return resp
+}
+
+// mapHostContext converts the read-side host context into its v1 shape, field by
+// field. A nil context maps to a nil response, which serialises as
+// "host_context": null -- the only absent representation the contract allows
+// (spec 089, FR-010).
+func mapHostContext(hc *domain.HostContext) *dtoV1.HostContextResponse {
+	if hc == nil {
+		return nil
+	}
+	out := &dtoV1.HostContextResponse{
+		HostID:      hc.HostID,
+		HostName:    hc.HostName,
+		PeakCPUPct:  hc.PeakCPUPct,
+		PeakMemPct:  hc.PeakMemPct,
+		SampleCount: hc.SampleCount,
+		Resolution:  string(hc.Resolution),
+		WindowFrom:  hc.WindowFrom.UTC().Format(time.RFC3339),
+		WindowTo:    hc.WindowTo.UTC().Format(time.RFC3339),
+	}
+	if hc.WorstDisk != nil {
+		out.WorstDisk = &dtoV1.WorstDiskResponse{
+			Mount:   hc.WorstDisk.Mount,
+			UsedPct: hc.WorstDisk.UsedPct,
+		}
+	}
+	return out
 }
 
 // List handles GET /api/v1/incidents
