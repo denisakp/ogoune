@@ -5,6 +5,17 @@ follows [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Fixed
+
+- **Two compiled binaries were tracked in git** — a 9 MB macOS `agent` and an 8 MB Windows
+  `agent.exe`, both committed by accident: `go build ./cmd/agent` writes `./agent` into the working
+  directory, under the package's name. Removed, and `.gitignore` now names every binary a bare
+  `go build` of this repo's commands can drop at the root.
+  A list only stops the artifacts someone thought to name, so `scripts/check-no-binaries.sh` checks
+  what is actually tracked and fails on anything compiled. It runs in CI and as the first step of
+  `make ci-local`, before the slow gates, so the answer arrives in a second rather than after the
+  test suite.
+
 ## [1.0.0-beta.5] - 2026-09-10
 
 ### Added
