@@ -186,14 +186,21 @@ fuzz-kmsg: ## 60s fuzz campaign over the kernel-log classifier (spec 090)
 .PHONY: lint-openapi
 lint-openapi: ## Lint the OpenAPI contract with Spectral (workspace binary — no global install)
 	@echo ">> Lint OpenAPI..."
-	cd web && pnpm exec spectral lint ../api/openapi/v1.yaml --ruleset ../.spectral.yaml --fail-severity=error
+	# The ruleset lives in web/ because Spectral resolves `extends` relative to
+	# the RULESET FILE, not the working directory. At the repo root it looked for
+	# @stoplight/spectral-owasp-ruleset in a node_modules that does not exist
+	# there, and this target failed on a clean tree for months.
+	cd web && pnpm exec spectral lint ../api/openapi/v1.yaml --ruleset .spectral.yaml --fail-severity=error
 
 .PHONY: openapi
 openapi: ## generate the canonical OpenAPI 3.1 contract from Go annotations (source of truth)
 	go run github.com/swaggo/swag/v2/cmd/swag init -g cmd/api/main.go --v3.1 -o api/openapi --parseDependency --parseInternal
-	@mv api/openapi/swagger.yaml api/openapi/v1.yaml
 	@mv api/openapi/swagger.json api/openapi/v1.json
-	@rm -f api/openapi/docs.go
+	# The YAML is DERIVED from the JSON, not taken from swag. swag's JSON encoder
+	# sorts map keys and its YAML writer does not, so the YAML changed on about a
+	# third of runs and the drift guard below could never come back clean.
+	go run ./cmd/openapi-yaml api/openapi/v1.json api/openapi/v1.yaml
+	@rm -f api/openapi/swagger.yaml api/openapi/docs.go
 	@echo ">> OpenAPI 3.1 contract → api/openapi/v1.{yaml,json}"
 
 .PHONY: gen-fe-types
