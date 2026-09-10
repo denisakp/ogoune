@@ -5,6 +5,24 @@ follows [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+
+- **Kernel-event capture is verified against a real kernel in CI.** Every other test exercises the
+  classifier against strings and the collector against a fake source — which is exactly how a
+  blocking read on `/dev/kmsg` shipped: it stopped the agent streaming metrics on every host where
+  the kernel log was readable, and nothing could see it, because in a container the open fails and
+  there is no source left to block on.
+  A GitHub runner is a virtual machine, so it has the kernel log a container does not. The new job
+  reads it, injects real kernel records and reads them back, and produces a genuine out-of-memory
+  kill through a memory-limited cgroup. It also pins the property that makes a package upgrade
+  safe: a freshly opened reader must not replay anything logged before it started.
+  The suite skips on a machine without a readable kernel log, so `make test-agent-kernel` is quiet
+  locally — but CI sets `OGOUNE_REQUIRE_KERNEL_CAPTURE`, which turns a skip into a failure, and the
+  job additionally refuses to pass unless the assertions actually ran. A runner image change cannot
+  quietly stop verifying anything while the badge stays green.
+  Confirmed to catch the original defect: with the blocking read restored, it fails in four seconds
+  saying so.
+
 ### Fixed
 
 - **`make ci-local` could not pass, whatever you did.** Two of its gates failed on a clean tree, so
