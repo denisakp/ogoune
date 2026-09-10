@@ -11,18 +11,26 @@ import (
 	"github.com/go-chi/chi/v5"
 
 	v1 "github.com/denisakp/ogoune/internal/api/handler/v1"
+	"github.com/denisakp/ogoune/internal/correlation"
 	"github.com/denisakp/ogoune/internal/domain"
 	"github.com/denisakp/ogoune/internal/repository/internaltest"
 	"github.com/denisakp/ogoune/internal/repository/store"
 	"github.com/denisakp/ogoune/internal/service"
 )
 
-// Incident detail p95, with and without a host attached (spec 089, SC-007/SC-007a).
+// Incident detail p95, with and without a host attached (spec 089, SC-007/SC-007a;
+// spec 091 SC-008).
 //
 // Unlike the list benchmarks, these wire the *real* IncidentService rather than a
-// stub, because the whole point is to measure the host-context enrichment that
-// lives inside it. The two benchmarks differ only in whether the monitor carries
-// a host_id, so their delta is the enrichment's cost and nothing else.
+// stub, because the whole point is to measure the enrichment that lives inside
+// it -- the host context and, since spec 091, the causal narrative. The two
+// benchmarks differ only in whether the monitor carries a host_id, so their delta
+// is the enrichment's total cost and nothing else.
+//
+// The no-host case is the one that matters most: it is the majority of monitors,
+// and both enrichments are supposed to return before issuing a single query for
+// it. Its p95 is therefore the measured form of "this feature is free for
+// operators who run no agent".
 
 const (
 	detailBenchIterations = 500
@@ -41,6 +49,7 @@ func seedIncidentDetailFixture(b *testing.B, fx *internaltest.DialectFixture, wi
 	eventStepRepo := store.NewIncidentEventStepRepositorySQLC(fx.Runtime)
 	hostRepo := store.NewHostRepositorySQLC(fx.Runtime)
 	hostMetricRepo := store.NewHostMetricRepositorySQLC(fx.Runtime)
+	hostEventRepo := store.NewHostEventRepositorySQLC(fx.Runtime)
 
 	suffix := "nohost"
 	if withHost {
@@ -101,6 +110,11 @@ func seedIncidentDetailFixture(b *testing.B, fx *internaltest.DialectFixture, wi
 	}
 
 	svc := service.NewIncidentService(incidentRepo, eventStepRepo, hostMetricRepo, hostRepo, 7*24*time.Hour)
+	// The correlator is attached because the shipped read path has it attached
+	// (spec 091). Benchmarking the service without it would measure a
+	// configuration nobody runs, and would leave the claim that a monitor with no
+	// host pays nothing for correlation entirely unmeasured.
+	svc = svc.WithCorrelator(correlation.New(hostEventRepo, hostRepo))
 	handler := v1.NewIncidentHandler(svc)
 
 	r := chi.NewRouter()
