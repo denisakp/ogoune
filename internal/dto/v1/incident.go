@@ -22,10 +22,21 @@ type IncidentResponse struct {
 	EventSteps  []domain.IncidentEventStep  `json:"event_steps"`
 	Diagnostics *domain.IncidentDiagnostics `json:"diagnostics"`
 	HostContext *HostContextResponse        `json:"host_context"`
-	StartedAt   string                      `json:"started_at"`
-	ResolvedAt  *string                     `json:"resolved_at"`
-	CreatedAt   string                      `json:"created_at"`
-	UpdatedAt   string                      `json:"updated_at"`
+	// Explanation and HostEvents are populated on the detail path only, and both
+	// are `omitempty` (spec 091).
+	//
+	// The omitempty is load-bearing, not tidiness: mapIncidentResponse is shared
+	// with GET /api/v1/incidents, so without it every row of every incident
+	// listing would gain two null keys -- a body change to an endpoint this
+	// feature does not touch. With it, the listing and a detail response with
+	// nothing to say both stay byte-identical to their pre-feature form
+	// (FR-012's discipline, applied to the API).
+	Explanation *IncidentExplanationResponse `json:"explanation,omitempty"`
+	HostEvents  []HostEventResponse          `json:"host_events,omitempty"`
+	StartedAt   string                       `json:"started_at"`
+	ResolvedAt  *string                      `json:"resolved_at"`
+	CreatedAt   string                       `json:"created_at"`
+	UpdatedAt   string                       `json:"updated_at"`
 }
 
 // HostContextResponse is what the monitor's host was doing around the moment the
@@ -53,6 +64,51 @@ type HostContextResponse struct {
 	// WindowTo may be earlier than the nominal window end while the window is
 	// still elapsing on a fresh incident.
 	WindowTo string `json:"window_to"`
+}
+
+// IncidentExplanationResponse links what a check observed to what the kernel
+// reported on the same host at nearly the same time (spec 091). Absent whenever
+// no event fell in the incident's window.
+//
+// It states a co-occurrence and nothing more. There is deliberately no
+// `caused_by`, no score, no confidence and no probability: the wording in `text`
+// may read as an explanation, because a human knows a sentence is an
+// interpretation, but no machine-readable field here asserts a mechanism. Both
+// timestamps are always present so a reader can overrule the sentence.
+//
+// Nothing here is stored. It is recomputed from the incident and the events on
+// every read, which is why improving the wording improves every past incident --
+// and why the same incident read twice always reads the same.
+// @name IncidentExplanationResponse
+type IncidentExplanationResponse struct {
+	// Text is the rendered sentence.
+	//
+	// The API is itself a renderer, which is why the prose is served rather than
+	// left to the caller: the alternative was re-implementing the wording in
+	// TypeScript for the SPA, and two implementations of one sentence drift.
+	Text string `json:"text"`
+	// HostID and HostName identify the machine whose kernel reported the event.
+	HostID   string `json:"host_id"`
+	HostName string `json:"host_name"`
+	// IncidentAt is when the failure was confirmed; Cause is what the check saw.
+	IncidentAt string `json:"incident_at"`
+	Cause      string `json:"cause"`
+	// Event is the one the sentence names. Its kind is always one this version
+	// can phrase; unrecognised kinds appear in host_events and count toward
+	// other_events, but are never named.
+	Event HostEventResponse `json:"event"`
+	// Precedes says whether the event happened at or before the failure. A
+	// comparison of two timestamps, not a causal claim.
+	Precedes bool `json:"precedes"`
+	// OtherEvents counts the OTHER events in the window, unrecognised kinds
+	// included. It counts events, not kernel reports: event.occurrences answers
+	// that separate question.
+	OtherEvents int `json:"other_events"`
+	// WindowFrom and WindowTo are the incident host-context window, unchanged.
+	// WindowTo may be earlier than the nominal end while the window is still
+	// elapsing.
+	WindowFrom string `json:"window_from"`
+	WindowTo   string `json:"window_to"`
 }
 
 // WorstDiskResponse is a single mount and its utilisation percentage.

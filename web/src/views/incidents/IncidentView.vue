@@ -6,6 +6,8 @@ import IncidentHeader from '@/components/incidents/IncidentHeader.vue'
 import IncidentTimeline from '@/components/incidents/IncidentTimeline.vue'
 import DiagnosticsPanel from '@/components/incidents/DiagnosticsPanel.vue'
 import HostContextPanel from '@/components/incidents/HostContextPanel.vue'
+import IncidentExplanation from '@/components/incidents/IncidentExplanation.vue'
+import HostEventsList from '@/components/hosts/HostEventsList.vue'
 import NotificationsPanel from '@/components/incidents/NotificationsPanel.vue'
 import IncidentStatusUpdates from '@/components/incidents/IncidentStatusUpdates.vue'
 import type { Incident } from '@/types'
@@ -37,6 +39,8 @@ function onAction(p: { kind: 'back' }) {
 const events = computed(() => incident.value?.event_steps ?? [])
 const diagnostics = computed(() => incident.value?.diagnostics ?? null)
 const hostContext = computed(() => incident.value?.host_context ?? null)
+const explanation = computed(() => incident.value?.explanation ?? null)
+const hostEvents = computed(() => incident.value?.host_events ?? [])
 
 onMounted(() => {
   void loadIncident()
@@ -65,6 +69,10 @@ defineExpose({ incident, loadIncident, onAction })
     <template v-else>
       <IncidentHeader :incident="incident" @action="onAction" />
 
+      <!-- Above the grid on purpose: the explanation summarises the evidence
+           below it, so it has to be read first (spec 091, FR-014). -->
+      <IncidentExplanation v-if="explanation" :explanation="explanation" class="mb-5" />
+
       <div class="grid grid-cols-[1fr_360px] gap-5 items-start">
         <div class="flex flex-col gap-5">
           <div class="bg-default rounded-lg border border-default p-5">
@@ -76,6 +84,7 @@ defineExpose({ incident, loadIncident, onAction })
 
         <div class="flex flex-col gap-5">
           <HostContextPanel v-if="hostContext" :context="hostContext" />
+          <HostEventsList v-if="hostEvents.length" :events="hostEvents" />
           <DiagnosticsPanel :diagnostics="diagnostics" />
           <NotificationsPanel :events="events" />
         </div>

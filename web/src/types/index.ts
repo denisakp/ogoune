@@ -1,3 +1,5 @@
+import type { HostEvent } from './host'
+
 /**
  * Resource metadata containing SSL and domain information
  */
@@ -297,9 +299,55 @@ export interface Incident {
    * Absence is always null -- never a zero-filled object.
    */
   host_context?: HostContext | null
+  /**
+   * One sentence linking this failure to what the kernel reported on the same
+   * host at nearly the same time (spec 091). Absent whenever no kernel event
+   * fell in the correlation window -- which is the normal case.
+   *
+   * It states a co-occurrence, not a mechanism: `text` may read as an
+   * explanation because a human knows a sentence is an interpretation, but there
+   * is no score, no confidence and no causal identifier to treat as fact. Both
+   * timestamps are always present so a reader can overrule it.
+   */
+  explanation?: IncidentExplanation | null
+  /**
+   * The kernel events inside the correlation window, newest first. Present even
+   * when `explanation` is absent: an event of a kind this interface does not
+   * recognise is still worth showing.
+   *
+   * Absent (rather than empty) when the monitor has no host, or on the list
+   * endpoint, which never loads them.
+   */
+  host_events?: HostEvent[]
   event_steps?: IncidentEventStep[]
   created_at: string
   updated_at: string
+}
+
+/**
+ * Why an incident and a kernel event are shown together (spec 091).
+ *
+ * Derived on every read, never stored, so improving the wording improves every
+ * past incident -- and the same incident always reads the same.
+ */
+export interface IncidentExplanation {
+  /** The rendered sentence. Produced by the API so the wording exists once. */
+  text: string
+  host_id: string
+  host_name: string
+  /** When the failure was confirmed. */
+  incident_at: string
+  /** What the check observed. */
+  cause: string
+  /** The event the sentence names. Its kind is always one the API can phrase. */
+  event: HostEvent
+  /** Whether the event happened at or before the failure. Two clocks, not a claim. */
+  precedes: boolean
+  /** Other events in the window, unrecognised kinds included. Events, not reports. */
+  other_events: number
+  window_from: string
+  /** May be earlier than the nominal end while the window is still elapsing. */
+  window_to: string
 }
 
 /**

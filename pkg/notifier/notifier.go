@@ -32,6 +32,16 @@ type NotificationPayload struct {
 	Reminder  *ReminderNotification
 	Report    *ReportNotification
 	Operator  *OperatorNotification
+
+	// Explanation qualifies Incident; it is NOT another arm of the union above
+	// (spec 091). Non-nil only alongside Incident, and only when a kernel event
+	// fell inside the incident's correlation window.
+	//
+	// Nil is the normal case, and every renderer MUST then produce exactly the
+	// bytes it produced before this field existed -- no empty element, no null
+	// key, no stray whitespace. That is asserted against captured fixtures in
+	// golden_incident_test.go rather than left to review (FR-012, SC-003).
+	Explanation *domain.IncidentExplanation
 }
 
 // OperatorNotification is a plain operator-facing message (spec 083): an

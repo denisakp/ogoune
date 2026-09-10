@@ -110,6 +110,13 @@ type HostEventRepository interface {
 	Create(ctx context.Context, e *domain.HostEvent) error
 	// ListByHost returns a host's events newest first, bounded by limit.
 	ListByHost(ctx context.Context, hostID string, limit int) ([]*domain.HostEvent, error)
+	// ListInWindow returns a host's events that occurred within [from, to),
+	// newest first, bounded by limit.
+	//
+	// Half-open on purpose, matching how the incident host context treats the
+	// same window: an event landing exactly on the far edge belongs to one
+	// window and not to two.
+	ListInWindow(ctx context.Context, hostID string, from, to time.Time, limit int) ([]*domain.HostEvent, error)
 	DeleteOlderThan(ctx context.Context, cutoff time.Time) (int64, error)
 	DeleteByHost(ctx context.Context, hostID string) error
 }

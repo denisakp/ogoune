@@ -51,52 +51,27 @@
             </div>
             <div class="content">
                 <p>A critical resource is currently unavailable:</p>
-                {{- if .Explanation }}
-                <p style="margin: 0 0 10px">
-                    <strong>What happened around it:</strong>
-                    {{ .Explanation }}
-                </p>
-                <p style="margin: 0 0 10px; font-size: 12px; color: #777">
-                    Shown because both happened on the same host within the same
-                    window. That is a co-occurrence, not a proven cause.
-                </p>
-                {{- end }}
 
                 <div class="detail">
                     <span class="label">Resource:</span>
-                    <span class="value">{{ .Incident.Resource.Name }}</span>
+                    <span class="value">web-01 storefront</span>
                 </div>
                 <div class="detail">
                     <span class="label">Incident ID:</span>
-                    <span class="value">{{ .Incident.ID }}</span>
+                    <span class="value">01JGOLDENINCIDENT00000000</span>
                 </div>
                 <div class="detail">
                     <span class="label">Cause:</span>
-                    <span class="value">{{ .Incident.Cause }}</span>
+                    <span class="value">HTTP check failed: 502 Bad Gateway</span>
                 </div>
                 <div class="detail">
                     <span class="label">Started At:</span>
-                    <span class="value">{{ .Incident.StartedAt }}</span>
+                    <span class="value">2026-09-10 14:03:00 &#43;0000 UTC</span>
                 </div>
                 <div class="detail">
                     <span class="label">Target:</span>
-                    <span class="value">{{ .Incident.Resource.Target }}</span>
+                    <span class="value">https://shop.example.com/health</span>
                 </div>
-
-                {{- if .Keyword }}
-                <div class="detail">
-                    <span class="label">Keyword:</span>
-                    <span class="value">{{ .Keyword }}</span>
-                </div>
-                <div class="detail">
-                    <span class="label">Match Mode:</span>
-                    <span class="value">{{ .KeywordMode }}</span>
-                </div>
-                <div class="detail">
-                    <span class="label">Failure Reason:</span>
-                    <span class="value">{{ .ErrorSummary }}</span>
-                </div>
-                {{- end }}
 
                 <p style="margin-top: 20px">
                     <strong>Action Required:</strong> Please investigate this

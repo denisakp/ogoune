@@ -7,6 +7,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/denisakp/ogoune/internal/correlation"
 	"github.com/denisakp/ogoune/internal/domain"
 	"github.com/denisakp/ogoune/internal/maintenance"
 	"github.com/denisakp/ogoune/internal/monitoring"
@@ -110,6 +111,10 @@ func initTimingWheelWorker(app *App, enrichmentService *service.EnrichmentServic
 		app.IncidentDiagnosticsRepo,
 		nil,
 	)
+	// The causal narrative on down alerts (spec 091). Wired at BOTH monitoring
+	// service construction sites in this file: wiring one would give the
+	// timing-wheel and Asynq runtimes different alert content.
+	incidentService = incidentService.WithCorrelator(correlation.New(app.HostEventRepo, app.HostRepo))
 	if app.IncidentUpdateService != nil {
 		incidentService.SetUpdateSeeder(app.IncidentUpdateService)
 	}
@@ -318,6 +323,10 @@ func initAsynqProcessor(app *App, enrichmentService *service.EnrichmentService) 
 		app.IncidentDiagnosticsRepo,
 		app.AsynqClient,
 	)
+	// The causal narrative on down alerts (spec 091). Wired at BOTH monitoring
+	// service construction sites in this file: wiring one would give the
+	// timing-wheel and Asynq runtimes different alert content.
+	incidentService = incidentService.WithCorrelator(correlation.New(app.HostEventRepo, app.HostRepo))
 	if app.IncidentUpdateService != nil {
 		incidentService.SetUpdateSeeder(app.IncidentUpdateService)
 	}

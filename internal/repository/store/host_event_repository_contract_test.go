@@ -157,6 +157,65 @@ func runHostEventContract(t *testing.T, hosts port.HostRepository, repo port.Hos
 		assert.Empty(t, got, "deleting a host takes its events with it")
 	})
 
+	// The correlation window (spec 091). Half-open [from, to), so an event landing
+	// exactly on the far edge belongs to one window and not two -- asserted in
+	// both dialects because the two compare timestamps by different mechanisms.
+	t.Run("WindowIsHalfOpen", func(t *testing.T) {
+		id := "he-window"
+		seedHost(t, hosts, id)
+		from := base
+		to := base.Add(6 * time.Minute)
+
+		require.NoError(t, repo.Create(ctx, evt(id, "oom_kill", from.Add(-time.Second))))
+		atFrom := from
+		require.NoError(t, repo.Create(ctx, evt(id, "oom_kill", atFrom)))
+		inside := from.Add(3 * time.Minute)
+		require.NoError(t, repo.Create(ctx, evt(id, "segfault", inside)))
+		require.NoError(t, repo.Create(ctx, evt(id, "oom_kill", to)))
+		require.NoError(t, repo.Create(ctx, evt(id, "oom_kill", to.Add(time.Hour))))
+
+		got, err := repo.ListInWindow(ctx, id, from, to, 10)
+		require.NoError(t, err)
+		require.Len(t, got, 2, "the start edge is included, the end edge is not")
+		assert.True(t, got[0].OccurredAt.Equal(inside), "newest first")
+		assert.True(t, got[1].OccurredAt.Equal(atFrom),
+			"an event exactly at the window start belongs to the window")
+	})
+
+	t.Run("WindowIsScopedAndBounded", func(t *testing.T) {
+		seedHost(t, hosts, "hw-mine")
+		seedHost(t, hosts, "hw-theirs")
+		from := base
+		to := base.Add(10 * time.Minute)
+		for i := 0; i < 8; i++ {
+			require.NoError(t, repo.Create(ctx, evt("hw-mine", "oom_kill", from.Add(time.Duration(i)*time.Minute))))
+		}
+		require.NoError(t, repo.Create(ctx, evt("hw-theirs", "oom_kill", from.Add(time.Minute))))
+
+		got, err := repo.ListInWindow(ctx, "hw-mine", from, to, 3)
+		require.NoError(t, err)
+		require.Len(t, got, 3, "limit bounds the read: a storm must not grow the result")
+		for _, e := range got {
+			assert.Equal(t, "hw-mine", e.HostID, "another host's events never enter the window")
+		}
+	})
+
+	// An empty or inverted window has no events by definition. The wrapper answers
+	// without asking the database, and must answer the same way either dialect.
+	t.Run("EmptyWindowYieldsNothing", func(t *testing.T) {
+		id := "he-emptywindow"
+		seedHost(t, hosts, id)
+		require.NoError(t, repo.Create(ctx, evt(id, "oom_kill", base)))
+
+		got, err := repo.ListInWindow(ctx, id, base, base, 10)
+		require.NoError(t, err)
+		assert.Empty(t, got, "a zero-width window holds nothing")
+
+		got, err = repo.ListInWindow(ctx, id, base.Add(time.Minute), base, 10)
+		require.NoError(t, err)
+		assert.Empty(t, got, "an inverted window holds nothing")
+	})
+
 	t.Run("UnknownKindIsStoredNotDropped", func(t *testing.T) {
 		id := "he-unknown"
 		seedHost(t, hosts, id)

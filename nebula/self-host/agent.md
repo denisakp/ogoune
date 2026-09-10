@@ -290,6 +290,13 @@ a container reschedule — does not replay old kills as if they had just happene
 Events that occur while the agent is down are lost, and that is deliberate: a
 missing event is better than a fabricated one.
 
+### Where they show up
+
+On the host's own page, and — when a monitor attached to this host has an incident
+in the same few minutes — as a one-sentence explanation at the top of that
+incident and in its notification. See
+[what happened around it](/guide/incidents#what-happened-around-it).
+
 ### Retention
 
 Kernel events are kept for `HOST_EVENTS_RETENTION_DAYS` days (90 by default) and
@@ -304,5 +311,5 @@ unit, the servers this targets run Linux, and macOS would need a launchd story w
 a service wrapper — neither of which we can test. macOS and Windows agents are not planned.
 
 Kernel-event capture — OOMKills and segfaults, read from `/dev/kmsg` and cgroup v2 `memory.events` — is
-planned and needs no eBPF. Deeper kernel instrumentation (syscall latency, TCP retransmits, packet
-drops) does require eBPF and is deferred to a later horizon.
+shipped and needs no eBPF; see [Kernel events](#kernel-events) above. Deeper kernel instrumentation
+(syscall latency, TCP retransmits, packet drops) does require eBPF and is deferred to a later horizon.

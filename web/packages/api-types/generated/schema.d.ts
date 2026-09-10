@@ -5159,6 +5159,11 @@ export interface components {
             pid?: number;
             process?: string;
         };
+        /**
+         * @description Event is the one the sentence names. Its kind is always one this version
+         *     can phrase; unrecognised kinds appear in host_events and count toward
+         *     other_events, but are never named.
+         */
         "github_com_denisakp_ogoune_internal_dto_v1.HostEventResponse": {
             detail?: components["schemas"]["github_com_denisakp_ogoune_internal_dto_v1.HostEventDetailResponse"];
             id?: string;
@@ -5207,13 +5212,61 @@ export interface components {
             skipped?: number;
             total?: number;
         };
+        /**
+         * @description Explanation and HostEvents are populated on the detail path only, and both
+         *     are `omitempty` (spec 091).
+         *
+         *     The omitempty is load-bearing, not tidiness: mapIncidentResponse is shared
+         *     with GET /api/v1/incidents, so without it every row of every incident
+         *     listing would gain two null keys -- a body change to an endpoint this
+         *     feature does not touch. With it, the listing and a detail response with
+         *     nothing to say both stay byte-identical to their pre-feature form
+         *     (FR-012's discipline, applied to the API).
+         */
+        "github_com_denisakp_ogoune_internal_dto_v1.IncidentExplanationResponse": {
+            cause?: string;
+            event?: components["schemas"]["github_com_denisakp_ogoune_internal_dto_v1.HostEventResponse"];
+            /** @description HostID and HostName identify the machine whose kernel reported the event. */
+            host_id?: string;
+            host_name?: string;
+            /** @description IncidentAt is when the failure was confirmed; Cause is what the check saw. */
+            incident_at?: string;
+            /**
+             * @description OtherEvents counts the OTHER events in the window, unrecognised kinds
+             *     included. It counts events, not kernel reports: event.occurrences answers
+             *     that separate question.
+             */
+            other_events?: number;
+            /**
+             * @description Precedes says whether the event happened at or before the failure. A
+             *     comparison of two timestamps, not a causal claim.
+             */
+            precedes?: boolean;
+            /**
+             * @description Text is the rendered sentence.
+             *
+             *     The API is itself a renderer, which is why the prose is served rather than
+             *     left to the caller: the alternative was re-implementing the wording in
+             *     TypeScript for the SPA, and two implementations of one sentence drift.
+             */
+            text?: string;
+            /**
+             * @description WindowFrom and WindowTo are the incident host-context window, unchanged.
+             *     WindowTo may be earlier than the nominal end while the window is still
+             *     elapsing.
+             */
+            window_from?: string;
+            window_to?: string;
+        };
         "github_com_denisakp_ogoune_internal_dto_v1.IncidentResponse": {
             cause?: string;
             created_at?: string;
             details?: string;
             diagnostics?: components["schemas"]["github_com_denisakp_ogoune_internal_domain.IncidentDiagnostics"];
             event_steps?: components["schemas"]["github_com_denisakp_ogoune_internal_domain.IncidentEventStep"][];
+            explanation?: components["schemas"]["github_com_denisakp_ogoune_internal_dto_v1.IncidentExplanationResponse"];
             host_context?: components["schemas"]["github_com_denisakp_ogoune_internal_dto_v1.HostContextResponse"];
+            host_events?: components["schemas"]["github_com_denisakp_ogoune_internal_dto_v1.HostEventResponse"][];
             id?: string;
             monitor_id?: string;
             resolved_at?: string;

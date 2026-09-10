@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/denisakp/ogoune/internal/domain"
+	"github.com/denisakp/ogoune/internal/narrative"
 )
 
 // WebHookNotifier is a notifier that sends notifications via webhook.
@@ -112,6 +113,12 @@ func (n *WebHookNotifier) Send(ctx context.Context, payload NotificationPayload)
 			"status":  status,
 			"message": incident.Cause,
 		}
+		// One key, added only when there is something to say. Absent rather than
+		// null when there is not: a key appearing with a null value is a body
+		// change, and downstream parsers notice (spec 091, FR-012).
+		if e := explanationBody(payload.Explanation); e != nil {
+			body["explanation"] = e
+		}
 		if incident.Resource.Type == domain.ResourceKeyword {
 			if incident.Resource.Keyword != nil {
 				body["keyword"] = *incident.Resource.Keyword
@@ -168,6 +175,51 @@ func (n *WebHookNotifier) Send(ctx context.Context, payload NotificationPayload)
 	}
 
 	return nil
+}
+
+// explanationBody shapes the causal narrative for a webhook consumer, carrying
+// both structured fields and the rendered sentence (spec 091).
+//
+// Both, because the two kinds of consumer want different things: one forwards to
+// a chat channel and needs prose, another feeds a system and needs fields.
+// Making either parse the other's format would be a worse contract than sending
+// twelve extra bytes.
+//
+// Returns nil when there is nothing to say, or when the event's kind is one this
+// version cannot phrase -- an object whose text came out empty would be worse
+// than no object, because a consumer templating on it renders a gap.
+func explanationBody(e *domain.IncidentExplanation) map[string]any {
+	if e == nil {
+		return nil
+	}
+	text := narrative.Sentence(e)
+	if text == "" {
+		return nil
+	}
+
+	out := map[string]any{
+		"text":              text,
+		"host_id":           e.HostID,
+		"host_name":         e.HostName,
+		"event_kind":        e.Event.Kind,
+		"event_at":          e.Event.OccurredAt.UTC().Format(time.RFC3339),
+		"event_occurrences": e.Event.Occurrences,
+		// precedes compares two timestamps. It is not a causal claim, and there
+		// is deliberately no field here that would be one.
+		"precedes":     e.Precedes,
+		"other_events": e.OtherEvents,
+	}
+	// The kernel does not always name a process, and a key present with an empty
+	// value would read as "named nothing" rather than "did not say".
+	if e.Event.Detail != nil {
+		if p := e.Event.Detail.Process; p != "" {
+			out["event_process"] = p
+		}
+		if pid := e.Event.Detail.PID; pid > 0 {
+			out["event_pid"] = pid
+		}
+	}
+	return out
 }
 
 func (n *WebHookNotifier) SendTestNotification(ctx context.Context) error {

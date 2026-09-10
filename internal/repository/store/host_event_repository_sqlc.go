@@ -121,6 +121,63 @@ func (r *HostEventRepositorySQLC) ListByHost(ctx context.Context, hostID string,
 	}
 }
 
+// ListInWindow returns the host's events inside [from, to), newest first
+// Half-open, matching how the incident host context treats the same
+// window: an event exactly on the far edge belongs to one window and not two.
+func (r *HostEventRepositorySQLC) ListInWindow(ctx context.Context, hostID string, from, to time.Time, limit int) ([]*domain.HostEvent, error) {
+	if limit <= 0 {
+		limit = 50
+	}
+	// An empty or inverted window has no events by definition, and asking the
+	// database is a query spent to learn nothing.
+	if !to.After(from) {
+		return nil, nil
+	}
+
+	switch {
+	case r.pgQ != nil:
+		rows, err := r.pgQ.ListHostEventsInWindow(ctx, pgsqlc.ListHostEventsInWindowParams{
+			HostID:       hostID,
+			OccurredAt:   pgtype.Timestamptz{Time: from, Valid: true},
+			OccurredAt_2: pgtype.Timestamptz{Time: to, Valid: true},
+			Limit:        int32(limit),
+		})
+		if err != nil {
+			return nil, fmt.Errorf("sqlc: list host events in window: %w", err)
+		}
+		out := make([]*domain.HostEvent, 0, len(rows))
+		for _, row := range rows {
+			e, err := hostEventFromPG(row)
+			if err != nil {
+				return nil, err
+			}
+			out = append(out, e)
+		}
+		return out, nil
+	case r.sqliteQ != nil:
+		rows, err := r.sqliteQ.ListHostEventsInWindow(ctx, sqlitesqlc.ListHostEventsInWindowParams{
+			HostID:       hostID,
+			OccurredAt:   from,
+			OccurredAt_2: to,
+			Limit:        int64(limit),
+		})
+		if err != nil {
+			return nil, fmt.Errorf("sqlc: list host events in window: %w", err)
+		}
+		out := make([]*domain.HostEvent, 0, len(rows))
+		for _, row := range rows {
+			e, err := hostEventFromSQLite(row)
+			if err != nil {
+				return nil, err
+			}
+			out = append(out, e)
+		}
+		return out, nil
+	default:
+		return nil, r.unconfigured()
+	}
+}
+
 func (r *HostEventRepositorySQLC) DeleteOlderThan(ctx context.Context, cutoff time.Time) (int64, error) {
 	switch {
 	case r.pgQ != nil:

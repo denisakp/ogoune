@@ -1,4 +1,5 @@
 import { getAuthenticatedClient, request } from '@/core/http/client'
+import { mapHostEvents } from '@/services/hostsService'
 import type { Incident, IncidentsQueryParams, PaginatedResponse } from '@/types'
 
 // v1 list envelope: `{ data, meta }`. `per_page` is capped at 100 server-side.
@@ -36,9 +37,29 @@ export const fetchIncidents = async (
   }
 }
 
+/**
+ * Fetch one incident.
+ *
+ * The incident payload passes through as-is apart from the kernel events, which
+ * the API sends in snake_case while the host components read camelCase. Mapped
+ * here with the host page's own mapper rather than a second copy of it: two
+ * mappers for one shape drift, and the shape is not this module's to define.
+ */
 export const fetchIncidentById = async (id: string): Promise<Incident> => {
   const res = await request<{ data: Incident }>(getAuthenticatedClient(), `v1/incidents/${id}`)
-  return res.data
+  const incident = res.data
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const raw = incident as any
+  if (raw.host_events) {
+    incident.host_events = mapHostEvents(raw.host_events)
+  }
+  if (raw.explanation?.event) {
+    const mapped = mapHostEvents([raw.explanation.event])
+    if (mapped?.[0]) raw.explanation.event = mapped[0]
+  }
+
+  return incident
 }
 
 export const fetchUnresolvedIncidents = async (): Promise<Incident[]> => {
