@@ -108,11 +108,24 @@ jobs:
         with:
           go-version: '1.25.1'
 
+      # Diagnostics only. Every command is allowed to fail: the step exists to
+      # describe the runner when something goes wrong, and `bash -e` turned a
+      # false `test` into a failed job -- which is how this step took the whole
+      # verification down without a single assertion running.
       - name: report the kernel this runs against
+        continue-on-error: true
         run: |
+          set +e
           uname -a
-          ls -l /dev/kmsg || true
-          test -r /sys/fs/cgroup/memory.events && echo "cgroup v2 memory accounting: present"
+          ls -l /dev/kmsg
+          echo "dmesg_restrict: $(cat /proc/sys/kernel/dmesg_restrict 2>/dev/null || echo unknown)"
+          if [ -r /sys/fs/cgroup/memory.events ]; then
+            echo "cgroup v2 memory accounting: readable"
+          else
+            echo "cgroup v2 memory accounting: not readable (the kernel log is what this job needs)"
+          fi
+          command -v systemd-run >/dev/null && echo "systemd-run: present" || echo "systemd-run: absent"
+          exit 0
 
       # Built as the normal user, run as root: the kernel log needs privilege to
       # read and to write, and a root-owned Go build cache poisons later steps.
