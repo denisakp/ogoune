@@ -239,6 +239,22 @@ sets — only the defaults changed.
 > a different host and its older incidents will display the new host's metrics. Detach
 > rather than re-point if an incident's history matters to you.
 
+### One entry per filesystem, not per mount
+
+A mount table is not a list of disks. A btrfs root with subvolumes, a ZFS pool, a
+Docker or Kubernetes node with overlay layers, any bind mount — each produces
+many mount points backed by one filesystem, all reporting the same capacity. A
+development VM measured here had 486 mounts over 18 devices, 434 of them on a
+single disk, every one answering "188G, 145G used, 77%".
+
+The agent reports **one entry per filesystem**, choosing the shallowest mount
+path as its name — `/` rather than `/opt/vendor/data/subvol`. That is why a host
+page shows a handful of rows where the machine has hundreds of mounts, and why
+the agent makes three `statfs` calls per collection instead of four hundred.
+
+A host with more than 32 distinct filesystems reports the 32 fullest, and says so
+in its log once rather than truncating quietly.
+
 ## Kernel events
 
 Beyond metrics, the agent reports two things the kernel does that a health check

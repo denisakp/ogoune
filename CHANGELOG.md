@@ -5,6 +5,22 @@ follows [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Changed
+
+- **The agent reports one entry per filesystem instead of one per mount point.** A mount table is
+  not a list of disks: a btrfs root with subvolumes, a ZFS pool, a Docker or Kubernetes node with
+  overlay layers, any bind mount — each produces many mounts backed by one filesystem, all
+  reporting the same capacity. A development VM measured here had 486 mounts over 18 devices, 434
+  of them on a single disk, every one answering "188G, 145G used, 77%". That machine now reports
+  **3 entries instead of 436**.
+  It was costing three things: a host page nobody could read, a stored sample per interval carrying
+  hundreds of identical rows, and one `statfs` syscall per mount every ten seconds — 442 of them,
+  to learn the same three numbers. Grouping happens before the usage lookup, so the syscalls go
+  too, not just the duplicate rows.
+  The entry keeps the shallowest mount path as its name, so it reads as `/` rather than
+  `/opt/vendor/data/subvol`. A host with more than 32 distinct filesystems reports the 32 fullest —
+  the ones somebody will be paged about — and logs that it did rather than truncating quietly.
+
 ## [1.0.0-beta.6] - 2026-09-10
 
 ### Added
