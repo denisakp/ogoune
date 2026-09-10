@@ -20,7 +20,7 @@ GOFLAGS           := -trimpath
 GO_TEST_FLAGS     := -race -count=1
 GO_LINT_TIMEOUT   := 5m
 
-.PHONY: check-no-binaries build build-be build-fe test test-be test-be-pg test-be-bench bench-api test-fe type-check-fe lint clean docker run-ci ci-local license-audit sqlc-bin sqlc-generate sqlc-check migrations-drift-check fuzz-dynquery
+.PHONY: check-no-binaries test-agent-kernel build build-be build-fe test test-be test-be-pg test-be-bench bench-api test-fe type-check-fe lint clean docker run-ci ci-local license-audit sqlc-bin sqlc-generate sqlc-check migrations-drift-check fuzz-dynquery
 
 build: build-fe build-be
 
@@ -159,6 +159,13 @@ ci-local:
 # .gitignore, because the next artifact will have a name nobody predicted.
 check-no-binaries:
 	scripts/check-no-binaries.sh
+
+# Kernel-event capture against a REAL kernel log. Linux and root only: skipped
+# everywhere else, which is why CI sets OGOUNE_REQUIRE_KERNEL_CAPTURE to turn a
+# skip into a failure. Run it on a Linux box, or in the OrbStack machine.
+test-agent-kernel:
+	go test -c -o /tmp/ogoune-agent.test ./cmd/agent/
+	sudo OGOUNE_REQUIRE_KERNEL_CAPTURE=1 /tmp/ogoune-agent.test -test.run TestRealKernel -test.v
 
 license-audit:
 	@echo "=== SPDX coverage guard ==="
