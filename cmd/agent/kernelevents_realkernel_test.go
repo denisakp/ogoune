@@ -227,6 +227,16 @@ func TestRealKernel_CapturesAGenuineOOMKill(t *testing.T) {
 	if _, err := exec.LookPath("systemd-run"); err != nil {
 		t.Skip("systemd-run unavailable; injected OOM lines are covered above")
 	}
+	// A memory ceiling needs the memory controller. A GitHub runner, for one,
+	// does not expose cgroup v2 memory accounting to the session, and asking the
+	// kernel for a kill it cannot perform would fail this test for a reason that
+	// has nothing to do with the agent. The injected tests above still cover
+	// classification; this one covers the kernel's own wording, when the kernel
+	// can be made to produce it.
+	controllers, err := os.ReadFile("/sys/fs/cgroup/cgroup.controllers")
+	if err != nil || !strings.Contains(string(controllers), "memory") {
+		t.Skip("cgroup v2 memory controller unavailable; injected OOM lines are covered above")
+	}
 	src := realKmsgSource(t)
 	drainWithin(t, src, 3*time.Second)
 
