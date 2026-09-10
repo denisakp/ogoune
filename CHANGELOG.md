@@ -7,6 +7,24 @@ follows [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- **The migrator executed `.down.sql` files forward.** Undo scripts were loaded with everything
+  else and run as migrations. It survived only because `.down.sql` sorts before `.up.sql` and the
+  statements are all `IF EXISTS` — the drop hit a table that did not exist yet, then the up created
+  it. Nothing guaranteed that order, and `schema_migrations` recorded the name of a down file as
+  the applied migration for 19 of 34 rows on a fresh database. Down files are now never executed;
+  they stay as documentation of the inverse, kept paired by the drift check.
+- **Two migrations could share a version number, and the second would never run.** Applied state
+  is keyed on the four-digit prefix alone, so a duplicate is indistinguishable from an already
+  applied migration — silently skipped forever, and only on installs that upgrade rather than start
+  fresh. Startup now refuses a duplicate with the file names and the remedy, and
+  `make migrations-drift-check` catches it first. `0026_report_settings` — which shared its number
+  with `0026_report_history` — is renumbered to `0034`; every statement in it is `IF NOT EXISTS`,
+  so it re-applies as a no-op on existing databases.
+- **`make migrations-drift-check` was inspecting 15 of 55 migration files.** Its filename pattern
+  could not match a name containing a dot, so every `NNNN_name.up.sql` — 40 files, including all
+  recent work — was skipped, and the guard reported success on a quarter of the tree. It now sees
+  every migration the migrator executes. No drift was hiding in the files it had been missing.
+
 - **Two compiled binaries were tracked in git** — a 9 MB macOS `agent` and an 8 MB Windows
   `agent.exe`, both committed by accident: `go build ./cmd/agent` writes `./agent` into the working
   directory, under the package's name. Removed, and `.gitignore` now names every binary a bare

@@ -24,7 +24,19 @@ type MigrationPair struct {
 	SQLite   *MigrationFile
 }
 
-var prefixRe = regexp.MustCompile(`^(\d{4})_([A-Za-z0-9_]+)\.sql$`)
+// prefixRe matches a migration file the migrator will actually execute:
+// "0013_name.sql" or "0013_name.up.sql".
+//
+// The name part used to be `[A-Za-z0-9_]+`, which cannot contain a dot, so every
+// paired migration -- "0026_report_history.up.sql" and its down -- failed to
+// match and was skipped. This guard was scanning 15 of 55 files and reporting
+// success, which is worse than not running: it said the tree had been checked.
+var prefixRe = regexp.MustCompile(`^(\d{4})_([A-Za-z0-9_]+?)(\.up)?\.sql$`)
+
+// downRe matches the undo scripts. They are never executed -- the migrator skips
+// them -- so they take no part in column parity; they are only checked for
+// existing alongside their up file, which checkPairs already does by prefix.
+var downRe = regexp.MustCompile(`^(\d{4})_([A-Za-z0-9_]+)\.down\.sql$`)
 
 // listMigrations walks one dialect directory and returns its migration files keyed by prefix.
 func listMigrations(root, dialect string) (map[string]*MigrationFile, error) {
@@ -38,9 +50,21 @@ func listMigrations(root, dialect string) (map[string]*MigrationFile, error) {
 		if e.IsDir() || !strings.HasSuffix(e.Name(), ".sql") {
 			continue
 		}
+		if downRe.MatchString(e.Name()) {
+			continue
+		}
 		m := prefixRe.FindStringSubmatch(e.Name())
 		if m == nil {
 			continue
+		}
+		// Applied state is keyed on the prefix alone, so two migrations sharing
+		// one are indistinguishable to the migrator and the second is skipped
+		// forever on any database that already recorded that number. Caught here
+		// as well as at startup, because an author should learn it from CI rather
+		// than an operator from a missing table.
+		if prev, dup := out[m[1]]; dup {
+			return nil, fmt.Errorf("%s: %s and %s share prefix %s; every migration needs its own number",
+				dialect, filepath.Base(prev.Path), e.Name(), m[1])
 		}
 		out[m[1]] = &MigrationFile{
 			Prefix:  m[1],

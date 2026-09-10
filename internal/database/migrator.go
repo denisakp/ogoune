@@ -83,8 +83,26 @@ func loadMigrations(migrationFS migrationFS, driver Driver) ([]migrationFile, er
 	}
 
 	files := make([]migrationFile, 0, len(entries))
+	seen := make(map[string]string, len(entries))
 	for _, entry := range entries {
 		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".sql") {
+			continue
+		}
+		// Undo scripts are not migrations. This loader used to pick them up with
+		// everything else and execute them FORWARD, which is only survivable
+		// because ".down.sql" sorts before ".up.sql" and the statements are all
+		// IF EXISTS: the drop ran against a table that did not exist yet, then the
+		// up created it. Nothing guarantees that order -- versions are compared,
+		// and sort.Slice makes no promise about ties -- so the day it flipped, a
+		// fresh install would have created a table and immediately dropped it.
+		//
+		// It also made schema_migrations lie: 19 of 34 rows on a fresh database
+		// recorded the name of a down file as the applied migration.
+		//
+		// There is no down path in this migrator. These files exist as
+		// documentation of the inverse and are kept paired by
+		// migrations-drift-check; they are never run.
+		if strings.HasSuffix(entry.Name(), ".down.sql") {
 			continue
 		}
 
@@ -95,6 +113,19 @@ func loadMigrations(migrationFS migrationFS, driver Driver) ([]migrationFile, er
 		}
 
 		version, name := parseMigrationFileName(entry.Name())
+		// Applied state is keyed on the version alone, so two migrations sharing
+		// one prefix are indistinguishable: on a database that already recorded
+		// that version, the second would be skipped forever -- silently, and only
+		// on installs that upgrade rather than start fresh. Refusing to start is
+		// the only honest answer, and it is an answer the author gets immediately
+		// rather than an operator gets in production.
+		if other, dup := seen[version]; dup {
+			return nil, fmt.Errorf(
+				"db init: migrations %q and %q share version %q; every migration needs its own number",
+				other, entry.Name(), version)
+		}
+		seen[version] = entry.Name()
+
 		files = append(files, migrationFile{
 			Version: version,
 			Name:    name,
@@ -103,6 +134,8 @@ func loadMigrations(migrationFS migrationFS, driver Driver) ([]migrationFile, er
 		})
 	}
 
+	// Versions are unique by the check above, so this ordering is total and the
+	// comparison never has to break a tie.
 	sort.Slice(files, func(i, j int) bool {
 		return files[i].Version < files[j].Version
 	})
