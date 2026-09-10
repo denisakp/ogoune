@@ -5,6 +5,16 @@ follows [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Fixed
+
+- **A database-health test failed on the machine rather than on the code.** It asserted that 25 of
+  25 checks against a containerised PostgreSQL succeed within a 40 ms deadline — but that deadline
+  does double duty, bounding the connection as well as the health allowance it was meant to
+  squeeze under the floor. Under CI load a connection sometimes missed it, the check reported down
+  for that reason, and the test blamed health collection. It now asserts the property instead: a
+  check that connected is up and carries no health, and a check that failed did so because of the
+  connection. A test that fails on the machine teaches people to ignore it.
+
 ### Changed
 
 - **The agent reports one entry per filesystem instead of one per mount point.** A mount table is

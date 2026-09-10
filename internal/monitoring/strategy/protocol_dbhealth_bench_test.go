@@ -61,31 +61,75 @@ func BenchmarkDatabaseCheck_WithHealth_p95(b *testing.B) {
 	benchDBCheck(b, "BenchmarkDatabaseCheck_WithHealth", true)
 }
 
-// SC-003a, the one that matters most: on a database slow enough that collection
-// times out every single time, 100% of checks still pass.
+// SC-003a, the one that matters most: collection being abandoned must never
+// turn an UP check into a DOWN one.
 //
 // This is the failure mode that would make the whole feature actively harmful --
 // a *slow* database reported as a *down* database, by the very code meant to
-// explain the slowness. It is asserted rather than assumed.
+// explain the slowness.
+//
+// The deadline here does double duty, and that is what the assertions have to
+// account for: postgresCheck takes ONE timeout, which bounds both the connection
+// and, at a quarter of its length, the health allowance. 40ms puts the allowance
+// under the 20ms floor -- which is the point -- but it also gives the TCP connect
+// and handshake 40ms, and on a loaded machine that is sometimes not enough.
+//
+// So this asserted 25 successes out of 25 and failed in CI for a reason that had
+// nothing to do with health collection. Requiring every connection to a
+// containerised database to complete within 40ms is not a property of this
+// feature, and a test that fails on the machine rather than on the code teaches
+// people to ignore it.
+//
+// What IS asserted, on every run and independent of load:
+//
+//   - a check that connected is UP and carries no health, which is the evidence
+//     collection was abandoned rather than merely fast;
+//   - a check that failed did so because of the CONNECTION. Nothing else may
+//     report down at this deadline -- and structurally nothing can, since the
+//     result is already UP before collection is even attempted, which is exactly
+//     the guarantee under test.
 func TestDatabaseCheck_CollectionTimeoutNeverFailsTheCheck(t *testing.T) {
 	tgt := setupPgTarget(t)
 	r := monitorFor(tgt, tgt.user, tgt.password)
-	// A timeout small enough that the allowance lands under the floor, so
-	// collection is abandoned every time.
 	r.Timeout = 1
 
 	noop := func(dbHealthSkipReason) {}
 	const runs = 25
-	passed := 0
+	connected, tooSlowToConnect := 0, 0
+
 	for i := 0; i < runs; i++ {
+		// A timeout small enough that the allowance lands under the floor, so
+		// collection is abandoned every time.
 		res := postgresCheck(context.Background(), r, tgt.host, tgt.port, false, 40*time.Millisecond, unsafeDialer, noop)
+
 		if res.Status == string(domain.StatusUp) {
-			passed++
+			connected++
+			assert.Nilf(t, res.DatabaseHealth,
+				"run %d: the allowance was under the floor, so collection must have been abandoned", i)
+			continue
+		}
+
+		// Down. At this deadline the only honest reason is that the connection
+		// itself did not fit in it -- the machine, not the feature.
+		require.NotNilf(t, res.Cause, "run %d: a failed check must say why: %s", i, res.ResponseData)
+		switch *res.Cause {
+		case domain.ConnectionTimeout, domain.ProtocolHandshakeFailed:
+			tooSlowToConnect++
+		default:
+			t.Fatalf("run %d: check reported down with cause %q (%s); "+
+				"health collection must never be able to fail a check",
+				i, *res.Cause, res.ResponseData)
 		}
 	}
 
-	assert.Equal(t, runs, passed,
-		"a database too slow to introspect is still a database that is up")
+	t.Logf("connected in %d of %d runs; %d could not connect within the 40ms deadline",
+		connected, runs, tooSlowToConnect)
+
+	// Without a single connection the run proves nothing, and a test that can
+	// pass vacuously is worse than one that fails.
+	require.NotZerof(t, connected,
+		"not one of %d checks connected to PostgreSQL within 40ms; "+
+			"this machine is too slow to exercise the property, not evidence against it", runs)
 }
 
 // setupPgTargetB is setupPgTarget for benchmarks. internaltest.SetupPostgres
