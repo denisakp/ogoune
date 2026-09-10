@@ -125,3 +125,65 @@ describe('HostDetailView', () => {
     expect(w.find('[data-testid="host-not-found"]').exists()).toBe(true)
   })
 })
+
+// --- Kernel events (spec 090) ---
+
+describe('HostDetailView kernel events', () => {
+  const event = {
+    id: 'e1',
+    kind: 'oom_kill',
+    occurredAt: '2026-09-09T14:02:47Z',
+    source: 'kmsg',
+    occurrences: 37,
+    detail: {
+      process: 'postgres',
+      pid: 4711,
+      cgroup: null,
+      distinctProcesses: ['postgres'],
+      distinctTruncated: false,
+    },
+  }
+
+  // T022 / FR-022 — the point of this block. Absent means absent: no placeholder,
+  // no empty-state text, no reserved container. The component spec only ever
+  // exercises the populated list, so without this nothing covers the case that
+  // most hosts will actually be in — a container usually cannot capture at all.
+  it('renders nothing at all when the host has no events', async () => {
+    getHostMock.mockResolvedValue(makeHost({ events: [] }))
+    const w = build()
+    await flushPromises()
+
+    expect(w.findComponent({ name: 'HostEventsList' }).exists()).toBe(false)
+    expect(w.text()).not.toContain('Kernel events')
+  })
+
+  // Undefined is the list endpoint's answer — "not loaded", which is different
+  // from "loaded and empty" but renders the same.
+  it('renders nothing when events were not loaded at all', async () => {
+    getHostMock.mockResolvedValue(makeHost())
+    const w = build()
+    await flushPromises()
+
+    expect(w.findComponent({ name: 'HostEventsList' }).exists()).toBe(false)
+  })
+
+  it('renders the block when the host has events', async () => {
+    getHostMock.mockResolvedValue(makeHost({ events: [event] }))
+    const w = build()
+    await flushPromises()
+
+    expect(w.findComponent({ name: 'HostEventsList' }).exists()).toBe(true)
+    expect(w.text()).toContain('Kernel events')
+  })
+
+  // The addition is additive on the layout as well as on the contract: the rest
+  // of the page is identical either way.
+  it('leaves the metric charts untouched either way', async () => {
+    for (const events of [[], [event]]) {
+      getHostMock.mockResolvedValue(makeHost({ events }))
+      const w = build()
+      await flushPromises()
+      expect(w.findAll('.host-metric-chart').length).toBeGreaterThan(0)
+    }
+  })
+})

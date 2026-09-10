@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"strings"
+	"time"
 
 	"github.com/shirou/gopsutil/v4/cpu"
 	"github.com/shirou/gopsutil/v4/disk"
@@ -26,10 +27,21 @@ type Collector interface {
 // failing the whole frame (FR-014).
 type gopsutilCollector struct {
 	agentVersion string
+	// events is optional. Nil means kernel capture is not attached at all, which
+	// is exactly how a host that cannot read its kernel log behaves: the frame
+	// simply carries no events (spec 090).
+	events *eventCollector
 }
 
 func newGopsutilCollector(agentVersion string) *gopsutilCollector {
 	return &gopsutilCollector{agentVersion: agentVersion}
+}
+
+// WithKernelEvents attaches kernel event capture. Separate from the constructor
+// so capture stays optional and every existing call site keeps working.
+func (c *gopsutilCollector) WithKernelEvents(e *eventCollector) *gopsutilCollector {
+	c.events = e
+	return c
 }
 
 func (c *gopsutilCollector) Collect(ctx context.Context) (agentwire.Frame, error) {
@@ -62,6 +74,13 @@ func (c *gopsutilCollector) Collect(ctx context.Context) (agentwire.Frame, error
 	}
 
 	f.Disks = collectDisks(ctx)
+
+	// Kernel events observed during this interval (spec 090). Best-effort by
+	// contract: capture never returns an error and never blocks, so this line
+	// cannot cost the metrics frame it rides on.
+	if c.events != nil {
+		f.Events = c.events.Collect(time.Now().UTC())
+	}
 
 	return f, nil
 }

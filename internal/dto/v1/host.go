@@ -11,6 +11,36 @@ type DiskUsageDTO struct {
 // HostResponse is the v1 API representation of a monitored host, including its
 // denormalized latest snapshot and derived online state.
 // @name HostResponse
+// HostEventResponse is one kernel event reported by a host's agent (spec 090).
+// One per kind per collection interval, carrying how many kernel reports it
+// aggregates -- an out-of-memory storm is one entry with occurrences=200, not two
+// hundred entries.
+type HostEventResponse struct {
+	ID string `json:"id"`
+	// Kind is an open set. Treat a value you do not recognise as displayable
+	// rather than as an error: the set will grow.
+	Kind string `json:"kind"`
+	// OccurredAt is when the KERNEL reported it, not when it was stored.
+	OccurredAt string `json:"occurred_at"`
+	// Source is which reader saw it, so an operator investigating missing events
+	// knows what was working.
+	Source      string                   `json:"source"`
+	Occurrences int                      `json:"occurrences"`
+	Detail      *HostEventDetailResponse `json:"detail"`
+}
+
+// HostEventDetailResponse holds the classified fields of an event. Never the raw
+// kernel line.
+type HostEventDetailResponse struct {
+	Process string `json:"process,omitempty"`
+	PID     int    `json:"pid,omitempty"`
+	Cgroup  string `json:"cgroup,omitempty"`
+	// DistinctProcesses is bounded; DistinctTruncated says more were seen than it
+	// holds, so a partial list is never read as complete.
+	DistinctProcesses []string `json:"distinct_processes,omitempty"`
+	DistinctTruncated bool     `json:"distinct_truncated,omitempty"`
+}
+
 type HostResponse struct {
 	ID           string         `json:"id"`
 	Name         string         `json:"name"`
@@ -26,6 +56,11 @@ type HostResponse struct {
 	LastDisks    []DiskUsageDTO `json:"last_disks"`
 	CreatedAt    string         `json:"created_at"`
 	UpdatedAt    string         `json:"updated_at"`
+	// Events are the kernel events this host's agent reported, newest first
+	// (spec 090). An empty array when there are none -- never null: a list that is
+	// sometimes absent and sometimes empty is two shapes for one meaning, and every
+	// consumer would have to handle both.
+	Events []HostEventResponse `json:"events"`
 }
 
 // HostMetricSampleResponse is a single point-in-time host metric sample.

@@ -2,6 +2,7 @@ import { getAuthenticatedClient, request } from '@/core/http/client'
 import type {
   DiskUsage,
   Host,
+  HostEvent,
   HostMetricSample,
   RegisterHostResult,
   HostCredentialResult,
@@ -22,6 +23,21 @@ interface DiskDTO {
   mount?: string
   used_pct?: number
 }
+interface HostEventDetailDTO {
+  process?: string
+  pid?: number
+  cgroup?: string
+  distinct_processes?: string[] | null
+  distinct_truncated?: boolean
+}
+interface HostEventDTO {
+  id?: string
+  kind?: string
+  occurred_at?: string
+  source?: string
+  occurrences?: number
+  detail?: HostEventDetailDTO | null
+}
 interface HostDTO {
   id?: string
   name?: string
@@ -37,6 +53,7 @@ interface HostDTO {
   last_disks?: DiskDTO[] | null
   created_at?: string
   updated_at?: string
+  events?: HostEventDTO[] | null
 }
 interface HostMetricSampleDTO {
   sampled_at?: string
@@ -74,6 +91,7 @@ export function mapHost(dto: HostDTO): Host {
     lastNetIn: dto.last_net_in ?? null,
     lastNetOut: dto.last_net_out ?? null,
     lastDisks: mapDisks(dto.last_disks),
+    events: mapHostEvents(dto.events),
     createdAt: dto.created_at ?? '',
     updatedAt: dto.updated_at ?? '',
   }
@@ -187,4 +205,33 @@ export async function unlinkMonitorFromHost(monitorId: string): Promise<void> {
     method: 'DELETE',
     ...successMsg('Monitor unlinked from host'),
   })
+}
+
+/**
+ * Maps kernel events to their UI shape.
+ *
+ * Returns undefined when the field is absent, which is what the list endpoint
+ * sends — it does not load events. That is not the same as an empty array, which
+ * the detail endpoint sends for a host that genuinely has none, and the
+ * distinction is worth keeping: one means "we did not ask", the other means "we
+ * asked and there were none".
+ */
+function mapHostEvents(dtos: HostEventDTO[] | null | undefined): HostEvent[] | undefined {
+  if (!dtos) return undefined
+  return dtos.map((d) => ({
+    id: d.id ?? '',
+    kind: d.kind ?? '',
+    occurredAt: d.occurred_at ?? '',
+    source: d.source ?? '',
+    occurrences: d.occurrences ?? 1,
+    detail: d.detail
+      ? {
+          process: d.detail.process ?? null,
+          pid: d.detail.pid ?? null,
+          cgroup: d.detail.cgroup ?? null,
+          distinctProcesses: d.detail.distinct_processes ?? [],
+          distinctTruncated: d.detail.distinct_truncated ?? false,
+        }
+      : null,
+  }))
 }

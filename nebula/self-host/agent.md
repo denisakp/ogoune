@@ -239,6 +239,64 @@ sets — only the defaults changed.
 > a different host and its older incidents will display the new host's metrics. Detach
 > rather than re-point if an incident's history matters to you.
 
+## Kernel events
+
+Beyond metrics, the agent reports two things the kernel does that a health check
+cannot see: **out-of-memory kills** and **segmentation faults**. They appear on
+the host's page, timestamped when the kernel reported them, so you can line one
+up against an incident and see that the site did not merely fail — it failed
+*because* the kernel killed the process behind it.
+
+**No eBPF, no kernel module, no extra capability.** The agent reads two files the
+operating system already publishes: `/dev/kmsg` and the cgroup v2 memory
+accounting.
+
+### It is often unavailable, and that is fine
+
+A container usually cannot read `/dev/kmsg` without `--privileged`, and running
+the agent in a container is the first option this page describes. So for many
+installations kernel capture will simply be off:
+
+- the agent says so **once**, at startup, and never mentions it again;
+- **metrics stream exactly as before** — capture is best-effort, metrics are not;
+- the cgroup source may still catch out-of-memory kills even where the kernel log
+  is unreadable, so you often get the most valuable signal anyway.
+
+If you want full capture in a container, grant it access to the kernel log
+(`--privileged`, or an explicit device mapping). Nothing about the monitor's
+behaviour changes either way.
+
+### Storms are one line, not two hundred
+
+A saturated host can produce dozens of kills in seconds. The agent aggregates them
+per kind per interval: you see one entry saying it happened 37 times, with the
+distinct processes affected, rather than 37 identical rows. If more distinct
+processes were affected than the list holds, the entry says so rather than
+quietly showing a partial list as if it were complete.
+
+### What is stored, and what is not
+
+Only classified fields: the kind, when it happened, the process name and
+identifier, and the cgroup when the kernel named one. **The raw kernel log line is
+never stored.** `/dev/kmsg` carries every subsystem's output, in formats that
+change between kernel versions — keeping it would mean holding on to content
+nobody has examined.
+
+### Restarting the agent changes nothing
+
+The kernel log holds everything since boot. The agent starts reading from the
+present, never from the beginning, so restarting it — a package upgrade, a reboot,
+a container reschedule — does not replay old kills as if they had just happened.
+Events that occur while the agent is down are lost, and that is deliberate: a
+missing event is better than a fabricated one.
+
+### Retention
+
+Kernel events are kept for `HOST_EVENTS_RETENTION_DAYS` days (90 by default) and
+are **never thinned**, unlike metrics. Metrics are dense and individually cheap,
+so decimating them costs nothing; a kernel event is rare and discrete, and it is
+exactly what you want to still have when you reopen an old incident.
+
 ## Scope
 
 **Linux only.** This is a settled decision, not a temporary limitation: the packaging is a systemd

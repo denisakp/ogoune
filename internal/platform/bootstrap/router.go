@@ -101,8 +101,10 @@ func InitRouter(app *App) {
 	resourceImportV1Handler := v1handler.NewResourceImportHandler(resourceImportService)
 
 	// Agent device monitoring
-	hostV1Handler := v1handler.NewHostHandler(app.HostService, app.HostMetricsService)
-	agentStreamV1Handler := v1handler.NewAgentStreamHandler(app.HostMetricsService)
+	hostV1Handler := v1handler.NewHostHandler(app.HostService, app.HostMetricsService).
+		WithEvents(app.HostEventRepo)
+	agentStreamV1Handler := v1handler.NewAgentStreamHandler(app.HostMetricsService).
+		WithEvents(app.HostEventRepo)
 
 	// Set APP_VERSION env
 	err := os.Setenv("APP_VERSION", AppVersion)

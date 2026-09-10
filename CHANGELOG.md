@@ -7,6 +7,29 @@ follows [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **Kernel events from the host agent (WI-2)** — the agent now reports out-of-memory kills and
+  segmentation faults alongside its metrics, and they appear on the host's page timestamped when
+  the kernel reported them. That lets an operator line a kill up against an incident and see that
+  a service did not merely fail but failed *because* the kernel killed the process behind it.
+  **No eBPF, no kernel module, no extra capability**: two files the operating system already
+  publishes, `/dev/kmsg` and the cgroup v2 memory accounting.
+  Capture is often unavailable — a container usually cannot read the kernel log without
+  `--privileged`, and a container is the first deployment the documentation describes. That path
+  is the normal one rather than a failure: the agent says so **once** at startup, metrics stream
+  exactly as before, and the cgroup source frequently catches out-of-memory kills anyway.
+  A storm is one entry, not two hundred: reports are aggregated per kind per collection interval
+  with a count and a bounded list of the distinct processes affected, and a list that had to be
+  truncated says so rather than passing itself off as complete.
+  Only classified fields are stored — kind, time, process, pid, cgroup. **The raw kernel line is
+  never kept**: `/dev/kmsg` carries every subsystem's output in formats that change between kernel
+  versions, and storing it would mean holding content nobody has examined.
+  Restarting the agent changes nothing: both readers start from the present, so a package upgrade
+  does not replay old kills as if they had just happened. Events occurring while the agent is down
+  are lost, deliberately — a missing event beats a fabricated one.
+  Events are kept for `HOST_EVENTS_RETENTION_DAYS` days (90 by default) and are never thinned,
+  unlike metrics.
+
+
 - **Database health on Postgres and MySQL monitors (WI-4)** — a protocol monitor pointed at
   PostgreSQL or MySQL already opened an authenticated session, pinged it and threw it away. It
   now asks the server how it is doing on that same connection and shows the answer: active

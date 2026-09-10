@@ -101,6 +101,19 @@ type HostCredentialRepository interface {
 	DeleteByHost(ctx context.Context, hostID string) error
 }
 
+// HostEventRepository persists kernel events reported by host agents (spec 090).
+//
+// Events have their own retention, longer than metrics and never thinned
+// (ADR 0011): metrics are dense and individually cheap, a kernel event is rare,
+// discrete, and is the point of the feature.
+type HostEventRepository interface {
+	Create(ctx context.Context, e *domain.HostEvent) error
+	// ListByHost returns a host's events newest first, bounded by limit.
+	ListByHost(ctx context.Context, hostID string, limit int) ([]*domain.HostEvent, error)
+	DeleteOlderThan(ctx context.Context, cutoff time.Time) (int64, error)
+	DeleteByHost(ctx context.Context, hostID string) error
+}
+
 // ResourceHealthRepository persists the latest database health per monitor
 // (spec 088). No List: nothing ever enumerates this table, and it must never be
 // loaded on a monitor list path.

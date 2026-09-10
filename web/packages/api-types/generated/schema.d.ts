@@ -5148,9 +5148,44 @@ export interface components {
             window_to?: string;
             worst_disk?: components["schemas"]["github_com_denisakp_ogoune_internal_dto_v1.WorstDiskResponse"];
         };
+        "github_com_denisakp_ogoune_internal_dto_v1.HostEventDetailResponse": {
+            cgroup?: string;
+            /**
+             * @description DistinctProcesses is bounded; DistinctTruncated says more were seen than it
+             *     holds, so a partial list is never read as complete.
+             */
+            distinct_processes?: string[];
+            distinct_truncated?: boolean;
+            pid?: number;
+            process?: string;
+        };
+        "github_com_denisakp_ogoune_internal_dto_v1.HostEventResponse": {
+            detail?: components["schemas"]["github_com_denisakp_ogoune_internal_dto_v1.HostEventDetailResponse"];
+            id?: string;
+            /**
+             * @description Kind is an open set. Treat a value you do not recognise as displayable
+             *     rather than as an error: the set will grow.
+             */
+            kind?: string;
+            /** @description OccurredAt is when the KERNEL reported it, not when it was stored. */
+            occurred_at?: string;
+            occurrences?: number;
+            /**
+             * @description Source is which reader saw it, so an operator investigating missing events
+             *     knows what was working.
+             */
+            source?: string;
+        };
         "github_com_denisakp_ogoune_internal_dto_v1.HostResponse": {
             agent_version?: string;
             created_at?: string;
+            /**
+             * @description Events are the kernel events this host's agent reported, newest first
+             *     (spec 090). An empty array when there are none -- never null: a list that is
+             *     sometimes absent and sometimes empty is two shapes for one meaning, and every
+             *     consumer would have to handle both.
+             */
+            events?: components["schemas"]["github_com_denisakp_ogoune_internal_dto_v1.HostEventResponse"][];
             id?: string;
             last_cpu_pct?: number;
             last_disk_pct?: number;

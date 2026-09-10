@@ -1,27 +1,82 @@
 package v1
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
+	"log/slog"
 	"net/http"
 	"strings"
 	"time"
 
 	"github.com/denisakp/ogoune/internal/domain"
 	dtoV1 "github.com/denisakp/ogoune/internal/dto/v1"
+	"github.com/denisakp/ogoune/internal/port"
 	"github.com/denisakp/ogoune/internal/service"
 	"github.com/go-chi/chi/v5"
 )
 
 // HostHandler exposes operator host management, credential lifecycle, metric
 // history, and the monitor↔host link.
+// hostEventsOnDetail bounds how many kernel events the detail endpoint returns.
+// A host page shows what just happened; the full history is not a page.
+const hostEventsOnDetail = 50
+
 type HostHandler struct {
 	hosts   *service.HostService
 	metrics *service.HostMetricsService
+	// events is optional: nil means no events are attached, which keeps every
+	// existing construction of this handler working.
+	events port.HostEventRepository
 }
 
 func NewHostHandler(hosts *service.HostService, metrics *service.HostMetricsService) *HostHandler {
 	return &HostHandler{hosts: hosts, metrics: metrics}
+}
+
+// WithEvents attaches kernel event reads to the detail endpoint.
+func (h *HostHandler) WithEvents(repo port.HostEventRepository) *HostHandler {
+	h.events = repo
+	return h
+}
+
+// attachEvents adds a host's kernel events, newest first.
+//
+// A lookup failure leaves the list empty rather than failing the request: events
+// are diagnostic context, not part of the host. Always an array, never null.
+func (h *HostHandler) attachEvents(ctx context.Context, resp *dtoV1.HostResponse, hostID string) {
+	resp.Events = []dtoV1.HostEventResponse{}
+	if h.events == nil {
+		return
+	}
+	rows, err := h.events.ListByHost(ctx, hostID, hostEventsOnDetail)
+	if err != nil {
+		slog.Debug("host events: lookup failed", "host_id", hostID, "error", err)
+		return
+	}
+	for _, e := range rows {
+		resp.Events = append(resp.Events, mapHostEvent(e))
+	}
+}
+
+func mapHostEvent(e *domain.HostEvent) dtoV1.HostEventResponse {
+	out := dtoV1.HostEventResponse{
+		ID:          e.ID,
+		Kind:        e.Kind,
+		OccurredAt:  e.OccurredAt.UTC().Format(time.RFC3339),
+		Source:      e.Source,
+		Occurrences: e.Occurrences,
+	}
+	if e.Detail != nil {
+		out.Detail = &dtoV1.HostEventDetailResponse{
+			Process:           e.Detail.Process,
+			PID:               e.Detail.PID,
+			Cgroup:            e.Detail.Cgroup,
+			DistinctProcesses: e.Detail.DistinctProcesses,
+			DistinctTruncated: e.Detail.DistinctTruncated,
+		}
+	}
+	return out
 }
 
 func mapHostResponse(h *domain.Host) dtoV1.HostResponse {
@@ -152,7 +207,9 @@ func (h *HostHandler) Get(w http.ResponseWriter, r *http.Request) {
 		respondError(w, r, http.StatusNotFound, "RESOURCE_NOT_FOUND", "host not found")
 		return
 	}
-	respond(w, http.StatusOK, mapHostResponse(host))
+	resp := mapHostResponse(host)
+	h.attachEvents(r.Context(), &resp, host.ID)
+	respond(w, http.StatusOK, resp)
 }
 
 // Delete handles DELETE /api/v1/hosts/{id}

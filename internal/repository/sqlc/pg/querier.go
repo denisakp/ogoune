@@ -91,6 +91,10 @@ type Querier interface {
 	DeleteExpiryNotificationLogsOlderThan(ctx context.Context, sentAt pgtype.Timestamptz) error
 	DeleteHost(ctx context.Context, id string) (int64, error)
 	DeleteHostCredentialsByHost(ctx context.Context, hostID string) error
+	DeleteHostEventsByHost(ctx context.Context, hostID string) error
+	// Retention. Deletion only, never decimation: a kernel event is rare and discrete,
+	// and thinning them would purge the records this feature exists to keep.
+	DeleteHostEventsOlderThan(ctx context.Context, occurredAt pgtype.Timestamptz) (int64, error)
 	DeleteHostMetricsByHost(ctx context.Context, hostID string) error
 	DeleteHostMetricsOlderThan(ctx context.Context, sampledAt pgtype.Timestamptz) (int64, error)
 	DeleteIncident(ctx context.Context, id string) (int64, error)
@@ -163,6 +167,7 @@ type Querier interface {
 	GetResourceCredentialByResourceID(ctx context.Context, resourceID string) (ResourceCredential, error)
 	GetStatusPageSettings(ctx context.Context) (StatusPageSetting, error)
 	HasActiveIncident(ctx context.Context) (bool, error)
+	InsertHostEvent(ctx context.Context, arg InsertHostEventParams) error
 	InsertHostMetric(ctx context.Context, arg InsertHostMetricParams) error
 	LinkMaintenanceResource(ctx context.Context, arg LinkMaintenanceResourceParams) error
 	// M2M: resource_notification_channels ---------------------------------------
@@ -183,6 +188,9 @@ type Querier interface {
 	ListEscalationPolicies(ctx context.Context) ([]EscalationPolicy, error)
 	ListEscalationStepsByPolicy(ctx context.Context, policyID string) ([]EscalationStep, error)
 	ListHostCredentialsByHost(ctx context.Context, hostID string) ([]HostCredential, error)
+	// Newest first: an operator opening a host page wants what just happened, and the
+	// index on (host_id, occurred_at DESC) serves exactly this.
+	ListHostEventsByHost(ctx context.Context, arg ListHostEventsByHostParams) ([]HostEvent, error)
 	ListHostMetricsInRange(ctx context.Context, arg ListHostMetricsInRangeParams) ([]HostMetric, error)
 	ListHosts(ctx context.Context, arg ListHostsParams) ([]Host, error)
 	ListIncidentDiagnosticsByIncidentIDs(ctx context.Context, dollar_1 []string) ([]IncidentDiagnostic, error)

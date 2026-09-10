@@ -126,6 +126,27 @@ func initTimingWheelWorker(app *App, enrichmentService *service.EnrichmentServic
 	startTimingWheelNotificationRetention(app)
 	startTimingWheelReportCheck(app)
 	startTimingWheelHostMetricsRetention(app)
+	startTimingWheelHostEventsRetention(app)
+}
+
+// startTimingWheelHostEventsRetention runs the daily kernel event purge
+// in-process: once at startup, then daily. Deletion only, never decimation.
+func startTimingWheelHostEventsRetention(app *App) {
+	if app.HostEventRepo == nil {
+		return
+	}
+	handler := worker.NewHostEventsRetentionHandler(app.HostEventRepo, app.Cfg.HostEventsRetentionDays)
+	_ = handler.ProcessTask(context.Background(), asynq.NewTask(worker.TypeHostEventsRetention, nil)) // startup catch-up
+	go func() {
+		ticker := time.NewTicker(24 * time.Hour)
+		defer ticker.Stop()
+		for range ticker.C {
+			if err := handler.ProcessTask(context.Background(), asynq.NewTask(worker.TypeHostEventsRetention, nil)); err != nil {
+				slog.Error("TimingWheel host:events:retention failed", "error", err)
+			}
+		}
+	}()
+	slog.Info("TimingWheel daily host events retention scheduled")
 }
 
 // startTimingWheelHostMetricsRetention runs the daily host-metrics retention
