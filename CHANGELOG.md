@@ -7,6 +7,22 @@ follows [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- **`make ci-local` could not pass, whatever you did.** Two of its gates failed on a clean tree, so
+  the command that exists to catch CI breaks before pushing carried no information: you could not
+  tell "I broke something" from "it is the usual noise".
+  `make lint-openapi` failed because `.spectral.yaml` sat at the repository root while Spectral
+  resolves `extends` relative to the ruleset file — it looked for `@stoplight/spectral-owasp-ruleset`
+  in a `node_modules` that only exists under `web/`. The ruleset now lives beside the tooling that
+  provides it.
+  The OpenAPI drift guard failed because it regenerates the contract and diffs it, and swag's YAML
+  writer iterates a map where its JSON encoder sorts: two lines of the `LiveStats` schema changed
+  position on roughly a third of runs. The YAML is now derived from the JSON through a document-order
+  conversion, so the same input always produces the same bytes — asserted over 50 iterations in a
+  test, and over eight full regenerations by hand.
+  `api/openapi/v1.yaml` and the generated frontend types are reordered once as a result. Both are
+  semantically identical to before: verified by parsing, and the types are the same lines in a
+  different order.
+
 - **The migrator executed `.down.sql` files forward.** Undo scripts were loaded with everything
   else and run as migrations. It survived only because `.down.sql` sorts before `.up.sql` and the
   statements are all `IF EXISTS` — the drop hit a table that did not exist yet, then the up created

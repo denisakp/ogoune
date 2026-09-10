@@ -1,3 +1,13 @@
+# Spectral ruleset for the generated OpenAPI contract (spec 074).
+#
+# It lives here, not at the repository root, because Spectral resolves
+# `extends` relative to THIS FILE. From the root it looked for
+# @stoplight/spectral-owasp-ruleset in a node_modules that only exists under
+# web/, so `make lint-openapi` failed on a clean tree with
+# "Cannot find module './@stoplight/spectral-owasp-ruleset'".
+#
+# Both spectral-cli and the OWASP ruleset are declared in web/package.json.
+
 extends:
   - spectral:oas
   - "@stoplight/spectral-owasp-ruleset"
