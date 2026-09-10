@@ -242,7 +242,9 @@ follows [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
-- **The agent stopped streaming metrics on any host where it could read the kernel log.** Draining
+- **The agent stopped streaming metrics on any host where it could read the kernel log.** Introduced
+  by this release's own agent work and caught before publication, so no released version carried it.
+  Draining
   `/dev/kmsg` used a blocking read on the metrics path, so on a machine where the log was actually
   readable — a native systemd install running as root, the documented option B — the collector
   parked on the first quiet interval and never sent another frame. The host simply went offline,
