@@ -130,15 +130,15 @@ func TestTimingWheelNotificationJobFormatting(t *testing.T) {
 		t.Fatalf("Failed to create TimingWheel: %v", err)
 	}
 
-	mockRepo := NewMockRepository([]ScheduleItem{}, nil)
-
-	ctx := context.Background()
-	err = tw.Start(ctx, mockRepo)
-	if err != nil {
-		t.Fatalf("Failed to start TimingWheel: %v", err)
-	}
-
-	// Enqueue specific notifications
+	// Deliberately NOT started. Start() replaces notifQueue and launches workers
+	// that consume it, so a started wheel makes this test race its own workers
+	// for the same channel under a one-second deadline -- it passed only because
+	// it usually won the race. It flakes under -race, and any change to
+	// allocation timing anywhere in the dependency graph shifts the odds.
+	//
+	// EnqueueNotification writes to the channel the constructor made and needs no
+	// running wheel, and what this test asserts is job formatting and event-type
+	// validation. Start/Stop are covered by the shutdown tests below.
 	tw.EnqueueNotification("test-incident-1", "resource_down_alert")
 	tw.EnqueueNotification("test-incident-2", "resource_up_alert")
 
@@ -182,15 +182,6 @@ func TestTimingWheelNotificationJobFormatting(t *testing.T) {
 
 	if err := tw.EnqueueNotification("test-incident-3", "invalid"); err == nil {
 		t.Fatal("expected invalid notification event type to be rejected")
-	}
-
-	// Shutdown
-	shutdownCtx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-	defer cancel()
-
-	err = tw.Stop(shutdownCtx)
-	if err != nil {
-		t.Fatalf("Graceful shutdown failed: %v", err)
 	}
 }
 
