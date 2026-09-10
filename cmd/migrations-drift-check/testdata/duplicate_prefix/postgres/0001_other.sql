@@ -1,0 +1,3 @@
+CREATE TABLE IF NOT EXISTS other (
+    id TEXT PRIMARY KEY
+);
