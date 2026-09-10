@@ -36,6 +36,9 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-go-
 
+      - name: no tracked binaries
+        run: make check-no-binaries
+
       - name: sqlc check (fail on drift)
         run: make sqlc-check
 

@@ -20,7 +20,7 @@ GOFLAGS           := -trimpath
 GO_TEST_FLAGS     := -race -count=1
 GO_LINT_TIMEOUT   := 5m
 
-.PHONY: build build-be build-fe test test-be test-be-pg test-be-bench bench-api test-fe type-check-fe lint clean docker run-ci ci-local license-audit sqlc-bin sqlc-generate sqlc-check migrations-drift-check fuzz-dynquery
+.PHONY: check-no-binaries build build-be build-fe test test-be test-be-pg test-be-bench bench-api test-fe type-check-fe lint clean docker run-ci ci-local license-audit sqlc-bin sqlc-generate sqlc-check migrations-drift-check fuzz-dynquery
 
 build: build-fe build-be
 
@@ -131,27 +131,34 @@ run-ci: ci-local
 # (dual-dialect Postgres + paired benches). Catches ~80% of CI breaks
 # locally so we don't burn compute minutes on red lanes.
 ci-local:
-	@echo "=== 1/8 sqlc drift check ==="
+	@echo "=== 1/9 no tracked binaries ==="
+	scripts/check-no-binaries.sh
+	@echo "=== 2/9 sqlc drift check ==="
 	$(MAKE) sqlc-check
-	@echo "=== 2/8 migrations drift check ==="
+	@echo "=== 3/9 migrations drift check ==="
 	$(MAKE) migrations-drift-check
-	@echo "=== 3/8 OpenAPI contract + types drift guard ==="
+	@echo "=== 4/9 OpenAPI contract + types drift guard ==="
 	$(MAKE) openapi
 	@git diff --exit-code -- api/openapi/ || { echo "OpenAPI contract stale: run 'make openapi' and commit api/openapi/"; exit 1; }
 	$(MAKE) lint-openapi
 	$(MAKE) gen-fe-types
 	@git diff --exit-code -- web/packages/api-types/generated/ || { echo "FE types stale: run 'make gen-fe-types' and commit web/packages/api-types/generated/"; exit 1; }
-	@echo "=== 4/8 Lint (go vet + pnpm lint) ==="
+	@echo "=== 5/9 Lint (go vet + pnpm lint) ==="
 	$(MAKE) lint
-	@echo "=== 5/8 Frontend type-check (vue-tsc) ==="
+	@echo "=== 6/9 Frontend type-check (vue-tsc) ==="
 	$(MAKE) type-check-fe
-	@echo "=== 6/8 Backend tests (race + timeout, SQLite) ==="
+	@echo "=== 7/9 Backend tests (race + timeout, SQLite) ==="
 	go test -race -timeout 120s ./...
-	@echo "=== 7/8 Frontend tests ==="
+	@echo "=== 8/9 Frontend tests ==="
 	$(MAKE) test-fe
-	@echo "=== 8/8 License audit ==="
+	@echo "=== 9/9 License audit ==="
 	$(MAKE) license-audit
 	@echo "=== ci-local: ALL PASSED ==="
+
+# Nothing built from this repo belongs in git. Enforced rather than trusted to
+# .gitignore, because the next artifact will have a name nobody predicted.
+check-no-binaries:
+	scripts/check-no-binaries.sh
 
 license-audit:
 	@echo "=== SPDX coverage guard ==="

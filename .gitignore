@@ -15,6 +15,28 @@ coverage/
 *.out
 ogoune
 *.test
+
+# Compiled binaries. NOTHING built from this repo belongs in git.
+#
+# `go build ./cmd/agent` writes ./agent -- the package name, in the working
+# directory -- and that is how a 9 MB macOS binary and an 8 MB Windows one were
+# committed once. The anchored entries below name every binary a bare `go build`
+# of this repo's own commands can drop at the root.
+#
+# There is deliberately no `/api` entry: a tracked api/ directory lives there
+# (the OpenAPI contract), so `go build ./cmd/api` cannot overwrite it, and an
+# ignore rule with that name would hide the contract instead.
+#
+# scripts/check-no-binaries.sh enforces the rule rather than trusting this list,
+# because the next artifact will have a name nobody predicted.
+/agent
+/migrations-drift-check
+*.exe
+*.dll
+*.dylib
+*.so
+*.o
+*.a
 *.db
 *.db-shm
 *.db-wal
