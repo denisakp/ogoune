@@ -132,14 +132,30 @@ func (c *eventCollector) Close() {
 
 // eventAccumulator folds many reports of one kind into a single event.
 type eventAccumulator struct {
-	kind        string
-	source      string
-	occurrences int
+	kind   string
+	source string
 
-	// first is the most representative report: the one that opened the interval.
-	// Picking the first rather than the last is arbitrary but stable, and stable
-	// matters more here than which one it is.
-	first kmsgReport
+	// Occurrences is derived, not counted, because the two readers watch the same
+	// kernel and one kill can produce several reports.
+	//
+	// A cgroup out-of-memory kill emits "oom-kill:...,task=x,pid=N" AND
+	// "Killed process N (x)" in the kernel log, and increments the cgroup counter
+	// besides. Adding those up says three processes died when one did -- observed
+	// on real hardware, in exactly that shape.
+	//
+	// So: count distinct pids from reports that name one, count the reports that
+	// name none separately, and take the LARGER of the two. Both readers seeing
+	// the same kills yields the right number; the kernel log missing records to
+	// ring-buffer overwrite still yields the counter's higher number; a host where
+	// only one reader works is unaffected.
+	pidKills  map[int]bool
+	anonymous int
+
+	// first is the most representative report: the one that opened the interval,
+	// preferring one that names a pid. Picking the first rather than the last is
+	// arbitrary but stable, and stable matters more here than which one it is.
+	first    kmsgReport
+	haveSeen bool
 
 	// seen and distinct track which processes were affected. seen is bounded
 	// alongside distinct, so neither grows with the storm.
@@ -148,11 +164,28 @@ type eventAccumulator struct {
 	truncated bool
 }
 
+// maxTrackedPIDs bounds the per-interval pid set. Past it, extra kills are
+// counted anonymously rather than tracked: over-counting a storm beats letting
+// the agent's memory grow with one.
+const maxTrackedPIDs = 1024
+
 func (a *eventAccumulator) add(r kmsgReport) {
-	if a.occurrences == 0 {
-		a.first = r
+	switch {
+	case r.PID > 0 && len(a.pidKills) < maxTrackedPIDs:
+		if a.pidKills == nil {
+			a.pidKills = map[int]bool{}
+		}
+		a.pidKills[r.PID] = true
+	default:
+		a.anonymous++
 	}
-	a.occurrences++
+
+	// Prefer a report that names a pid: the several lines describing one kill are
+	// not equally informative.
+	if !a.haveSeen || (a.first.PID == 0 && r.PID > 0) {
+		a.first = r
+		a.haveSeen = true
+	}
 
 	if r.Process == "" {
 		return
@@ -170,12 +203,25 @@ func (a *eventAccumulator) add(r kmsgReport) {
 	a.distinct = append(a.distinct, r.Process)
 }
 
+// occurrences is how many kernel reports this event stands for, after the
+// double-counting the two readers would otherwise produce. See the type comment.
+func (a *eventAccumulator) occurrences() int {
+	n := len(a.pidKills)
+	if a.anonymous > n {
+		n = a.anonymous
+	}
+	if n == 0 && a.haveSeen {
+		return 1
+	}
+	return n
+}
+
 func (a *eventAccumulator) event(now time.Time) agentwire.KernelEvent {
 	return agentwire.KernelEvent{
 		Kind:              a.kind,
 		OccurredAt:        now,
 		Source:            a.source,
-		Occurrences:       a.occurrences,
+		Occurrences:       a.occurrences(),
 		Process:           a.first.Process,
 		PID:               a.first.PID,
 		DistinctProcesses: a.distinct,

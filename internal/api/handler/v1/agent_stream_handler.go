@@ -2,6 +2,7 @@ package v1
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 	"net/http"
 	"time"
@@ -98,6 +99,19 @@ func (h *AgentStreamHandler) ingestEvents(ctx context.Context, hostID string, fr
 	}
 }
 
+// agentFrameReadLimit bounds one agent frame.
+//
+// It has to be set explicitly: the WebSocket library defaults to 32 KiB, and a
+// metrics frame carries one entry per mounted filesystem. A host with a few
+// hundred mounts -- an ordinary container or Kubernetes node -- exceeds that, and
+// the library's response is to close the connection. The agent then reconnects
+// every interval forever, the host never comes online, and nothing anywhere says
+// why. That is what shipped.
+//
+// 1 MiB accommodates several thousand mounts and still bounds what one
+// credential can push per frame.
+const agentFrameReadLimit = 1 << 20
+
 // Stream handles GET /api/v1/agent/stream (WebSocket upgrade, host-credential auth).
 func (h *AgentStreamHandler) Stream(w http.ResponseWriter, r *http.Request) {
 	hostID, ok := middleware.HostIDFromContext(r.Context())
@@ -114,12 +128,17 @@ func (h *AgentStreamHandler) Stream(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer conn.CloseNow()
+	conn.SetReadLimit(agentFrameReadLimit)
 
 	ctx := r.Context()
 	for {
 		_, data, err := conn.Read(ctx)
 		if err != nil {
-			// Client disconnected or context cancelled — end the read loop.
+			// Client disconnected, context cancelled, or the frame was refused
+			// before we ever saw it -- an oversized one, for instance. Logged
+			// because a silent close here is undiagnosable from either end: the
+			// agent only ever sees a broken pipe on its next write.
+			logStreamEnd(hostID, err)
 			break
 		}
 		frame, err := agentwire.Decode(data)
@@ -136,6 +155,23 @@ func (h *AgentStreamHandler) Stream(w http.ResponseWriter, r *http.Request) {
 		h.ingestEvents(ctx, hostID, frame)
 	}
 	conn.Close(websocket.StatusNormalClosure, "")
+}
+
+// logStreamEnd records why a stream ended, at a level matching whether anyone
+// needs to act. A normal disconnect is routine; anything else is the operator's
+// only clue that an agent is looping instead of streaming.
+func logStreamEnd(hostID string, err error) {
+	status := websocket.CloseStatus(err)
+	switch {
+	case errors.Is(err, context.Canceled), status == websocket.StatusNormalClosure,
+		status == websocket.StatusGoingAway, status == websocket.StatusNoStatusRcvd:
+		slog.Debug("agent stream: closed", "host_id", hostID, "error", err)
+	case status == websocket.StatusMessageTooBig:
+		slog.Warn("agent stream: frame exceeded the read limit; the agent will reconnect and fail again",
+			"host_id", hostID, "limit_bytes", agentFrameReadLimit, "error", err)
+	default:
+		slog.Warn("agent stream: ended unexpectedly", "host_id", hostID, "error", err)
+	}
 }
 
 // frameToSample maps the shared wire frame to the ingestion sample. Optional

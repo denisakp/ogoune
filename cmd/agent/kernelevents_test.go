@@ -176,3 +176,137 @@ func TestEventCollector_CloseReleasesSources(t *testing.T) {
 		t.Error("source not closed")
 	}
 }
+
+// One kill, two kernel lines. Observed on a real host: a cgroup out-of-memory
+// kill emits both "oom-kill:...,task=x,pid=N" and "Killed process N (x)", and
+// counting both told the operator two processes had died.
+func TestEventCollector_OneKillReportedTwiceCountsOnce(t *testing.T) {
+	src := &fakeSource{name: "kmsg", batches: [][]kmsgReport{{
+		{Kind: agentwire.KindOOMKill, Process: "python3", PID: 1673237},
+		{Kind: agentwire.KindOOMKill, Process: "python3", PID: 1673237},
+	}}}
+
+	events := newEventCollector([]kernelSource{src}).Collect(time.Now())
+
+	if len(events) != 1 {
+		t.Fatalf("events = %d, want 1", len(events))
+	}
+	if events[0].Occurrences != 1 {
+		t.Errorf("occurrences = %d, want 1: two lines about one dead process are one kill", events[0].Occurrences)
+	}
+	if events[0].PID != 1673237 {
+		t.Errorf("pid = %d, want 1673237", events[0].PID)
+	}
+	if len(events[0].DistinctProcesses) != 1 || events[0].DistinctProcesses[0] != "python3" {
+		t.Errorf("distinct = %v, want [python3]", events[0].DistinctProcesses)
+	}
+}
+
+// Distinct pids are distinct kills, however similar the processes look.
+func TestEventCollector_DistinctPIDsCountSeparately(t *testing.T) {
+	src := &fakeSource{name: "kmsg", batches: [][]kmsgReport{{
+		{Kind: agentwire.KindOOMKill, Process: "worker", PID: 101},
+		{Kind: agentwire.KindOOMKill, Process: "worker", PID: 102},
+		{Kind: agentwire.KindOOMKill, Process: "worker", PID: 103},
+	}}}
+
+	events := newEventCollector([]kernelSource{src}).Collect(time.Now())
+
+	if len(events) != 1 {
+		t.Fatalf("events = %d, want 1", len(events))
+	}
+	if events[0].Occurrences != 3 {
+		t.Errorf("occurrences = %d, want 3", events[0].Occurrences)
+	}
+	if len(events[0].DistinctProcesses) != 1 {
+		t.Errorf("distinct = %v, want one entry: three kills of one program, not three programs",
+			events[0].DistinctProcesses)
+	}
+}
+
+// The cgroup counter says how many, never which. Nothing to deduplicate on, so
+// every report counts.
+func TestEventCollector_ReportsWithoutPIDsAllCount(t *testing.T) {
+	src := &fakeSource{name: "cgroup", batches: [][]kmsgReport{{
+		{Kind: agentwire.KindOOMKill},
+		{Kind: agentwire.KindOOMKill},
+		{Kind: agentwire.KindOOMKill},
+	}}}
+
+	events := newEventCollector([]kernelSource{src}).Collect(time.Now())
+
+	if len(events) != 1 {
+		t.Fatalf("events = %d, want 1", len(events))
+	}
+	if events[0].Occurrences != 3 {
+		t.Errorf("occurrences = %d, want 3", events[0].Occurrences)
+	}
+}
+
+// A pid-bearing report is more useful than one without, whichever arrived first.
+func TestEventCollector_PrefersTheReportThatNamesAPID(t *testing.T) {
+	src := &fakeSource{name: "kmsg", batches: [][]kmsgReport{{
+		{Kind: agentwire.KindOOMKill, Process: "python3"},
+		{Kind: agentwire.KindOOMKill, Process: "python3", PID: 4711},
+	}}}
+
+	events := newEventCollector([]kernelSource{src}).Collect(time.Now())
+
+	if len(events) != 1 {
+		t.Fatalf("events = %d, want 1", len(events))
+	}
+	if events[0].PID != 4711 {
+		t.Errorf("pid = %d, want 4711", events[0].PID)
+	}
+}
+
+// The two readers watch the same kernel: adding their reports double-counts.
+// Observed on real hardware, where one kill produced two kernel-log lines and a
+// cgroup counter increment — reported as three.
+func TestEventCollector_TwoReadersOneKillCountsOnce(t *testing.T) {
+	kmsg := &fakeSource{name: "kmsg", batches: [][]kmsgReport{{
+		{Kind: agentwire.KindOOMKill, Process: "python3", PID: 4711}, // oom-kill:...task=,pid=
+		{Kind: agentwire.KindOOMKill, Process: "python3", PID: 4711}, // Killed process N (x)
+	}}}
+	cgroup := &fakeSource{name: "cgroup", batches: [][]kmsgReport{{
+		{Kind: agentwire.KindOOMKill}, // the counter says "one more", never which
+	}}}
+
+	events := newEventCollector([]kernelSource{kmsg, cgroup}).Collect(time.Now())
+
+	if len(events) != 1 {
+		t.Fatalf("events = %d, want 1", len(events))
+	}
+	if events[0].Occurrences != 1 {
+		t.Errorf("occurrences = %d, want 1: one process died", events[0].Occurrences)
+	}
+	if events[0].PID != 4711 {
+		t.Errorf("pid = %d, want 4711: the report that named one is the useful one", events[0].PID)
+	}
+}
+
+// When the kernel log lost records to ring-buffer overwrite, the counter's
+// higher number is the truthful one.
+func TestEventCollector_CounterWinsWhenTheLogMissedKills(t *testing.T) {
+	kmsg := &fakeSource{name: "kmsg", batches: [][]kmsgReport{{
+		{Kind: agentwire.KindOOMKill, Process: "worker", PID: 1},
+		{Kind: agentwire.KindOOMKill, Process: "worker", PID: 2},
+	}}}
+	cgroup := &fakeSource{name: "cgroup", batches: [][]kmsgReport{{
+		{Kind: agentwire.KindOOMKill}, {Kind: agentwire.KindOOMKill},
+		{Kind: agentwire.KindOOMKill}, {Kind: agentwire.KindOOMKill},
+		{Kind: agentwire.KindOOMKill},
+	}}}
+
+	events := newEventCollector([]kernelSource{kmsg, cgroup}).Collect(time.Now())
+
+	if len(events) != 1 {
+		t.Fatalf("events = %d, want 1", len(events))
+	}
+	if events[0].Occurrences != 5 {
+		t.Errorf("occurrences = %d, want 5: the counter cannot miss what the log did", events[0].Occurrences)
+	}
+	if len(events[0].DistinctProcesses) != 1 {
+		t.Errorf("distinct = %v, want one entry", events[0].DistinctProcesses)
+	}
+}

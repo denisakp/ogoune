@@ -28,6 +28,14 @@ var (
 	// ErrInvalidPassword is returned when password doesn't meet requirements
 	ErrInvalidPassword = errors.New("password must be at least 8 characters")
 
+	// ErrPasswordInitializationRefused is returned when the first-login password
+	// setup is attempted for an account that has already set one.
+	//
+	// The same error covers "no such user", deliberately: the endpoint is
+	// unauthenticated, so distinguishing the two would turn it into an oracle for
+	// which email addresses have accounts.
+	ErrPasswordInitializationRefused = errors.New("password initialization is not available for this account")
+
 	// ErrAPIKeyNotFound indicates the requested API key doesn't exist for the user
 	ErrAPIKeyNotFound = errors.New("api key not found")
 

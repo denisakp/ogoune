@@ -2,6 +2,8 @@ package v1_test
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -156,4 +158,59 @@ func TestAgentStream_VersionedAndLegacyFrames(t *testing.T) {
 			}, 2*time.Second, 20*time.Millisecond, "host should ingest the %s frame", tc.name)
 		})
 	}
+}
+
+// A frame from a host with many mounts must survive the read limit.
+//
+// The WebSocket library defaults to 32 KiB and the server used to accept that
+// default, so a host with a few hundred filesystems — an ordinary container or
+// Kubernetes node — had every frame refused and every connection closed. The
+// agent reconnected forever, the host never came online, and nothing said why.
+// 500 mounts here is roughly what a developer VM reports.
+func TestAgentStream_AcceptsFrameFromAHostWithManyMounts(t *testing.T) {
+	deps := newHostTestDeps()
+	ctx := context.Background()
+
+	host, raw, _, err := deps.hostSvc.Register(ctx, "many-mounts")
+	require.NoError(t, err)
+
+	agentH := v1.NewAgentStreamHandler(deps.metricsSvc)
+	r := chi.NewRouter()
+	r.With(middleware.HostCredentialAuth(deps.credSvc)).Get("/api/v1/agent/stream", agentH.Stream)
+	server := httptest.NewServer(r)
+	defer server.Close()
+
+	dialCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
+	conn, _, err := websocket.Dial(dialCtx, "ws://"+server.Listener.Addr().String()+"/api/v1/agent/stream",
+		&websocket.DialOptions{HTTPHeader: http.Header{"Authorization": []string{"Bearer " + raw}}})
+	require.NoError(t, err)
+
+	disks := make([]any, 0, 500)
+	for i := 0; i < 500; i++ {
+		disks = append(disks, map[string]any{
+			"mount":    fmt.Sprintf("/mnt/a-reasonably-long-mount-path/volume-%03d/data", i),
+			"used_pct": float64(i%100) + 0.5,
+		})
+	}
+	frame := map[string]any{
+		"os": "Ubuntu 24.04", "agent_version": "0.1.0",
+		"cpu_pct": 12.4, "mem_pct": 47.1, "net_in": 100, "net_out": 200,
+		"disks": disks,
+	}
+
+	payload, err := json.Marshal(frame)
+	require.NoError(t, err)
+	require.Greater(t, len(payload), 32*1024,
+		"the fixture must exceed the library default, or it proves nothing")
+
+	require.NoError(t, wsjson.Write(dialCtx, conn, frame))
+	_ = conn.Close(websocket.StatusNormalClosure, "")
+
+	require.Eventually(t, func() bool {
+		h, err := deps.hostSvc.Get(ctx, host.ID)
+		return err == nil && h != nil && h.LastCPUPct != nil && *h.LastCPUPct > 0
+	}, 3*time.Second, 25*time.Millisecond,
+		"an oversized frame must be ingested, not silently dropped with the connection")
 }

@@ -62,8 +62,8 @@ func TestSentence_AlwaysCarriesBothTimes(t *testing.T) {
 	for name, e := range cases {
 		t.Run(name, func(t *testing.T) {
 			got := Sentence(e)
-			assert.Contains(t, got, e.IncidentAt.Format(timeLayout))
-			assert.Contains(t, got, e.Event.OccurredAt.Format(timeLayout))
+			assert.Contains(t, got, e.IncidentAt.UTC().Format(timeLayout))
+			assert.Contains(t, got, e.Event.OccurredAt.UTC().Format(timeLayout))
 		})
 	}
 }
@@ -209,4 +209,42 @@ func TestPhrasable(t *testing.T) {
 	assert.True(t, Phrasable("oom_kill"))
 	assert.True(t, Phrasable("segfault"))
 	assert.False(t, Phrasable("something_new"), "the kind set is open; the phrase set is not")
+}
+
+// The two timestamps exist to be compared with each other, so they must be in
+// the same zone. An incident's start carries the server's local zone while a
+// kernel event's is stored in UTC; formatting each as it arrives produced
+// "11:19:04 GMT" beside "11:17:35 UTC" in one sentence on a real host.
+func TestSentence_BothTimesAreRenderedInUTC(t *testing.T) {
+	paris := time.FixedZone("CEST", 2*60*60)
+	got := Sentence(expl(func(e *domain.IncidentExplanation) {
+		e.IncidentAt = incidentAt.In(paris)
+		e.Event.OccurredAt = incidentAt.Add(-13 * time.Second)
+	}))
+
+	assert.Contains(t, got, "2026-09-10 14:03:00 UTC")
+	assert.Contains(t, got, "2026-09-10 14:02:47 UTC")
+	assert.NotContains(t, got, "CEST",
+		"a sentence mixing zones makes its own arithmetic unverifiable")
+	assert.Contains(t, got, "13 seconds earlier",
+		"and the stated gap must follow from the printed times")
+}
+
+// The gap must be derivable from the two printed timestamps, because those are
+// what an operator checks it against.
+func TestSentence_GapMatchesThePrintedTimes(t *testing.T) {
+	// 89 seconds apart to the second, with sub-second parts that would round the
+	// naive difference down to 88.
+	incident := time.Date(2026, 9, 10, 11, 19, 4, 100_000_000, time.UTC)
+	event := time.Date(2026, 9, 10, 11, 17, 35, 700_000_000, time.UTC)
+
+	got := Sentence(expl(func(e *domain.IncidentExplanation) {
+		e.IncidentAt = incident
+		e.Event.OccurredAt = event
+	}))
+
+	assert.Contains(t, got, "2026-09-10 11:19:04 UTC")
+	assert.Contains(t, got, "2026-09-10 11:17:35 UTC")
+	assert.Contains(t, got, "1 minute 29 seconds earlier",
+		"11:19:04 minus 11:17:35 is 89 seconds, and that is what the reader will compute")
 }

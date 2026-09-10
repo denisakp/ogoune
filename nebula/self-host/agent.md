@@ -266,6 +266,24 @@ If you want full capture in a container, grant it access to the kernel log
 (`--privileged`, or an explicit device mapping). Nothing about the monitor's
 behaviour changes either way.
 
+### Segmentation faults need a kernel setting
+
+Out-of-memory kills are always logged. **Segmentation faults usually are not.**
+Most distributions ship with `debug.exception-trace` set to `0`, and a kernel
+that is not asked to report userspace faults simply says nothing — which is
+indistinguishable from a healthy machine.
+
+To capture them:
+
+```bash
+sudo sysctl -w debug.exception-trace=1
+# persist it
+echo 'debug.exception-trace = 1' | sudo tee /etc/sysctl.d/60-ogoune-agent.conf
+```
+
+Leave it off if you would rather not have userspace faults in your kernel log;
+out-of-memory capture is unaffected either way.
+
 ### Storms are one line, not two hundred
 
 A saturated host can produce dozens of kills in seconds. The agent aggregates them
@@ -273,6 +291,14 @@ per kind per interval: you see one entry saying it happened 37 times, with the
 distinct processes affected, rather than 37 identical rows. If more distinct
 processes were affected than the list holds, the entry says so rather than
 quietly showing a partial list as if it were complete.
+
+### One kill, one entry
+
+The kernel is talkative about a single death: a cgroup out-of-memory kill writes
+two lines to the kernel log *and* increments the cgroup counter the agent also
+reads. Ogoune reports **one** event for it, not three. The two readers are
+reconciled rather than added, so a count you see is a count of processes, not of
+log lines.
 
 ### What is stored, and what is not
 
