@@ -21,7 +21,7 @@ func TestPostgres_NoCredential_TCPFallback(t *testing.T) {
 
 	r := protoResource(host, port, "postgres")
 	r.Target = host
-	result := postgresCheck(context.Background(), r, host, port, false, 2*time.Second, unsafeDialer)
+	result := postgresCheck(context.Background(), r, host, port, false, 2*time.Second, unsafeDialer, func(dbHealthSkipReason) {})
 	assert.Equal(t, string(domain.StatusUp), result.Status)
 	assert.Contains(t, result.ResponseData, "TCP connection")
 }

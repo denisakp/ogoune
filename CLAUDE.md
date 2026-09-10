@@ -99,7 +99,7 @@ Handlers never run checks or query DB directly. Scheduling goes through the Sche
 - **Notifications**: `pkg/notifier/` — SMTP, Slack, Discord, Google Chat, Teams, webhooks
 - **Encryption**: `pkg/crypto/` — AES-256-GCM for notification channel credentials
 - **Feature plans**: `specs/NNN-name/` — speckit-driven plan/spec/tasks for each feature. Read the relevant `plan.md` before touching a feature area
-- **Edition detection**: `internal/ee/license/` — `License.Get()` returns `community` or `enterprise` based on `ENTERPRISE_LICENSE_KEY` prefix (`pg_ent_` → enterprise). Runtime metadata only, does not gate behavior yet
+- **Edition detection**: `internal/ee/license/` — `License.Get()` returns `community` or `enterprise` based on `ENTERPRISE_LICENSE_KEY` prefix (`pg_ent_` → enterprise). Gates exactly one user-visible behavior today: `PoweredByRequired()` — the "Powered by Ogoune" attribution on the public status page (`GET /api/config/runtime` → `PublicPageFooter.vue`) plus the `x-ogoune-license` meta tag in the static status build. Everything else is runtime metadata
 - **Migrations**: `internal/database/migrations/sqlite/` and `postgres/` — dual trees, keep in sync
 
 ### Frontend (web/)
@@ -119,10 +119,16 @@ Vue 3 Composition API + TypeScript + Pinia + **NuxtUI 4** (Tailwind v4) + **Ky**
 
 **The root (`/api/`, non-versioned) API is FROZEN.** Do NOT add new handlers under
 `internal/api/handler/*.go` or new routes to the non-`/v1` groups. All new
-endpoints go to `internal/api/handler/v1/` under `/api/v1/`. Legacy root handlers
-(resources, incidents, components, tags, notifications — duplicated in v1) are
-migrated to v1 opportunistically, domain by domain, deleting the root handler +
-routes once the frontend service is repointed. New features are v1-only.
+endpoints go to `internal/api/handler/v1/` under `/api/v1/`. New features are v1-only.
+
+**Root→v1 convergence is DONE** (specs 085 + 086). Every domain that was duplicated
+between the root API and v1 — resources/monitors, incidents, tags, notification
+channels, components — now lives only under `/api/v1/`; the root handlers and routes
+were deleted and the SPA is fully repointed. What remains under the non-versioned
+`/api/` was never duplicated in v1 and stays frozen where it is: `/auth`, `/account`,
+`/me/sessions`, `/me/2fa`, `/escalation-policies`, `/maintenances`, `/stats`, status
+page settings, plus the public surfaces (status page, heartbeat ping, system,
+runtime config, monitoring activity).
 
 ## Patterns to follow
 
@@ -227,7 +233,7 @@ Dashboard: http://localhost:9009 (project `ogoune`). Block on CRITICAL/BLOCKER i
 - SQLite `strftime('%s', col)` returns NULL on modernc.org/sqlite-bound `time.Time` values (the driver binds Go's `String()` format, not RFC 3339). Use `strftime('%s', substr(col, 1, 19))` to extract the parseable `YYYY-MM-DD HH:MM:SS` prefix. See `internal/repository/sqlc/README.md` gotchas + `FindMissedHeartbeatsSQLite` for the canonical workaround.
 
 <!-- SPECKIT START -->
-For additional context about technologies to be used, project structure,
-shell commands, and other important information, read the current plan:
-`specs/085-resources-v1-migration/plan.md`
+For additional context about technologies to be used, project structure, shell
+commands, and other important information, read the current plan:
+`specs/091-flash-correlation-narrative/plan.md`
 <!-- SPECKIT END -->

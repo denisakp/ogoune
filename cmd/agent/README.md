@@ -23,11 +23,14 @@ docker run -d --name ogoune-agent --restart unless-stopped --pid=host --network=
   -e OGOUNE_CREDENTIAL=ag_live_… ghcr.io/denisakp/ogoune-agent:latest
 ```
 
-Build from source (contributors):
+Build from source (contributors). **Both targets build for Linux**, whatever your
+dev machine is — the agent is Linux-only, so a macOS/Windows binary would have
+nowhere to run. On a Mac, run the result in a Linux container (OrbStack, Docker,
+a VM), not on the host:
 
 ```bash
-make build-agent                 # → dist/ogoune-agent (version stamped from git)
-make build-agent-linux ARCH=amd64  # cross-compile a static linux binary (arm64 default)
+make build-agent                 # → dist/ogoune-agent (linux, host arch, version stamped from git)
+make build-agent-linux ARCH=amd64  # same, explicit arch (arm64 default)
 ```
 
 ## Register a host (operator)

@@ -122,6 +122,20 @@ func (h *AuthHandler) InitializePassword(w http.ResponseWriter, r *http.Request)
 	// Initialize password
 	user, err := h.authService.InitializePassword(r.Context(), req.Email, req.NewPassword)
 	if err != nil {
+		if errors.Is(err, service.ErrInvalidPassword) {
+			// About the password the caller typed, so saying so reveals nothing
+			// about which accounts exist.
+			response.Error(w, http.StatusBadRequest, "Password must be at least 8 characters")
+			return
+		}
+		if errors.Is(err, service.ErrPasswordInitializationRefused) {
+			// Deliberately identical whether the account is unknown or already
+			// initialized: this endpoint has no authentication in front of it, and
+			// two distinguishable answers would make it an oracle for which email
+			// addresses have accounts.
+			response.Error(w, http.StatusForbidden, "Password initialization is not available for this account")
+			return
+		}
 		response.Error(w, http.StatusInternalServerError, "Failed to initialize password")
 		return
 	}

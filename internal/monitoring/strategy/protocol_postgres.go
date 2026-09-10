@@ -23,7 +23,7 @@ import (
 //
 // PostgreSQL SQLSTATEs `28P01` (invalid_password) and `28000` (invalid_authorization_specification)
 // map to ProtocolAuthFailed; everything else to ProtocolHandshakeFailed.
-func postgresCheck(ctx context.Context, r *domain.Resource, host string, port int, useTLS bool, timeout time.Duration, dial DialFunc) domain.CheckResult {
+func postgresCheck(ctx context.Context, r *domain.Resource, host string, port int, useTLS bool, timeout time.Duration, dial DialFunc, onSkip dbHealthSkipFunc) domain.CheckResult {
 	addr := net.JoinHostPort(host, strconv.Itoa(port))
 	start := time.Now()
 
@@ -46,11 +46,25 @@ func postgresCheck(ctx context.Context, r *domain.Resource, host string, port in
 		return postgresErrorResult(err, addr, time.Since(start))
 	}
 
-	return domain.CheckResult{
+	result := domain.CheckResult{
 		Status:       string(domain.StatusUp),
 		ResponseTime: time.Since(start),
 		ResponseData: fmt.Sprintf("authenticated connection to %s", addr),
 	}
+
+	// Health enrichment (spec 088), on the connection that is already open and
+	// about to be discarded. It runs under its own allowance, not the check's
+	// remaining deadline, and it may cost a field but never the check: the result
+	// above is already final, and nothing below can change its verdict.
+	budget := dbHealthBudget(dialCtx, timeout)
+	if budget <= 0 {
+		onSkip(dbHealthSkipDeadline)
+	} else {
+		result.DatabaseHealth = collectPostgresHealth(ctx, conn, budget)
+		reportDBHealthOutcome(result.DatabaseHealth, onSkip)
+	}
+
+	return result
 }
 
 // buildPostgresConnString assembles a libpq-style connection string for pgx.

@@ -11,7 +11,9 @@ import (
 	"github.com/denisakp/ogoune/internal/api/handler"
 	v1handler "github.com/denisakp/ogoune/internal/api/handler/v1"
 	"github.com/denisakp/ogoune/internal/api/middleware"
+	"github.com/denisakp/ogoune/internal/correlation"
 	"github.com/denisakp/ogoune/internal/metrics"
+	"github.com/denisakp/ogoune/internal/port"
 	"github.com/denisakp/ogoune/internal/service"
 	"github.com/denisakp/ogoune/internal/service/resourceimport"
 	"github.com/go-chi/chi/v5"
@@ -41,7 +43,18 @@ func InitRouter(app *App) {
 	statusPageSettingsService := service.NewStatusPageSettingsService(app.StatusPageSettingsRepo)
 	statusPageSettingsService.Configure("status.ogoune.app", cfg.SSLProvider)
 	statusPageService := service.NewStatusPageService(app.ResourceRepo, app.IncidentRepo, app.MonitoringActivityRepo, app.MaintenanceRepo, app.StatusPageSettingsRepo, app.ComponentRepo)
-	incidentAPIService := service.NewIncidentService(app.IncidentRepo, app.IncidentEventStepRepo)
+	incidentAPIService := service.NewIncidentService(app.IncidentRepo, app.IncidentEventStepRepo, app.HostMetricsRepo, app.HostRepo, cfg.HostMetricsRawWindow)
+	// The causal narrative (spec 091). Attached rather than passed in, so the
+	// constructor signature is unchanged; nil would simply mean incidents carry
+	// no explanation.
+	incidentAPIService = incidentAPIService.WithCorrelator(correlation.New(app.HostEventRepo, app.HostRepo))
+	// The recorder is held as domain.MetricsRecorder, which deliberately declares
+	// RecordCheck alone. Both concrete recorders also satisfy the narrower
+	// host-context contract, so ask rather than widen the check-executor
+	// interface (spec 089, plan Constitution Check).
+	if obs, ok := app.MetricsRecorder.(port.HostContextMetrics); ok {
+		incidentAPIService = incidentAPIService.WithHostContextMetrics(obs)
+	}
 	liveSnapshotService := service.NewLiveSnapshotService(app.ResourceService, activityService, incidentAPIService)
 	notificationService := service.NewNotificationService(app.ResourceRepo, app.NotificationChannelRepo)
 	notificationService.SetEventsRepo(app.NotificationRepo)
@@ -76,7 +89,7 @@ func InitRouter(app *App) {
 	escalationV1Handler := v1handler.NewEscalationHandler(app.EscalationService)
 
 	credentialService := service.NewResourceCredentialService(app.ResourceCredentialRepo, app.ResourceRepo)
-	credentialTester := service.NewResourceCredentialTester(app.ResourceRepo, BuildStrategies())
+	credentialTester := service.NewResourceCredentialTester(app.ResourceRepo, BuildStrategies(app.MetricsRecorder))
 	credentialV1Handler := v1handler.NewResourceCredentialHandler(credentialService, credentialTester)
 
 	toolboxService := service.NewToolboxService(app.ResourceRepo, 10*time.Second)
@@ -93,8 +106,10 @@ func InitRouter(app *App) {
 	resourceImportV1Handler := v1handler.NewResourceImportHandler(resourceImportService)
 
 	// Agent device monitoring
-	hostV1Handler := v1handler.NewHostHandler(app.HostService, app.HostMetricsService)
-	agentStreamV1Handler := v1handler.NewAgentStreamHandler(app.HostMetricsService)
+	hostV1Handler := v1handler.NewHostHandler(app.HostService, app.HostMetricsService).
+		WithEvents(app.HostEventRepo)
+	agentStreamV1Handler := v1handler.NewAgentStreamHandler(app.HostMetricsService).
+		WithEvents(app.HostEventRepo)
 
 	// Set APP_VERSION env
 	err := os.Setenv("APP_VERSION", AppVersion)

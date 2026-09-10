@@ -11,6 +11,70 @@ import (
 	"time"
 )
 
+const aggregateHostMetricsInWindow = `-- name: AggregateHostMetricsInWindow :many
+SELECT
+    CAST(COALESCE(MAX(cpu_pct) OVER (), 0.0) AS REAL) AS peak_cpu_pct,
+    CAST(COALESCE(MAX(mem_pct) OVER (), 0.0) AS REAL) AS peak_mem_pct,
+    COUNT(*) OVER () AS sample_count,
+    disks
+FROM host_metrics
+WHERE host_id = ?1 AND sampled_at >= ?2 AND sampled_at <= ?3
+`
+
+type AggregateHostMetricsInWindowParams struct {
+	HostID      string    `json:"host_id"`
+	SampledAt   time.Time `json:"sampled_at"`
+	SampledAt_2 time.Time `json:"sampled_at_2"`
+}
+
+type AggregateHostMetricsInWindowRow struct {
+	PeakCpuPct  float64        `json:"peak_cpu_pct"`
+	PeakMemPct  float64        `json:"peak_mem_pct"`
+	SampleCount int64          `json:"sample_count"`
+	Disks       sql.NullString `json:"disks"`
+}
+
+// Reduce a bounded correlation window to its peaks and sample count, and carry
+// back the disk documents for the same window, in ONE round trip. Mirrors the
+// Postgres query exactly in name and result shape.
+//
+// The peaks are computed by the database via window functions so no numeric
+// column is ever reduced in Go (spec 089, FR-021); they repeat identically on
+// every row, which costs a few bytes and saves a round trip. The disks column
+// rides along because it is a stored document and nothing in this codebase
+// reaches inside JSON from SQL on either dialect (FR-021a).
+//
+// The range predicate mirrors ListHostMetricsInRange exactly -- no strftime is
+// needed for a plain comparison, only for extracting epoch seconds.
+// Keep this file pure ASCII: sqlc slices SQLite query text by byte offset.
+func (q *Queries) AggregateHostMetricsInWindow(ctx context.Context, arg AggregateHostMetricsInWindowParams) ([]AggregateHostMetricsInWindowRow, error) {
+	rows, err := q.db.QueryContext(ctx, aggregateHostMetricsInWindow, arg.HostID, arg.SampledAt, arg.SampledAt_2)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []AggregateHostMetricsInWindowRow{}
+	for rows.Next() {
+		var i AggregateHostMetricsInWindowRow
+		if err := rows.Scan(
+			&i.PeakCpuPct,
+			&i.PeakMemPct,
+			&i.SampleCount,
+			&i.Disks,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const decimateHostMetrics = `-- name: DecimateHostMetrics :execrows
 DELETE FROM host_metrics
 WHERE host_metrics.sampled_at < ?1

@@ -5,6 +5,214 @@ follows [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.0.0-beta.5] - 2026-09-10
+
+### Added
+
+- **The causal narrative on incidents (WI-3)** — an incident whose host's kernel reported something
+  in the same few minutes now says so in one sentence, at the top of the page and in the
+  notification: *"HTTP check failed: 502 Bad Gateway at 14:03:00. The kernel OOM-killed postgres
+  (pid 4711) on web-01 at 14:02:47, 13 seconds earlier."* The events behind it are listed beneath,
+  so the claim can be checked rather than taken.
+  The rule is **a time window and nothing else** — the same window the host context already uses.
+  No scoring, no ranking, no model. A storm produces one sentence: it names one event and counts
+  the others, keeping "reported 37 times" and "3 other events" apart because they answer different
+  questions. An event kind this version cannot phrase is still listed and still counted, but never
+  named — the kind set is open and carries agent-supplied text, which must not choose the wording
+  of an alert.
+  The wording may read as an explanation; **the data model records only co-occurrence**. There is
+  no cause identifier, no score, no confidence, no probability, in the API or anywhere else — and
+  nothing is stored at all: the sentence is recomputed from the incident and the events on every
+  read. Improving the wording improves every past incident, with no backfill, because there is
+  nothing to backfill. **No migration, no new table, no new column, no new setting.**
+  An alert never waits for a correlation and never gets a sequel. Events reach Ogoune on the
+  agent's own schedule, so one that truly preceded a failure can arrive just after the alert went
+  out; when that happens the incident page carries the sentence and the alert does not. That is the
+  intended behaviour — your alerts are not delayed, and you are not woken twice to be told why.
+  An incident whose monitor has no host attached — the common case — costs **zero** extra queries.
+- **Kernel events from the host agent (WI-2)** — the agent now reports out-of-memory kills and
+  segmentation faults alongside its metrics, and they appear on the host's page timestamped when
+  the kernel reported them. That lets an operator line a kill up against an incident and see that
+  a service did not merely fail but failed *because* the kernel killed the process behind it.
+  **No eBPF, no kernel module, no extra capability**: two files the operating system already
+  publishes, `/dev/kmsg` and the cgroup v2 memory accounting.
+  Capture is often unavailable — a container usually cannot read the kernel log without
+  `--privileged`, and a container is the first deployment the documentation describes. That path
+  is the normal one rather than a failure: the agent says so **once** at startup, metrics stream
+  exactly as before, and the cgroup source frequently catches out-of-memory kills anyway.
+  A storm is one entry, not two hundred: reports are aggregated per kind per collection interval
+  with a count and a bounded list of the distinct processes affected, and a list that had to be
+  truncated says so rather than passing itself off as complete.
+  Only classified fields are stored — kind, time, process, pid, cgroup. **The raw kernel line is
+  never kept**: `/dev/kmsg` carries every subsystem's output in formats that change between kernel
+  versions, and storing it would mean holding content nobody has examined.
+  Restarting the agent changes nothing: both readers start from the present, so a package upgrade
+  does not replay old kills as if they had just happened. Events occurring while the agent is down
+  are lost, deliberately — a missing event beats a fabricated one.
+  Events are kept for `HOST_EVENTS_RETENTION_DAYS` days (90 by default) and are never thinned,
+  unlike metrics.
+
+
+- **Database health on Postgres and MySQL monitors (WI-4)** — a protocol monitor pointed at
+  PostgreSQL or MySQL already opened an authenticated session, pinged it and threw it away. It
+  now asks the server how it is doing on that same connection and shows the answer: active
+  connections against the configured maximum, the age of the longest running query, and
+  replication lag. **Nothing is required on the monitored database** — no extension, no restart,
+  no configuration change, no extra credential field.
+  The first signal is the one that earns its place: it lets an operator watch connection
+  saturation climb *before* the database starts refusing connections, and it needs no grant at
+  all. Query age and replication lag do; without the grant they are **absent, never estimated**.
+  That distinction is the point — on PostgreSQL a role without `pg_read_all_stats` still sees
+  other sessions' rows with the timing columns withheld, so a naive reading would report the
+  monitor's own session age as the database's longest running query: plausible, wrong, and
+  impossible for an operator to spot.
+  Only the *duration* of the longest query is read; the statement text is never queried, stored
+  or displayed. Replication lag is sourced from whichever side of replication is being monitored,
+  and a database with no replication reports absence rather than `0`, which would claim it is
+  perfectly in sync.
+  Whatever a failing check had collected is frozen onto the incident it opens. The monitor page
+  shows the current figures and they move; the incident shows what they were when it broke and
+  they never change, even once the database recovers.
+  Supported on PostgreSQL 12+ and MySQL 8.0+; older servers keep working as monitors with the
+  enrichment skipped, reported distinctly from a missing grant because the two need different
+  fixes. `ogoune_database_health_skipped_total` counts every skip by reason
+  (`deadline`, `privilege`, `unsupported_version`, `no_fields`), so a silently degraded
+  collection is visible rather than invisible.
+  Collection runs under its own bounded time allowance — a quarter of the monitor's configured
+  timeout, capped — rather than sharing the check's deadline. A saturated database answers
+  introspection slowly, and that is exactly the condition this feature exists to reveal: it must
+  never be the reason a slow database gets reported as a down one.
+
+
+- **Host context on incidents (Flash Correlation v0, WI-1)** — when an incident opens on a
+  monitor attached to a host, the incident page now shows what that machine was doing around
+  the failure: peak CPU, peak memory, the busiest mount, and how many samples the figures
+  came from. Nothing new is collected — the agent already streams these metrics, and
+  `resources.host_id` already links a monitor to a host, so this is a read-side aggregate over
+  data that was already there. The API gains one additive, nullable `host_context` object on
+  `GET /api/v1/incidents/{id}`; every existing field keeps its name, type and nullability.
+  The block disappears entirely when there is nothing to show — no host attached, no samples,
+  out of retention, or a failed lookup — and none of those can fail the request.
+  Figures carry a **resolution marker**: `full` while every sample is at the agent's native
+  rate, `reduced` once retention has thinned them to one per minute, in which case the
+  interface presents them as minute-level rather than as exact peaks. The marker is derived
+  from the configured retention window, never from the samples themselves — the agent's
+  interval is configurable, so a host reporting once a minute natively would otherwise be
+  mislabelled as degraded while its data is intact.
+  `ogoune_incident_host_context_absent_total` counts why a context could not be produced
+  (`no_samples`, `out_of_retention`, `lookup_error`), so a silently broken correlation is
+  visible rather than invisible.
+  Measured cost: incident detail p95 goes from ~0.57 ms to ~0.98 ms when a host is attached,
+  and is unchanged when none is. The aggregate is a single round trip -- the peaks are computed
+  by the database with window functions and the disk documents ride back on the same rows.
+
+### Changed
+
+- **Host metrics are kept longer by default (ADR 0011)** — `HOST_METRICS_RAW_WINDOW` moves
+  from `48h` to `168h` and `HOST_METRICS_RETENTION_DAYS` from `7` to `30`. Incident host
+  context is only exact inside the raw window, so the old defaults would have made the
+  feature above understate peaks after two days and lose them entirely after a week —
+  precisely when a post-mortem needs them. Budget roughly 20 MB per host at the agent's
+  default 10-second interval; both knobs remain configurable and **existing `.env` files are
+  untouched**, so an installation that pinned the old values keeps the old behaviour.
+
+- **Release image build ~5x faster** — `Dockerfile` and `Dockerfile.agent` builder stages now
+  pin to `--platform=$BUILDPLATFORM` and cross-compile Go via `$TARGETOS`/`$TARGETARCH` instead
+  of running under QEMU emulation for the `arm64` target. The frontend build runs once (its
+  output is arch-independent) instead of twice. The release workflow's two `docker/build-push`
+  steps also set `provenance: false`. Multi-arch release build drops from ~28min toward a few
+  minutes; images and layout are unchanged.
+
+- **Host agent is Linux-only, stated and enforced** — the agent's packaging is systemd-based and
+  the fleet it targets is Linux, so macOS (no launchd story) and Windows (no service wrapper, and
+  untestable for us) are out of scope. `roadmap.md` claimed a "cross-platform (Linux, macOS,
+  Windows)" agent; it now says Linux amd64 + arm64 and gives the reason. Nothing changes in the
+  release pipeline — it already built `linux/amd64,linux/arm64` only, for both the image and the
+  release binaries. The one place a non-Linux binary could still appear was `make build-agent` run
+  on a macOS dev machine; it now pins `CGO_ENABLED=0 GOOS=linux` (host `GOARCH`), so the output is
+  always a static Linux binary meant for a container/VM. `cmd/agent/README.md` and
+  `nebula/self-host/agent.md` say so.
+
+- **H3 observability track re-ordered (WI-0)** — `roadmap.md` now matches the approved execution
+  directive. The eBPF entry is no longer a prerequisite of Flash Correlation: **Flash Correlation
+  (host metrics + kernel events)** stays in H3 and ships without a line of BPF — the agent already
+  streams host metrics, and OOMKills/segfaults come from plain `/dev/kmsg` and cgroup v2
+  `memory.events` reads — while **Flash Correlation — eBPF depth** (syscall latency, TCP
+  retransmits, packet drops) moves to H4. The roadmap also no longer claims the backend queries the
+  agent through the tunnel: the tunnel is outbound and write-only by design, so correlation is a
+  backend-side join over pushed data. **Database query performance** is split in two: **Database
+  health checks** (connection saturation, replication lag, longest running query, on the session the
+  protocol checks already open) stays in H3, and per-query **Slow query analysis** moves to H4 as
+  exploratory — `pg_stat_statements` needs `shared_preload_libraries` and therefore a server
+  restart, and per-query analysis sits against the APM boundary this roadmap declares out of scope.
+  Two stale references fixed in passing: the agent ships in Go, not Zig, and
+  `nebula/self-host/agent.md` is now stated as the source of truth for platform support, with
+  Linux-only recorded as a settled decision rather than a temporary limitation.
+
+### Fixed
+
+- **The agent stopped streaming metrics on any host where it could read the kernel log.** Draining
+  `/dev/kmsg` used a blocking read on the metrics path, so on a machine where the log was actually
+  readable — a native systemd install running as root, the documented option B — the collector
+  parked on the first quiet interval and never sent another frame. The host simply went offline,
+  with no error anywhere. The read is non-blocking now (raw `O_NONBLOCK` descriptor, record at a
+  time), and kernel-event capture is additionally bounded by a deadline, so a future mistake of the
+  same shape costs an interval's events instead of the monitoring the operator relies on.
+  Invisible in CI and in containers, where opening the kernel log fails and there is nothing to
+  block on. Found by running the agent on a real Linux host.
+- **The backend closed every agent connection from a host with many mounted filesystems.** The
+  WebSocket read limit was left at the library default of 32 KiB while a metrics frame carries one
+  entry per mount, so a machine with a few hundred filesystems — an ordinary container or
+  Kubernetes node — had every frame refused. The agent reconnected each interval forever, the host
+  never came online, and nothing logged why. The limit is now explicit, and a stream that ends for
+  any reason other than a clean disconnect says so.
+- **Segmentation faults were never captured on arm64.** That kernel reports `potentially unexpected
+  fatal signal 11` where x86 reports `segfault at …`, and the classifier only knew the x86 form.
+  Both are recognised now. Note that most distributions also ship `debug.exception-trace=0`, which
+  suppresses the line entirely — documented in the agent guide.
+- **One out-of-memory kill was reported as several.** The kernel writes two log lines for a cgroup
+  kill and increments the cgroup counter the agent also reads, and the three were added together —
+  an operator saw "reported 3 times" for one dead process. The readers are reconciled now: distinct
+  process ids on one side, anonymous counter reports on the other, and the larger of the two wins,
+  so records lost to kernel-log overwrite still surface at their true count.
+- **The causal narrative mixed time zones.** An incident's start carries the server's local zone
+  while a kernel event's is stored in UTC, so one sentence could read "11:19:04 GMT … 11:17:35
+  UTC". Both are rendered in UTC now — the two timestamps exist to be compared, and on a server
+  away from UTC the stated gap would not have followed from the printed times.
+
+- **Documentation drift after the root→v1 convergence** — `CLAUDE.md` still described the
+  legacy root API migration as "opportunistic, domain by domain" although specs 085 + 086
+  finished it (the duplicated root handlers are deleted and the SPA is repointed); it now
+  states what is done and enumerates the non-versioned groups that legitimately remain
+  (`/auth`, `/account`, `/me/*`, `/escalation-policies`, `/maintenances`, `/stats`, status
+  page settings, public surfaces). Its speckit footer no longer pins a shipped feature plan.
+- **Edition-gating claim corrected** — `CLAUDE.md` and `nebula/enterprise/index.md` both said
+  the licence "does not gate behavior yet". It gates one thing: `license.PoweredByRequired()`
+  drives the "Powered by Ogoune" attribution on the public status page
+  (`GET /api/config/runtime` → `PublicPageFooter.vue`) and the `x-ogoune-license` meta tag in
+  the static status build.
+- **`roadmap.md` white-label line** — status page branding (light/dark logo, primary colour,
+  theme overrides) has shipped and is now checked. The line previously advertised hiding the
+  "Powered by Ogoune" attribution as a *Community Edition* item, which contradicts the code:
+  Community always keeps the attribution, suppression is the Enterprise "White-label — strict"
+  lever. Roadmap date refreshed to the current release.
+
+### Security
+
+- **`POST /auth/initialize-password` accepted any known email address.** The endpoint is
+  unauthenticated by design — it is how an account that has never had a password sets its first one
+  — but it verified nothing beyond the address existing, so it would overwrite any account's
+  password and return a valid session token for it. It is now refused for accounts that already
+  have a password, with a response that does not distinguish an unknown address from a refused one.
+  The first-login flow is unchanged.
+
+### Known limitations
+
+- The monitor-to-host link is resolved when an incident is **viewed**, not frozen when it
+  opened. Re-attaching a monitor to a different host therefore changes what its past
+  incidents display. Documented in `nebula/self-host/agent.md`; freezing it would require
+  snapshotting the context at incident resolution, which ADR 0011 records as deferred.
+
 ## [1.0.0-beta.4] - 2026-08-03
 
 ### Fixed

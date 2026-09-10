@@ -7,6 +7,7 @@ import (
 
 	"github.com/denisakp/ogoune/internal/domain"
 	dtoV1 "github.com/denisakp/ogoune/internal/dto/v1"
+	"github.com/denisakp/ogoune/internal/narrative"
 	"github.com/denisakp/ogoune/internal/repository/sqlc/dynquery"
 	"github.com/go-chi/chi/v5"
 )
@@ -60,7 +61,75 @@ func mapIncidentResponse(inc *domain.Incident) dtoV1.IncidentResponse {
 		s := inc.ResolvedAt.UTC().Format(time.RFC3339)
 		resp.ResolvedAt = &s
 	}
+	resp.HostContext = mapHostContext(inc.HostContext)
+	resp.Explanation = mapIncidentExplanation(inc.Explanation)
+	for _, e := range inc.HostEvents {
+		resp.HostEvents = append(resp.HostEvents, mapHostEvent(e))
+	}
 	return resp
+}
+
+// mapIncidentExplanation converts the read-side explanation into its v1 shape
+// and renders the sentence (spec 091).
+//
+// A nil explanation maps to nil, which `omitempty` keeps out of the body
+// entirely -- absent rather than null, so the list endpoint and a silent detail
+// response are byte-identical to their pre-feature form.
+//
+// The sentence is rendered here rather than carried on the domain struct: prose
+// belongs to a renderer, and the API is one. Serving it means the SPA does not
+// re-implement the wording in TypeScript, where the two copies would drift.
+func mapIncidentExplanation(e *domain.IncidentExplanation) *dtoV1.IncidentExplanationResponse {
+	if e == nil {
+		return nil
+	}
+	text := narrative.Sentence(e)
+	if text == "" {
+		// The correlator only names kinds it can phrase, so this is unreachable
+		// today. Guarding anyway: an explanation whose sentence came out empty is
+		// worse than no explanation, because the reader gets a block with a hole
+		// in it (FR-007).
+		return nil
+	}
+	return &dtoV1.IncidentExplanationResponse{
+		Text:        text,
+		HostID:      e.HostID,
+		HostName:    e.HostName,
+		IncidentAt:  e.IncidentAt.UTC().Format(time.RFC3339),
+		Cause:       e.Cause,
+		Event:       mapHostEvent(&e.Event),
+		Precedes:    e.Precedes,
+		OtherEvents: e.OtherEvents,
+		WindowFrom:  e.WindowFrom.UTC().Format(time.RFC3339),
+		WindowTo:    e.WindowTo.UTC().Format(time.RFC3339),
+	}
+}
+
+// mapHostContext converts the read-side host context into its v1 shape, field by
+// field. A nil context maps to a nil response, which serialises as
+// "host_context": null -- the only absent representation the contract allows
+// (spec 089, FR-010).
+func mapHostContext(hc *domain.HostContext) *dtoV1.HostContextResponse {
+	if hc == nil {
+		return nil
+	}
+	out := &dtoV1.HostContextResponse{
+		HostID:      hc.HostID,
+		HostName:    hc.HostName,
+		PeakCPUPct:  hc.PeakCPUPct,
+		PeakMemPct:  hc.PeakMemPct,
+		SampleCount: hc.SampleCount,
+		Resolution:  string(hc.Resolution),
+		WindowFrom:  hc.WindowFrom.UTC().Format(time.RFC3339),
+		WindowTo:    hc.WindowTo.UTC().Format(time.RFC3339),
+	}
+	if hc.WorstDisk != nil {
+		out.WorstDisk = &dtoV1.WorstDiskResponse{
+			Mount:   hc.WorstDisk.Mount,
+			UsedPct: hc.WorstDisk.UsedPct,
+		}
+	}
+	return out
 }
 
 // List handles GET /api/v1/incidents

@@ -248,6 +248,75 @@ type Incident struct {
 	Details             []byte               `json:"details"`
 	EventStep           []IncidentEventStep  `json:"event_steps"`
 	IncidentDiagnostics *IncidentDiagnostics `json:"diagnostics"`
+	// HostContext is computed on read, never persisted: what the monitor's host
+	// was doing around StartedAt. Nil whenever there is nothing to say
+	// (spec 089).
+	HostContext *HostContext `json:"-"`
+	// Explanation is computed on read and at notification dispatch, never
+	// persisted: one sentence's worth of facts linking this incident to what the
+	// kernel reported on the same host at nearly the same time. Nil whenever no
+	// event matched (spec 091).
+	//
+	// `json:"-"` is load-bearing, not tidiness. IncidentDiagnostics embeds an
+	// Incident with a json tag and diagnostics are persisted, so an untagged
+	// field here would write a causal narrative into the database -- FR-018
+	// broken by a missing tag rather than by a decision.
+	Explanation *IncidentExplanation `json:"-"`
+	// HostEvents are the kernel events inside the correlation window, newest
+	// first. Computed on read, never persisted, and `json:"-"` for the same
+	// reason as the two fields above.
+	//
+	// Served alongside Explanation so the sentence is checkable in place rather
+	// than merely trusted, and present even when no sentence could be produced:
+	// an event of a kind this version cannot phrase is still worth showing
+	// (spec 091, FR-007, FR-018b).
+	HostEvents []*HostEvent `json:"-"`
+}
+
+// IncidentExplanation is the facts behind one sentence: what a check observed,
+// what the kernel reported on the same host at nearly the same time, and when
+// each happened (spec 091).
+//
+// Derived, never authoritative, and never stored. It joins records that already
+// exist and adds no record of its own. Read-side only: computed on the incident
+// detail path and at notification dispatch, discarded once rendered.
+//
+// What it deliberately does NOT carry, each absence being a requirement:
+//
+//   - No score, confidence, or probability, and no Caused flag (FR-009). The
+//     wording shown to a human may use causal language; this struct records only
+//     that two things happened close together. A field named Caused invites every
+//     later feature to treat co-occurrence as fact.
+//   - No rendered sentence. Prose belongs to whichever renderer needs it -- HTML
+//     for email, structured fields for a webhook, a component for the SPA.
+//     Freezing one renderer's shape here would impose it on the others and would
+//     put a causal claim in a transportable struct.
+//   - No persisted reference to the event it names (FR-018). Regenerating from
+//     stored facts is what keeps the wording improvable and the schema honest.
+type IncidentExplanation struct {
+	HostID   string
+	HostName string
+	// IncidentAt is when the failure was confirmed, and Cause is what the check
+	// observed. Copied in so a renderer needs nothing but this struct.
+	IncidentAt time.Time
+	Cause      string
+	// Event is the named event, by value: the whole row, so nothing has to be
+	// looked up again to render it, and no identifier survives to be mistaken
+	// for a stored causal link.
+	Event HostEvent
+	// Precedes says whether Event happened at or before IncidentAt. A statement
+	// about two clocks, not about causation -- it exists so the wording can avoid
+	// saying "before" when it means "after" (FR-010).
+	Precedes bool
+	// OtherEvents counts the OTHER events in the window, kinds this version
+	// cannot phrase included. It counts events, not kernel reports: the named
+	// event's own Occurrences answers that different question, and merging the
+	// two would misdescribe both.
+	OtherEvents int
+	// WindowFrom and WindowTo are the incident host-context window, unchanged.
+	// This feature defines no window of its own.
+	WindowFrom time.Time
+	WindowTo   time.Time
 }
 
 // IncidentDiagnostics contains enriched diagnostic information about an incident
@@ -286,6 +355,15 @@ type IncidentDiagnostics struct {
 	ICMPReachable *bool  `json:"icmp_reachable"`  // whether host replied to ICMP echo
 	ICMPRttMs     *int   `json:"icmp_rtt_ms"`     // round-trip time in ms; null when unreachable
 	RootCauseHint string `json:"root_cause_hint"` // enum: icmp_unavailable|host_unreachable|service_down|""
+
+	// Database health frozen at incident creation (spec 088). Answers "how was
+	// this database when the check broke" -- distinct from ResourceHealth, which
+	// is overwritten on every check and answers "how is it right now". All four
+	// are null for any incident on a monitor that is not a database.
+	DbConnectionsActive     *int64   `json:"db_connections_active,omitempty"`
+	DbConnectionsMax        *int64   `json:"db_connections_max,omitempty"`
+	DbLongestQuerySeconds   *float64 `json:"db_longest_query_seconds,omitempty"`
+	DbReplicationLagSeconds *float64 `json:"db_replication_lag_seconds,omitempty"`
 }
 
 // WithICMP merges ICMP enrichment results into diagnostics.
@@ -958,4 +1036,130 @@ type HostMetricSample struct {
 	NetIn     int64
 	NetOut    int64
 	Disks     []DiskUsage
+}
+
+// HostEvent is what the kernel reported about processes on a host during one
+// collection interval (spec 090). One row per kind per interval, carrying how
+// many reports it aggregates: an out-of-memory storm is one event with
+// Occurrences=200, not two hundred events.
+//
+// Context, never a signal: nothing here alerts, changes a status, or affects
+// uptime. Turning events into a causal sentence is a later work item.
+type HostEvent struct {
+	Base
+	HostID string
+	// OccurredAt is when the KERNEL reported it, as the agent read it -- not when
+	// the backend stored it. A host with a wrong clock produces wrongly-timed
+	// events, and that is visible rather than silently corrected.
+	OccurredAt time.Time
+	// Kind is an open set: store one that is not recognised rather than drop it,
+	// so an older backend paired with a newer agent loses nothing.
+	Kind string
+	// Source is which reader saw it. Recorded because the same kill can be seen by
+	// more than one, and because an operator investigating missing events needs to
+	// know which reader was working.
+	Source      string
+	Occurrences int
+	Detail      *HostEventDetail
+}
+
+// HostEventDetail holds the classified fields of a kernel event. Never the raw
+// kernel line: /dev/kmsg carries every subsystem's output in formats that change
+// between kernel versions, and storing it would mean keeping content nobody has
+// examined (spec 090, FR-027a).
+type HostEventDetail struct {
+	Process string `json:"process,omitempty"`
+	PID     int    `json:"pid,omitempty"`
+	Cgroup  string `json:"cgroup,omitempty"`
+	// DistinctProcesses is bounded. It exists to tell a storm killing forty copies
+	// of one process from one killing forty different processes -- materially
+	// different problems. DistinctTruncated says more were seen than the list
+	// holds, so a partial list is never read as complete.
+	DistinctProcesses []string `json:"distinct_processes,omitempty"`
+	DistinctTruncated bool     `json:"distinct_truncated,omitempty"`
+}
+
+// ResourceHealth is the latest database health for one monitor (spec 088). At
+// most one per monitor, replaced on every check and deleted when a check collects
+// nothing, so stale figures never pass as current. Storage is therefore constant
+// per monitor and needs no retention job.
+//
+// Held in its own table rather than on the monitor row: that table is wide and
+// read on every list endpoint under a benchmark gate, and these columns are null
+// for every monitor that is not a database.
+type ResourceHealth struct {
+	ResourceID  string
+	CollectedAt time.Time
+	// The same four independently nullable metrics DatabaseHealth carries, with
+	// the same meaning and the same units.
+	ConnectionsActive     *int64
+	ConnectionsMax        *int64
+	LongestQuerySeconds   *float64
+	ReplicationLagSeconds *float64
+	PrivilegeLimited      bool
+	UnsupportedVersion    bool
+}
+
+// HostContextResolution says how much the figures in a HostContext can be
+// trusted. It is derived from the configured raw-sample window, never from the
+// samples themselves: the agent's reporting interval is configurable, so a host
+// natively reporting once a minute would otherwise be mislabelled as degraded
+// while its data is in fact intact (spec 089, FR-007a).
+type HostContextResolution string
+
+const (
+	// HostContextFull means the whole window is more recent than the configured
+	// raw-sample window, so every sample is at the agent's native rate.
+	HostContextFull HostContextResolution = "full"
+	// HostContextReduced means the window is older than that threshold, or
+	// straddles it, so retention may have thinned the samples to one per minute.
+	// The marker errs toward reduced: understating confidence is harmless,
+	// overstating it is not.
+	HostContextReduced HostContextResolution = "reduced"
+)
+
+// The incident correlation window (spec 089, FR-002; reused unchanged by spec
+// 091, FR-004). What "around the moment the incident opened" means, for every
+// surface that asks.
+//
+// It lives here, in the domain, rather than in the service that first needed it,
+// because a second definition would mean two answers to the same question and
+// the one an operator saw would depend on which page they were looking at. It is
+// asymmetric on purpose: a cause precedes its effect far more often than it
+// follows it, but a check confirmed slightly before the kernel finished
+// reporting is common enough to be worth a minute of slack.
+//
+// Constants, not configuration: the bounds are part of the response contract,
+// and changing them after the interface ships means re-testing every fixture.
+const (
+	HostContextWindowBefore = 5 * time.Minute
+	HostContextWindowAfter  = 1 * time.Minute
+)
+
+// HostContext is what a monitor's host was doing around the moment an incident
+// opened. It is computed on read from samples the agent already streamed, never
+// persisted, and it is nil — not zero-filled — whenever there is nothing to say:
+// no host attached, no samples in the window, out of retention, or a failed
+// lookup (spec 089, FR-010).
+type HostContext struct {
+	HostID      string
+	HostName    string
+	PeakCPUPct  float64
+	PeakMemPct  float64
+	WorstDisk   *DiskUsage // nil when the host reported no mounts; does not suppress the rest
+	SampleCount int        // always >= 1 when the context is non-nil
+	Resolution  HostContextResolution
+	WindowFrom  time.Time
+	WindowTo    time.Time // min(startedAt+after, now) — may be short while the window is still elapsing
+}
+
+// HostMetricsWindowAggregate is what the repository returns for a correlation
+// window: the peaks reduced by the database, and the disk documents for the same
+// window, which are decoded in Go because no query in this codebase reaches
+// inside stored JSON on either dialect (spec 089, FR-021a).
+type HostMetricsWindowAggregate struct {
+	PeakCPUPct  float64
+	PeakMemPct  float64
+	SampleCount int
+	Disks       [][]DiskUsage
 }

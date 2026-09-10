@@ -1,3 +1,5 @@
+import type { HostEvent } from './host'
+
 /**
  * Resource metadata containing SSL and domain information
  */
@@ -42,6 +44,8 @@ export interface Resource {
   response_times?: ResponseTime[] // Response time history
   metadata?: ResourceMetadata // SSL and domain metadata
   metadata_pending?: boolean // true when backend enrichment is in progress
+  /** Latest database health; detail path only, null on non-database monitors (spec 088) */
+  database_health?: DatabaseHealth | null
   flap_detection_enabled?: boolean
   flap_threshold?: number
   flap_window_seconds?: number
@@ -216,11 +220,68 @@ export interface IncidentDiagnostics {
   keyword?: string | null
   keyword_mode?: string | null
   keyword_found?: boolean | null
+
+  // Database health frozen at incident creation (spec 088). All four null on any
+  // incident whose monitor is not a PostgreSQL or MySQL check. Distinct from the
+  // monitor page's database_health, which is the CURRENT value and moves.
+  db_connections_active?: number | null
+  db_connections_max?: number | null
+  db_longest_query_seconds?: number | null
+  db_replication_lag_seconds?: number | null
 }
 
 /**
  * Incident represents a detected downtime event
  */
+/** A single mount and its utilisation percentage. */
+export interface WorstDisk {
+  mount: string
+  used_pct: number
+}
+
+/**
+ * Host context attached to an incident. `resolution` says how much the peaks can
+ * be trusted: `full` when every sample is at the agent's native rate, `reduced`
+ * when retention has thinned them to one per minute. Treat any unknown value as
+ * `reduced` -- the conservative reading.
+ */
+export interface HostContext {
+  host_id: string
+  host_name: string
+  peak_cpu_pct: number
+  peak_mem_pct: number
+  /** Null when the host reported no mounts; never suppresses the other figures. */
+  worst_disk?: WorstDisk | null
+  /** Always >= 1 when the object is present. */
+  sample_count: number
+  resolution: 'full' | 'reduced'
+  window_from: string
+  /** May be earlier than the nominal window end while the window is still elapsing. */
+  window_to: string
+}
+
+/**
+ * A database monitor's latest self-reported health (spec 088). Every metric is
+ * independently nullable and absence is meaningful: null because the credential
+ * cannot read it, because the value does not apply, or because the server is too
+ * old -- never because collection guessed.
+ */
+export interface DatabaseHealth {
+  /** Present together with connections_max or not at all: a ratio needs the pair. */
+  connections_active?: number | null
+  connections_max?: number | null
+  /** Age of the oldest running statement, in seconds. Its duration only -- never its text. */
+  longest_query_seconds?: number | null
+  /** Null when the instance is not replicating. Never 0, which would mean "in sync". */
+  replication_lag_seconds?: number | null
+  /** A grant would unlock more. Show it as an opportunity, never as a failure. */
+  privilege_limited: boolean
+  /** Server below PostgreSQL 12 / MySQL 8.0. Different advice than a missing grant. */
+  unsupported_version: boolean
+  /** When the producing check ran. Its age distinguishes current figures from a paused monitor's. */
+  collected_at: string
+}
+
 export interface Incident {
   id: string
   resource_id: string
@@ -231,9 +292,62 @@ export interface Incident {
   resolved_at?: string | null
   details?: string
   diagnostics?: IncidentDiagnostics
+  /**
+   * What the monitor's host was doing around the moment the incident opened
+   * (spec 089). Null whenever there is nothing to say: no host attached, no
+   * samples in the correlation window, out of retention, or a failed lookup.
+   * Absence is always null -- never a zero-filled object.
+   */
+  host_context?: HostContext | null
+  /**
+   * One sentence linking this failure to what the kernel reported on the same
+   * host at nearly the same time (spec 091). Absent whenever no kernel event
+   * fell in the correlation window -- which is the normal case.
+   *
+   * It states a co-occurrence, not a mechanism: `text` may read as an
+   * explanation because a human knows a sentence is an interpretation, but there
+   * is no score, no confidence and no causal identifier to treat as fact. Both
+   * timestamps are always present so a reader can overrule it.
+   */
+  explanation?: IncidentExplanation | null
+  /**
+   * The kernel events inside the correlation window, newest first. Present even
+   * when `explanation` is absent: an event of a kind this interface does not
+   * recognise is still worth showing.
+   *
+   * Absent (rather than empty) when the monitor has no host, or on the list
+   * endpoint, which never loads them.
+   */
+  host_events?: HostEvent[]
   event_steps?: IncidentEventStep[]
   created_at: string
   updated_at: string
+}
+
+/**
+ * Why an incident and a kernel event are shown together (spec 091).
+ *
+ * Derived on every read, never stored, so improving the wording improves every
+ * past incident -- and the same incident always reads the same.
+ */
+export interface IncidentExplanation {
+  /** The rendered sentence. Produced by the API so the wording exists once. */
+  text: string
+  host_id: string
+  host_name: string
+  /** When the failure was confirmed. */
+  incident_at: string
+  /** What the check observed. */
+  cause: string
+  /** The event the sentence names. Its kind is always one the API can phrase. */
+  event: HostEvent
+  /** Whether the event happened at or before the failure. Two clocks, not a claim. */
+  precedes: boolean
+  /** Other events in the window, unrecognised kinds included. Events, not reports. */
+  other_events: number
+  window_from: string
+  /** May be earlier than the nominal end while the window is still elapsing. */
+  window_to: string
 }
 
 /**
@@ -909,6 +1023,8 @@ export type {
 export type {
   DiskUsage,
   Host,
+  HostEvent,
+  HostEventDetail,
   HostMetricSample,
   HostCredentialResult,
   RegisterHostResult,

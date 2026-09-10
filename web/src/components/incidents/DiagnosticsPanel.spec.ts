@@ -91,3 +91,57 @@ describe('DiagnosticsPanel', () => {
     expect(w.text()).toContain('Show less')
   })
 })
+
+// --- Database health at failure (spec 088, US2) ---
+
+describe('DiagnosticsPanel database health', () => {
+  const withDb = (over: Record<string, unknown> = {}) =>
+    mount(DiagnosticsPanel, {
+      props: {
+        diagnostics: {
+          ...diag(),
+          db_connections_active: 200,
+          db_connections_max: 200,
+          db_longest_query_seconds: 890.2,
+          db_replication_lag_seconds: 4.5,
+          ...over,
+        },
+      },
+      global: { stubs },
+    })
+
+  // T036 -- the rows render when the incident carries them.
+  it('shows what the database was doing when the check broke', () => {
+    const block = withDb().get('[data-test="diagnostics-db-health"]')
+    expect(block.text()).toContain('200 / 200')
+    expect(block.text()).toContain('15 min')
+    expect(block.text()).toContain('4.5 s')
+  })
+
+  // T036 / FR-019 -- absent means absent. A non-database incident renders no
+  // block at all: not zeroed, not placeholdered, not an empty container.
+  it('renders no block at all when the incident is not a database one', () => {
+    const w = mount(DiagnosticsPanel, { props: { diagnostics: diag() }, global: { stubs } })
+    expect(w.find('[data-test="diagnostics-db-health"]').exists()).toBe(false)
+    expect(w.text()).not.toContain('Database at failure')
+  })
+
+  // Each field is independently nullable: a check that read only saturation shows
+  // only saturation.
+  it('shows only the fields the check actually read', () => {
+    const block = withDb({
+      db_longest_query_seconds: null,
+      db_replication_lag_seconds: null,
+    }).get('[data-test="diagnostics-db-health"]')
+    expect(block.text()).toContain('200 / 200')
+    expect(block.text()).not.toContain('Longest query')
+    expect(block.text()).not.toContain('Replication lag')
+  })
+
+  // The saturation row needs both halves, exactly as on the monitor page.
+  it('hides saturation when only half the pair survived', () => {
+    const w = withDb({ db_connections_max: null })
+    expect(w.find('[data-test="diagnostics-db-health"]').exists()).toBe(true)
+    expect(w.get('[data-test="diagnostics-db-health"]').text()).not.toContain('Connections')
+  })
+})

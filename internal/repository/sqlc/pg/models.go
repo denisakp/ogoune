@@ -126,6 +126,16 @@ type HostCredential struct {
 	LastUsedAt pgtype.Timestamptz `json:"last_used_at"`
 }
 
+type HostEvent struct {
+	ID          string             `json:"id"`
+	HostID      string             `json:"host_id"`
+	OccurredAt  pgtype.Timestamptz `json:"occurred_at"`
+	Kind        string             `json:"kind"`
+	Source      string             `json:"source"`
+	Occurrences int32              `json:"occurrences"`
+	Detail      []byte             `json:"detail"`
+}
+
 type HostMetric struct {
 	ID        string             `json:"id"`
 	HostID    string             `json:"host_id"`
@@ -149,34 +159,38 @@ type Incident struct {
 }
 
 type IncidentDiagnostic struct {
-	ID                string             `json:"id"`
-	CreatedAt         pgtype.Timestamptz `json:"created_at"`
-	UpdatedAt         pgtype.Timestamptz `json:"updated_at"`
-	IncidentID        string             `json:"incident_id"`
-	RequestMethod     string             `json:"request_method"`
-	RequestUrl        string             `json:"request_url"`
-	RequestHeaders    string             `json:"request_headers"`
-	RequestTimeout    int32              `json:"request_timeout"`
-	HttpStatusCode    int32              `json:"http_status_code"`
-	ResponseHeaders   string             `json:"response_headers"`
-	ResponseBody      string             `json:"response_body"`
-	ResponseSize      int32              `json:"response_size"`
-	FailureType       string             `json:"failure_type"`
-	ErrorMessage      string             `json:"error_message"`
-	ErrorSummary      string             `json:"error_summary"`
-	TotalDuration     int32              `json:"total_duration"`
-	DnsDuration       int32              `json:"dns_duration"`
-	TlsDuration       int32              `json:"tls_duration"`
-	FirstByteDuration int32              `json:"first_byte_duration"`
-	BodyTruncated     bool               `json:"body_truncated"`
-	BodyEncoded       bool               `json:"body_encoded"`
-	IcmpAvailable     pgtype.Bool        `json:"icmp_available"`
-	IcmpReachable     pgtype.Bool        `json:"icmp_reachable"`
-	IcmpRttMs         pgtype.Int4        `json:"icmp_rtt_ms"`
-	RootCauseHint     string             `json:"root_cause_hint"`
-	Keyword           pgtype.Text        `json:"keyword"`
-	KeywordMode       pgtype.Text        `json:"keyword_mode"`
-	KeywordFound      pgtype.Bool        `json:"keyword_found"`
+	ID                      string             `json:"id"`
+	CreatedAt               pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt               pgtype.Timestamptz `json:"updated_at"`
+	IncidentID              string             `json:"incident_id"`
+	RequestMethod           string             `json:"request_method"`
+	RequestUrl              string             `json:"request_url"`
+	RequestHeaders          string             `json:"request_headers"`
+	RequestTimeout          int32              `json:"request_timeout"`
+	HttpStatusCode          int32              `json:"http_status_code"`
+	ResponseHeaders         string             `json:"response_headers"`
+	ResponseBody            string             `json:"response_body"`
+	ResponseSize            int32              `json:"response_size"`
+	FailureType             string             `json:"failure_type"`
+	ErrorMessage            string             `json:"error_message"`
+	ErrorSummary            string             `json:"error_summary"`
+	TotalDuration           int32              `json:"total_duration"`
+	DnsDuration             int32              `json:"dns_duration"`
+	TlsDuration             int32              `json:"tls_duration"`
+	FirstByteDuration       int32              `json:"first_byte_duration"`
+	BodyTruncated           bool               `json:"body_truncated"`
+	BodyEncoded             bool               `json:"body_encoded"`
+	IcmpAvailable           pgtype.Bool        `json:"icmp_available"`
+	IcmpReachable           pgtype.Bool        `json:"icmp_reachable"`
+	IcmpRttMs               pgtype.Int4        `json:"icmp_rtt_ms"`
+	RootCauseHint           string             `json:"root_cause_hint"`
+	Keyword                 pgtype.Text        `json:"keyword"`
+	KeywordMode             pgtype.Text        `json:"keyword_mode"`
+	KeywordFound            pgtype.Bool        `json:"keyword_found"`
+	DbConnectionsActive     pgtype.Int8        `json:"db_connections_active"`
+	DbConnectionsMax        pgtype.Int8        `json:"db_connections_max"`
+	DbLongestQuerySeconds   pgtype.Float8      `json:"db_longest_query_seconds"`
+	DbReplicationLagSeconds pgtype.Float8      `json:"db_replication_lag_seconds"`
 }
 
 type IncidentEventStep struct {
@@ -354,6 +368,17 @@ type ResourceCredential struct {
 	Options    []byte             `json:"options"`
 	CreatedAt  pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt  pgtype.Timestamptz `json:"updated_at"`
+}
+
+type ResourceHealth struct {
+	ResourceID            string             `json:"resource_id"`
+	CollectedAt           pgtype.Timestamptz `json:"collected_at"`
+	ConnectionsActive     pgtype.Int8        `json:"connections_active"`
+	ConnectionsMax        pgtype.Int8        `json:"connections_max"`
+	LongestQuerySeconds   pgtype.Float8      `json:"longest_query_seconds"`
+	ReplicationLagSeconds pgtype.Float8      `json:"replication_lag_seconds"`
+	PrivilegeLimited      bool               `json:"privilege_limited"`
+	UnsupportedVersion    bool               `json:"unsupported_version"`
 }
 
 type ResourceNotificationChannel struct {

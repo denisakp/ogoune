@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/denisakp/ogoune/internal/correlation"
 	"github.com/denisakp/ogoune/internal/domain"
 	"github.com/denisakp/ogoune/internal/port"
 	"github.com/denisakp/ogoune/internal/repository"
@@ -37,6 +38,10 @@ type IncidentService struct {
 	updates              IncidentUpdateSeeder
 	notificationEmitter  NotificationEmitter
 	client               *asynq.Client
+	// correlator attaches the causal narrative to down notifications
+	// (spec 091). Optional: nil means alerts read exactly as they did before,
+	// and no query is spent finding that out.
+	correlator *correlation.Correlator
 }
 
 // NotificationEmitter is the optional in-app notification-feed producer.
@@ -62,6 +67,35 @@ func NewIncidentService(
 		diagnostics:          diagnostics,
 		client:               client,
 	}
+}
+
+// WithCorrelator wires the optional causal-narrative correlator (spec 091).
+// Attached rather than passed in, so both existing constructor call sites keep
+// their signatures.
+func (s *IncidentService) WithCorrelator(c *correlation.Correlator) *IncidentService {
+	s.correlator = c
+	return s
+}
+
+// explainIncident resolves the causal narrative for a down alert, once.
+//
+// Called once per incident rather than once per channel: the answer does not
+// depend on the channel, and paying for it per channel would multiply the cost
+// by a number the operator controls.
+//
+// It never waits for a correlating event and never schedules a follow-up. An
+// event that happened before the failure can still reach the backend after this
+// alert goes out, because the agent pushes on its own interval; when that
+// happens the incident page carries the explanation and the alert does not, and
+// that divergence is the designed outcome (FR-011a-c). Delaying every down
+// notification -- including the majority whose monitor has no host at all -- to
+// close a gap the confirmation window already makes narrow would be a worse
+// trade.
+func (s *IncidentService) explainIncident(ctx context.Context, incident *domain.Incident) *domain.IncidentExplanation {
+	if s.correlator == nil {
+		return nil
+	}
+	return s.correlator.ForIncident(ctx, incident).Explanation
 }
 
 // SetUpdateSeeder wires the optional incident-update auto-seeder. When nil,
@@ -192,6 +226,10 @@ func (s *IncidentService) CreateIncident(ctx context.Context, r *domain.Resource
 		return nil
 	}
 
+	// Resolved after the channel check above, so an incident nobody is notified
+	// about costs nothing, and before the loop, so it is resolved once.
+	explanation := s.explainIncident(ctx, incident)
+
 	// Dispatch notifications to all configured channels
 	for _, channel := range channels {
 		notificationEvent := &domain.NotificationEvent{
@@ -206,7 +244,10 @@ func (s *IncidentService) CreateIncident(ctx context.Context, r *domain.Resource
 			eventCreated = true
 		}
 
-		err := s.dispatchNotification(ctx, notifier.NotificationPayload{Incident: incident}, channel)
+		err := s.dispatchNotification(ctx, notifier.NotificationPayload{
+			Incident:    incident,
+			Explanation: explanation,
+		}, channel)
 
 		// Create event step for notification attempt (regardless of success/failure)
 		statusMsg := "sent"

@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/denisakp/ogoune/internal/domain"
+	"github.com/denisakp/ogoune/internal/narrative"
 	gomail "gopkg.in/mail.v2"
 )
 
@@ -38,6 +39,11 @@ type TemplateData struct {
 	ErrorSummary string
 	Keyword      string
 	KeywordMode  string
+	// Explanation is the causal narrative, already rendered (spec 091). Empty
+	// whenever there is nothing to say, and the template must then emit nothing
+	// at all -- no empty element, no stray whitespace. Asserted against a
+	// pre-feature capture in golden_incident_test.go.
+	Explanation string
 }
 
 type ComponentTemplateData struct {
@@ -130,7 +136,7 @@ func (n *SMTPNotifier) Send(ctx context.Context, payload NotificationPayload) er
 		htmlBody = n.generateOperatorEmailHTML(payload.Operator)
 	case payload.Incident != nil:
 		incident := *payload.Incident
-		subject, htmlBody = n.incidentEmailContent(incident)
+		subject, htmlBody = n.incidentEmailContent(incident, payload.Explanation)
 	default:
 		return fmt.Errorf("notification payload missing incident, component, expiry, flapping, reminder, report, or operator")
 	}
@@ -152,7 +158,7 @@ func (n *SMTPNotifier) Send(ctx context.Context, payload NotificationPayload) er
 	return nil
 }
 
-func (n *SMTPNotifier) incidentEmailContent(incident domain.Incident) (string, string) {
+func (n *SMTPNotifier) incidentEmailContent(incident domain.Incident, explanation *domain.IncidentExplanation) (string, string) {
 	isResolved := incident.ResolvedAt != nil
 
 	if isResolved {
@@ -161,7 +167,10 @@ func (n *SMTPNotifier) incidentEmailContent(incident domain.Incident) (string, s
 	}
 
 	subject := fmt.Sprintf("🔴 ALERT: %s is down", incident.Resource.Name)
-	return subject, n.generateDownEmailHTML(incident)
+	// The subject is untouched by correlation. An operator triages a mailbox by
+	// subject line, and rewriting it would change how every existing filter and
+	// habit behaves for a gain the body already delivers.
+	return subject, n.generateDownEmailHTML(incident, explanation)
 }
 
 func (n *SMTPNotifier) componentSubject(component *ComponentNotification) string {
@@ -176,8 +185,14 @@ func (n *SMTPNotifier) componentSubject(component *ComponentNotification) string
 }
 
 // generateDownEmailHTML creates an HTML email for resource down events.
-func (n *SMTPNotifier) generateDownEmailHTML(incident domain.Incident) string {
-	data := &TemplateData{Incident: incident}
+//
+// The explanation, when there is one, is rendered above the incident's own
+// details: an operator woken by this email should read what happened before
+// reading which fields describe it (spec 091, FR-011). When there is none the
+// template emits nothing, and the body is byte-identical to its pre-feature
+// form.
+func (n *SMTPNotifier) generateDownEmailHTML(incident domain.Incident, explanation *domain.IncidentExplanation) string {
+	data := &TemplateData{Incident: incident, Explanation: narrative.Sentence(explanation)}
 	if incident.Resource.Type == domain.ResourceKeyword {
 		if incident.Resource.Keyword != nil {
 			data.Keyword = *incident.Resource.Keyword

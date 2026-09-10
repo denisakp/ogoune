@@ -45,7 +45,14 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
-	streamer := NewStreamer(cfg, newGopsutilCollector(version))
+	// Kernel event capture (spec 090). Best-effort: newKernelSources returns
+	// nothing on a host that cannot read its kernel log -- the common case in a
+	// container -- and the collector reports that once, at startup, then never
+	// mentions it again. Metrics are unaffected either way.
+	events := newEventCollector(newKernelSources())
+	defer events.Close()
+
+	streamer := NewStreamer(cfg, newGopsutilCollector(version).WithKernelEvents(events))
 	if err := streamer.Run(ctx); err != nil && !errors.Is(err, context.Canceled) {
 		slog.Error("ogoune-agent stopped", "error", err)
 		os.Exit(1)

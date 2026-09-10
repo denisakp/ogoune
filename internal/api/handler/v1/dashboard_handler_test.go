@@ -13,9 +13,9 @@ import (
 )
 
 type stubDashboardService struct {
-	list    []*domain.Dashboard
-	one     *domain.Dashboard
-	err     error
+	list []*domain.Dashboard
+	one  *domain.Dashboard
+	err  error
 }
 
 func (s *stubDashboardService) List(context.Context, int, int) ([]*domain.Dashboard, error) {
@@ -47,8 +47,8 @@ func withID(r *http.Request, id string) *http.Request {
 func sampleDash() *domain.Dashboard {
 	return &domain.Dashboard{
 		Base: domain.Base{ID: "d1"}, OwnerID: "alice", OwnerName: "Alice", Name: "Prod",
-		Scope: domain.DashboardScope{Mode: domain.DashboardScopeModeTag},
-		Widgets: []domain.WidgetInstance{{ID: "w1", WidgetTypeID: domain.WidgetTypeUptimeStat, Position: 0}},
+		Scope:            domain.DashboardScope{Mode: domain.DashboardScopeModeTag},
+		Widgets:          []domain.WidgetInstance{{ID: "w1", WidgetTypeID: domain.WidgetTypeUptimeStat, Position: 0}},
 		DefaultTimeRange: "24h", RefreshInterval: "1m", Visibility: "team",
 	}
 }

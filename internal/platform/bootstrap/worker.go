@@ -7,6 +7,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/denisakp/ogoune/internal/correlation"
 	"github.com/denisakp/ogoune/internal/domain"
 	"github.com/denisakp/ogoune/internal/maintenance"
 	"github.com/denisakp/ogoune/internal/monitoring"
@@ -99,7 +100,7 @@ func initTimingWheelWorker(app *App, enrichmentService *service.EnrichmentServic
 		return
 	}
 
-	strategies := BuildStrategies()
+	strategies := BuildStrategies(app.MetricsRecorder)
 	executor := domain.NewCheckExecutor(strategies, app.MetricsRecorder)
 
 	incidentService := monitoring.NewIncidentService(
@@ -110,6 +111,10 @@ func initTimingWheelWorker(app *App, enrichmentService *service.EnrichmentServic
 		app.IncidentDiagnosticsRepo,
 		nil,
 	)
+	// The causal narrative on down alerts (spec 091). Wired at BOTH monitoring
+	// service construction sites in this file: wiring one would give the
+	// timing-wheel and Asynq runtimes different alert content.
+	incidentService = incidentService.WithCorrelator(correlation.New(app.HostEventRepo, app.HostRepo))
 	if app.IncidentUpdateService != nil {
 		incidentService.SetUpdateSeeder(app.IncidentUpdateService)
 	}
@@ -118,13 +123,35 @@ func initTimingWheelWorker(app *App, enrichmentService *service.EnrichmentServic
 	}
 	app.DetectorIncidentSvc = incidentService
 
-	monitoringHandler := worker.NewMonitoringTaskHandler(app.ResourceRepo, app.MonitoringActivityRepo, app.MaintenanceRepo, app.IncidentDiagnosticsRepo, executor, incidentService, app.ComponentService, app.ConfirmationScheduler)
+	monitoringHandler := worker.NewMonitoringTaskHandler(app.ResourceRepo, app.MonitoringActivityRepo, app.MaintenanceRepo, app.IncidentDiagnosticsRepo, executor, incidentService, app.ComponentService, app.ConfirmationScheduler).
+		WithResourceHealth(app.ResourceHealthRepo)
 
 	startTimingWheelDispatcher(tw, monitoringHandler, app.SchedulerCfg.TimingWheel.MaxWorkers)
 	startTimingWheelExpiryCheck(app, enrichmentService)
 	startTimingWheelNotificationRetention(app)
 	startTimingWheelReportCheck(app)
 	startTimingWheelHostMetricsRetention(app)
+	startTimingWheelHostEventsRetention(app)
+}
+
+// startTimingWheelHostEventsRetention runs the daily kernel event purge
+// in-process: once at startup, then daily. Deletion only, never decimation.
+func startTimingWheelHostEventsRetention(app *App) {
+	if app.HostEventRepo == nil {
+		return
+	}
+	handler := worker.NewHostEventsRetentionHandler(app.HostEventRepo, app.Cfg.HostEventsRetentionDays)
+	_ = handler.ProcessTask(context.Background(), asynq.NewTask(worker.TypeHostEventsRetention, nil)) // startup catch-up
+	go func() {
+		ticker := time.NewTicker(24 * time.Hour)
+		defer ticker.Stop()
+		for range ticker.C {
+			if err := handler.ProcessTask(context.Background(), asynq.NewTask(worker.TypeHostEventsRetention, nil)); err != nil {
+				slog.Error("TimingWheel host:events:retention failed", "error", err)
+			}
+		}
+	}()
+	slog.Info("TimingWheel daily host events retention scheduled")
 }
 
 // startTimingWheelHostMetricsRetention runs the daily host-metrics retention
@@ -285,7 +312,7 @@ func bootstrapAsynqScheduling(app *App) {
 func initAsynqProcessor(app *App, enrichmentService *service.EnrichmentService) {
 	slog.Info("initializing background worker for Asynq")
 
-	strategies := BuildStrategies()
+	strategies := BuildStrategies(app.MetricsRecorder)
 	executor := domain.NewCheckExecutor(strategies, app.MetricsRecorder)
 
 	incidentService := monitoring.NewIncidentService(
@@ -296,6 +323,10 @@ func initAsynqProcessor(app *App, enrichmentService *service.EnrichmentService) 
 		app.IncidentDiagnosticsRepo,
 		app.AsynqClient,
 	)
+	// The causal narrative on down alerts (spec 091). Wired at BOTH monitoring
+	// service construction sites in this file: wiring one would give the
+	// timing-wheel and Asynq runtimes different alert content.
+	incidentService = incidentService.WithCorrelator(correlation.New(app.HostEventRepo, app.HostRepo))
 	if app.IncidentUpdateService != nil {
 		incidentService.SetUpdateSeeder(app.IncidentUpdateService)
 	}
@@ -304,7 +335,8 @@ func initAsynqProcessor(app *App, enrichmentService *service.EnrichmentService) 
 	}
 	app.DetectorIncidentSvc = incidentService
 
-	monitoringHandler := worker.NewMonitoringTaskHandler(app.ResourceRepo, app.MonitoringActivityRepo, app.MaintenanceRepo, app.IncidentDiagnosticsRepo, executor, incidentService, app.ComponentService, app.ConfirmationScheduler)
+	monitoringHandler := worker.NewMonitoringTaskHandler(app.ResourceRepo, app.MonitoringActivityRepo, app.MaintenanceRepo, app.IncidentDiagnosticsRepo, executor, incidentService, app.ComponentService, app.ConfirmationScheduler).
+		WithResourceHealth(app.ResourceHealthRepo)
 	maintenanceTaskHandler := maintenance.NewTaskHandler(app.MaintenanceRepo, &maintenance.AsynqClientAdapter{Client: app.AsynqClient})
 
 	expiryNotificationLogRepo := app.ExpiryNotificationLogRepo

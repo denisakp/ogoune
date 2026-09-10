@@ -56,8 +56,9 @@ sha256sum -c SHA256SUMS --ignore-missing
 sudo install -m755 ogoune-agent-linux-arm64 /usr/local/bin/ogoune-agent
 ```
 
-(Building from source is still possible — `make build-agent` → `dist/ogoune-agent`
-— but most operators just download the release binary.)
+(Building from source is still possible — `make build-agent` → `dist/ogoune-agent`,
+which always targets Linux regardless of the machine you build on — but most
+operators just download the release binary.)
 
 **2. Write the config** at `/etc/ogoune/agent.cfg` (mode `0600` — it holds the
 secret). This is an **env-style `KEY=value`** file: the same file serves as the
@@ -207,7 +208,134 @@ Configure it on the **server** (not the agent):
 | `NOTIFICATION_ESCALATION_SCAN_INTERVAL` | `15m` | How often the server scans the feed for unread alerts |
 | `NOTIFICATION_ESCALATION_UNREAD_AGE` | `30m` | How long an actionable notification stays unread before it's escalated |
 
+## Metrics retention, and how far back incidents can look
+
+The server keeps every sample the agent sends, then thins and finally purges it:
+
+| Setting | Default | What it governs |
+|---|---|---|
+| `HOST_METRICS_RAW_WINDOW` | `168h` (7 days) | samples newer than this are kept exactly as reported |
+| `HOST_METRICS_RETENTION_DAYS` | `30` | samples older than this are deleted |
+
+Between the two, samples are thinned to at most one per minute. A daily job does both,
+with a catch-up run at startup.
+
+This is also what decides how much an **incident's host context** can tell you. When an
+incident opens on a monitor attached to a host, the incident page shows what that machine
+was doing around the failure — peak CPU, peak memory, the busiest mount. Those figures are:
+
+- **exact** for incidents inside the raw window (7 days by default);
+- **minute-level** between the raw window and the purge horizon, and labelled as such on
+  the page so you never read an approximation as an exact peak;
+- **absent** past the purge horizon — the block simply does not appear.
+
+Budget roughly **20 MB per host** at the agent's default 10-second interval with these
+defaults. On a large fleet, lower both knobs; the cost is seeing less history on older
+incidents, and nothing else. Existing installations keep whatever their `.env` already
+sets — only the defaults changed.
+
+> **Re-attaching a monitor rewrites what its past incidents show.** The monitor-to-host
+> link is read when you open the incident, not frozen when it happened. Point a monitor at
+> a different host and its older incidents will display the new host's metrics. Detach
+> rather than re-point if an incident's history matters to you.
+
+## Kernel events
+
+Beyond metrics, the agent reports two things the kernel does that a health check
+cannot see: **out-of-memory kills** and **segmentation faults**. They appear on
+the host's page, timestamped when the kernel reported them, so you can line one
+up against an incident and see that the site did not merely fail — it failed
+*because* the kernel killed the process behind it.
+
+**No eBPF, no kernel module, no extra capability.** The agent reads two files the
+operating system already publishes: `/dev/kmsg` and the cgroup v2 memory
+accounting.
+
+### It is often unavailable, and that is fine
+
+A container usually cannot read `/dev/kmsg` without `--privileged`, and running
+the agent in a container is the first option this page describes. So for many
+installations kernel capture will simply be off:
+
+- the agent says so **once**, at startup, and never mentions it again;
+- **metrics stream exactly as before** — capture is best-effort, metrics are not;
+- the cgroup source may still catch out-of-memory kills even where the kernel log
+  is unreadable, so you often get the most valuable signal anyway.
+
+If you want full capture in a container, grant it access to the kernel log
+(`--privileged`, or an explicit device mapping). Nothing about the monitor's
+behaviour changes either way.
+
+### Segmentation faults need a kernel setting
+
+Out-of-memory kills are always logged. **Segmentation faults usually are not.**
+Most distributions ship with `debug.exception-trace` set to `0`, and a kernel
+that is not asked to report userspace faults simply says nothing — which is
+indistinguishable from a healthy machine.
+
+To capture them:
+
+```bash
+sudo sysctl -w debug.exception-trace=1
+# persist it
+echo 'debug.exception-trace = 1' | sudo tee /etc/sysctl.d/60-ogoune-agent.conf
+```
+
+Leave it off if you would rather not have userspace faults in your kernel log;
+out-of-memory capture is unaffected either way.
+
+### Storms are one line, not two hundred
+
+A saturated host can produce dozens of kills in seconds. The agent aggregates them
+per kind per interval: you see one entry saying it happened 37 times, with the
+distinct processes affected, rather than 37 identical rows. If more distinct
+processes were affected than the list holds, the entry says so rather than
+quietly showing a partial list as if it were complete.
+
+### One kill, one entry
+
+The kernel is talkative about a single death: a cgroup out-of-memory kill writes
+two lines to the kernel log *and* increments the cgroup counter the agent also
+reads. Ogoune reports **one** event for it, not three. The two readers are
+reconciled rather than added, so a count you see is a count of processes, not of
+log lines.
+
+### What is stored, and what is not
+
+Only classified fields: the kind, when it happened, the process name and
+identifier, and the cgroup when the kernel named one. **The raw kernel log line is
+never stored.** `/dev/kmsg` carries every subsystem's output, in formats that
+change between kernel versions — keeping it would mean holding on to content
+nobody has examined.
+
+### Restarting the agent changes nothing
+
+The kernel log holds everything since boot. The agent starts reading from the
+present, never from the beginning, so restarting it — a package upgrade, a reboot,
+a container reschedule — does not replay old kills as if they had just happened.
+Events that occur while the agent is down are lost, and that is deliberate: a
+missing event is better than a fabricated one.
+
+### Where they show up
+
+On the host's own page, and — when a monitor attached to this host has an incident
+in the same few minutes — as a one-sentence explanation at the top of that
+incident and in its notification. See
+[what happened around it](/guide/incidents#what-happened-around-it).
+
+### Retention
+
+Kernel events are kept for `HOST_EVENTS_RETENTION_DAYS` days (90 by default) and
+are **never thinned**, unlike metrics. Metrics are dense and individually cheap,
+so decimating them costs nothing; a kernel event is rare and discrete, and it is
+exactly what you want to still have when you reopen an old incident.
+
 ## Scope
 
-Linux only for now. Windows/macOS agents and kernel-level (eBPF) capture are
-planned separately.
+**Linux only.** This is a settled decision, not a temporary limitation: the packaging is a systemd
+unit, the servers this targets run Linux, and macOS would need a launchd story while Windows would need
+a service wrapper — neither of which we can test. macOS and Windows agents are not planned.
+
+Kernel-event capture — OOMKills and segfaults, read from `/dev/kmsg` and cgroup v2 `memory.events` — is
+shipped and needs no eBPF; see [Kernel events](#kernel-events) above. Deeper kernel instrumentation
+(syscall latency, TCP retransmits, packet drops) does require eBPF and is deferred to a later horizon.

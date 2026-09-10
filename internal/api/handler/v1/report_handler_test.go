@@ -13,11 +13,11 @@ import (
 )
 
 type stubReportService struct {
-	settings   *domain.ReportSettings
-	saveErr    error
-	history    []*domain.ReportHistory
-	preview    *domain.ReportHistory
-	lastSaved  *domain.ReportSettings
+	settings  *domain.ReportSettings
+	saveErr   error
+	history   []*domain.ReportHistory
+	preview   *domain.ReportHistory
+	lastSaved *domain.ReportSettings
 }
 
 func (s *stubReportService) GetSettings(context.Context) (*domain.ReportSettings, error) {

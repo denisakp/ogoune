@@ -10,9 +10,9 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/denisakp/ogoune/internal/domain"
-	"github.com/denisakp/ogoune/pkg/crypto"
 	"github.com/denisakp/ogoune/internal/repository/internaltest"
 	"github.com/denisakp/ogoune/internal/repository/store"
+	"github.com/denisakp/ogoune/pkg/crypto"
 )
 
 const resourcePreloadTestKey = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
@@ -47,8 +47,8 @@ func TestResourceRepository_M2M_Channels_Transitions(t *testing.T) {
 
 		t.Run("0_to_N", func(t *testing.T) {
 			res := &domain.Resource{
-				Base:     domain.Base{ID: "ch-0-to-n", CreatedAt: time.Now()},
-				Name:     "0→N", Type: domain.ResourceHTTP, Target: "https://example.com",
+				Base: domain.Base{ID: "ch-0-to-n", CreatedAt: time.Now()},
+				Name: "0→N", Type: domain.ResourceHTTP, Target: "https://example.com",
 				IsActive: true,
 				NotificationChannels: []*domain.NotificationChannel{
 					{Base: domain.Base{ID: channelIDs[0]}},
@@ -64,8 +64,8 @@ func TestResourceRepository_M2M_Channels_Transitions(t *testing.T) {
 
 		t.Run("N_to_M_overlap", func(t *testing.T) {
 			res := &domain.Resource{
-				Base:     domain.Base{ID: "ch-n-to-m", CreatedAt: time.Now()},
-				Name:     "N→M", Type: domain.ResourceHTTP, Target: "https://example.com",
+				Base: domain.Base{ID: "ch-n-to-m", CreatedAt: time.Now()},
+				Name: "N→M", Type: domain.ResourceHTTP, Target: "https://example.com",
 				IsActive: true,
 				NotificationChannels: []*domain.NotificationChannel{
 					{Base: domain.Base{ID: channelIDs[0]}},
@@ -89,8 +89,8 @@ func TestResourceRepository_M2M_Channels_Transitions(t *testing.T) {
 
 		t.Run("N_to_0", func(t *testing.T) {
 			res := &domain.Resource{
-				Base:     domain.Base{ID: "ch-n-to-0", CreatedAt: time.Now()},
-				Name:     "N→0", Type: domain.ResourceHTTP, Target: "https://example.com",
+				Base: domain.Base{ID: "ch-n-to-0", CreatedAt: time.Now()},
+				Name: "N→0", Type: domain.ResourceHTTP, Target: "https://example.com",
 				IsActive: true,
 				NotificationChannels: []*domain.NotificationChannel{
 					{Base: domain.Base{ID: channelIDs[0]}},

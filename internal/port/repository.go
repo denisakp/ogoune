@@ -101,10 +101,51 @@ type HostCredentialRepository interface {
 	DeleteByHost(ctx context.Context, hostID string) error
 }
 
+// HostEventRepository persists kernel events reported by host agents (spec 090).
+//
+// Events have their own retention, longer than metrics and never thinned
+// (ADR 0011): metrics are dense and individually cheap, a kernel event is rare,
+// discrete, and is the point of the feature.
+type HostEventRepository interface {
+	Create(ctx context.Context, e *domain.HostEvent) error
+	// ListByHost returns a host's events newest first, bounded by limit.
+	ListByHost(ctx context.Context, hostID string, limit int) ([]*domain.HostEvent, error)
+	// ListInWindow returns a host's events that occurred within [from, to),
+	// newest first, bounded by limit.
+	//
+	// Half-open on purpose, matching how the incident host context treats the
+	// same window: an event landing exactly on the far edge belongs to one
+	// window and not to two.
+	ListInWindow(ctx context.Context, hostID string, from, to time.Time, limit int) ([]*domain.HostEvent, error)
+	DeleteOlderThan(ctx context.Context, cutoff time.Time) (int64, error)
+	DeleteByHost(ctx context.Context, hostID string) error
+}
+
+// ResourceHealthRepository persists the latest database health per monitor
+// (spec 088). No List: nothing ever enumerates this table, and it must never be
+// loaded on a monitor list path.
+type ResourceHealthRepository interface {
+	// Upsert replaces the monitor's record. There is at most one per monitor, so
+	// storage stays constant no matter how long a monitor runs.
+	Upsert(ctx context.Context, h *domain.ResourceHealth) error
+	// FindByResourceID returns nil, nil when the monitor has no record --
+	// absence is expressed by absence, never by a zero-filled struct.
+	FindByResourceID(ctx context.Context, resourceID string) (*domain.ResourceHealth, error)
+	// DeleteByResourceID clears the record when a check collected nothing, so
+	// stale figures never pass as current.
+	DeleteByResourceID(ctx context.Context, resourceID string) error
+}
+
 // HostMetricsRepository persists and prunes host metric samples.
 type HostMetricsRepository interface {
 	Insert(ctx context.Context, s *domain.HostMetricSample) error
 	ListInRange(ctx context.Context, hostID string, from, to time.Time) ([]*domain.HostMetricSample, error)
+	// AggregateWindow reduces a bounded time window to its peaks and sample count.
+	// The numeric peaks are computed by the database; the disk documents come back
+	// undecided so the caller can pick the worst mount (spec 089, FR-021/FR-021a).
+	// Returns nil, nil when the window holds no samples — absence is expressed by
+	// absence, never by a zero-filled aggregate.
+	AggregateWindow(ctx context.Context, hostID string, from, to time.Time) (*domain.HostMetricsWindowAggregate, error)
 	DeleteOlderThan(ctx context.Context, cutoff time.Time) (int64, error)
 	DeleteByHost(ctx context.Context, hostID string) error
 	Decimate(ctx context.Context, cutoff time.Time) (int64, error)

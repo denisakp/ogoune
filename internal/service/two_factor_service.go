@@ -74,8 +74,8 @@ func NewTwoFactorService(authService *AuthService, userRepo port.UserRepository,
 
 // SetupResult is what's sent to the frontend so it can render the QR code.
 type SetupResult struct {
-	Secret      string
-	OTPAuthURL  string
+	Secret     string
+	OTPAuthURL string
 }
 
 // Setup generates an unverified TOTP secret for the user and stores it.

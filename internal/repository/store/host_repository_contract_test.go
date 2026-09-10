@@ -17,9 +17,9 @@ import (
 
 // ---- local pointer helpers ----
 
-func strptr(s string) *string    { return &s }
-func f64ptr(f float64) *float64  { return &f }
-func i64ptr(i int64) *int64      { return &i }
+func strptr(s string) *string        { return &s }
+func f64ptr(f float64) *float64      { return &f }
+func i64ptr(i int64) *int64          { return &i }
 func timeptr(t time.Time) *time.Time { return &t }
 
 func TestHostRepository_Contract(t *testing.T) {

@@ -13,6 +13,10 @@ import (
 type HostMetricFake struct {
 	mu      sync.RWMutex
 	samples []*domain.HostMetricSample
+
+	// AggregateWindowErr, when set, makes AggregateWindow fail. Lets a service
+	// test exercise the degraded path without a database (spec 089, FR-012).
+	AggregateWindowErr error
 }
 
 func NewHostMetricFake() *HostMetricFake {
@@ -49,6 +53,42 @@ func (r *HostMetricFake) ListInRange(ctx context.Context, hostID string, from, t
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].SampledAt.Before(out[j].SampledAt) })
 	return out, nil
+}
+
+// AggregateWindow mirrors the SQL aggregate: true maxima over the window, the
+// sample count, and the disk documents for the same span. Returns nil, nil for
+// an empty window so service tests exercise the same absent path as production.
+func (r *HostMetricFake) AggregateWindow(ctx context.Context, hostID string, from, to time.Time) (*domain.HostMetricsWindowAggregate, error) {
+	if r.AggregateWindowErr != nil {
+		return nil, r.AggregateWindowErr
+	}
+
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	agg := &domain.HostMetricsWindowAggregate{}
+	for _, s := range r.samples {
+		if s.HostID != hostID {
+			continue
+		}
+		if s.SampledAt.Before(from) || s.SampledAt.After(to) {
+			continue
+		}
+		agg.SampleCount++
+		if s.CPUPct > agg.PeakCPUPct {
+			agg.PeakCPUPct = s.CPUPct
+		}
+		if s.MemPct > agg.PeakMemPct {
+			agg.PeakMemPct = s.MemPct
+		}
+		if len(s.Disks) > 0 {
+			agg.Disks = append(agg.Disks, s.Disks)
+		}
+	}
+	if agg.SampleCount == 0 {
+		return nil, nil
+	}
+	return agg, nil
 }
 
 func (r *HostMetricFake) DeleteOlderThan(ctx context.Context, cutoff time.Time) (int64, error) {

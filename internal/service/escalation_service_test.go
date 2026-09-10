@@ -6,10 +6,10 @@ import (
 	"time"
 
 	"github.com/denisakp/ogoune/internal/domain"
-	"github.com/denisakp/ogoune/internal/repository/sqlc/dynquery"
 	"github.com/denisakp/ogoune/internal/port"
 	"github.com/denisakp/ogoune/internal/repository"
 	"github.com/denisakp/ogoune/internal/repository/fake"
+	"github.com/denisakp/ogoune/internal/repository/sqlc/dynquery"
 	"github.com/denisakp/ogoune/internal/service"
 )
 
@@ -102,10 +102,10 @@ func TestEscalation_Create_RejectsTooManySteps(t *testing.T) {
 		steps[i] = domain.EscalationStep{DelayMinutes: 5, ChannelIDs: []string{"ch"}}
 	}
 	_, err := svc.Create(context.Background(), &domain.EscalationPolicy{
-		Name:  "Bad",
-		Scope: domain.EscalationScope{Kind: domain.EscalationScopeComponent, Value: "c"},
+		Name:     "Bad",
+		Scope:    domain.EscalationScope{Kind: domain.EscalationScopeComponent, Value: "c"},
 		IsActive: true,
-		Steps: steps,
+		Steps:    steps,
 	})
 	if err != service.ErrEscalationStepsRange {
 		t.Fatalf("expected steps range error, got %v", err)

@@ -91,6 +91,58 @@ type ResourceResponse struct {
 	ExpiryStatus  domain.ExpiryStatus       `json:"expiry_status,omitempty"`
 	MetadataExt   *ResourceMetaDataResponse `json:"metadata,omitempty"`
 	Waiting       bool                      `json:"waiting,omitempty"`
+	// DatabaseHealth is what a PostgreSQL or MySQL monitor's server last reported
+	// about itself (spec 088). Null on every other monitor type, and on a database
+	// monitor whose last check collected nothing. Detail path only -- never loaded
+	// on a list path, which sits under a benchmark gate.
+	DatabaseHealth *DatabaseHealthResponse `json:"database_health"`
+}
+
+// DatabaseHealthResponse is the v1 shape of a database monitor's latest health.
+// Owned by the DTO layer and mapped field by field, so a domain change cannot
+// silently alter the public contract.
+//
+// Every metric is independently nullable and absence is meaningful: a field is
+// null because the credential cannot read it correctly, because the value does
+// not apply, or because the server is too old. Never because collection guessed.
+type DatabaseHealthResponse struct {
+	// ConnectionsActive and ConnectionsMax are present together or not at all: a
+	// saturation ratio needs the pair. Neither needs a grant.
+	ConnectionsActive *int64 `json:"connections_active"`
+	ConnectionsMax    *int64 `json:"connections_max"`
+	// LongestQuerySeconds is the age of the oldest running statement. Its duration
+	// only -- the statement text is never collected, stored or returned.
+	LongestQuerySeconds *float64 `json:"longest_query_seconds"`
+	// ReplicationLagSeconds is null when the instance is not replicating. Never 0,
+	// which would claim it is perfectly in sync.
+	ReplicationLagSeconds *float64 `json:"replication_lag_seconds"`
+	// PrivilegeLimited means a grant would unlock more. Present it as an
+	// opportunity, never as a failure or a requirement.
+	PrivilegeLimited bool `json:"privilege_limited"`
+	// UnsupportedVersion means the server is below PostgreSQL 12 / MySQL 8.0.
+	// A different message to the operator than a missing grant: upgrade, not grant.
+	UnsupportedVersion bool `json:"unsupported_version"`
+	// CollectedAt is when the check that produced these ran. Its age is how a
+	// client tells current figures from a paused monitor's leftovers.
+	CollectedAt string `json:"collected_at"`
+}
+
+// MapDatabaseHealth converts the stored record into its response shape. A nil
+// record maps to nil, which serialises as "database_health": null -- the only
+// absent representation the contract allows.
+func MapDatabaseHealth(h *domain.ResourceHealth) *DatabaseHealthResponse {
+	if h == nil {
+		return nil
+	}
+	return &DatabaseHealthResponse{
+		ConnectionsActive:     h.ConnectionsActive,
+		ConnectionsMax:        h.ConnectionsMax,
+		LongestQuerySeconds:   h.LongestQuerySeconds,
+		ReplicationLagSeconds: h.ReplicationLagSeconds,
+		PrivilegeLimited:      h.PrivilegeLimited,
+		UnsupportedVersion:    h.UnsupportedVersion,
+		CollectedAt:           h.CollectedAt.UTC().Format(time.RFC3339),
+	}
 }
 
 // ToResourceDetailResponse maps a domain resource to a detail-safe response payload.

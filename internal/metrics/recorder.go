@@ -16,13 +16,21 @@ func NewNoopRecorder() *NoopRecorder {
 }
 
 // RecordCheck is a no-op implementation.
+// RecordHostContextAbsent does nothing when metrics are disabled.
+func (n *NoopRecorder) RecordHostContextAbsent(string) {}
+
+// RecordDatabaseHealthSkipped does nothing when metrics are disabled.
+func (n *NoopRecorder) RecordDatabaseHealthSkipped(string) {}
+
 func (n *NoopRecorder) RecordCheck(resourceID, name string, resourceType domain.ResourceType, duration time.Duration, status string) {
 }
 
 // PrometheusRecorder records check metrics into a Prometheus registry.
 type PrometheusRecorder struct {
-	checkDuration *prometheus.HistogramVec
-	checksTotal   *prometheus.CounterVec
+	checkDuration     *prometheus.HistogramVec
+	checksTotal       *prometheus.CounterVec
+	hostContextAbsent *prometheus.CounterVec
+	dbHealthSkipped   *prometheus.CounterVec
 }
 
 // NewPrometheusRecorder creates a PrometheusRecorder and registers its metrics on the provided Registerer.
@@ -38,12 +46,34 @@ func NewPrometheusRecorder(reg prometheus.Registerer) *PrometheusRecorder {
 		Help: "Total check executions by outcome.",
 	}, []string{"id", "name", "type", "status"})
 
-	reg.MustRegister(checkDuration, checksTotal)
+	hostContextAbsent := prometheus.NewCounterVec(prometheus.CounterOpts{
+		Name: "ogoune_incident_host_context_absent_total",
+		Help: "Times an incident's host context could not be produced, by reason.",
+	}, []string{"reason"})
+
+	dbHealthSkipped := prometheus.NewCounterVec(prometheus.CounterOpts{
+		Name: "ogoune_database_health_skipped_total",
+		Help: "Times a database check collected no health, by reason.",
+	}, []string{"reason"})
+
+	reg.MustRegister(checkDuration, checksTotal, hostContextAbsent, dbHealthSkipped)
 
 	return &PrometheusRecorder{
-		checkDuration: checkDuration,
-		checksTotal:   checksTotal,
+		checkDuration:     checkDuration,
+		checksTotal:       checksTotal,
+		hostContextAbsent: hostContextAbsent,
+		dbHealthSkipped:   dbHealthSkipped,
 	}
+}
+
+// RecordDatabaseHealthSkipped increments the skip counter for one reason.
+func (r *PrometheusRecorder) RecordDatabaseHealthSkipped(reason string) {
+	r.dbHealthSkipped.With(prometheus.Labels{"reason": reason}).Inc()
+}
+
+// RecordHostContextAbsent increments the absence counter for one reason.
+func (r *PrometheusRecorder) RecordHostContextAbsent(reason string) {
+	r.hostContextAbsent.With(prometheus.Labels{"reason": reason}).Inc()
 }
 
 // RecordCheck observes the check duration and increments the checks total counter.

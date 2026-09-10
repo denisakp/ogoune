@@ -89,3 +89,67 @@ Credentials are encrypted at rest (AES-256-GCM) and the password is never return
 by the API — reads show a mask. Without a credential, MySQL/PostgreSQL monitors
 fall back to a plain TCP reachability check.
 :::
+
+## Database health on Postgres and MySQL monitors
+
+A protocol monitor pointed at PostgreSQL or MySQL already opens an authenticated
+session to check the server answers. It now also asks that server how it is
+doing, on the same connection, and shows the answer on the monitor's page:
+
+| Signal | Needs a grant? |
+|---|---|
+| Active connections against the configured maximum | no |
+| Age of the longest running query | **yes** |
+| Replication lag | **yes** |
+
+**Nothing is required on the monitored database.** No extension, no restart, no
+configuration change, no extra credential field. A monitor that works today keeps
+working and simply shows more.
+
+The first row is the one that earns its place: it lets you watch connection
+saturation climb *before* the database starts refusing connections, which is one
+of the most common non-obvious causes of an outage behind a healthy-looking
+service.
+
+### The optional grant
+
+The last two rows need a credential that can see other sessions. Without it they
+are **absent** — not zero, not estimated. That distinction is deliberate: on
+PostgreSQL a role without the grant still sees other sessions' rows with the
+timing columns withheld, so a naive reading would report your monitor's own
+session age as the database's longest running query. Plausible, wrong, and
+impossible for you to spot. We would rather show nothing.
+
+To unlock them:
+
+```sql
+-- PostgreSQL
+GRANT pg_read_all_stats TO your_monitoring_role;
+```
+
+```sql
+-- MySQL
+GRANT PROCESS ON *.* TO 'your_monitoring_user'@'%';
+```
+
+Both are read-only and entirely optional. The monitor page tells you when a grant
+would add something, and never treats its absence as a failure.
+
+### Query text is never collected
+
+Only the *duration* of the longest running query is read. The statement itself is
+never queried, stored, or displayed — it is adjacent to personal data and belongs
+to a different product category than uptime monitoring.
+
+### Supported versions
+
+PostgreSQL 12+ and MySQL 8.0+. On older servers the monitor works exactly as
+before and the health figures are simply skipped — the page says so, so you can
+tell "too old" from "missing grant". They ask for different fixes.
+
+### On an incident
+
+When a check fails and opens an incident, whatever health it had collected is
+frozen onto that incident. The monitor page always shows the *current* figures;
+the incident shows what they were *when it broke*, and those never change
+afterwards even once the database recovers.

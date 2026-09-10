@@ -6,6 +6,7 @@ import (
 
 	"github.com/denisakp/ogoune/internal/domain"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestBuildIncidentDiagnostics_PersistsResponseHeaders(t *testing.T) {
@@ -119,4 +120,107 @@ func TestBuildIncidentDiagnostics_RemovesAuthorizationHeader(t *testing.T) {
 	_, found := diag.RequestHeaders["Authorization"]
 	assert.False(t, found)
 	assert.Equal(t, "abc-123", diag.RequestHeaders["X-Trace-ID"])
+}
+
+// --- Database health snapshot (spec 088, US2) ---
+
+func i64p(v int64) *int64     { return &v }
+func f64p(v float64) *float64 { return &v }
+
+// T033 -- health is flattened into the four columns exactly as the keyword block
+// is, and every field survives the trip.
+func TestBuildIncidentDiagnostics_FlattensDatabaseHealth(t *testing.T) {
+	result := domain.CheckResult{
+		DatabaseHealth: &domain.DatabaseHealth{
+			ConnectionsActive:     i64p(200),
+			ConnectionsMax:        i64p(200),
+			LongestQuerySeconds:   f64p(890.2),
+			ReplicationLagSeconds: f64p(4.5),
+		},
+	}
+
+	diag := BuildIncidentDiagnostics("inc-db", result, &domain.Resource{Timeout: 10})
+
+	require.NotNil(t, diag.DbConnectionsActive)
+	assert.Equal(t, int64(200), *diag.DbConnectionsActive)
+	require.NotNil(t, diag.DbConnectionsMax)
+	assert.Equal(t, int64(200), *diag.DbConnectionsMax)
+	require.NotNil(t, diag.DbLongestQuerySeconds)
+	assert.InDelta(t, 890.2, *diag.DbLongestQuerySeconds, 0.001)
+	require.NotNil(t, diag.DbReplicationLagSeconds)
+	assert.InDelta(t, 4.5, *diag.DbReplicationLagSeconds, 0.001)
+}
+
+// T033 -- a partial collection carries only what it had. A withheld field stays
+// null on the incident too: the snapshot must not invent what the check could not
+// read.
+func TestBuildIncidentDiagnostics_PartialDatabaseHealthStaysPartial(t *testing.T) {
+	result := domain.CheckResult{
+		DatabaseHealth: &domain.DatabaseHealth{
+			ConnectionsActive: i64p(12),
+			ConnectionsMax:    i64p(100),
+			PrivilegeLimited:  true,
+		},
+	}
+
+	diag := BuildIncidentDiagnostics("inc-partial", result, &domain.Resource{Timeout: 10})
+
+	assert.NotNil(t, diag.DbConnectionsActive)
+	assert.Nil(t, diag.DbLongestQuerySeconds, "a withheld field is null on the incident too")
+	assert.Nil(t, diag.DbReplicationLagSeconds)
+}
+
+// T034 -- an incident on a monitor that is not a database leaves all four null,
+// and nothing else about its diagnostics changes.
+func TestBuildIncidentDiagnostics_NonDatabaseIncidentHasNoHealth(t *testing.T) {
+	cause := domain.HTTPInvalidStatusCode
+	result := domain.CheckResult{
+		Cause:           &cause,
+		HTTPStatusCode:  500,
+		ResponseHeaders: map[string]string{"Content-Type": "text/html"},
+	}
+
+	diag := BuildIncidentDiagnostics("inc-http", result, &domain.Resource{Timeout: 10})
+
+	assert.Nil(t, diag.DbConnectionsActive)
+	assert.Nil(t, diag.DbConnectionsMax)
+	assert.Nil(t, diag.DbLongestQuerySeconds)
+	assert.Nil(t, diag.DbReplicationLagSeconds)
+	// Everything that was there before is still there.
+	assert.Equal(t, "text/html", diag.ResponseHeaders["Content-Type"])
+	assert.Equal(t, 500, diag.HTTPStatusCode)
+}
+
+// T035 -- the snapshot is a snapshot. Building diagnostics from a later check
+// with different figures produces a different record; it does not reach back and
+// change the one already written.
+//
+// This is what makes the incident columns worth having next to resource_health:
+// one answers "how was it when this broke" and must never move, the other
+// answers "how is it right now" and is overwritten constantly.
+func TestBuildIncidentDiagnostics_SnapshotIsImmutable(t *testing.T) {
+	atFailure := domain.CheckResult{
+		DatabaseHealth: &domain.DatabaseHealth{
+			ConnectionsActive: i64p(200),
+			ConnectionsMax:    i64p(200),
+		},
+	}
+	first := BuildIncidentDiagnostics("inc-frozen", atFailure, &domain.Resource{Timeout: 10})
+
+	// The database recovers; a later check sees a healthy figure.
+	afterRecovery := domain.CheckResult{
+		DatabaseHealth: &domain.DatabaseHealth{
+			ConnectionsActive: i64p(3),
+			ConnectionsMax:    i64p(200),
+		},
+	}
+	second := BuildIncidentDiagnostics("inc-frozen", afterRecovery, &domain.Resource{Timeout: 10})
+
+	require.NotNil(t, first.DbConnectionsActive)
+	assert.Equal(t, int64(200), *first.DbConnectionsActive,
+		"the record taken at failure still holds the failure's figures")
+	require.NotNil(t, second.DbConnectionsActive)
+	assert.Equal(t, int64(3), *second.DbConnectionsActive)
+	assert.NotSame(t, first.DbConnectionsActive, second.DbConnectionsActive,
+		"the two records share no state")
 }

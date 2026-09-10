@@ -51,6 +51,16 @@
             </div>
             <div class="content">
                 <p>A critical resource is currently unavailable:</p>
+                {{- if .Explanation }}
+                <p style="margin: 0 0 10px">
+                    <strong>What happened around it:</strong>
+                    {{ .Explanation }}
+                </p>
+                <p style="margin: 0 0 10px; font-size: 12px; color: #777">
+                    Shown because both happened on the same host within the same
+                    window. That is a co-occurrence, not a proven cause.
+                </p>
+                {{- end }}
 
                 <div class="detail">
                     <span class="label">Resource:</span>

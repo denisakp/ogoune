@@ -11,6 +11,20 @@ import (
 )
 
 type Querier interface {
+	// Reduce a bounded correlation window to its peaks and sample count, and carry
+	// back the disk documents for the same window, in ONE round trip. Mirrors the
+	// Postgres query exactly in name and result shape.
+	//
+	// The peaks are computed by the database via window functions so no numeric
+	// column is ever reduced in Go (spec 089, FR-021); they repeat identically on
+	// every row, which costs a few bytes and saves a round trip. The disks column
+	// rides along because it is a stored document and nothing in this codebase
+	// reaches inside JSON from SQL on either dialect (FR-021a).
+	//
+	// The range predicate mirrors ListHostMetricsInRange exactly -- no strftime is
+	// needed for a plain comparison, only for extracting epoch seconds.
+	// Keep this file pure ASCII: sqlc slices SQLite query text by byte offset.
+	AggregateHostMetricsInWindow(ctx context.Context, arg AggregateHostMetricsInWindowParams) ([]AggregateHostMetricsInWindowRow, error)
 	AvgResponseTimeByResourceInWindow(ctx context.Context, arg AvgResponseTimeByResourceInWindowParams) (sql.NullFloat64, error)
 	// One round-trip bulk avg grouped by resource. Used by the list path to
 	// enrich each resource with its avg response time over a sliding window (30d).
@@ -80,6 +94,10 @@ type Querier interface {
 	DeleteExpiryNotificationLogsOlderThan(ctx context.Context, sentAt time.Time) error
 	DeleteHost(ctx context.Context, id string) (int64, error)
 	DeleteHostCredentialsByHost(ctx context.Context, hostID string) error
+	DeleteHostEventsByHost(ctx context.Context, hostID string) error
+	// Retention. Deletion only, never decimation: a kernel event is rare and discrete,
+	// and thinning them would purge the records this feature exists to keep.
+	DeleteHostEventsOlderThan(ctx context.Context, occurredAt time.Time) (int64, error)
 	DeleteHostMetricsByHost(ctx context.Context, hostID string) error
 	DeleteHostMetricsOlderThan(ctx context.Context, sampledAt time.Time) (int64, error)
 	DeleteIncident(ctx context.Context, id string) (int64, error)
@@ -91,6 +109,9 @@ type Querier interface {
 	DeleteNotificationEvent(ctx context.Context, id string) error
 	DeleteNotificationsOlderThan(ctx context.Context, cutoff time.Time) (int64, error)
 	DeleteResourceCredentialByResourceID(ctx context.Context, resourceID string) (int64, error)
+	// Called when a check collects nothing at all, so the interface shows no figures
+	// rather than yesterday's.
+	DeleteResourceHealth(ctx context.Context, resourceID string) error
 	DeleteTag(ctx context.Context, id string) (int64, error)
 	DeleteUser(ctx context.Context, id string) error
 	FindAPIKeyByIDForUser(ctx context.Context, arg FindAPIKeyByIDForUserParams) (ApiKey, error)
@@ -124,6 +145,7 @@ type Querier interface {
 	FindReportHistoryByPeriod(ctx context.Context, period string) (ReportHistory, error)
 	FindResourceByHeartbeatSlug(ctx context.Context, heartbeatSlug sql.NullString) (Resource, error)
 	FindResourceByID(ctx context.Context, id string) (Resource, error)
+	FindResourceHealth(ctx context.Context, resourceID string) (ResourceHealth, error)
 	FindResourceIDsByTagName(ctx context.Context, arg FindResourceIDsByTagNameParams) ([]string, error)
 	FindResourcesByComponentID(ctx context.Context, componentID sql.NullString) ([]Resource, error)
 	FindResourcesByIDs(ctx context.Context, ids []string) ([]Resource, error)
@@ -144,6 +166,7 @@ type Querier interface {
 	GetResourceCredentialByResourceID(ctx context.Context, resourceID string) (ResourceCredential, error)
 	GetStatusPageSettings(ctx context.Context) (StatusPageSetting, error)
 	HasActiveIncident(ctx context.Context) (int64, error)
+	InsertHostEvent(ctx context.Context, arg InsertHostEventParams) error
 	InsertHostMetric(ctx context.Context, arg InsertHostMetricParams) error
 	LinkMaintenanceResource(ctx context.Context, arg LinkMaintenanceResourceParams) error
 	// M2M: resource_notification_channels ---------------------------------------
@@ -164,6 +187,15 @@ type Querier interface {
 	ListEscalationPolicies(ctx context.Context) ([]EscalationPolicy, error)
 	ListEscalationStepsByPolicy(ctx context.Context, policyID string) ([]EscalationStep, error)
 	ListHostCredentialsByHost(ctx context.Context, hostID string) ([]HostCredential, error)
+	// Newest first: an operator opening a host page wants what just happened, and the
+	// index on (host_id, occurred_at DESC) serves exactly this.
+	ListHostEventsByHost(ctx context.Context, arg ListHostEventsByHostParams) ([]HostEvent, error)
+	// Events inside one incident's correlation window (spec 091). Half-open
+	// [from, to): an event exactly on the far edge belongs to one window and not two.
+	// Newest first, and bounded -- a storm-prone host can hold many rows in a
+	// six-minute window, and neither the sentence nor the served list grows with it.
+	// Served by the existing index on (host_id, occurred_at DESC); no new index.
+	ListHostEventsInWindow(ctx context.Context, arg ListHostEventsInWindowParams) ([]HostEvent, error)
 	ListHostMetricsInRange(ctx context.Context, arg ListHostMetricsInRangeParams) ([]HostMetric, error)
 	ListHosts(ctx context.Context, arg ListHostsParams) ([]Host, error)
 	ListIncidentDiagnosticsByIncidentIDs(ctx context.Context, incidentIds []string) ([]IncidentDiagnostic, error)
@@ -237,6 +269,11 @@ type Querier interface {
 	UpsertNotificationEscalationState(ctx context.Context, arg UpsertNotificationEscalationStateParams) error
 	UpsertReportSettings(ctx context.Context, arg UpsertReportSettingsParams) (ReportSetting, error)
 	UpsertResourceCredential(ctx context.Context, arg UpsertResourceCredentialParams) error
+	// At most one row per monitor: replace rather than accumulate. This is what makes
+	// storage constant per monitor and removes any need for a retention job.
+	// Keep this file pure ASCII: sqlc slices SQLite query text by byte offset, so one
+	// multi-byte character silently truncates the generated SQL.
+	UpsertResourceHealth(ctx context.Context, arg UpsertResourceHealthParams) error
 	UpsertUptimeDailyAgg(ctx context.Context, arg UpsertUptimeDailyAggParams) error
 }
 

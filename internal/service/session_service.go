@@ -13,9 +13,9 @@ import (
 
 // Spec 059 FR-008/009/009a.
 var (
-	ErrSessionNotFound      = errors.New("session not found")
-	ErrSessionRevoked       = errors.New("session revoked")
-	ErrCannotRevokeCurrent  = errors.New("cannot revoke the current session via this endpoint")
+	ErrSessionNotFound     = errors.New("session not found")
+	ErrSessionRevoked      = errors.New("session revoked")
+	ErrCannotRevokeCurrent = errors.New("cannot revoke the current session via this endpoint")
 )
 
 // SessionService orchestrates sessions: issue at login, list/revoke from settings,

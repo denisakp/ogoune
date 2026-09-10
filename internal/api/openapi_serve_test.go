@@ -19,9 +19,9 @@ func TestServeOpenAPISpec_FromEmbed(t *testing.T) {
 		t.Fatalf("got %d, want 200 (embedded spec must not 503)", rec.Code)
 	}
 	var spec struct {
-		OpenAPI string                 `json:"openapi"`
-		Paths   map[string]any         `json:"paths"`
-		Info    map[string]any         `json:"info"`
+		OpenAPI string         `json:"openapi"`
+		Paths   map[string]any `json:"paths"`
+		Info    map[string]any `json:"info"`
 	}
 	if err := json.Unmarshal(rec.Body.Bytes(), &spec); err != nil {
 		t.Fatalf("body is not valid JSON: %v", err)

@@ -4,7 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
+	"time"
 
+	"github.com/denisakp/ogoune/internal/correlation"
 	"github.com/denisakp/ogoune/internal/domain"
 	"github.com/denisakp/ogoune/internal/dto"
 	"github.com/denisakp/ogoune/internal/port"
@@ -13,19 +16,70 @@ import (
 )
 
 // IncidentService provides business logic for incident management operations.
+//
+// The correlation window used below now lives in the domain as
+// domain.HostContextWindowBefore / After: spec 091 needs the same window from a
+// different package, and FR-004 forbids a second definition of "around the same
+// time".
+
 type IncidentService struct {
-	incidents  port.IncidentRepository
-	eventSteps port.IncidentEventStepRepository
+	incidents   port.IncidentRepository
+	eventSteps  port.IncidentEventStepRepository
+	hostMetrics port.HostMetricsRepository
+	hosts       port.HostRepository
+	// rawWindow is the configured full-resolution retention window. It decides
+	// the resolution marker and nothing else; the correlation window above is
+	// independent of it.
+	rawWindow time.Duration
+	now       func() time.Time
+	// hostMetricsObs counts why a context came back empty. Optional: a nil
+	// recorder simply records nothing, so no call site is forced to supply one.
+	hostCtxObs port.HostContextMetrics
+	// correlator turns the incident and its host's kernel events into one
+	// sentence (spec 091). Optional, like the recorder above: nil means the
+	// detail response carries no explanation and costs no extra query.
+	correlator *correlation.Correlator
+}
+
+// WithCorrelator attaches the causal-narrative correlator. Separate from the
+// constructor, following WithHostContextMetrics, so no existing caller or test
+// signature changes.
+func (s *IncidentService) WithCorrelator(c *correlation.Correlator) *IncidentService {
+	s.correlator = c
+	return s
+}
+
+// WithHostContextMetrics attaches the absence counter. Separate from the
+// constructor so the observability wiring stays optional and every existing
+// caller keeps working unchanged.
+func (s *IncidentService) WithHostContextMetrics(m port.HostContextMetrics) *IncidentService {
+	s.hostCtxObs = m
+	return s
+}
+
+// recordAbsence counts one absence reason. no_host_attached is never passed here:
+// it is the normal state of most monitors, not a signal (spec 089, FR-013a).
+func (s *IncidentService) recordAbsence(reason string) {
+	if s.hostCtxObs != nil {
+		s.hostCtxObs.RecordHostContextAbsent(reason)
+	}
 }
 
 // NewIncidentService creates a new IncidentService with the given repository dependencies.
 func NewIncidentService(
 	incidents port.IncidentRepository,
 	eventSteps port.IncidentEventStepRepository,
+	hostMetrics port.HostMetricsRepository,
+	hosts port.HostRepository,
+	rawWindow time.Duration,
 ) *IncidentService {
 	return &IncidentService{
-		incidents:  incidents,
-		eventSteps: eventSteps,
+		incidents:   incidents,
+		eventSteps:  eventSteps,
+		hostMetrics: hostMetrics,
+		hosts:       hosts,
+		rawWindow:   rawWindow,
+		now:         time.Now,
 	}
 }
 
@@ -100,7 +154,32 @@ func (s *IncidentService) GetIncidentByID(ctx context.Context, id string) (*doma
 
 	incident.EventStep = incidentSteps
 
+	incident.HostContext = s.buildHostContext(ctx, incident)
+	s.attachExplanation(ctx, incident)
+
 	return incident, nil
+}
+
+// attachExplanation adds the causal narrative and the events behind it
+// (spec 091).
+//
+// One lookup serves both: the sentence names an event and the list makes it
+// checkable, and paying two queries for one answer would be waste. Best-effort
+// by contract -- the correlator returns an empty result on every failure path,
+// so an incident detail is never lost to its own enrichment.
+//
+// Deliberately independent of buildHostContext above rather than nested inside
+// it: that one returns nil as soon as the window holds no metric samples, and
+// metrics purge long before events do (ADR 0011). Nesting would drop the
+// explanation for exactly the incidents where an event is the only evidence
+// left, which is every incident older than about a week (FR-006, SC-007).
+func (s *IncidentService) attachExplanation(ctx context.Context, incident *domain.Incident) {
+	if s.correlator == nil {
+		return
+	}
+	res := s.correlator.ForIncident(ctx, incident)
+	incident.Explanation = res.Explanation
+	incident.HostEvents = res.Events
 }
 
 // GetIncidentsByResource retrieves all incidents for a specific resource with pagination.
@@ -160,4 +239,109 @@ func (s *IncidentService) GetActiveIncident(ctx context.Context, resourceID stri
 		StartedAt: incident.StartedAt,
 		Cause:     incident.Cause,
 	}, nil
+}
+
+// buildHostContext aggregates what the monitor's host was doing around the
+// incident start. It is best-effort by contract: every failure path returns nil
+// so the incident detail response is never lost to its own enrichment
+// (spec 089, FR-012).
+//
+// The monitor -> host link is resolved here, at read time, not frozen when the
+// incident opened. Re-attaching a monitor therefore changes what its past
+// incidents display; that is a documented limitation (FR-017), not an oversight.
+func (s *IncidentService) buildHostContext(ctx context.Context, incident *domain.Incident) *domain.HostContext {
+	if s.hostMetrics == nil || s.hosts == nil {
+		return nil
+	}
+	if incident.Resource.HostID == nil || *incident.Resource.HostID == "" {
+		// The normal state of most monitors, not a signal. Not logged, not counted.
+		return nil
+	}
+	hostID := *incident.Resource.HostID
+
+	from := incident.StartedAt.Add(-domain.HostContextWindowBefore)
+	to := incident.StartedAt.Add(domain.HostContextWindowAfter)
+	// The window may still be elapsing when the operator opens a fresh incident;
+	// aggregate over what exists rather than waiting for it (FR-004).
+	if now := s.now(); to.After(now) {
+		to = now
+	}
+	if !to.After(from) {
+		return nil
+	}
+
+	agg, err := s.hostMetrics.AggregateWindow(ctx, hostID, from, to)
+	if err != nil {
+		slog.Debug("incident host context: aggregate failed",
+			"incident_id", incident.ID, "host_id", hostID, "error", err)
+		s.recordAbsence("lookup_error")
+		return nil
+	}
+	if agg == nil || agg.SampleCount == 0 {
+		// Either the host never reported in this window, or retention has since
+		// purged it. The window's age tells them apart.
+		if s.rawWindow > 0 && from.Before(s.now().Add(-s.rawWindow)) {
+			s.recordAbsence("out_of_retention")
+		} else {
+			s.recordAbsence("no_samples")
+		}
+		return nil
+	}
+
+	host, err := s.hosts.FindByID(ctx, hostID)
+	if err != nil || host == nil {
+		slog.Debug("incident host context: host lookup failed",
+			"incident_id", incident.ID, "host_id", hostID, "error", err)
+		s.recordAbsence("lookup_error")
+		return nil
+	}
+
+	return &domain.HostContext{
+		HostID:      hostID,
+		HostName:    host.Name,
+		PeakCPUPct:  agg.PeakCPUPct,
+		PeakMemPct:  agg.PeakMemPct,
+		WorstDisk:   worstDisk(agg.Disks),
+		SampleCount: agg.SampleCount,
+		Resolution:  s.resolutionFor(from),
+		WindowFrom:  from,
+		WindowTo:    to,
+	}
+}
+
+// resolutionFor reports whether the window is entirely inside the configured
+// full-resolution retention window. It takes the window's *start*, not its end:
+// a window that straddles the threshold has thinned samples in it, so judging it
+// by its most recent edge would call a partly-degraded aggregate exact.
+//
+// It errs toward reduced -- the thinning job runs periodically, so samples just
+// past the threshold may still be at full resolution, and understating confidence
+// is harmless where overstating it is not (spec 089, FR-007b). It never inspects
+// the samples themselves: the agent's reporting interval is configurable, so a
+// host natively reporting once a minute would otherwise be mislabelled as
+// degraded while its data is intact (FR-007a).
+func (s *IncidentService) resolutionFor(windowStart time.Time) domain.HostContextResolution {
+	if s.rawWindow <= 0 {
+		return domain.HostContextReduced
+	}
+	if windowStart.After(s.now().Add(-s.rawWindow)) {
+		return domain.HostContextFull
+	}
+	return domain.HostContextReduced
+}
+
+// worstDisk returns the highest-utilisation mount seen anywhere in the window,
+// or nil when no sample reported one. A host with no disks still gets its CPU and
+// memory peaks: one missing signal must not suppress the others.
+func worstDisk(docs [][]domain.DiskUsage) *domain.DiskUsage {
+	var worst *domain.DiskUsage
+	for _, doc := range docs {
+		for i := range doc {
+			if worst == nil || doc[i].UsedPct > worst.UsedPct {
+				d := doc[i]
+				worst = &d
+			}
+		}
+	}
+	return worst
 }

@@ -35,6 +35,35 @@ type ResourceService struct {
 	monitoringActivity port.MonitoringActivityRepository
 	enrichment         *EnrichmentService
 	components         *ComponentService
+	// resourceHealth serves the latest database health on the DETAIL path only
+	// (spec 088). Optional: nil simply means no health is attached, so no existing
+	// constructor call site changes.
+	resourceHealth port.ResourceHealthRepository
+}
+
+// WithResourceHealth attaches the database-health store. Separate from the
+// constructor to keep the wiring optional.
+func (s *ResourceService) WithResourceHealth(repo port.ResourceHealthRepository) *ResourceService {
+	s.resourceHealth = repo
+	return s
+}
+
+// attachDatabaseHealth adds the monitor's latest database health, if any.
+//
+// Detail path only: the monitor list endpoints are read far more often and sit
+// under a benchmark gate, so health is never loaded or joined there (FR-024a).
+// A lookup failure leaves the field absent rather than failing the request --
+// health is diagnostic context, not part of the monitor.
+func (s *ResourceService) attachDatabaseHealth(ctx context.Context, rr *dto.ResourceResponse, resourceID string) {
+	if s.resourceHealth == nil || rr == nil {
+		return
+	}
+	rec, err := s.resourceHealth.FindByResourceID(ctx, resourceID)
+	if err != nil {
+		slog.Debug("db health: lookup failed", "resource_id", resourceID, "error", err)
+		return
+	}
+	rr.DatabaseHealth = dto.MapDatabaseHealth(rec)
 }
 
 // NewResourceService creates a new ResourceService with the given repository dependencies.
@@ -294,6 +323,7 @@ func (s *ResourceService) GetResourceByIDWithResponseTimes(ctx context.Context, 
 			ResponseTimes: []dto.ResponseTimePoint{},
 		}
 		dto.EnrichResponseExpiry(rr)
+		s.attachDatabaseHealth(ctx, rr, id)
 		return rr, nil
 	}
 
@@ -312,6 +342,7 @@ func (s *ResourceService) GetResourceByIDWithResponseTimes(ctx context.Context, 
 	}
 	dto.EnrichResponseExpiry(rr)
 	rr.Waiting = resource.IsHeartbeatWaiting()
+	s.attachDatabaseHealth(ctx, rr, id)
 
 	return rr, nil
 }

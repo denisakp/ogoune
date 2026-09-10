@@ -29,9 +29,12 @@ build-be: sqlc-check
 	go build -o $(BINARY) ./cmd/api/main.go
 
 # Host monitoring agent binary (spec 080). Version is stamped from git.
+# The agent is Linux-only (systemd packaging, Linux fleet), so this pins GOOS=linux
+# even on a macOS dev machine — the binary is meant to run in a Linux container/VM,
+# not on the host. GOARCH follows the host (use build-agent-linux to pick one).
 build-agent:
 	mkdir -p dist
-	go build -ldflags "-X main.version=$$(git describe --tags --always --dirty 2>/dev/null || echo dev)" -o dist/ogoune-agent ./cmd/agent
+	CGO_ENABLED=0 GOOS=linux go build -ldflags "-X main.version=$$(git describe --tags --always --dirty 2>/dev/null || echo dev)" -o dist/ogoune-agent ./cmd/agent
 
 # Cross-compile the agent for Linux (spec 082 — release binaries). Default arm64;
 # override with ARCH=amd64. Static, version stamped from git.
@@ -163,6 +166,15 @@ license-audit:
 fuzz-dynquery:
 	go test -run=^$$ -fuzz=FuzzBuildMonitorsQuery -fuzztime=30s ./internal/repository/sqlc/dynquery/...
 	go test -run=^$$ -fuzz=FuzzBuildIncidentsQuery -fuzztime=30s ./internal/repository/sqlc/dynquery/...
+
+.PHONY: fuzz-kmsg
+fuzz-kmsg: ## 60s fuzz campaign over the kernel-log classifier (spec 090)
+	# The agent parses /dev/kmsg, whose input is not ours: every subsystem writes
+	# to it, formats change between kernel versions, lines can be cut mid-write,
+	# and nothing guarantees valid UTF-8. Table tests prove the shapes we thought
+	# of; this is for the ones we did not. Two real defects came out of the first
+	# campaign, both before any capture code existed.
+	go test -run=^$$ -fuzz=FuzzParseKmsgLine -fuzztime=60s ./cmd/agent/...
 
 .PHONY: lint-openapi
 lint-openapi: ## Lint the OpenAPI contract with Spectral (workspace binary — no global install)

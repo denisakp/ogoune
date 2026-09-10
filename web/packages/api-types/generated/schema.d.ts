@@ -4490,6 +4490,16 @@ export interface components {
             /** @description true if response body was truncated */
             body_truncated?: boolean;
             created_at?: string;
+            /**
+             * @description Database health frozen at incident creation (spec 088). Answers "how was
+             *     this database when the check broke" -- distinct from ResourceHealth, which
+             *     is overwritten on every check and answers "how is it right now". All four
+             *     are null for any incident on a monitor that is not a database.
+             */
+            db_connections_active?: number;
+            db_connections_max?: number;
+            db_longest_query_seconds?: number;
+            db_replication_lag_seconds?: number;
             /** @description Milliseconds (0 if not measured) */
             dns_duration?: number;
             /** @description Machine-readable error from Go */
@@ -4699,6 +4709,45 @@ export interface components {
             timeout: number;
             type: components["schemas"]["github_com_denisakp_ogoune_internal_domain.ResourceType"];
         };
+        /**
+         * @description DatabaseHealth is what a PostgreSQL or MySQL monitor's server last reported
+         *     about itself (spec 088). Null on every other monitor type, and on a database
+         *     monitor whose last check collected nothing. Detail path only -- never loaded
+         *     on a list path, which sits under a benchmark gate.
+         */
+        "github_com_denisakp_ogoune_internal_dto.DatabaseHealthResponse": {
+            /**
+             * @description CollectedAt is when the check that produced these ran. Its age is how a
+             *     client tells current figures from a paused monitor's leftovers.
+             */
+            collected_at?: string;
+            /**
+             * @description ConnectionsActive and ConnectionsMax are present together or not at all: a
+             *     saturation ratio needs the pair. Neither needs a grant.
+             */
+            connections_active?: number;
+            connections_max?: number;
+            /**
+             * @description LongestQuerySeconds is the age of the oldest running statement. Its duration
+             *     only -- the statement text is never collected, stored or returned.
+             */
+            longest_query_seconds?: number;
+            /**
+             * @description PrivilegeLimited means a grant would unlock more. Present it as an
+             *     opportunity, never as a failure or a requirement.
+             */
+            privilege_limited?: boolean;
+            /**
+             * @description ReplicationLagSeconds is null when the instance is not replicating. Never 0,
+             *     which would claim it is perfectly in sync.
+             */
+            replication_lag_seconds?: number;
+            /**
+             * @description UnsupportedVersion means the server is below PostgreSQL 12 / MySQL 8.0.
+             *     A different message to the operator than a missing grant: upgrade, not grant.
+             */
+            unsupported_version?: boolean;
+        };
         "github_com_denisakp_ogoune_internal_dto.LiveActiveIncident": {
             cause?: string;
             id?: string;
@@ -4874,6 +4923,7 @@ export interface components {
             confirmation_interval?: number;
             created_at?: string;
             credential?: components["schemas"]["github_com_denisakp_ogoune_internal_domain.ResourceCredential"];
+            database_health?: components["schemas"]["github_com_denisakp_ogoune_internal_dto.DatabaseHealthResponse"];
             expiry_alert_thresholds?: string;
             expiry_status?: components["schemas"]["github_com_denisakp_ogoune_internal_domain.ExpiryStatus"];
             failure_count?: number;
@@ -5078,9 +5128,69 @@ export interface components {
         "github_com_denisakp_ogoune_internal_dto_v1.HeartbeatPingResponse": {
             received_at?: string;
         };
+        "github_com_denisakp_ogoune_internal_dto_v1.HostContextResponse": {
+            host_id?: string;
+            host_name?: string;
+            peak_cpu_pct?: number;
+            peak_mem_pct?: number;
+            /** @description Resolution is "full" or "reduced". Treat an unknown value as "reduced". */
+            resolution?: string;
+            /**
+             * @description SampleCount is always >= 1 when this object is present, so a two-sample
+             *     aggregate is never mistaken for a full one.
+             */
+            sample_count?: number;
+            window_from?: string;
+            /**
+             * @description WindowTo may be earlier than the nominal window end while the window is
+             *     still elapsing on a fresh incident.
+             */
+            window_to?: string;
+            worst_disk?: components["schemas"]["github_com_denisakp_ogoune_internal_dto_v1.WorstDiskResponse"];
+        };
+        "github_com_denisakp_ogoune_internal_dto_v1.HostEventDetailResponse": {
+            cgroup?: string;
+            /**
+             * @description DistinctProcesses is bounded; DistinctTruncated says more were seen than it
+             *     holds, so a partial list is never read as complete.
+             */
+            distinct_processes?: string[];
+            distinct_truncated?: boolean;
+            pid?: number;
+            process?: string;
+        };
+        /**
+         * @description Event is the one the sentence names. Its kind is always one this version
+         *     can phrase; unrecognised kinds appear in host_events and count toward
+         *     other_events, but are never named.
+         */
+        "github_com_denisakp_ogoune_internal_dto_v1.HostEventResponse": {
+            detail?: components["schemas"]["github_com_denisakp_ogoune_internal_dto_v1.HostEventDetailResponse"];
+            id?: string;
+            /**
+             * @description Kind is an open set. Treat a value you do not recognise as displayable
+             *     rather than as an error: the set will grow.
+             */
+            kind?: string;
+            /** @description OccurredAt is when the KERNEL reported it, not when it was stored. */
+            occurred_at?: string;
+            occurrences?: number;
+            /**
+             * @description Source is which reader saw it, so an operator investigating missing events
+             *     knows what was working.
+             */
+            source?: string;
+        };
         "github_com_denisakp_ogoune_internal_dto_v1.HostResponse": {
             agent_version?: string;
             created_at?: string;
+            /**
+             * @description Events are the kernel events this host's agent reported, newest first
+             *     (spec 090). An empty array when there are none -- never null: a list that is
+             *     sometimes absent and sometimes empty is two shapes for one meaning, and every
+             *     consumer would have to handle both.
+             */
+            events?: components["schemas"]["github_com_denisakp_ogoune_internal_dto_v1.HostEventResponse"][];
             id?: string;
             last_cpu_pct?: number;
             last_disk_pct?: number;
@@ -5102,12 +5212,61 @@ export interface components {
             skipped?: number;
             total?: number;
         };
+        /**
+         * @description Explanation and HostEvents are populated on the detail path only, and both
+         *     are `omitempty` (spec 091).
+         *
+         *     The omitempty is load-bearing, not tidiness: mapIncidentResponse is shared
+         *     with GET /api/v1/incidents, so without it every row of every incident
+         *     listing would gain two null keys -- a body change to an endpoint this
+         *     feature does not touch. With it, the listing and a detail response with
+         *     nothing to say both stay byte-identical to their pre-feature form
+         *     (FR-012's discipline, applied to the API).
+         */
+        "github_com_denisakp_ogoune_internal_dto_v1.IncidentExplanationResponse": {
+            cause?: string;
+            event?: components["schemas"]["github_com_denisakp_ogoune_internal_dto_v1.HostEventResponse"];
+            /** @description HostID and HostName identify the machine whose kernel reported the event. */
+            host_id?: string;
+            host_name?: string;
+            /** @description IncidentAt is when the failure was confirmed; Cause is what the check saw. */
+            incident_at?: string;
+            /**
+             * @description OtherEvents counts the OTHER events in the window, unrecognised kinds
+             *     included. It counts events, not kernel reports: event.occurrences answers
+             *     that separate question.
+             */
+            other_events?: number;
+            /**
+             * @description Precedes says whether the event happened at or before the failure. A
+             *     comparison of two timestamps, not a causal claim.
+             */
+            precedes?: boolean;
+            /**
+             * @description Text is the rendered sentence.
+             *
+             *     The API is itself a renderer, which is why the prose is served rather than
+             *     left to the caller: the alternative was re-implementing the wording in
+             *     TypeScript for the SPA, and two implementations of one sentence drift.
+             */
+            text?: string;
+            /**
+             * @description WindowFrom and WindowTo are the incident host-context window, unchanged.
+             *     WindowTo may be earlier than the nominal end while the window is still
+             *     elapsing.
+             */
+            window_from?: string;
+            window_to?: string;
+        };
         "github_com_denisakp_ogoune_internal_dto_v1.IncidentResponse": {
             cause?: string;
             created_at?: string;
             details?: string;
             diagnostics?: components["schemas"]["github_com_denisakp_ogoune_internal_domain.IncidentDiagnostics"];
             event_steps?: components["schemas"]["github_com_denisakp_ogoune_internal_domain.IncidentEventStep"][];
+            explanation?: components["schemas"]["github_com_denisakp_ogoune_internal_dto_v1.IncidentExplanationResponse"];
+            host_context?: components["schemas"]["github_com_denisakp_ogoune_internal_dto_v1.HostContextResponse"];
+            host_events?: components["schemas"]["github_com_denisakp_ogoune_internal_dto_v1.HostEventResponse"][];
             id?: string;
             monitor_id?: string;
             resolved_at?: string;
@@ -5451,6 +5610,14 @@ export interface components {
             position?: number;
             title?: string;
             widgetTypeId?: string;
+        };
+        /**
+         * @description WorstDisk is the highest-utilisation mount seen in the window, or null when
+         *     the host reported none. Its absence never suppresses the other figures.
+         */
+        "github_com_denisakp_ogoune_internal_dto_v1.WorstDiskResponse": {
+            mount?: string;
+            used_pct?: number;
         };
     };
     responses: never;

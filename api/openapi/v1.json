@@ -122,6 +122,19 @@
                     "created_at": {
                         "type": "string"
                     },
+                    "db_connections_active": {
+                        "description": "Database health frozen at incident creation (spec 088). Answers \"how was\nthis database when the check broke\" -- distinct from ResourceHealth, which\nis overwritten on every check and answers \"how is it right now\". All four\nare null for any incident on a monitor that is not a database.",
+                        "type": "integer"
+                    },
+                    "db_connections_max": {
+                        "type": "integer"
+                    },
+                    "db_longest_query_seconds": {
+                        "type": "number"
+                    },
+                    "db_replication_lag_seconds": {
+                        "type": "number"
+                    },
                     "dns_duration": {
                         "description": "Milliseconds (0 if not measured)",
                         "type": "integer"
@@ -778,6 +791,39 @@
                 ],
                 "type": "object"
             },
+            "github_com_denisakp_ogoune_internal_dto.DatabaseHealthResponse": {
+                "description": "DatabaseHealth is what a PostgreSQL or MySQL monitor's server last reported\nabout itself (spec 088). Null on every other monitor type, and on a database\nmonitor whose last check collected nothing. Detail path only -- never loaded\non a list path, which sits under a benchmark gate.",
+                "properties": {
+                    "collected_at": {
+                        "description": "CollectedAt is when the check that produced these ran. Its age is how a\nclient tells current figures from a paused monitor's leftovers.",
+                        "type": "string"
+                    },
+                    "connections_active": {
+                        "description": "ConnectionsActive and ConnectionsMax are present together or not at all: a\nsaturation ratio needs the pair. Neither needs a grant.",
+                        "type": "integer"
+                    },
+                    "connections_max": {
+                        "type": "integer"
+                    },
+                    "longest_query_seconds": {
+                        "description": "LongestQuerySeconds is the age of the oldest running statement. Its duration\nonly -- the statement text is never collected, stored or returned.",
+                        "type": "number"
+                    },
+                    "privilege_limited": {
+                        "description": "PrivilegeLimited means a grant would unlock more. Present it as an\nopportunity, never as a failure or a requirement.",
+                        "type": "boolean"
+                    },
+                    "replication_lag_seconds": {
+                        "description": "ReplicationLagSeconds is null when the instance is not replicating. Never 0,\nwhich would claim it is perfectly in sync.",
+                        "type": "number"
+                    },
+                    "unsupported_version": {
+                        "description": "UnsupportedVersion means the server is below PostgreSQL 12 / MySQL 8.0.\nA different message to the operator than a missing grant: upgrade, not grant.",
+                        "type": "boolean"
+                    }
+                },
+                "type": "object"
+            },
             "github_com_denisakp_ogoune_internal_dto.LiveActiveIncident": {
                 "properties": {
                     "cause": {
@@ -1344,6 +1390,9 @@
                     },
                     "credential": {
                         "$ref": "#/components/schemas/github_com_denisakp_ogoune_internal_domain.ResourceCredential"
+                    },
+                    "database_health": {
+                        "$ref": "#/components/schemas/github_com_denisakp_ogoune_internal_dto.DatabaseHealthResponse"
                     },
                     "expiry_alert_thresholds": {
                         "type": "string"
@@ -1983,6 +2032,93 @@
                 },
                 "type": "object"
             },
+            "github_com_denisakp_ogoune_internal_dto_v1.HostContextResponse": {
+                "properties": {
+                    "host_id": {
+                        "type": "string"
+                    },
+                    "host_name": {
+                        "type": "string"
+                    },
+                    "peak_cpu_pct": {
+                        "type": "number"
+                    },
+                    "peak_mem_pct": {
+                        "type": "number"
+                    },
+                    "resolution": {
+                        "description": "Resolution is \"full\" or \"reduced\". Treat an unknown value as \"reduced\".",
+                        "type": "string"
+                    },
+                    "sample_count": {
+                        "description": "SampleCount is always \u003e= 1 when this object is present, so a two-sample\naggregate is never mistaken for a full one.",
+                        "type": "integer"
+                    },
+                    "window_from": {
+                        "type": "string"
+                    },
+                    "window_to": {
+                        "description": "WindowTo may be earlier than the nominal window end while the window is\nstill elapsing on a fresh incident.",
+                        "type": "string"
+                    },
+                    "worst_disk": {
+                        "$ref": "#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.WorstDiskResponse"
+                    }
+                },
+                "type": "object"
+            },
+            "github_com_denisakp_ogoune_internal_dto_v1.HostEventDetailResponse": {
+                "properties": {
+                    "cgroup": {
+                        "type": "string"
+                    },
+                    "distinct_processes": {
+                        "description": "DistinctProcesses is bounded; DistinctTruncated says more were seen than it\nholds, so a partial list is never read as complete.",
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "uniqueItems": false
+                    },
+                    "distinct_truncated": {
+                        "type": "boolean"
+                    },
+                    "pid": {
+                        "type": "integer"
+                    },
+                    "process": {
+                        "type": "string"
+                    }
+                },
+                "type": "object"
+            },
+            "github_com_denisakp_ogoune_internal_dto_v1.HostEventResponse": {
+                "description": "Event is the one the sentence names. Its kind is always one this version\ncan phrase; unrecognised kinds appear in host_events and count toward\nother_events, but are never named.",
+                "properties": {
+                    "detail": {
+                        "$ref": "#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.HostEventDetailResponse"
+                    },
+                    "id": {
+                        "type": "string"
+                    },
+                    "kind": {
+                        "description": "Kind is an open set. Treat a value you do not recognise as displayable\nrather than as an error: the set will grow.",
+                        "type": "string"
+                    },
+                    "occurred_at": {
+                        "description": "OccurredAt is when the KERNEL reported it, not when it was stored.",
+                        "type": "string"
+                    },
+                    "occurrences": {
+                        "type": "integer"
+                    },
+                    "source": {
+                        "description": "Source is which reader saw it, so an operator investigating missing events\nknows what was working.",
+                        "type": "string"
+                    }
+                },
+                "type": "object"
+            },
             "github_com_denisakp_ogoune_internal_dto_v1.HostResponse": {
                 "properties": {
                     "agent_version": {
@@ -1990,6 +2126,14 @@
                     },
                     "created_at": {
                         "type": "string"
+                    },
+                    "events": {
+                        "description": "Events are the kernel events this host's agent reported, newest first\n(spec 090). An empty array when there are none -- never null: a list that is\nsometimes absent and sometimes empty is two shapes for one meaning, and every\nconsumer would have to handle both.",
+                        "items": {
+                            "$ref": "#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.HostEventResponse"
+                        },
+                        "type": "array",
+                        "uniqueItems": false
                     },
                     "id": {
                         "type": "string"
@@ -2061,6 +2205,48 @@
                 },
                 "type": "object"
             },
+            "github_com_denisakp_ogoune_internal_dto_v1.IncidentExplanationResponse": {
+                "description": "Explanation and HostEvents are populated on the detail path only, and both\nare `omitempty` (spec 091).\n\nThe omitempty is load-bearing, not tidiness: mapIncidentResponse is shared\nwith GET /api/v1/incidents, so without it every row of every incident\nlisting would gain two null keys -- a body change to an endpoint this\nfeature does not touch. With it, the listing and a detail response with\nnothing to say both stay byte-identical to their pre-feature form\n(FR-012's discipline, applied to the API).",
+                "properties": {
+                    "cause": {
+                        "type": "string"
+                    },
+                    "event": {
+                        "$ref": "#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.HostEventResponse"
+                    },
+                    "host_id": {
+                        "description": "HostID and HostName identify the machine whose kernel reported the event.",
+                        "type": "string"
+                    },
+                    "host_name": {
+                        "type": "string"
+                    },
+                    "incident_at": {
+                        "description": "IncidentAt is when the failure was confirmed; Cause is what the check saw.",
+                        "type": "string"
+                    },
+                    "other_events": {
+                        "description": "OtherEvents counts the OTHER events in the window, unrecognised kinds\nincluded. It counts events, not kernel reports: event.occurrences answers\nthat separate question.",
+                        "type": "integer"
+                    },
+                    "precedes": {
+                        "description": "Precedes says whether the event happened at or before the failure. A\ncomparison of two timestamps, not a causal claim.",
+                        "type": "boolean"
+                    },
+                    "text": {
+                        "description": "Text is the rendered sentence.\n\nThe API is itself a renderer, which is why the prose is served rather than\nleft to the caller: the alternative was re-implementing the wording in\nTypeScript for the SPA, and two implementations of one sentence drift.",
+                        "type": "string"
+                    },
+                    "window_from": {
+                        "description": "WindowFrom and WindowTo are the incident host-context window, unchanged.\nWindowTo may be earlier than the nominal end while the window is still\nelapsing.",
+                        "type": "string"
+                    },
+                    "window_to": {
+                        "type": "string"
+                    }
+                },
+                "type": "object"
+            },
             "github_com_denisakp_ogoune_internal_dto_v1.IncidentResponse": {
                 "properties": {
                     "cause": {
@@ -2078,6 +2264,19 @@
                     "event_steps": {
                         "items": {
                             "$ref": "#/components/schemas/github_com_denisakp_ogoune_internal_domain.IncidentEventStep"
+                        },
+                        "type": "array",
+                        "uniqueItems": false
+                    },
+                    "explanation": {
+                        "$ref": "#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.IncidentExplanationResponse"
+                    },
+                    "host_context": {
+                        "$ref": "#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.HostContextResponse"
+                    },
+                    "host_events": {
+                        "items": {
+                            "$ref": "#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.HostEventResponse"
                         },
                         "type": "array",
                         "uniqueItems": false
@@ -3093,6 +3292,18 @@
                     },
                     "widgetTypeId": {
                         "type": "string"
+                    }
+                },
+                "type": "object"
+            },
+            "github_com_denisakp_ogoune_internal_dto_v1.WorstDiskResponse": {
+                "description": "WorstDisk is the highest-utilisation mount seen in the window, or null when\nthe host reported none. Its absence never suppresses the other figures.",
+                "properties": {
+                    "mount": {
+                        "type": "string"
+                    },
+                    "used_pct": {
+                        "type": "number"
                     }
                 },
                 "type": "object"

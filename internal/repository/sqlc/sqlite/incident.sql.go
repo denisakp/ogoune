@@ -357,7 +357,7 @@ func (q *Queries) HasActiveIncident(ctx context.Context) (int64, error) {
 }
 
 const listIncidentDiagnosticsByIncidentIDs = `-- name: ListIncidentDiagnosticsByIncidentIDs :many
-SELECT id, created_at, updated_at, incident_id, request_method, request_url, request_headers, request_timeout, http_status_code, response_headers, response_body, response_size, failure_type, error_message, error_summary, total_duration, dns_duration, tls_duration, first_byte_duration, body_truncated, body_encoded, icmp_available, icmp_reachable, icmp_rtt_ms, root_cause_hint, keyword, keyword_mode, keyword_found FROM incident_diagnostics
+SELECT id, created_at, updated_at, incident_id, request_method, request_url, request_headers, request_timeout, http_status_code, response_headers, response_body, response_size, failure_type, error_message, error_summary, total_duration, dns_duration, tls_duration, first_byte_duration, body_truncated, body_encoded, icmp_available, icmp_reachable, icmp_rtt_ms, root_cause_hint, keyword, keyword_mode, keyword_found, db_connections_active, db_connections_max, db_longest_query_seconds, db_replication_lag_seconds FROM incident_diagnostics
 WHERE incident_id IN (/*SLICE:incident_ids*/?)
 `
 
@@ -409,6 +409,10 @@ func (q *Queries) ListIncidentDiagnosticsByIncidentIDs(ctx context.Context, inci
 			&i.Keyword,
 			&i.KeywordMode,
 			&i.KeywordFound,
+			&i.DbConnectionsActive,
+			&i.DbConnectionsMax,
+			&i.DbLongestQuerySeconds,
+			&i.DbReplicationLagSeconds,
 		); err != nil {
 			return nil, err
 		}
