@@ -5,45 +5,7 @@ follows [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
-### Fixed
-
-- **The agent stopped streaming metrics on any host where it could read the kernel log.** Draining
-  `/dev/kmsg` used a blocking read on the metrics path, so on a machine where the log was actually
-  readable — a native systemd install running as root, the documented option B — the collector
-  parked on the first quiet interval and never sent another frame. The host simply went offline,
-  with no error anywhere. The read is non-blocking now (raw `O_NONBLOCK` descriptor, record at a
-  time), and kernel-event capture is additionally bounded by a deadline, so a future mistake of the
-  same shape costs an interval's events instead of the monitoring the operator relies on.
-  Invisible in CI and in containers, where opening the kernel log fails and there is nothing to
-  block on. Found by running the agent on a real Linux host.
-- **The backend closed every agent connection from a host with many mounted filesystems.** The
-  WebSocket read limit was left at the library default of 32 KiB while a metrics frame carries one
-  entry per mount, so a machine with a few hundred filesystems — an ordinary container or
-  Kubernetes node — had every frame refused. The agent reconnected each interval forever, the host
-  never came online, and nothing logged why. The limit is now explicit, and a stream that ends for
-  any reason other than a clean disconnect says so.
-- **Segmentation faults were never captured on arm64.** That kernel reports `potentially unexpected
-  fatal signal 11` where x86 reports `segfault at …`, and the classifier only knew the x86 form.
-  Both are recognised now. Note that most distributions also ship `debug.exception-trace=0`, which
-  suppresses the line entirely — documented in the agent guide.
-- **One out-of-memory kill was reported as several.** The kernel writes two log lines for a cgroup
-  kill and increments the cgroup counter the agent also reads, and the three were added together —
-  an operator saw "reported 3 times" for one dead process. The readers are reconciled now: distinct
-  process ids on one side, anonymous counter reports on the other, and the larger of the two wins,
-  so records lost to kernel-log overwrite still surface at their true count.
-- **The causal narrative mixed time zones.** An incident's start carries the server's local zone
-  while a kernel event's is stored in UTC, so one sentence could read "11:19:04 GMT … 11:17:35
-  UTC". Both are rendered in UTC now — the two timestamps exist to be compared, and on a server
-  away from UTC the stated gap would not have followed from the printed times.
-
-### Security
-
-- **`POST /auth/initialize-password` accepted any known email address.** The endpoint is
-  unauthenticated by design — it is how an account that has never had a password sets its first one
-  — but it verified nothing beyond the address existing, so it would overwrite any account's
-  password and return a valid session token for it. It is now refused for accounts that already
-  have a password, with a response that does not distinguish an unknown address from a refused one.
-  The first-login flow is unchanged.
+## [1.0.0-beta.5] - 2026-09-10
 
 ### Added
 
@@ -154,16 +116,6 @@ follows [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/).
   default 10-second interval; both knobs remain configurable and **existing `.env` files are
   untouched**, so an installation that pinned the old values keeps the old behaviour.
 
-### Known limitations
-
-- The monitor-to-host link is resolved when an incident is **viewed**, not frozen when it
-  opened. Re-attaching a monitor to a different host therefore changes what its past
-  incidents display. Documented in `nebula/self-host/agent.md`; freezing it would require
-  snapshotting the context at incident resolution, which ADR 0011 records as deferred.
-
-
-### Changed
-
 - **Release image build ~5x faster** — `Dockerfile` and `Dockerfile.agent` builder stages now
   pin to `--platform=$BUILDPLATFORM` and cross-compile Go via `$TARGETOS`/`$TARGETARCH` instead
   of running under QEMU emulation for the `arm64` target. The frontend build runs once (its
@@ -199,6 +151,35 @@ follows [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- **The agent stopped streaming metrics on any host where it could read the kernel log.** Draining
+  `/dev/kmsg` used a blocking read on the metrics path, so on a machine where the log was actually
+  readable — a native systemd install running as root, the documented option B — the collector
+  parked on the first quiet interval and never sent another frame. The host simply went offline,
+  with no error anywhere. The read is non-blocking now (raw `O_NONBLOCK` descriptor, record at a
+  time), and kernel-event capture is additionally bounded by a deadline, so a future mistake of the
+  same shape costs an interval's events instead of the monitoring the operator relies on.
+  Invisible in CI and in containers, where opening the kernel log fails and there is nothing to
+  block on. Found by running the agent on a real Linux host.
+- **The backend closed every agent connection from a host with many mounted filesystems.** The
+  WebSocket read limit was left at the library default of 32 KiB while a metrics frame carries one
+  entry per mount, so a machine with a few hundred filesystems — an ordinary container or
+  Kubernetes node — had every frame refused. The agent reconnected each interval forever, the host
+  never came online, and nothing logged why. The limit is now explicit, and a stream that ends for
+  any reason other than a clean disconnect says so.
+- **Segmentation faults were never captured on arm64.** That kernel reports `potentially unexpected
+  fatal signal 11` where x86 reports `segfault at …`, and the classifier only knew the x86 form.
+  Both are recognised now. Note that most distributions also ship `debug.exception-trace=0`, which
+  suppresses the line entirely — documented in the agent guide.
+- **One out-of-memory kill was reported as several.** The kernel writes two log lines for a cgroup
+  kill and increments the cgroup counter the agent also reads, and the three were added together —
+  an operator saw "reported 3 times" for one dead process. The readers are reconciled now: distinct
+  process ids on one side, anonymous counter reports on the other, and the larger of the two wins,
+  so records lost to kernel-log overwrite still surface at their true count.
+- **The causal narrative mixed time zones.** An incident's start carries the server's local zone
+  while a kernel event's is stored in UTC, so one sentence could read "11:19:04 GMT … 11:17:35
+  UTC". Both are rendered in UTC now — the two timestamps exist to be compared, and on a server
+  away from UTC the stated gap would not have followed from the printed times.
+
 - **Documentation drift after the root→v1 convergence** — `CLAUDE.md` still described the
   legacy root API migration as "opportunistic, domain by domain" although specs 085 + 086
   finished it (the duplicated root handlers are deleted and the SPA is repointed); it now
@@ -215,6 +196,22 @@ follows [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/).
   "Powered by Ogoune" attribution as a *Community Edition* item, which contradicts the code:
   Community always keeps the attribution, suppression is the Enterprise "White-label — strict"
   lever. Roadmap date refreshed to the current release.
+
+### Security
+
+- **`POST /auth/initialize-password` accepted any known email address.** The endpoint is
+  unauthenticated by design — it is how an account that has never had a password sets its first one
+  — but it verified nothing beyond the address existing, so it would overwrite any account's
+  password and return a valid session token for it. It is now refused for accounts that already
+  have a password, with a response that does not distinguish an unknown address from a refused one.
+  The first-login flow is unchanged.
+
+### Known limitations
+
+- The monitor-to-host link is resolved when an incident is **viewed**, not frozen when it
+  opened. Re-attaching a monitor to a different host therefore changes what its past
+  incidents display. Documented in `nebula/self-host/agent.md`; freezing it would require
+  snapshotting the context at incident resolution, which ADR 0011 records as deferred.
 
 ## [1.0.0-beta.4] - 2026-08-03
 
