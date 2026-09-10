@@ -103,3 +103,55 @@ func (q *Queries) ListHostEventsByHost(ctx context.Context, arg ListHostEventsBy
 	}
 	return items, nil
 }
+
+const listHostEventsInWindow = `-- name: ListHostEventsInWindow :many
+SELECT id, host_id, occurred_at, kind, source, occurrences, detail FROM host_events
+WHERE host_id = $1 AND occurred_at >= $2 AND occurred_at < $3
+ORDER BY occurred_at DESC
+LIMIT $4
+`
+
+type ListHostEventsInWindowParams struct {
+	HostID       string             `json:"host_id"`
+	OccurredAt   pgtype.Timestamptz `json:"occurred_at"`
+	OccurredAt_2 pgtype.Timestamptz `json:"occurred_at_2"`
+	Limit        int32              `json:"limit"`
+}
+
+// Events inside one incident's correlation window (spec 091). Half-open
+// [from, to): an event exactly on the far edge belongs to one window and not two.
+// Newest first, and bounded -- a storm-prone host can hold many rows in a
+// six-minute window, and neither the sentence nor the served list grows with it.
+// Served by the existing index on (host_id, occurred_at DESC); no new index.
+func (q *Queries) ListHostEventsInWindow(ctx context.Context, arg ListHostEventsInWindowParams) ([]HostEvent, error) {
+	rows, err := q.db.Query(ctx, listHostEventsInWindow,
+		arg.HostID,
+		arg.OccurredAt,
+		arg.OccurredAt_2,
+		arg.Limit,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []HostEvent{}
+	for rows.Next() {
+		var i HostEvent
+		if err := rows.Scan(
+			&i.ID,
+			&i.HostID,
+			&i.OccurredAt,
+			&i.Kind,
+			&i.Source,
+			&i.Occurrences,
+			&i.Detail,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}

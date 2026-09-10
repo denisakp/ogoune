@@ -252,6 +252,71 @@ type Incident struct {
 	// was doing around StartedAt. Nil whenever there is nothing to say
 	// (spec 089).
 	HostContext *HostContext `json:"-"`
+	// Explanation is computed on read and at notification dispatch, never
+	// persisted: one sentence's worth of facts linking this incident to what the
+	// kernel reported on the same host at nearly the same time. Nil whenever no
+	// event matched (spec 091).
+	//
+	// `json:"-"` is load-bearing, not tidiness. IncidentDiagnostics embeds an
+	// Incident with a json tag and diagnostics are persisted, so an untagged
+	// field here would write a causal narrative into the database -- FR-018
+	// broken by a missing tag rather than by a decision.
+	Explanation *IncidentExplanation `json:"-"`
+	// HostEvents are the kernel events inside the correlation window, newest
+	// first. Computed on read, never persisted, and `json:"-"` for the same
+	// reason as the two fields above.
+	//
+	// Served alongside Explanation so the sentence is checkable in place rather
+	// than merely trusted, and present even when no sentence could be produced:
+	// an event of a kind this version cannot phrase is still worth showing
+	// (spec 091, FR-007, FR-018b).
+	HostEvents []*HostEvent `json:"-"`
+}
+
+// IncidentExplanation is the facts behind one sentence: what a check observed,
+// what the kernel reported on the same host at nearly the same time, and when
+// each happened (spec 091).
+//
+// Derived, never authoritative, and never stored. It joins records that already
+// exist and adds no record of its own. Read-side only: computed on the incident
+// detail path and at notification dispatch, discarded once rendered.
+//
+// What it deliberately does NOT carry, each absence being a requirement:
+//
+//   - No score, confidence, or probability, and no Caused flag (FR-009). The
+//     wording shown to a human may use causal language; this struct records only
+//     that two things happened close together. A field named Caused invites every
+//     later feature to treat co-occurrence as fact.
+//   - No rendered sentence. Prose belongs to whichever renderer needs it -- HTML
+//     for email, structured fields for a webhook, a component for the SPA.
+//     Freezing one renderer's shape here would impose it on the others and would
+//     put a causal claim in a transportable struct.
+//   - No persisted reference to the event it names (FR-018). Regenerating from
+//     stored facts is what keeps the wording improvable and the schema honest.
+type IncidentExplanation struct {
+	HostID   string
+	HostName string
+	// IncidentAt is when the failure was confirmed, and Cause is what the check
+	// observed. Copied in so a renderer needs nothing but this struct.
+	IncidentAt time.Time
+	Cause      string
+	// Event is the named event, by value: the whole row, so nothing has to be
+	// looked up again to render it, and no identifier survives to be mistaken
+	// for a stored causal link.
+	Event HostEvent
+	// Precedes says whether Event happened at or before IncidentAt. A statement
+	// about two clocks, not about causation -- it exists so the wording can avoid
+	// saying "before" when it means "after" (FR-010).
+	Precedes bool
+	// OtherEvents counts the OTHER events in the window, kinds this version
+	// cannot phrase included. It counts events, not kernel reports: the named
+	// event's own Occurrences answers that different question, and merging the
+	// two would misdescribe both.
+	OtherEvents int
+	// WindowFrom and WindowTo are the incident host-context window, unchanged.
+	// This feature defines no window of its own.
+	WindowFrom time.Time
+	WindowTo   time.Time
 }
 
 // IncidentDiagnostics contains enriched diagnostic information about an incident
@@ -1051,6 +1116,24 @@ const (
 	// The marker errs toward reduced: understating confidence is harmless,
 	// overstating it is not.
 	HostContextReduced HostContextResolution = "reduced"
+)
+
+// The incident correlation window (spec 089, FR-002; reused unchanged by spec
+// 091, FR-004). What "around the moment the incident opened" means, for every
+// surface that asks.
+//
+// It lives here, in the domain, rather than in the service that first needed it,
+// because a second definition would mean two answers to the same question and
+// the one an operator saw would depend on which page they were looking at. It is
+// asymmetric on purpose: a cause precedes its effect far more often than it
+// follows it, but a check confirmed slightly before the kernel finished
+// reporting is common enough to be worth a minute of slack.
+//
+// Constants, not configuration: the bounds are part of the response contract,
+// and changing them after the interface ships means re-testing every fixture.
+const (
+	HostContextWindowBefore = 5 * time.Minute
+	HostContextWindowAfter  = 1 * time.Minute
 )
 
 // HostContext is what a monitor's host was doing around the moment an incident

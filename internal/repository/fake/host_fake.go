@@ -13,6 +13,9 @@ import (
 type HostFake struct {
 	mu   sync.RWMutex
 	byID map[string]*domain.Host
+	// FindByIDCalls counts the lookups, so a test can assert a code path issued
+	// none at all rather than merely returned nothing.
+	FindByIDCalls int
 }
 
 func NewHostFake() *HostFake {
@@ -40,6 +43,10 @@ func (r *HostFake) Create(ctx context.Context, h *domain.Host) error {
 }
 
 func (r *HostFake) FindByID(ctx context.Context, id string) (*domain.Host, error) {
+	r.mu.Lock()
+	r.FindByIDCalls++
+	r.mu.Unlock()
+
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 

@@ -17,6 +17,12 @@ type HostEventFake struct {
 	// CreateErr, when set, makes Create fail — so an ingestion path can be tested
 	// against a storage failure without a database.
 	CreateErr error
+	// ListInWindowErr, when set, makes ListInWindow fail, so a correlation
+	// failure path can be tested without a database.
+	ListInWindowErr error
+	// ListInWindowCalls counts the reads. A test proving the zero-cost guarantee
+	// asserts this stays at zero for a monitor with no host attached.
+	ListInWindowCalls int
 }
 
 func NewHostEventFake() *HostEventFake {
@@ -49,6 +55,43 @@ func (r *HostEventFake) ListByHost(_ context.Context, hostID string, limit int) 
 			cp := *e
 			out = append(out, &cp)
 		}
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].OccurredAt.After(out[j].OccurredAt) })
+	if limit > 0 && len(out) > limit {
+		out = out[:limit]
+	}
+	return out, nil
+}
+
+// ListInWindow mirrors the real repository's half-open [from, to) semantics.
+// Deliberately not looser: a fake that accepts what the database rejects lets a
+// boundary bug pass every service test and fail only in production.
+func (r *HostEventFake) ListInWindow(_ context.Context, hostID string, from, to time.Time, limit int) ([]*domain.HostEvent, error) {
+	r.mu.Lock()
+	r.ListInWindowCalls++
+	err := r.ListInWindowErr
+	r.mu.Unlock()
+	if err != nil {
+		return nil, err
+	}
+
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	if !to.After(from) {
+		return nil, nil
+	}
+
+	out := make([]*domain.HostEvent, 0)
+	for _, e := range r.events {
+		if e.HostID != hostID {
+			continue
+		}
+		if e.OccurredAt.Before(from) || !e.OccurredAt.Before(to) {
+			continue
+		}
+		cp := *e
+		out = append(out, &cp)
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].OccurredAt.After(out[j].OccurredAt) })
 	if limit > 0 && len(out) > limit {

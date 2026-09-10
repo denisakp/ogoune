@@ -216,7 +216,7 @@ export async function unlinkMonitorFromHost(monitorId: string): Promise<void> {
  * distinction is worth keeping: one means "we did not ask", the other means "we
  * asked and there were none".
  */
-function mapHostEvents(dtos: HostEventDTO[] | null | undefined): HostEvent[] | undefined {
+export function mapHostEvents(dtos: HostEventDTO[] | null | undefined): HostEvent[] | undefined {
   if (!dtos) return undefined
   return dtos.map((d) => ({
     id: d.id ?? '',

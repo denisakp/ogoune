@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"time"
 
+	"github.com/denisakp/ogoune/internal/correlation"
 	"github.com/denisakp/ogoune/internal/domain"
 	"github.com/denisakp/ogoune/internal/dto"
 	"github.com/denisakp/ogoune/internal/port"
@@ -15,13 +16,11 @@ import (
 )
 
 // IncidentService provides business logic for incident management operations.
-// Correlation window for incident host context (spec 089, FR-002). Deliberately
-// constants, not configuration: the bounds are part of the response contract and
-// changing them after the interface ships means re-testing every fixture.
-const (
-	hostContextWindowBefore = 5 * time.Minute
-	hostContextWindowAfter  = 1 * time.Minute
-)
+//
+// The correlation window used below now lives in the domain as
+// domain.HostContextWindowBefore / After: spec 091 needs the same window from a
+// different package, and FR-004 forbids a second definition of "around the same
+// time".
 
 type IncidentService struct {
 	incidents   port.IncidentRepository
@@ -36,6 +35,18 @@ type IncidentService struct {
 	// hostMetricsObs counts why a context came back empty. Optional: a nil
 	// recorder simply records nothing, so no call site is forced to supply one.
 	hostCtxObs port.HostContextMetrics
+	// correlator turns the incident and its host's kernel events into one
+	// sentence (spec 091). Optional, like the recorder above: nil means the
+	// detail response carries no explanation and costs no extra query.
+	correlator *correlation.Correlator
+}
+
+// WithCorrelator attaches the causal-narrative correlator. Separate from the
+// constructor, following WithHostContextMetrics, so no existing caller or test
+// signature changes.
+func (s *IncidentService) WithCorrelator(c *correlation.Correlator) *IncidentService {
+	s.correlator = c
+	return s
 }
 
 // WithHostContextMetrics attaches the absence counter. Separate from the
@@ -144,8 +155,31 @@ func (s *IncidentService) GetIncidentByID(ctx context.Context, id string) (*doma
 	incident.EventStep = incidentSteps
 
 	incident.HostContext = s.buildHostContext(ctx, incident)
+	s.attachExplanation(ctx, incident)
 
 	return incident, nil
+}
+
+// attachExplanation adds the causal narrative and the events behind it
+// (spec 091).
+//
+// One lookup serves both: the sentence names an event and the list makes it
+// checkable, and paying two queries for one answer would be waste. Best-effort
+// by contract -- the correlator returns an empty result on every failure path,
+// so an incident detail is never lost to its own enrichment.
+//
+// Deliberately independent of buildHostContext above rather than nested inside
+// it: that one returns nil as soon as the window holds no metric samples, and
+// metrics purge long before events do (ADR 0011). Nesting would drop the
+// explanation for exactly the incidents where an event is the only evidence
+// left, which is every incident older than about a week (FR-006, SC-007).
+func (s *IncidentService) attachExplanation(ctx context.Context, incident *domain.Incident) {
+	if s.correlator == nil {
+		return
+	}
+	res := s.correlator.ForIncident(ctx, incident)
+	incident.Explanation = res.Explanation
+	incident.HostEvents = res.Events
 }
 
 // GetIncidentsByResource retrieves all incidents for a specific resource with pagination.
@@ -225,8 +259,8 @@ func (s *IncidentService) buildHostContext(ctx context.Context, incident *domain
 	}
 	hostID := *incident.Resource.HostID
 
-	from := incident.StartedAt.Add(-hostContextWindowBefore)
-	to := incident.StartedAt.Add(hostContextWindowAfter)
+	from := incident.StartedAt.Add(-domain.HostContextWindowBefore)
+	to := incident.StartedAt.Add(domain.HostContextWindowAfter)
 	// The window may still be elapsing when the operator opens a fresh incident;
 	// aggregate over what exists rather than waiting for it (FR-004).
 	if now := s.now(); to.After(now) {

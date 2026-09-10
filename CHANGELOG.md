@@ -7,6 +7,27 @@ follows [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **The causal narrative on incidents (WI-3)** — an incident whose host's kernel reported something
+  in the same few minutes now says so in one sentence, at the top of the page and in the
+  notification: *"HTTP check failed: 502 Bad Gateway at 14:03:00. The kernel OOM-killed postgres
+  (pid 4711) on web-01 at 14:02:47, 13 seconds earlier."* The events behind it are listed beneath,
+  so the claim can be checked rather than taken.
+  The rule is **a time window and nothing else** — the same window the host context already uses.
+  No scoring, no ranking, no model. A storm produces one sentence: it names one event and counts
+  the others, keeping "reported 37 times" and "3 other events" apart because they answer different
+  questions. An event kind this version cannot phrase is still listed and still counted, but never
+  named — the kind set is open and carries agent-supplied text, which must not choose the wording
+  of an alert.
+  The wording may read as an explanation; **the data model records only co-occurrence**. There is
+  no cause identifier, no score, no confidence, no probability, in the API or anywhere else — and
+  nothing is stored at all: the sentence is recomputed from the incident and the events on every
+  read. Improving the wording improves every past incident, with no backfill, because there is
+  nothing to backfill. **No migration, no new table, no new column, no new setting.**
+  An alert never waits for a correlation and never gets a sequel. Events reach Ogoune on the
+  agent's own schedule, so one that truly preceded a failure can arrive just after the alert went
+  out; when that happens the incident page carries the sentence and the alert does not. That is the
+  intended behaviour — your alerts are not delayed, and you are not woken twice to be told why.
+  An incident whose monitor has no host attached — the common case — costs **zero** extra queries.
 - **Kernel events from the host agent (WI-2)** — the agent now reports out-of-memory kills and
   segmentation faults alongside its metrics, and they appear on the host's page timestamped when
   the kernel reported them. That lets an operator line a kill up against an incident and see that

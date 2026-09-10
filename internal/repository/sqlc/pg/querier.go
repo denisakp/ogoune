@@ -191,6 +191,12 @@ type Querier interface {
 	// Newest first: an operator opening a host page wants what just happened, and the
 	// index on (host_id, occurred_at DESC) serves exactly this.
 	ListHostEventsByHost(ctx context.Context, arg ListHostEventsByHostParams) ([]HostEvent, error)
+	// Events inside one incident's correlation window (spec 091). Half-open
+	// [from, to): an event exactly on the far edge belongs to one window and not two.
+	// Newest first, and bounded -- a storm-prone host can hold many rows in a
+	// six-minute window, and neither the sentence nor the served list grows with it.
+	// Served by the existing index on (host_id, occurred_at DESC); no new index.
+	ListHostEventsInWindow(ctx context.Context, arg ListHostEventsInWindowParams) ([]HostEvent, error)
 	ListHostMetricsInRange(ctx context.Context, arg ListHostMetricsInRangeParams) ([]HostMetric, error)
 	ListHosts(ctx context.Context, arg ListHostsParams) ([]Host, error)
 	ListIncidentDiagnosticsByIncidentIDs(ctx context.Context, dollar_1 []string) ([]IncidentDiagnostic, error)

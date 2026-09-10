@@ -196,14 +196,14 @@ func TestGetIncidentByID_HostContext_WindowIsACodeConstant(t *testing.T) {
 		require.NoError(t, err)
 		require.NotNil(t, got.HostContext)
 
-		assert.Equal(t, started.Add(-hostContextWindowBefore), got.HostContext.WindowFrom.UTC(),
+		assert.Equal(t, started.Add(-domain.HostContextWindowBefore), got.HostContext.WindowFrom.UTC(),
 			"window start is startedAt - 5m regardless of configuration")
-		assert.Equal(t, started.Add(hostContextWindowAfter), got.HostContext.WindowTo.UTC(),
+		assert.Equal(t, started.Add(domain.HostContextWindowAfter), got.HostContext.WindowTo.UTC(),
 			"window end is startedAt + 1m regardless of configuration")
 	}
 
-	assert.Equal(t, 5*time.Minute, hostContextWindowBefore)
-	assert.Equal(t, time.Minute, hostContextWindowAfter)
+	assert.Equal(t, 5*time.Minute, domain.HostContextWindowBefore)
+	assert.Equal(t, time.Minute, domain.HostContextWindowAfter)
 }
 
 // T029 -- the resolution boundary. A window entirely inside the configured
@@ -291,7 +291,7 @@ func TestGetIncidentByID_HostContext_PartiallyElapsedWindow(t *testing.T) {
 
 	assert.Equal(t, f.now, got.HostContext.WindowTo.UTC(),
 		"the window end is clamped to now while it is still elapsing")
-	assert.True(t, got.HostContext.WindowTo.Before(started.Add(hostContextWindowAfter)),
+	assert.True(t, got.HostContext.WindowTo.Before(started.Add(domain.HostContextWindowAfter)),
 		"and is genuinely earlier than the nominal end")
 	assert.Equal(t, 1, got.HostContext.SampleCount)
 }
@@ -319,7 +319,7 @@ func TestGetIncidentByID_HostContext_ReopenPicksUpNewSamples(t *testing.T) {
 	require.NotNil(t, second.HostContext)
 	assert.Equal(t, 2, second.HostContext.SampleCount, "no cache between reads")
 	assert.InDelta(t, 81.0, second.HostContext.PeakCPUPct, 0.001)
-	assert.Equal(t, started.Add(hostContextWindowAfter).UTC(), second.HostContext.WindowTo.UTC(),
+	assert.Equal(t, started.Add(domain.HostContextWindowAfter).UTC(), second.HostContext.WindowTo.UTC(),
 		"the full window is now in the past, so the nominal end applies")
 }
 
