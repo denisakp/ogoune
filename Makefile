@@ -20,7 +20,7 @@ GOFLAGS           := -trimpath
 GO_TEST_FLAGS     := -race -count=1
 GO_LINT_TIMEOUT   := 5m
 
-.PHONY: build build-be build-fe test test-be test-be-pg test-be-bench bench-api test-fe type-check-fe lint clean docker run-ci ci-local license-audit sqlc-bin sqlc-generate sqlc-check migrations-drift-check fuzz-dynquery
+.PHONY: check-no-binaries test-agent-kernel build build-be build-fe test test-be test-be-pg test-be-bench bench-api test-fe type-check-fe lint clean docker run-ci ci-local license-audit sqlc-bin sqlc-generate sqlc-check migrations-drift-check fuzz-dynquery
 
 build: build-fe build-be
 
@@ -131,27 +131,41 @@ run-ci: ci-local
 # (dual-dialect Postgres + paired benches). Catches ~80% of CI breaks
 # locally so we don't burn compute minutes on red lanes.
 ci-local:
-	@echo "=== 1/8 sqlc drift check ==="
+	@echo "=== 1/9 no tracked binaries ==="
+	scripts/check-no-binaries.sh
+	@echo "=== 2/9 sqlc drift check ==="
 	$(MAKE) sqlc-check
-	@echo "=== 2/8 migrations drift check ==="
+	@echo "=== 3/9 migrations drift check ==="
 	$(MAKE) migrations-drift-check
-	@echo "=== 3/8 OpenAPI contract + types drift guard ==="
+	@echo "=== 4/9 OpenAPI contract + types drift guard ==="
 	$(MAKE) openapi
 	@git diff --exit-code -- api/openapi/ || { echo "OpenAPI contract stale: run 'make openapi' and commit api/openapi/"; exit 1; }
 	$(MAKE) lint-openapi
 	$(MAKE) gen-fe-types
 	@git diff --exit-code -- web/packages/api-types/generated/ || { echo "FE types stale: run 'make gen-fe-types' and commit web/packages/api-types/generated/"; exit 1; }
-	@echo "=== 4/8 Lint (go vet + pnpm lint) ==="
+	@echo "=== 5/9 Lint (go vet + pnpm lint) ==="
 	$(MAKE) lint
-	@echo "=== 5/8 Frontend type-check (vue-tsc) ==="
+	@echo "=== 6/9 Frontend type-check (vue-tsc) ==="
 	$(MAKE) type-check-fe
-	@echo "=== 6/8 Backend tests (race + timeout, SQLite) ==="
+	@echo "=== 7/9 Backend tests (race + timeout, SQLite) ==="
 	go test -race -timeout 120s ./...
-	@echo "=== 7/8 Frontend tests ==="
+	@echo "=== 8/9 Frontend tests ==="
 	$(MAKE) test-fe
-	@echo "=== 8/8 License audit ==="
+	@echo "=== 9/9 License audit ==="
 	$(MAKE) license-audit
 	@echo "=== ci-local: ALL PASSED ==="
+
+# Nothing built from this repo belongs in git. Enforced rather than trusted to
+# .gitignore, because the next artifact will have a name nobody predicted.
+check-no-binaries:
+	scripts/check-no-binaries.sh
+
+# Kernel-event capture against a REAL kernel log. Linux and root only: skipped
+# everywhere else, which is why CI sets OGOUNE_REQUIRE_KERNEL_CAPTURE to turn a
+# skip into a failure. Run it on a Linux box, or in the OrbStack machine.
+test-agent-kernel:
+	go test -c -o /tmp/ogoune-agent.test ./cmd/agent/
+	sudo OGOUNE_REQUIRE_KERNEL_CAPTURE=1 /tmp/ogoune-agent.test -test.run TestRealKernel -test.v
 
 license-audit:
 	@echo "=== SPDX coverage guard ==="
@@ -179,14 +193,21 @@ fuzz-kmsg: ## 60s fuzz campaign over the kernel-log classifier (spec 090)
 .PHONY: lint-openapi
 lint-openapi: ## Lint the OpenAPI contract with Spectral (workspace binary — no global install)
 	@echo ">> Lint OpenAPI..."
-	cd web && pnpm exec spectral lint ../api/openapi/v1.yaml --ruleset ../.spectral.yaml --fail-severity=error
+	# The ruleset lives in web/ because Spectral resolves `extends` relative to
+	# the RULESET FILE, not the working directory. At the repo root it looked for
+	# @stoplight/spectral-owasp-ruleset in a node_modules that does not exist
+	# there, and this target failed on a clean tree for months.
+	cd web && pnpm exec spectral lint ../api/openapi/v1.yaml --ruleset .spectral.yaml --fail-severity=error
 
 .PHONY: openapi
 openapi: ## generate the canonical OpenAPI 3.1 contract from Go annotations (source of truth)
 	go run github.com/swaggo/swag/v2/cmd/swag init -g cmd/api/main.go --v3.1 -o api/openapi --parseDependency --parseInternal
-	@mv api/openapi/swagger.yaml api/openapi/v1.yaml
 	@mv api/openapi/swagger.json api/openapi/v1.json
-	@rm -f api/openapi/docs.go
+	# The YAML is DERIVED from the JSON, not taken from swag. swag's JSON encoder
+	# sorts map keys and its YAML writer does not, so the YAML changed on about a
+	# third of runs and the drift guard below could never come back clean.
+	go run ./cmd/openapi-yaml api/openapi/v1.json api/openapi/v1.yaml
+	@rm -f api/openapi/swagger.yaml api/openapi/docs.go
 	@echo ">> OpenAPI 3.1 contract → api/openapi/v1.{yaml,json}"
 
 .PHONY: gen-fe-types

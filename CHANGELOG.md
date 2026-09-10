@@ -5,6 +5,71 @@ follows [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.0.0-beta.6] - 2026-09-10
+
+### Added
+
+- **Kernel-event capture is verified against a real kernel in CI.** Every other test exercises the
+  classifier against strings and the collector against a fake source — which is exactly how a
+  blocking read on `/dev/kmsg` shipped: it stopped the agent streaming metrics on every host where
+  the kernel log was readable, and nothing could see it, because in a container the open fails and
+  there is no source left to block on.
+  A GitHub runner is a virtual machine, so it has the kernel log a container does not. The new job
+  reads it, injects real kernel records and reads them back, and produces a genuine out-of-memory
+  kill through a memory-limited cgroup. It also pins the property that makes a package upgrade
+  safe: a freshly opened reader must not replay anything logged before it started.
+  The suite skips on a machine without a readable kernel log, so `make test-agent-kernel` is quiet
+  locally — but CI sets `OGOUNE_REQUIRE_KERNEL_CAPTURE`, which turns a skip into a failure, and the
+  job additionally refuses to pass unless the assertions actually ran. A runner image change cannot
+  quietly stop verifying anything while the badge stays green.
+  Confirmed to catch the original defect: with the blocking read restored, it fails in four seconds
+  saying so.
+
+### Fixed
+
+- **`make ci-local` could not pass, whatever you did.** Two of its gates failed on a clean tree, so
+  the command that exists to catch CI breaks before pushing carried no information: you could not
+  tell "I broke something" from "it is the usual noise".
+  `make lint-openapi` failed because `.spectral.yaml` sat at the repository root while Spectral
+  resolves `extends` relative to the ruleset file — it looked for `@stoplight/spectral-owasp-ruleset`
+  in a `node_modules` that only exists under `web/`. The ruleset now lives beside the tooling that
+  provides it.
+  The OpenAPI drift guard failed because it regenerates the contract and diffs it, and swag's YAML
+  writer iterates a map where its JSON encoder sorts: two lines of the `LiveStats` schema changed
+  position on roughly a third of runs. The YAML is now derived from the JSON through a document-order
+  conversion, so the same input always produces the same bytes — asserted over 50 iterations in a
+  test, and over eight full regenerations by hand.
+  `api/openapi/v1.yaml` and the generated frontend types are reordered once as a result. Both are
+  semantically identical to before: verified by parsing, and the types are the same lines in a
+  different order.
+
+- **The migrator executed `.down.sql` files forward.** Undo scripts were loaded with everything
+  else and run as migrations. It survived only because `.down.sql` sorts before `.up.sql` and the
+  statements are all `IF EXISTS` — the drop hit a table that did not exist yet, then the up created
+  it. Nothing guaranteed that order, and `schema_migrations` recorded the name of a down file as
+  the applied migration for 19 of 34 rows on a fresh database. Down files are now never executed;
+  they stay as documentation of the inverse, kept paired by the drift check.
+- **Two migrations could share a version number, and the second would never run.** Applied state
+  is keyed on the four-digit prefix alone, so a duplicate is indistinguishable from an already
+  applied migration — silently skipped forever, and only on installs that upgrade rather than start
+  fresh. Startup now refuses a duplicate with the file names and the remedy, and
+  `make migrations-drift-check` catches it first. `0026_report_settings` — which shared its number
+  with `0026_report_history` — is renumbered to `0034`; every statement in it is `IF NOT EXISTS`,
+  so it re-applies as a no-op on existing databases.
+- **`make migrations-drift-check` was inspecting 15 of 55 migration files.** Its filename pattern
+  could not match a name containing a dot, so every `NNNN_name.up.sql` — 40 files, including all
+  recent work — was skipped, and the guard reported success on a quarter of the tree. It now sees
+  every migration the migrator executes. No drift was hiding in the files it had been missing.
+
+- **Two compiled binaries were tracked in git** — a 9 MB macOS `agent` and an 8 MB Windows
+  `agent.exe`, both committed by accident: `go build ./cmd/agent` writes `./agent` into the working
+  directory, under the package's name. Removed, and `.gitignore` now names every binary a bare
+  `go build` of this repo's commands can drop at the root.
+  A list only stops the artifacts someone thought to name, so `scripts/check-no-binaries.sh` checks
+  what is actually tracked and fails on anything compiled. It runs in CI and as the first step of
+  `make ci-local`, before the slow gates, so the answer arrives in a second rather than after the
+  test suite.
+
 ## [1.0.0-beta.5] - 2026-09-10
 
 ### Added

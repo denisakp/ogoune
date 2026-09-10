@@ -6,6 +6,28 @@
 - New migrations must be additive, deterministic, and safe to re-run through version tracking.
 - Keep PostgreSQL and SQLite schemas semantically aligned for shared domain behavior.
 
+
+## Numbering, and the two rules behind it
+
+**Every migration needs its own number.** Applied state is recorded in
+`schema_migrations` keyed on the four-digit prefix **alone**, so two migrations
+sharing one are the same migration as far as the migrator is concerned: on any
+database that already recorded that number, the second is skipped — forever, and
+only on installs that upgrade rather than start fresh, which is the hardest
+version of that bug to notice. The migrator refuses to start on a duplicate, and
+`make migrations-drift-check` catches it before that.
+
+**`.down.sql` files are never executed.** This migrator has no down path. The
+undo scripts exist as documentation of the inverse and are kept paired by the
+drift check, but nothing runs them. They used to be loaded with everything else
+and executed *forward*, which survived only because `.down.sql` sorts before
+`.up.sql` and the statements are all `IF EXISTS`.
+
+**Renumbering an existing migration is safe only when its statements are
+idempotent.** A new number is unapplied on every existing database, so the file
+runs again there. `CREATE TABLE IF NOT EXISTS` makes that a no-op; a bare
+`CREATE TABLE` makes it a failed startup.
+
 ## File-pair rule
 
 One migration = two files with the **same `NNNN_` prefix** and the **same intent**, one under `postgres/` and one under `sqlite/`. Column names and nullability MUST match across dialects; SQL type tokens are intentionally allowed to differ (see mapping below). The pair rule is enforced by `make migrations-drift-check`.

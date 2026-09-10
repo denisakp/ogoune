@@ -85,3 +85,66 @@ jobs:
 
       - name: dual-dialect tests (Postgres + SQLite via testcontainers)
         run: make test-be-pg
+
+  # Kernel-event capture, against the runner's real kernel.
+  #
+  # Everything else exercises the classifier against strings and the collector
+  # against a fake source. That is what let a blocking read on /dev/kmsg ship:
+  # the agent stopped streaming metrics on every host where the kernel log was
+  # readable, and no test could see it, because in a container the open fails
+  # and there is no source left to block on. A GitHub runner is a VM, so it has
+  # the kernel log a container does not.
+  #
+  # OGOUNE_REQUIRE_KERNEL_CAPTURE turns "skip" into "fail". Without it a runner
+  # image change would quietly stop verifying anything while the badge stayed
+  # green, which is the failure mode this job exists to end.
+  agent-kernel-capture:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: setup Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: '1.25.1'
+
+      # Diagnostics only. Every command is allowed to fail: the step exists to
+      # describe the runner when something goes wrong, and `bash -e` turned a
+      # false `test` into a failed job -- which is how this step took the whole
+      # verification down without a single assertion running.
+      - name: report the kernel this runs against
+        continue-on-error: true
+        run: |
+          set +e
+          uname -a
+          ls -l /dev/kmsg
+          echo "dmesg_restrict: $(cat /proc/sys/kernel/dmesg_restrict 2>/dev/null || echo unknown)"
+          if [ -r /sys/fs/cgroup/memory.events ]; then
+            echo "cgroup v2 memory accounting: readable"
+          else
+            echo "cgroup v2 memory accounting: not readable (the kernel log is what this job needs)"
+          fi
+          command -v systemd-run >/dev/null && echo "systemd-run: present" || echo "systemd-run: absent"
+          exit 0
+
+      # Built as the normal user, run as root: the kernel log needs privilege to
+      # read and to write, and a root-owned Go build cache poisons later steps.
+      - name: build the agent test binary
+        run: go test -c -o /tmp/agent.test ./cmd/agent/
+
+      - name: kernel capture against a real kernel
+        run: |
+          set -o pipefail
+          sudo OGOUNE_REQUIRE_KERNEL_CAPTURE=1 /tmp/agent.test \
+            -test.run 'TestRealKernel' -test.v -test.timeout 4m | tee /tmp/kernel-capture.log
+
+      # A test suite that matched nothing also exits 0. The run only counts if
+      # the assertions actually executed.
+      - name: assert the verification really ran
+        run: |
+          passed=$(grep -c '^--- PASS: TestRealKernel' /tmp/kernel-capture.log || true)
+          echo "real-kernel tests passed: $passed"
+          if [ "$passed" -lt 6 ]; then
+            echo "::error::expected at least 6 real-kernel tests to run, saw $passed — the verification did not happen"
+            exit 1
+          fi
