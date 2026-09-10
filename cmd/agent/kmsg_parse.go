@@ -62,6 +62,9 @@ func parseKmsgLine(line string) (kmsgReport, bool) {
 	if r, ok := parseSegfault(msg); ok {
 		return r, true
 	}
+	if r, ok := parseFatalSignal(msg); ok {
+		return r, true
+	}
 	return kmsgReport{}, false
 }
 
@@ -132,6 +135,64 @@ func parseSegfault(msg string) (kmsgReport, bool) {
 		return kmsgReport{}, false
 	}
 	return kmsgReport{Kind: agentwire.KindSegfault, Process: name, PID: pid}, true
+}
+
+// fatalSignalMarker is the arm64 kernel's way of reporting the same thing
+// parseSegfault handles on x86.
+const fatalSignalMarker = "potentially unexpected fatal signal "
+
+// sigsegv is the only fatal signal this parser turns into an event. Others --
+// SIGBUS, SIGILL, SIGABRT -- are real and would need kinds of their own; naming
+// them "segfault" would be a lie, and inventing kinds here is not this parser's
+// call.
+const sigsegv = 11
+
+// parseFatalSignal recognises the arm64 form of a fatal-signal report:
+//
+//	python3.14: python3: potentially unexpected fatal signal 11.
+//
+// This shape exists because arm64 does not emit the x86 "segfault at ..." line.
+// The gap was found by running the agent on an arm64 machine, not by reading
+// kernel sources -- x86 was all the original parser had ever seen.
+//
+// Two names appear because the kernel prints the thread's comm and the process
+// name; the one adjacent to the marker is the one to report. There is no pid in
+// this format, so the report carries none rather than an invented zero.
+//
+// One thing an operator has to know, and it belongs in the docs rather than
+// here: on most distributions this line is not emitted at all unless
+// debug.exception-trace is 1. A quiet kernel is indistinguishable from a healthy
+// one, so capture silently sees nothing.
+func parseFatalSignal(msg string) (kmsgReport, bool) {
+	idx := strings.Index(msg, fatalSignalMarker)
+	if idx < 0 {
+		return kmsgReport{}, false
+	}
+
+	rest := msg[idx+len(fatalSignalMarker):]
+	numEnd := 0
+	for numEnd < len(rest) && rest[numEnd] >= '0' && rest[numEnd] <= '9' {
+		numEnd++
+	}
+	if numEnd == 0 {
+		return kmsgReport{}, false
+	}
+	sig, err := strconv.Atoi(rest[:numEnd])
+	if err != nil || sig != sigsegv {
+		return kmsgReport{}, false
+	}
+
+	// The name is the last colon-separated field before the marker.
+	head := strings.TrimSpace(msg[:idx])
+	head = strings.TrimSuffix(head, ":")
+	if i := strings.LastIndexByte(head, ':'); i >= 0 {
+		head = head[i+1:]
+	}
+	name := strings.TrimSpace(head)
+	if !validProcessName(name) {
+		return kmsgReport{}, false
+	}
+	return kmsgReport{Kind: agentwire.KindSegfault, Process: name}, true
 }
 
 // betweenParens returns the text inside the first "(...)" pair.

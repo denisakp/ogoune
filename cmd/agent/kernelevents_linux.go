@@ -1,13 +1,15 @@
 package main
 
 import (
-	"bufio"
+	"errors"
 	"io"
 	"log/slog"
 	"os"
 	"strconv"
 	"strings"
 	"sync"
+
+	"golang.org/x/sys/unix"
 
 	"github.com/denisakp/ogoune/pkg/agentwire"
 )
@@ -23,6 +25,8 @@ import (
 const (
 	kmsgPath          = "/dev/kmsg"
 	cgroupEventsPath  = "/sys/fs/cgroup/memory.events"
+	// One read(2) returns one record, and a buffer smaller than the record loses
+	// it. The kernel caps a record well below this.
 	kmsgReadBufferMax = 8192
 	// kmsgDrainMax bounds how many reports one drain will return. A storm is
 	// absorbed by the accumulator's aggregation, but the reader still must not
@@ -45,10 +49,27 @@ func newKernelSources() []kernelSource {
 
 // --- /dev/kmsg -------------------------------------------------------------
 
+// kmsgSource reads the kernel log through a RAW non-blocking file descriptor.
+//
+// Both properties are load-bearing, and getting either wrong stops the agent
+// streaming metrics -- which is worse than never capturing an event at all.
+//
+//   - NON-BLOCKING. A plain open(2) of /dev/kmsg blocks on read until the kernel
+//     emits something. Draining it on the metrics path then parks the collector
+//     forever on a quiet machine. That is not hypothetical: it is what shipped,
+//     and it was invisible in CI and in containers because the open fails there,
+//     leaving no source to block on. With O_NONBLOCK an empty log returns EAGAIN.
+//   - RAW fd, not an *os.File. os.NewFile registers a pollable descriptor with
+//     the Go runtime poller, which turns a would-be EAGAIN back into a blocking
+//     wait. Reading through unix.Read keeps the syscall's own semantics.
+//
+// Reads are also record-oriented rather than line-buffered: each read(2) on
+// /dev/kmsg returns exactly one record, and a buffer too small to hold it loses
+// that record entirely. bufio would happily split one across reads.
 type kmsgSource struct {
-	mu sync.Mutex
-	f  *os.File
-	r  *bufio.Reader
+	mu  sync.Mutex
+	fd  int
+	buf []byte
 }
 
 // newKmsgSource opens the kernel log positioned at its END.
@@ -65,7 +86,7 @@ type kmsgSource struct {
 // state management on the operator's machine, and is still wrong after a reboot
 // clears the buffer.
 func newKmsgSource() kernelSource {
-	f, err := os.Open(kmsgPath)
+	fd, err := unix.Open(kmsgPath, unix.O_RDONLY|unix.O_NONBLOCK|unix.O_CLOEXEC, 0)
 	if err != nil {
 		// The common case in a container, which is the documented default
 		// deployment. Debug rather than warn: the collector reports unavailability
@@ -73,12 +94,12 @@ func newKmsgSource() kernelSource {
 		slog.Debug("agent: kernel log unavailable", "path", kmsgPath, "error", err)
 		return nil
 	}
-	if _, err := f.Seek(0, io.SeekEnd); err != nil {
+	if _, err := unix.Seek(fd, 0, io.SeekEnd); err != nil {
 		slog.Debug("agent: cannot seek kernel log to end", "error", err)
-		_ = f.Close()
+		_ = unix.Close(fd)
 		return nil
 	}
-	return &kmsgSource{f: f, r: bufio.NewReaderSize(f, kmsgReadBufferMax)}
+	return &kmsgSource{fd: fd, buf: make([]byte, kmsgReadBufferMax)}
 }
 
 func (s *kmsgSource) Name() string { return agentwire.SourceKmsg }
@@ -87,20 +108,32 @@ func (s *kmsgSource) Drain() []kmsgReport {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	if s.f == nil {
+	if s.fd < 0 {
 		return nil
 	}
 
 	var out []kmsgReport
-	for len(out) < kmsgDrainMax {
-		// /dev/kmsg is opened non-blocking by the kernel for readers that seek, so
-		// a read with nothing pending returns an error rather than waiting. Either
-		// way the answer is "nothing more this interval".
-		line, err := s.r.ReadString('\n')
-		if err != nil {
-			break
+	// Bounded by reads attempted, not by reports produced: a burst of records the
+	// classifier ignores must not keep this loop running either.
+	for attempts := 0; len(out) < kmsgDrainMax && attempts < kmsgDrainMax; attempts++ {
+		n, err := unix.Read(s.fd, s.buf)
+		switch {
+		case errors.Is(err, unix.EINTR):
+			continue
+		case errors.Is(err, unix.EPIPE):
+			// Records were overwritten while we were away. The kernel has already
+			// moved the read position to the oldest surviving record, so the right
+			// answer is to keep going, not to give up on the interval.
+			continue
+		case err != nil:
+			// EAGAIN on a quiet machine, which is the normal exit from this loop.
+			// Anything else means the log became unreadable; either way the answer
+			// is "nothing more this interval" and metrics are unaffected.
+			return out
+		case n <= 0:
+			return out
 		}
-		if r, ok := parseKmsgLine(strings.TrimRight(line, "\n")); ok {
+		if r, ok := parseKmsgLine(strings.TrimRight(string(s.buf[:n]), "\n")); ok {
 			out = append(out, r)
 		}
 	}
@@ -110,9 +143,9 @@ func (s *kmsgSource) Drain() []kmsgReport {
 func (s *kmsgSource) Close() {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if s.f != nil {
-		_ = s.f.Close()
-		s.f = nil
+	if s.fd >= 0 {
+		_ = unix.Close(s.fd)
+		s.fd = -1
 	}
 }
 

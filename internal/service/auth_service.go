@@ -216,7 +216,20 @@ func (s *AuthService) InitializePassword(ctx context.Context, email, newPassword
 
 	user, err := s.userRepo.FindByEmail(ctx, email)
 	if err != nil {
-		return nil, ErrResourceNotFound
+		return nil, ErrPasswordInitializationRefused
+	}
+
+	// This endpoint is unauthenticated, and it must stay usable only for the one
+	// step it exists for: an account that has never set a password, which signs
+	// in with the well-known default and is therefore not protected by its
+	// password anyway. Without this check it sets ANY known account's password
+	// and returns a session token for it -- a full takeover from an email address
+	// alone. The flag flips on the first successful call, so the legitimate
+	// first-login flow is unaffected.
+	if user.PasswordInitialized {
+		slog.Warn("password initialization refused: account already initialized",
+			"user_id", user.ID)
+		return nil, ErrPasswordInitializationRefused
 	}
 
 	// Hash new password

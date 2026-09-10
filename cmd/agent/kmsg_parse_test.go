@@ -99,3 +99,72 @@ func TestParseKmsgLine_TruncatedLine(t *testing.T) {
 		t.Error("a message cut mid-report must not be classified")
 	}
 }
+
+// The arm64 fatal-signal form (spec 090 follow-up). Found by running the agent
+// on an arm64 host: that kernel never emits the x86 "segfault at ..." line, so
+// segfault capture was silently dead on every arm64 machine.
+func TestParseKmsgLine_FatalSignalArm64(t *testing.T) {
+	cases := []struct {
+		name    string
+		line    string
+		wantOK  bool
+		process string
+	}{
+		{
+			name:    "real arm64 line, captured from /dev/kmsg",
+			line:    "6,2893,129388087502,-;python3.14: python3: potentially unexpected fatal signal 11.",
+			wantOK:  true,
+			process: "python3",
+		},
+		{
+			name:    "single name form",
+			line:    "6,10,1,-;myapp: potentially unexpected fatal signal 11.",
+			wantOK:  true,
+			process: "myapp",
+		},
+		{
+			// SIGBUS is real and fatal, but it is not a segmentation fault. Naming
+			// it one would be a lie; it needs a kind of its own to be reported.
+			name:   "a different fatal signal is not a segfault",
+			line:   "6,11,1,-;myapp: myapp: potentially unexpected fatal signal 7.",
+			wantOK: false,
+		},
+		{
+			name:   "no signal number",
+			line:   "6,12,1,-;myapp: potentially unexpected fatal signal .",
+			wantOK: false,
+		},
+		{
+			name:   "no process name",
+			line:   "6,13,1,-;potentially unexpected fatal signal 11.",
+			wantOK: false,
+		},
+		{
+			name:   "process name that is not one",
+			line:   "6,14,1,-;;;: potentially unexpected fatal signal 11.",
+			wantOK: false,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got, ok := parseKmsgLine(tc.line)
+			if ok != tc.wantOK {
+				t.Fatalf("ok = %v, want %v (report %+v)", ok, tc.wantOK, got)
+			}
+			if !tc.wantOK {
+				return
+			}
+			if got.Kind != agentwire.KindSegfault {
+				t.Errorf("kind = %q, want %q", got.Kind, agentwire.KindSegfault)
+			}
+			if got.Process != tc.process {
+				t.Errorf("process = %q, want %q", got.Process, tc.process)
+			}
+			// This format carries no pid, and reporting a zero would read as one.
+			if got.PID != 0 {
+				t.Errorf("pid = %d, want 0 (the format has none)", got.PID)
+			}
+		})
+	}
+}

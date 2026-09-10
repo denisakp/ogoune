@@ -13,6 +13,18 @@ import (
 // and the two timestamps in a sentence are what let them overrule it.
 const timeLayout = "2006-01-02 15:04:05 MST"
 
+// stamp renders a time for the sentence, always in UTC.
+//
+// Always, because the two timestamps exist to be compared with each other. An
+// incident's start carries the server's local zone while a kernel event's is
+// stored in UTC, so formatting them as they arrive produced "11:19:04 GMT" next
+// to "11:17:35 UTC" in one sentence -- observed on a real host. On a server not
+// at UTC the stated gap would not follow from the printed times at all, which
+// turns the pair from evidence into decoration.
+func stamp(t time.Time) string {
+	return t.UTC().Format(timeLayout)
+}
+
 // Sentence renders the explanation as one sentence of plain text.
 //
 // Pure: no context, no repository, no clock. The same input always produces the
@@ -39,11 +51,11 @@ func Sentence(e *domain.IncidentExplanation) string {
 	if cause == "" {
 		cause = "This check failed"
 	}
-	fmt.Fprintf(&b, "%s at %s. ", cause, e.IncidentAt.Format(timeLayout))
+	fmt.Fprintf(&b, "%s at %s. ", cause, stamp(e.IncidentAt))
 
 	// What the kernel reported, and when.
 	fmt.Fprintf(&b, "The kernel %s %s on %s at %s",
-		phrase, target(e.Event.Detail), hostLabel(e), e.Event.OccurredAt.Format(timeLayout))
+		phrase, target(e.Event.Detail), hostLabel(e), stamp(e.Event.OccurredAt))
 
 	// How far apart, and in which direction. Never "before" when it means
 	// "after" (FR-010).
@@ -117,11 +129,15 @@ func target(d *domain.HostEventDetail) string {
 // read as precision the two clocks do not have -- the event's timestamp comes
 // from the host's kernel and the incident's from this server.
 func relative(e *domain.IncidentExplanation) string {
-	d := e.IncidentAt.Sub(e.Event.OccurredAt)
+	// Computed from the times as PRINTED, not as stored. The sentence shows both
+	// to the second, so an operator can subtract them; deriving the gap from the
+	// sub-second values instead produced "1 minute 28 seconds" between two
+	// timestamps 89 seconds apart. A sentence that fails its own arithmetic
+	// invites doubt about the part that cannot be checked.
+	d := e.IncidentAt.Truncate(time.Second).Sub(e.Event.OccurredAt.Truncate(time.Second))
 	if d < 0 {
 		d = -d
 	}
-	d = d.Round(time.Second)
 	if d == 0 {
 		return ""
 	}
