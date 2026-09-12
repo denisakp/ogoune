@@ -175,6 +175,14 @@ func (s *IncidentService) CreateIncident(ctx context.Context, r *domain.Resource
 		ResolvedAt: nil, // nil means active
 		StartedAt:  time.Now(),
 		Details:    []byte(result.ResponseData),
+		// The machine as it is RIGHT NOW, frozen onto the incident (spec 092).
+		// Resolved through the monitor at read time, this was rewritten every
+		// time a monitor moved -- a postmortem describing a machine that was
+		// never involved. HostLinkRecorded is set unconditionally: "we looked
+		// and there was none" is a fact too, and it is the one that must never
+		// fall back to whatever the monitor points at later.
+		HostID:           r.HostID,
+		HostLinkRecorded: true,
 	}
 
 	if _, err := s.incidents.Create(ctx, incident); err != nil {

@@ -33,10 +33,14 @@ type IncidentResponse struct {
 	// (FR-012's discipline, applied to the API).
 	Explanation *IncidentExplanationResponse `json:"explanation,omitempty"`
 	HostEvents  []HostEventResponse          `json:"host_events,omitempty"`
-	StartedAt   string                       `json:"started_at"`
-	ResolvedAt  *string                      `json:"resolved_at"`
-	CreatedAt   string                       `json:"created_at"`
-	UpdatedAt   string                       `json:"updated_at"`
+	// HostLink says which machine the surfaces above describe and where that
+	// answer came from (spec 092). `omitempty` for the same reason as its
+	// neighbours: this struct is shared with the list endpoint.
+	HostLink   *HostLinkResponse `json:"host_link,omitempty"`
+	StartedAt  string            `json:"started_at"`
+	ResolvedAt *string           `json:"resolved_at"`
+	CreatedAt  string            `json:"created_at"`
+	UpdatedAt  string            `json:"updated_at"`
 }
 
 // HostContextResponse is what the monitor's host was doing around the moment the
@@ -109,6 +113,29 @@ type IncidentExplanationResponse struct {
 	// elapsing.
 	WindowFrom string `json:"window_from"`
 	WindowTo   string `json:"window_to"`
+}
+
+// HostLinkResponse says which machine an incident's host context and
+// explanation describe, and how that is known (spec 092). Absent when the
+// incident has no machine to describe.
+//
+// An incident is a historical record. The machine it happened on used to be
+// resolved through the monitor at read time, so moving a monitor rewrote what
+// its past incidents displayed. It is recorded when the incident opens now;
+// incidents from before that fall back to the monitor's current machine and
+// say so here, so a reader can tell a record from an inference.
+// @name HostLinkResponse
+type HostLinkResponse struct {
+	HostID string `json:"host_id"`
+	// Source is "recorded" -- written when the incident opened, authoritative --
+	// or "inferred" -- the monitor's machine today, for an incident created
+	// before Ogoune recorded it. An inferred machine may not be the one that
+	// was involved. Treat an unknown value as "inferred".
+	Source string `json:"source"`
+	// Exists is false when that machine has since been deleted. The record
+	// stands; its name and metrics can no longer be shown. A deleted recorded
+	// machine is still "recorded" -- it does not fall back.
+	Exists bool `json:"exists"`
 }
 
 // WorstDiskResponse is a single mount and its utilisation percentage.

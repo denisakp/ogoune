@@ -319,9 +319,28 @@ export interface Incident {
    * endpoint, which never loads them.
    */
   host_events?: HostEvent[]
+  /**
+   * Which machine the host context and explanation describe, and how that is
+   * known (spec 092). Absent when the incident has no machine to describe.
+   *
+   * `recorded` was written when the incident opened and is authoritative.
+   * `inferred` is the monitor's machine today, for an incident created before
+   * Ogoune recorded it -- possibly not the machine involved, and shown as such.
+   * `exists: false` means that machine has since been deleted: the record
+   * stands, its name and metrics cannot be shown.
+   */
+  host_link?: HostLink | null
   event_steps?: IncidentEventStep[]
   created_at: string
   updated_at: string
+}
+
+/** Which machine an incident describes, and how that is known (spec 092). */
+export interface HostLink {
+  host_id: string
+  /** Treat an unknown value as `inferred` -- the conservative reading. */
+  source: 'recorded' | 'inferred'
+  exists: boolean
 }
 
 /**

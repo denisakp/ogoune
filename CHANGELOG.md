@@ -7,6 +7,15 @@ follows [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- **An incident now remembers the machine it happened on.** The host context, the causal
+  sentence and the kernel events beneath it were resolved through the monitor's *current* host,
+  so moving a monitor to another machine rewrote the history of every incident it ever had, and a
+  deleted host erased that context outright. Each new incident records its machine — or the
+  absence of one — at the moment it opens, and reads from that record afterwards. The fix is
+  **forward-only**: incidents from before it have nothing recorded and cannot be repaired. They
+  keep showing the monitor's current machine, now with a visible marker saying so, and the API
+  reports `host_link.source` as `recorded` or `inferred` so anyone grouping incidents by machine
+  can tell the two apart.
 - **A database-health test failed on the machine rather than on the code.** It asserted that 25 of
   25 checks against a containerised PostgreSQL succeed within a 40 ms deadline — but that deadline
   does double duty, bounding the connection as well as the health allowance it was meant to

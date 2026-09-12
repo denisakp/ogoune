@@ -66,7 +66,12 @@ func incidentOn(hostID string) *domain.Incident {
 	if hostID != "" {
 		id := hostID
 		inc.Resource.HostID = &id
+		// A freshly created incident records its machine (spec 092). The
+		// pre-recording shape -- which falls back marked and gets no sentence --
+		// is a different case, built explicitly where it is tested.
+		inc.HostID = &id
 	}
+	inc.HostLinkRecorded = true
 	return inc
 }
 
@@ -306,4 +311,67 @@ func TestForIncident_IsRepeatable(t *testing.T) {
 		assert.Equal(t, first.Explanation.Event.ID, again.Explanation.Event.ID)
 		assert.Equal(t, firstText, narrative.Sentence(again.Explanation))
 	}
+}
+
+// --- spec 092: the sentence names the machine recorded when the incident opened
+
+// incidentRecordedOn builds an incident whose RECORDED machine and whose
+// monitor's CURRENT machine are set independently -- the two the whole feature
+// exists to keep apart. An empty recorded value is a recorded absence.
+func incidentRecordedOn(recorded string, monitorNow string) *domain.Incident {
+	inc := incidentOn(monitorNow)
+	inc.HostLinkRecorded = true
+	inc.HostID = nil
+	if recorded != "" {
+		r := recorded
+		inc.HostID = &r
+	}
+	return inc
+}
+
+// The monitor has moved to another machine; the explanation must not follow it.
+func TestForIncident_NamesTheRecordedMachineNotTheCurrentOne(t *testing.T) {
+	h := newHarness(t, "h-recorded")
+	require.NoError(t, h.hosts.Create(context.Background(), &domain.Host{Base: domain.Base{ID: "h-now"}, Name: "web-now"}))
+	// Events on BOTH machines, so a wrong choice would still find something --
+	// and name the wrong host.
+	h.add(t, "h-recorded", "e-recorded", "oom_kill", started.Add(-10*time.Second))
+	h.add(t, "h-now", "e-now", "segfault", started.Add(-5*time.Second))
+
+	got := h.c.ForIncident(context.Background(), incidentRecordedOn("h-recorded", "h-now"))
+	require.NotNil(t, got.Explanation)
+	assert.Equal(t, "h-recorded", got.Explanation.HostID)
+	assert.Equal(t, "e-recorded", got.Explanation.Event.ID, "the event must come from the recorded machine too")
+}
+
+// A recorded absence is not a machine. No query, no sentence -- the zero-cost
+// guarantee from spec 091 must survive the new source of truth.
+func TestForIncident_RecordedAbsenceIssuesNoQuery(t *testing.T) {
+	h := newHarness(t, "h-now")
+	h.add(t, "h-now", "e-now", "oom_kill", started.Add(-5*time.Second))
+
+	got := h.c.ForIncident(context.Background(), incidentRecordedOn("", "h-now"))
+	assert.Nil(t, got.Explanation)
+	assert.Empty(t, got.Events)
+	assert.Zero(t, h.events.ListInWindowCalls, "a monitor that had no machine must not be looked up against one it has now")
+	assert.Zero(t, h.hosts.FindByIDCalls)
+}
+
+// An inferred machine: events yes, sentence no (spec 092, FR-007). The events
+// are data shown beside a marker; the sentence is a claim that gets quoted.
+func TestForIncident_InferredMachineGetsEventsButNoSentence(t *testing.T) {
+	h := newHarness(t, "h-now")
+	h.add(t, "h-now", "e1", "oom_kill", started.Add(-10*time.Second))
+
+	// A pre-recording incident: zero values, monitor points at h-now today.
+	inc := incidentOn("h-now")
+	inc.HostLinkRecorded = false
+	inc.HostID = nil
+	_, src := inc.ResolveHost()
+	require.Equal(t, domain.HostLinkSourceInferred, src, "fixture must be the inferred case")
+
+	got := h.c.ForIncident(context.Background(), inc)
+	assert.Len(t, got.Events, 1, "the evidence is still served, marked, for a reader to weigh")
+	assert.Nil(t, got.Explanation, "no claim is made about a machine that was only inferred")
+	assert.Zero(t, h.hosts.FindByIDCalls, "and no host lookup is spent on a sentence that will not exist")
 }

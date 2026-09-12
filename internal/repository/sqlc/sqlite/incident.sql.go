@@ -80,20 +80,23 @@ const createIncident = `-- name: CreateIncident :exec
 
 INSERT INTO incidents (
     id, created_at, updated_at, resource_id, cause,
-    resolved_at, started_at, details
+    resolved_at, started_at, details,
+    host_id, host_link_recorded
 )
-VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 `
 
 type CreateIncidentParams struct {
-	ID         string       `json:"id"`
-	CreatedAt  time.Time    `json:"created_at"`
-	UpdatedAt  time.Time    `json:"updated_at"`
-	ResourceID string       `json:"resource_id"`
-	Cause      string       `json:"cause"`
-	ResolvedAt sql.NullTime `json:"resolved_at"`
-	StartedAt  time.Time    `json:"started_at"`
-	Details    []byte       `json:"details"`
+	ID               string         `json:"id"`
+	CreatedAt        time.Time      `json:"created_at"`
+	UpdatedAt        time.Time      `json:"updated_at"`
+	ResourceID       string         `json:"resource_id"`
+	Cause            string         `json:"cause"`
+	ResolvedAt       sql.NullTime   `json:"resolved_at"`
+	StartedAt        time.Time      `json:"started_at"`
+	Details          []byte         `json:"details"`
+	HostID           sql.NullString `json:"host_id"`
+	HostLinkRecorded int64          `json:"host_link_recorded"`
 }
 
 // US2 of spec 048: incident_repository sqlc migration.
@@ -110,6 +113,8 @@ func (q *Queries) CreateIncident(ctx context.Context, arg CreateIncidentParams) 
 		arg.ResolvedAt,
 		arg.StartedAt,
 		arg.Details,
+		arg.HostID,
+		arg.HostLinkRecorded,
 	)
 	return err
 }
@@ -127,7 +132,7 @@ func (q *Queries) DeleteIncident(ctx context.Context, id string) (int64, error) 
 }
 
 const findActiveIncidentByResourceID = `-- name: FindActiveIncidentByResourceID :one
-SELECT id, created_at, updated_at, resource_id, cause, resolved_at, started_at, details FROM incidents
+SELECT id, created_at, updated_at, resource_id, cause, resolved_at, started_at, details, host_id, host_link_recorded FROM incidents
 WHERE resource_id = ? AND resolved_at IS NULL
 ORDER BY started_at DESC
 LIMIT 1
@@ -145,12 +150,14 @@ func (q *Queries) FindActiveIncidentByResourceID(ctx context.Context, resourceID
 		&i.ResolvedAt,
 		&i.StartedAt,
 		&i.Details,
+		&i.HostID,
+		&i.HostLinkRecorded,
 	)
 	return i, err
 }
 
 const findIncidentByID = `-- name: FindIncidentByID :one
-SELECT id, created_at, updated_at, resource_id, cause, resolved_at, started_at, details FROM incidents WHERE id = ?
+SELECT id, created_at, updated_at, resource_id, cause, resolved_at, started_at, details, host_id, host_link_recorded FROM incidents WHERE id = ?
 `
 
 func (q *Queries) FindIncidentByID(ctx context.Context, id string) (Incident, error) {
@@ -165,12 +172,14 @@ func (q *Queries) FindIncidentByID(ctx context.Context, id string) (Incident, er
 		&i.ResolvedAt,
 		&i.StartedAt,
 		&i.Details,
+		&i.HostID,
+		&i.HostLinkRecorded,
 	)
 	return i, err
 }
 
 const findIncidentsByIDs = `-- name: FindIncidentsByIDs :many
-SELECT id, created_at, updated_at, resource_id, cause, resolved_at, started_at, details FROM incidents WHERE id IN (/*SLICE:ids*/?)
+SELECT id, created_at, updated_at, resource_id, cause, resolved_at, started_at, details, host_id, host_link_recorded FROM incidents WHERE id IN (/*SLICE:ids*/?)
 `
 
 func (q *Queries) FindIncidentsByIDs(ctx context.Context, ids []string) ([]Incident, error) {
@@ -201,6 +210,8 @@ func (q *Queries) FindIncidentsByIDs(ctx context.Context, ids []string) ([]Incid
 			&i.ResolvedAt,
 			&i.StartedAt,
 			&i.Details,
+			&i.HostID,
+			&i.HostLinkRecorded,
 		); err != nil {
 			return nil, err
 		}
@@ -216,7 +227,7 @@ func (q *Queries) FindIncidentsByIDs(ctx context.Context, ids []string) ([]Incid
 }
 
 const findIncidentsByResource = `-- name: FindIncidentsByResource :many
-SELECT id, created_at, updated_at, resource_id, cause, resolved_at, started_at, details FROM incidents
+SELECT id, created_at, updated_at, resource_id, cause, resolved_at, started_at, details, host_id, host_link_recorded FROM incidents
 WHERE resource_id = ?
 ORDER BY started_at DESC
 LIMIT ? OFFSET ?
@@ -246,6 +257,8 @@ func (q *Queries) FindIncidentsByResource(ctx context.Context, arg FindIncidents
 			&i.ResolvedAt,
 			&i.StartedAt,
 			&i.Details,
+			&i.HostID,
+			&i.HostLinkRecorded,
 		); err != nil {
 			return nil, err
 		}
@@ -261,7 +274,7 @@ func (q *Queries) FindIncidentsByResource(ctx context.Context, arg FindIncidents
 }
 
 const findLastResolvedIncident = `-- name: FindLastResolvedIncident :one
-SELECT id, created_at, updated_at, resource_id, cause, resolved_at, started_at, details FROM incidents
+SELECT id, created_at, updated_at, resource_id, cause, resolved_at, started_at, details, host_id, host_link_recorded FROM incidents
 WHERE resolved_at IS NOT NULL
 ORDER BY resolved_at DESC
 LIMIT 1
@@ -279,12 +292,14 @@ func (q *Queries) FindLastResolvedIncident(ctx context.Context) (Incident, error
 		&i.ResolvedAt,
 		&i.StartedAt,
 		&i.Details,
+		&i.HostID,
+		&i.HostLinkRecorded,
 	)
 	return i, err
 }
 
 const findUnresolvedIncidents = `-- name: FindUnresolvedIncidents :many
-SELECT id, created_at, updated_at, resource_id, cause, resolved_at, started_at, details FROM incidents
+SELECT id, created_at, updated_at, resource_id, cause, resolved_at, started_at, details, host_id, host_link_recorded FROM incidents
 WHERE resolved_at IS NULL
 ORDER BY started_at DESC
 LIMIT ? OFFSET ?
@@ -313,6 +328,8 @@ func (q *Queries) FindUnresolvedIncidents(ctx context.Context, arg FindUnresolve
 			&i.ResolvedAt,
 			&i.StartedAt,
 			&i.Details,
+			&i.HostID,
+			&i.HostLinkRecorded,
 		); err != nil {
 			return nil, err
 		}
@@ -428,7 +445,7 @@ func (q *Queries) ListIncidentDiagnosticsByIncidentIDs(ctx context.Context, inci
 }
 
 const listIncidents = `-- name: ListIncidents :many
-SELECT id, created_at, updated_at, resource_id, cause, resolved_at, started_at, details FROM incidents
+SELECT id, created_at, updated_at, resource_id, cause, resolved_at, started_at, details, host_id, host_link_recorded FROM incidents
 ORDER BY created_at DESC
 LIMIT ? OFFSET ?
 `
@@ -456,6 +473,8 @@ func (q *Queries) ListIncidents(ctx context.Context, arg ListIncidentsParams) ([
 			&i.ResolvedAt,
 			&i.StartedAt,
 			&i.Details,
+			&i.HostID,
+			&i.HostLinkRecorded,
 		); err != nil {
 			return nil, err
 		}

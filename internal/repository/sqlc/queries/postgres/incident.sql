@@ -5,9 +5,10 @@
 -- name: CreateIncident :exec
 INSERT INTO incidents (
     id, created_at, updated_at, resource_id, cause,
-    resolved_at, started_at, details
+    resolved_at, started_at, details,
+    host_id, host_link_recorded
 )
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8);
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10);
 
 -- name: FindIncidentByID :one
 SELECT * FROM incidents WHERE id = $1;

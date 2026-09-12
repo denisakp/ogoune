@@ -39,6 +39,12 @@ function onAction(p: { kind: 'back' }) {
 const events = computed(() => incident.value?.event_steps ?? [])
 const diagnostics = computed(() => incident.value?.diagnostics ?? null)
 const hostContext = computed(() => incident.value?.host_context ?? null)
+const hostLink = computed(() => incident.value?.host_link ?? null)
+// The panel renders for a context, or for a recorded machine that no longer
+// exists -- that absence is a fact to state, not a blank (spec 092).
+const showHostPanel = computed(
+  () => hostContext.value != null || (hostLink.value != null && !hostLink.value.exists),
+)
 const explanation = computed(() => incident.value?.explanation ?? null)
 const hostEvents = computed(() => incident.value?.host_events ?? [])
 
@@ -83,7 +89,7 @@ defineExpose({ incident, loadIncident, onAction })
         </div>
 
         <div class="flex flex-col gap-5">
-          <HostContextPanel v-if="hostContext" :context="hostContext" />
+          <HostContextPanel v-if="showHostPanel" :context="hostContext" :host-link="hostLink" />
           <HostEventsList v-if="hostEvents.length" :events="hostEvents" />
           <DiagnosticsPanel :diagnostics="diagnostics" />
           <NotificationsPanel :events="events" />

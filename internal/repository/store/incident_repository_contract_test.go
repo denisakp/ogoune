@@ -61,6 +61,67 @@ func runIncidentContract(t *testing.T, repo port.IncidentRepository) {
 		assert.ErrorIs(t, err, repository.ErrNotFound)
 	})
 
+	// The machine an incident happened on, as it was when it opened (spec 092).
+	// Two columns carry three states, and the two absences must survive a
+	// round-trip as DIFFERENT things: one falls back, the other must never.
+	t.Run("HostLinkRoundTripsThreeStates", func(t *testing.T) {
+		hostA := "host-A"
+
+		recorded := &domain.Incident{
+			Base: domain.Base{ID: "hl-recorded"}, ResourceID: "resource-2",
+			Cause: "c", StartedAt: time.Now(),
+			HostID: &hostA, HostLinkRecorded: true,
+		}
+		absent := &domain.Incident{
+			Base: domain.Base{ID: "hl-absent"}, ResourceID: "resource-2",
+			Cause: "c", StartedAt: time.Now(),
+			HostID: nil, HostLinkRecorded: true,
+		}
+		predates := &domain.Incident{
+			Base: domain.Base{ID: "hl-predates"}, ResourceID: "resource-2",
+			Cause: "c", StartedAt: time.Now(),
+			// Left at the zero values: exactly what a row from before the
+			// migration looks like.
+		}
+		for _, inc := range []*domain.Incident{recorded, absent, predates} {
+			_, err := repo.Create(ctx, inc)
+			require.NoError(t, err)
+		}
+
+		got, err := repo.FindByID(ctx, "hl-recorded")
+		require.NoError(t, err)
+		require.NotNil(t, got.HostID)
+		assert.Equal(t, "host-A", *got.HostID)
+		assert.True(t, got.HostLinkRecorded)
+
+		got, err = repo.FindByID(ctx, "hl-absent")
+		require.NoError(t, err)
+		assert.Nil(t, got.HostID)
+		assert.True(t, got.HostLinkRecorded, "we looked and there was none -- the flag is what keeps it from ever falling back")
+
+		got, err = repo.FindByID(ctx, "hl-predates")
+		require.NoError(t, err)
+		assert.Nil(t, got.HostID)
+		assert.False(t, got.HostLinkRecorded, "a pre-migration row reads as not recorded, which is the state that may fall back")
+	})
+
+	// A pre-migration row is not a fixture we build -- it is what the defaults
+	// produce. Insert through the raw column list to be sure the defaults, not
+	// the wrapper, are what a real old row carries.
+	t.Run("HostLinkDefaultsReadAsNotRecorded", func(t *testing.T) {
+		inc := &domain.Incident{
+			Base: domain.Base{ID: "hl-defaults"}, ResourceID: "resource-2",
+			Cause: "c", StartedAt: time.Now(),
+		}
+		_, err := repo.Create(ctx, inc)
+		require.NoError(t, err)
+
+		got, err := repo.FindByID(ctx, "hl-defaults")
+		require.NoError(t, err)
+		assert.False(t, got.HostLinkRecorded)
+		assert.Nil(t, got.HostID)
+	})
+
 	t.Run("Update", func(t *testing.T) {
 		inc := &domain.Incident{
 			Base:       domain.Base{ID: "test-update-incident", CreatedAt: time.Now()},

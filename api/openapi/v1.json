@@ -87,6 +87,14 @@
                         "type": "array",
                         "uniqueItems": false
                     },
+                    "host_id": {
+                        "description": "HostID is the machine this incident happened on, AS IT WAS when the\nincident opened (spec 092). Written once, never updated. The monitor's\nown host link (Resource.HostID) is what it points at today; this is what\nit pointed at then, and the two diverge the moment a monitor is moved.\n\nNil means one of two things, and HostLinkRecorded tells them apart.",
+                        "type": "string"
+                    },
+                    "host_link_recorded": {
+                        "description": "HostLinkRecorded says whether this incident was created by a version that\nrecords the machine. True with a nil HostID means \"we looked, and the\nmonitor had none\" -- a state that must NEVER fall back to the monitor's\ncurrent machine. False means the row predates recording, and nothing can\nbe inferred from HostID being nil; those rows fall back, visibly marked.",
+                        "type": "boolean"
+                    },
                     "id": {
                         "type": "string"
                     },
@@ -2119,6 +2127,23 @@
                 },
                 "type": "object"
             },
+            "github_com_denisakp_ogoune_internal_dto_v1.HostLinkResponse": {
+                "description": "HostLink says which machine the surfaces above describe and where that\nanswer came from (spec 092). `omitempty` for the same reason as its\nneighbours: this struct is shared with the list endpoint.",
+                "properties": {
+                    "exists": {
+                        "description": "Exists is false when that machine has since been deleted. The record\nstands; its name and metrics can no longer be shown. A deleted recorded\nmachine is still \"recorded\" -- it does not fall back.",
+                        "type": "boolean"
+                    },
+                    "host_id": {
+                        "type": "string"
+                    },
+                    "source": {
+                        "description": "Source is \"recorded\" -- written when the incident opened, authoritative --\nor \"inferred\" -- the monitor's machine today, for an incident created\nbefore Ogoune recorded it. An inferred machine may not be the one that\nwas involved. Treat an unknown value as \"inferred\".",
+                        "type": "string"
+                    }
+                },
+                "type": "object"
+            },
             "github_com_denisakp_ogoune_internal_dto_v1.HostResponse": {
                 "properties": {
                     "agent_version": {
@@ -2280,6 +2305,9 @@
                         },
                         "type": "array",
                         "uniqueItems": false
+                    },
+                    "host_link": {
+                        "$ref": "#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.HostLinkResponse"
                     },
                     "id": {
                         "type": "string"
