@@ -66,7 +66,23 @@ func mapIncidentResponse(inc *domain.Incident) dtoV1.IncidentResponse {
 	for _, e := range inc.HostEvents {
 		resp.HostEvents = append(resp.HostEvents, mapHostEvent(e))
 	}
+	resp.HostLink = mapHostLink(inc.HostLink)
 	return resp
+}
+
+// mapHostLink converts the read-side host link into its v1 shape (spec 092).
+// Mapping only: the service resolved the machine and looked it up; nothing is
+// decided or queried here. Nil maps to nil, which omitempty keeps out of the
+// body -- absent, not null.
+func mapHostLink(l *domain.HostLink) *dtoV1.HostLinkResponse {
+	if l == nil {
+		return nil
+	}
+	return &dtoV1.HostLinkResponse{
+		HostID: l.HostID,
+		Source: string(l.Source),
+		Exists: l.Exists,
+	}
 }
 
 // mapIncidentExplanation converts the read-side explanation into its v1 shape

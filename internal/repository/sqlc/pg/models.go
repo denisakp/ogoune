@@ -148,14 +148,16 @@ type HostMetric struct {
 }
 
 type Incident struct {
-	ID         string             `json:"id"`
-	CreatedAt  pgtype.Timestamptz `json:"created_at"`
-	UpdatedAt  pgtype.Timestamptz `json:"updated_at"`
-	ResourceID string             `json:"resource_id"`
-	Cause      string             `json:"cause"`
-	ResolvedAt pgtype.Timestamptz `json:"resolved_at"`
-	StartedAt  pgtype.Timestamptz `json:"started_at"`
-	Details    []byte             `json:"details"`
+	ID               string             `json:"id"`
+	CreatedAt        pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt        pgtype.Timestamptz `json:"updated_at"`
+	ResourceID       string             `json:"resource_id"`
+	Cause            string             `json:"cause"`
+	ResolvedAt       pgtype.Timestamptz `json:"resolved_at"`
+	StartedAt        pgtype.Timestamptz `json:"started_at"`
+	Details          []byte             `json:"details"`
+	HostID           pgtype.Text        `json:"host_id"`
+	HostLinkRecorded bool               `json:"host_link_recorded"`
 }
 
 type IncidentDiagnostic struct {

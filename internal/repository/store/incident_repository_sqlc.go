@@ -78,6 +78,10 @@ func (r *IncidentRepositorySQLC) Create(ctx context.Context, inc *domain.Inciden
 			ResolvedAt: pgTimestampFromPtr(inc.ResolvedAt),
 			StartedAt:  pgtype.Timestamptz{Time: inc.StartedAt, Valid: true},
 			Details:    inc.Details,
+			// The machine as it was when the incident opened (spec 092). Written
+			// here and nowhere else; no update path touches it.
+			HostID:           pgTextFromPtr(inc.HostID),
+			HostLinkRecorded: inc.HostLinkRecorded,
 		}); err != nil {
 			return nil, fmt.Errorf("sqlc: create incident: %w", err)
 		}
@@ -92,6 +96,10 @@ func (r *IncidentRepositorySQLC) Create(ctx context.Context, inc *domain.Inciden
 			ResolvedAt: nullTimeFromPtr(inc.ResolvedAt),
 			StartedAt:  inc.StartedAt,
 			Details:    inc.Details,
+			// The machine as it was when the incident opened (spec 092). Written
+			// here and nowhere else; no update path touches it.
+			HostID:           nullStringFromPtr(inc.HostID),
+			HostLinkRecorded: boolToInt64(inc.HostLinkRecorded),
 		}); err != nil {
 			return nil, fmt.Errorf("sqlc: create incident: %w", err)
 		}
@@ -501,11 +509,13 @@ func incidentFromPG(row pgsqlc.Incident) *domain.Incident {
 			CreatedAt: row.CreatedAt.Time,
 			UpdatedAt: row.UpdatedAt.Time,
 		},
-		ResourceID: row.ResourceID,
-		Cause:      row.Cause,
-		ResolvedAt: ptrTimeFromPGTimestamptz(row.ResolvedAt),
-		StartedAt:  row.StartedAt.Time,
-		Details:    row.Details,
+		ResourceID:       row.ResourceID,
+		Cause:            row.Cause,
+		ResolvedAt:       ptrTimeFromPGTimestamptz(row.ResolvedAt),
+		StartedAt:        row.StartedAt.Time,
+		Details:          row.Details,
+		HostID:           ptrStringFromPGText(row.HostID),
+		HostLinkRecorded: row.HostLinkRecorded,
 	}
 }
 
@@ -516,11 +526,13 @@ func incidentFromSQLite(row sqlitesqlc.Incident) *domain.Incident {
 			CreatedAt: row.CreatedAt,
 			UpdatedAt: row.UpdatedAt,
 		},
-		ResourceID: row.ResourceID,
-		Cause:      row.Cause,
-		ResolvedAt: ptrTimeFromNullTime(row.ResolvedAt),
-		StartedAt:  row.StartedAt,
-		Details:    row.Details,
+		ResourceID:       row.ResourceID,
+		Cause:            row.Cause,
+		ResolvedAt:       ptrTimeFromNullTime(row.ResolvedAt),
+		StartedAt:        row.StartedAt,
+		Details:          row.Details,
+		HostID:           ptrStringFromNullString(row.HostID),
+		HostLinkRecorded: row.HostLinkRecorded != 0,
 	}
 }
 

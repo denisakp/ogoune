@@ -4476,6 +4476,23 @@ export interface components {
             details?: number[];
             diagnostics?: components["schemas"]["github_com_denisakp_ogoune_internal_domain.IncidentDiagnostics"];
             event_steps?: components["schemas"]["github_com_denisakp_ogoune_internal_domain.IncidentEventStep"][];
+            /**
+             * @description HostID is the machine this incident happened on, AS IT WAS when the
+             *     incident opened (spec 092). Written once, never updated. The monitor's
+             *     own host link (Resource.HostID) is what it points at today; this is what
+             *     it pointed at then, and the two diverge the moment a monitor is moved.
+             *
+             *     Nil means one of two things, and HostLinkRecorded tells them apart.
+             */
+            host_id?: string;
+            /**
+             * @description HostLinkRecorded says whether this incident was created by a version that
+             *     records the machine. True with a nil HostID means "we looked, and the
+             *     monitor had none" -- a state that must NEVER fall back to the monitor's
+             *     current machine. False means the row predates recording, and nothing can
+             *     be inferred from HostID being nil; those rows fall back, visibly marked.
+             */
+            host_link_recorded?: boolean;
             id?: string;
             /** @description nil = active, timestamp = resolved */
             resolved_at?: string;
@@ -5181,6 +5198,27 @@ export interface components {
              */
             source?: string;
         };
+        /**
+         * @description HostLink says which machine the surfaces above describe and where that
+         *     answer came from (spec 092). `omitempty` for the same reason as its
+         *     neighbours: this struct is shared with the list endpoint.
+         */
+        "github_com_denisakp_ogoune_internal_dto_v1.HostLinkResponse": {
+            /**
+             * @description Exists is false when that machine has since been deleted. The record
+             *     stands; its name and metrics can no longer be shown. A deleted recorded
+             *     machine is still "recorded" -- it does not fall back.
+             */
+            exists?: boolean;
+            host_id?: string;
+            /**
+             * @description Source is "recorded" -- written when the incident opened, authoritative --
+             *     or "inferred" -- the monitor's machine today, for an incident created
+             *     before Ogoune recorded it. An inferred machine may not be the one that
+             *     was involved. Treat an unknown value as "inferred".
+             */
+            source?: string;
+        };
         "github_com_denisakp_ogoune_internal_dto_v1.HostResponse": {
             agent_version?: string;
             created_at?: string;
@@ -5267,6 +5305,7 @@ export interface components {
             explanation?: components["schemas"]["github_com_denisakp_ogoune_internal_dto_v1.IncidentExplanationResponse"];
             host_context?: components["schemas"]["github_com_denisakp_ogoune_internal_dto_v1.HostContextResponse"];
             host_events?: components["schemas"]["github_com_denisakp_ogoune_internal_dto_v1.HostEventResponse"][];
+            host_link?: components["schemas"]["github_com_denisakp_ogoune_internal_dto_v1.HostLinkResponse"];
             id?: string;
             monitor_id?: string;
             resolved_at?: string;

@@ -53,11 +53,17 @@ func (f *hostContextFixture) seedIncident(t *testing.T, id string, startedAt tim
 		resource.HostID = &hostID
 	}
 
+	// A freshly created incident records its machine (spec 092): the monitor's
+	// host as it is now, and the flag that says we looked. Without these the
+	// fixture would model a pre-recording row, which falls back marked and gets
+	// no explanation -- a different case, tested on its own.
 	inc := &domain.Incident{
-		Base:       domain.Base{ID: id},
-		ResourceID: resource.ID,
-		Resource:   resource,
-		StartedAt:  startedAt,
+		Base:             domain.Base{ID: id},
+		ResourceID:       resource.ID,
+		Resource:         resource,
+		StartedAt:        startedAt,
+		HostID:           resource.HostID,
+		HostLinkRecorded: true,
 	}
 	_, err := f.incidents.Create(ctx, inc)
 	require.NoError(t, err)

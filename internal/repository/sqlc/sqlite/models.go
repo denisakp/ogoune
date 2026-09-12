@@ -149,14 +149,16 @@ type HostMetric struct {
 }
 
 type Incident struct {
-	ID         string       `json:"id"`
-	CreatedAt  time.Time    `json:"created_at"`
-	UpdatedAt  time.Time    `json:"updated_at"`
-	ResourceID string       `json:"resource_id"`
-	Cause      string       `json:"cause"`
-	ResolvedAt sql.NullTime `json:"resolved_at"`
-	StartedAt  time.Time    `json:"started_at"`
-	Details    []byte       `json:"details"`
+	ID               string         `json:"id"`
+	CreatedAt        time.Time      `json:"created_at"`
+	UpdatedAt        time.Time      `json:"updated_at"`
+	ResourceID       string         `json:"resource_id"`
+	Cause            string         `json:"cause"`
+	ResolvedAt       sql.NullTime   `json:"resolved_at"`
+	StartedAt        time.Time      `json:"started_at"`
+	Details          []byte         `json:"details"`
+	HostID           sql.NullString `json:"host_id"`
+	HostLinkRecorded int64          `json:"host_link_recorded"`
 }
 
 type IncidentDiagnostic struct {
