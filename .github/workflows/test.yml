@@ -23,6 +23,7 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     env:
       DB_DRIVER: sqlite
       SQLITE_PATH: /tmp/ogoune-ci.db
@@ -52,8 +53,14 @@ jobs:
       - name: migrations drift check
         run: make migrations-drift-check
 
+      # The per-binary timeout is 300s, not 120s. On a hosted runner Docker is
+      # present, so the repository contract tests boot Postgres through
+      # testcontainers here too and run both dialects under the race detector.
+      # internal/repository/store took 117.9s on the last green run and 120.06s
+      # on the next -- the timeout was being met by luck. The job-level
+      # timeout-minutes (15, against a ~5 min run) bounds a genuine hang.
       - name: run tests
-        run: go test -C . -v -race -timeout 120s ./...
+        run: go test -C . -v -race -timeout 300s ./...
 
       - name: concurrent-update soak (spec 049 US3 — race detector ON)
         run: go test -race -count=1 -timeout 90s -run TestResourceRepository_Update_ConcurrentSoak ./internal/repository/store/...
