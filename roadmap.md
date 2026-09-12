@@ -153,13 +153,15 @@ Community Edition — expanding monitoring coverage, observability, and security
   unit and agent-down alerting. **Linux only, deliberately** — the packaging is systemd-based, and the
   servers this targets are Linux. macOS would need a launchd story and Windows a service wrapper, and
   neither is testable for us today. `nebula/self-host/agent.md` is the source of truth for platform
-  support. No kernel-event capture yet — see Flash Correlation below.
-- [ ] **Flash Correlation (host metrics + kernel events)** — the game-changer. When a synthetic check
-  fails (e.g. HTTP 502), the incident is enriched with what the host was doing at that moment: the
-  metrics the agent already streams, plus OOMKills and segfaults read from `/dev/kmsg` and cgroup v2
-  `memory.events`. Alerts combine the external failure with the internal cause: *"Site went down
-  BECAUSE the kernel OOMKilled the container due to memory saturation."* **Community Edition.**
-  No competitor offers this combination in open source today.
+  support. Kernel-event capture (OOM kills, segfaults) ships with it — see Flash Correlation below.
+- [x] **Flash Correlation (host metrics + kernel events)** — shipped in v1.0.0-beta.5. When a
+  synthetic check fails (e.g. HTTP 502), the incident carries what the host was doing at that moment:
+  the metrics the agent already streams, plus OOM kills and segfaults read from `/dev/kmsg` and cgroup
+  v2 `memory.events`. The alert and the incident page open with one sentence: *"HTTP check failed:
+  502 at 14:03:00. The kernel OOM-killed postgres (pid 4711) on web-01 at 14:02:47, 13 seconds
+  earlier."* A time window and nothing else — it says *earlier*, never *because*. Since the next
+  release an incident also records the machine it happened on, so moving a monitor does not rewrite it.
+  **Community Edition.** No competitor offers this combination in open source today.
   > **How it works.** The agent tunnel is outbound and write-only by design: the agent pushes, the
   > backend never queries it. Correlation is therefore a backend-side join over data the agent has
   > already sent, not a request/response round trip. This needs no eBPF — plain file reads on the
@@ -179,12 +181,15 @@ Community Edition — expanding monitoring coverage, observability, and security
 - [x] **Scheduled reports — Community** — monthly health report (fixed schedule, first day of the month),
   shipped ahead of schedule in v1.0.0-beta. Covers all resources. Sent via configured SMTP channel.
   Toggle on/off in settings. No configuration required.
+- **Non-goal: correlation reports.** No aggregate of incidents "caused by" a kernel event. Flash
+  Correlation is a co-occurrence inside a time window; a report titled "caused by" promotes it to
+  causality, summed and numbered, in a document that gets forwarded. May be revisited under
+  Scheduled reports — Enterprise, and only as "incidents with X observed in the window".
 
 ### Alerting & integrations
 
 - [x] **Escalation policies — Community** — native multi-step alert ladders. No PagerDuty required.
   Step N → wait X minutes → step N+1, with different channels per step. **Community Edition.**
-- [ ] **PagerDuty / OpsGenie** — integration channels. Standard webhook + API. **Community Edition.**
 - [ ] **Cloud integrations** — Vercel, Cloudflare, Coolify, Azure. OAuth flow + auto-discovery of resources.
   Just integrations API-level, no architectural lock. **Community Edition.**
 
@@ -198,12 +203,6 @@ Community Edition — expanding monitoring coverage, observability, and security
 
 - [x] **Toolbox** — one-off network checks. DNS lookup, Port scanner, SSL checker, WHOIS lookup. Manual
   triggers, no scheduling. CTA "Save as monitor" from results. **Community Edition.**
-
-### Observability — deferred from H2
-
-- [ ] **OpenTelemetry endpoint** — accept OTLP traces and enrich them with flash correlation insights
-  from the agent. Differentiated from full distributed tracing systems (Jaeger/Tempo): we don't store
-  full traces, we add kernel context to your existing tracing setup. **Community Edition.**
 
 ### Compliance (basic)
 
@@ -258,6 +257,9 @@ the managed service itself live here. Everything else is in CE.
 
 ### Alerting (Enterprise)
 
+- [ ] **PagerDuty / OpsGenie** — integration channels on the existing webhook pattern. Enterprise
+  integration, **built on the first real customer request** — no internal owner, no date. Escalation
+  policies (Community) already cover the on-call ladder without either.
 - [ ] **Escalation policies — advanced** — on-call rotation schedules, override windows, complex routing
   rules with conditions. Builds on CE basic escalation. **Multi-user dependency.**
 
