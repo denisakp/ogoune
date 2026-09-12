@@ -2,6 +2,7 @@ package monitoring
 
 import (
 	"context"
+	"sort"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -138,6 +139,13 @@ func TestIncidentLifecycle_IdenticalWithAndWithoutRecordedMachine(t *testing.T) 
 
 		all, err := steps.List(ctx, 100, 0)
 		require.NoError(t, err)
+		// The fake iterates a map; order by time, then by name for ties.
+		sort.Slice(all, func(i, j int) bool {
+			if !all[i].CreatedAt.Equal(all[j].CreatedAt) {
+				return all[i].CreatedAt.Before(all[j].CreatedAt)
+			}
+			return all[i].Step < all[j].Step
+		})
 		seq := make([]domain.IncidentEventStepType, 0, len(all))
 		for _, s := range all {
 			seq = append(seq, s.Step)
