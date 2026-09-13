@@ -21,6 +21,7 @@ import { useConfirm } from '@/composables/useConfirm'
 import { useHostMetrics } from '@/composables/useHostMetrics'
 import HostMetricChart from '@/components/hosts/HostMetricChart.vue'
 import HostEventsList from '@/components/hosts/HostEventsList.vue'
+import CapabilityNotice from '@/components/hosts/CapabilityNotice.vue'
 import HostCredentialReveal from '@/components/hosts/HostCredentialReveal.vue'
 import HostServicesList, {
   type HostLinkedMonitor,
@@ -310,9 +311,12 @@ sudo systemctl enable --now ogoune-agent</pre>
           <HostMetricChart :points="netOutSeries" label="Network Out" unit="bytes" />
         </div>
 
-        <!-- Hosted services -->
-        <div>
+        <!-- Hosted services, and what this agent can observe (spec 093).
+             Always rendered: the state is always known, even when it is
+             "the agent has not connected". -->
+        <div class="space-y-4">
           <HostServicesList :monitors="monitors" />
+          <CapabilityNotice v-if="host" :capabilities="host.capabilities" variant="host" />
         </div>
       </div>
     </template>

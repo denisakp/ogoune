@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"log/slog"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -67,6 +68,12 @@ func (r *IncidentRepositorySQLC) Create(ctx context.Context, inc *domain.Inciden
 	if inc.Cause == "" {
 		inc.Cause = "unknown_failure"
 	}
+	// The host declaration as it was when the incident opened (spec 093):
+	// copied once, here, and never updated. Nil is written as NULL.
+	frozenCaps, err := marshalCapabilities(inc.HostCapabilities)
+	if err != nil {
+		return nil, err
+	}
 	switch {
 	case r.pgQ != nil:
 		if err := r.pgQ.CreateIncident(ctx, pgsqlc.CreateIncidentParams{
@@ -80,8 +87,10 @@ func (r *IncidentRepositorySQLC) Create(ctx context.Context, inc *domain.Inciden
 			Details:    inc.Details,
 			// The machine as it was when the incident opened (spec 092). Written
 			// here and nowhere else; no update path touches it.
-			HostID:           pgTextFromPtr(inc.HostID),
-			HostLinkRecorded: inc.HostLinkRecorded,
+			HostID:                pgTextFromPtr(inc.HostID),
+			HostLinkRecorded:      inc.HostLinkRecorded,
+			HostCapabilities:      frozenCaps,
+			HostCapabilitiesState: pgTextFromPtr(capabilitiesStatePtr(inc.HostCapabilitiesState)),
 		}); err != nil {
 			return nil, fmt.Errorf("sqlc: create incident: %w", err)
 		}
@@ -98,8 +107,10 @@ func (r *IncidentRepositorySQLC) Create(ctx context.Context, inc *domain.Inciden
 			Details:    inc.Details,
 			// The machine as it was when the incident opened (spec 092). Written
 			// here and nowhere else; no update path touches it.
-			HostID:           nullStringFromPtr(inc.HostID),
-			HostLinkRecorded: boolToInt64(inc.HostLinkRecorded),
+			HostID:                nullStringFromPtr(inc.HostID),
+			HostLinkRecorded:      boolToInt64(inc.HostLinkRecorded),
+			HostCapabilities:      nullStringFromBytes(frozenCaps),
+			HostCapabilitiesState: nullStringFromPtr(capabilitiesStatePtr(inc.HostCapabilitiesState)),
 		}); err != nil {
 			return nil, fmt.Errorf("sqlc: create incident: %w", err)
 		}
@@ -509,13 +520,15 @@ func incidentFromPG(row pgsqlc.Incident) *domain.Incident {
 			CreatedAt: row.CreatedAt.Time,
 			UpdatedAt: row.UpdatedAt.Time,
 		},
-		ResourceID:       row.ResourceID,
-		Cause:            row.Cause,
-		ResolvedAt:       ptrTimeFromPGTimestamptz(row.ResolvedAt),
-		StartedAt:        row.StartedAt.Time,
-		Details:          row.Details,
-		HostID:           ptrStringFromPGText(row.HostID),
-		HostLinkRecorded: row.HostLinkRecorded,
+		ResourceID:            row.ResourceID,
+		Cause:                 row.Cause,
+		ResolvedAt:            ptrTimeFromPGTimestamptz(row.ResolvedAt),
+		StartedAt:             row.StartedAt.Time,
+		Details:               row.Details,
+		HostID:                ptrStringFromPGText(row.HostID),
+		HostLinkRecorded:      row.HostLinkRecorded,
+		HostCapabilities:      frozenCapabilities(row.ID, row.HostCapabilities),
+		HostCapabilitiesState: capabilitiesStateFromPtr(ptrStringFromPGText(row.HostCapabilitiesState)),
 	}
 }
 
@@ -526,14 +539,47 @@ func incidentFromSQLite(row sqlitesqlc.Incident) *domain.Incident {
 			CreatedAt: row.CreatedAt,
 			UpdatedAt: row.UpdatedAt,
 		},
-		ResourceID:       row.ResourceID,
-		Cause:            row.Cause,
-		ResolvedAt:       ptrTimeFromNullTime(row.ResolvedAt),
-		StartedAt:        row.StartedAt,
-		Details:          row.Details,
-		HostID:           ptrStringFromNullString(row.HostID),
-		HostLinkRecorded: row.HostLinkRecorded != 0,
+		ResourceID:            row.ResourceID,
+		Cause:                 row.Cause,
+		ResolvedAt:            ptrTimeFromNullTime(row.ResolvedAt),
+		StartedAt:             row.StartedAt,
+		Details:               row.Details,
+		HostID:                ptrStringFromNullString(row.HostID),
+		HostLinkRecorded:      row.HostLinkRecorded != 0,
+		HostCapabilities:      frozenCapabilities(row.ID, []byte(row.HostCapabilities.String)),
+		HostCapabilitiesState: capabilitiesStateFromPtr(ptrStringFromNullString(row.HostCapabilitiesState)),
 	}
+}
+
+// ---------- frozen capabilities helpers (spec 093) ----------
+
+// frozenCapabilities decodes the copy taken at creation. A copy that cannot be
+// decoded is treated as absent rather than failing the read: the incident's
+// other fields are the record, and a state of "not known" is the honest
+// rendering of a corrupt declaration.
+func frozenCapabilities(incidentID string, b []byte) *domain.HostCapabilities {
+	caps, err := unmarshalCapabilities(b)
+	if err != nil {
+		slog.Warn("incident: frozen host capabilities unreadable, reading as not known", "incident_id", incidentID, "error", err)
+		return nil
+	}
+	return caps
+}
+
+func capabilitiesStatePtr(s *domain.HostCapabilitiesState) *string {
+	if s == nil {
+		return nil
+	}
+	v := string(*s)
+	return &v
+}
+
+func capabilitiesStateFromPtr(s *string) *domain.HostCapabilitiesState {
+	if s == nil {
+		return nil
+	}
+	v := domain.HostCapabilitiesState(*s)
+	return &v
 }
 
 func incidentsFromPG(rows []pgsqlc.Incident) []*domain.Incident {

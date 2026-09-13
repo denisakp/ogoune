@@ -1,4 +1,4 @@
-import type { HostEvent } from './host'
+import type { HostCapabilities, HostEvent } from './host'
 
 /**
  * Resource metadata containing SSL and domain information
@@ -330,6 +330,12 @@ export interface Incident {
    * stands, its name and metrics cannot be shown.
    */
   host_link?: HostLink | null
+  /**
+   * What the host's agent could observe WHEN THIS INCIDENT OPENED (spec 093),
+   * frozen at creation. Detail endpoint only; absent when there is nothing to
+   * say (no machine, or a pre-feature incident with no host link).
+   */
+  host_capabilities?: HostCapabilities | null
   event_steps?: IncidentEventStep[]
   created_at: string
   updated_at: string
@@ -1044,6 +1050,9 @@ export type {
   Host,
   HostEvent,
   HostEventDetail,
+  HostCapabilities,
+  Capability,
+  CapabilityReason,
   HostMetricSample,
   HostCredentialResult,
   RegisterHostResult,

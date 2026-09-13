@@ -92,19 +92,21 @@ type ExpiryNotificationLog struct {
 }
 
 type Host struct {
-	ID           string             `json:"id"`
-	CreatedAt    pgtype.Timestamptz `json:"created_at"`
-	UpdatedAt    pgtype.Timestamptz `json:"updated_at"`
-	Name         string             `json:"name"`
-	Os           pgtype.Text        `json:"os"`
-	AgentVersion pgtype.Text        `json:"agent_version"`
-	LastSeenAt   pgtype.Timestamptz `json:"last_seen_at"`
-	LastCpuPct   pgtype.Float8      `json:"last_cpu_pct"`
-	LastMemPct   pgtype.Float8      `json:"last_mem_pct"`
-	LastDiskPct  pgtype.Float8      `json:"last_disk_pct"`
-	LastNetIn    pgtype.Int8        `json:"last_net_in"`
-	LastNetOut   pgtype.Int8        `json:"last_net_out"`
-	LastDisks    []byte             `json:"last_disks"`
+	ID             string             `json:"id"`
+	CreatedAt      pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt      pgtype.Timestamptz `json:"updated_at"`
+	Name           string             `json:"name"`
+	Os             pgtype.Text        `json:"os"`
+	AgentVersion   pgtype.Text        `json:"agent_version"`
+	LastSeenAt     pgtype.Timestamptz `json:"last_seen_at"`
+	LastCpuPct     pgtype.Float8      `json:"last_cpu_pct"`
+	LastMemPct     pgtype.Float8      `json:"last_mem_pct"`
+	LastDiskPct    pgtype.Float8      `json:"last_disk_pct"`
+	LastNetIn      pgtype.Int8        `json:"last_net_in"`
+	LastNetOut     pgtype.Int8        `json:"last_net_out"`
+	LastDisks      []byte             `json:"last_disks"`
+	Capabilities   []byte             `json:"capabilities"`
+	CapabilitiesAt pgtype.Timestamptz `json:"capabilities_at"`
 }
 
 type HostAlertState struct {
@@ -148,16 +150,18 @@ type HostMetric struct {
 }
 
 type Incident struct {
-	ID               string             `json:"id"`
-	CreatedAt        pgtype.Timestamptz `json:"created_at"`
-	UpdatedAt        pgtype.Timestamptz `json:"updated_at"`
-	ResourceID       string             `json:"resource_id"`
-	Cause            string             `json:"cause"`
-	ResolvedAt       pgtype.Timestamptz `json:"resolved_at"`
-	StartedAt        pgtype.Timestamptz `json:"started_at"`
-	Details          []byte             `json:"details"`
-	HostID           pgtype.Text        `json:"host_id"`
-	HostLinkRecorded bool               `json:"host_link_recorded"`
+	ID                    string             `json:"id"`
+	CreatedAt             pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt             pgtype.Timestamptz `json:"updated_at"`
+	ResourceID            string             `json:"resource_id"`
+	Cause                 string             `json:"cause"`
+	ResolvedAt            pgtype.Timestamptz `json:"resolved_at"`
+	StartedAt             pgtype.Timestamptz `json:"started_at"`
+	Details               []byte             `json:"details"`
+	HostID                pgtype.Text        `json:"host_id"`
+	HostLinkRecorded      bool               `json:"host_link_recorded"`
+	HostCapabilities      []byte             `json:"host_capabilities"`
+	HostCapabilitiesState pgtype.Text        `json:"host_capabilities_state"`
 }
 
 type IncidentDiagnostic struct {

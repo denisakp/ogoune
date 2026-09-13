@@ -36,11 +36,16 @@ type IncidentResponse struct {
 	// HostLink says which machine the surfaces above describe and where that
 	// answer came from (spec 092). `omitempty` for the same reason as its
 	// neighbours: this struct is shared with the list endpoint.
-	HostLink   *HostLinkResponse `json:"host_link,omitempty"`
-	StartedAt  string            `json:"started_at"`
-	ResolvedAt *string           `json:"resolved_at"`
-	CreatedAt  string            `json:"created_at"`
-	UpdatedAt  string            `json:"updated_at"`
+	HostLink *HostLinkResponse `json:"host_link,omitempty"`
+	// HostCapabilities is what that machine's agent could observe WHEN THIS
+	// INCIDENT OPENED (spec 093), frozen at creation. Detail path only, and
+	// only when there is a machine to speak of; `omitempty` keeps the list
+	// endpoint byte-identical.
+	HostCapabilities *HostCapabilitiesResponse `json:"host_capabilities,omitempty"`
+	StartedAt        string                    `json:"started_at"`
+	ResolvedAt       *string                   `json:"resolved_at"`
+	CreatedAt        string                    `json:"created_at"`
+	UpdatedAt        string                    `json:"updated_at"`
 }
 
 // HostContextResponse is what the monitor's host was doing around the moment the

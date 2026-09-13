@@ -34,6 +34,39 @@ export interface Host {
    * them into one.
    */
   events?: HostEvent[]
+  /**
+   * What this host's agent declares it can observe (spec 093). Always present:
+   * the state is always known, even when it is "the agent has never connected".
+   */
+  capabilities: HostCapabilities
+}
+
+/** Why a capability is unavailable -- the agent's fixed vocabulary. */
+export type CapabilityReason = 'unreadable' | 'setting_off' | 'platform'
+
+export interface Capability {
+  available: boolean
+  reason?: CapabilityReason
+}
+
+/**
+ * A declaration of what an agent can observe on its machine, plus the situation
+ * it was read in. On a host: the latest declaration. On an incident: the copy
+ * frozen when the incident opened, never updated (spec 093).
+ *
+ * The three not-declared states are different facts and none of them may be
+ * rendered as "unavailable" -- that would be a false statement about the machine.
+ * Per-capability fields are present only when `state === 'declared'`.
+ * Passed through from the API as-is (snake_case), like HostLink.
+ */
+export interface HostCapabilities {
+  state: 'declared' | 'not_reported' | 'not_known' | 'no_machine'
+  kmsg?: Capability
+  cgroup_oom?: Capability
+  segfault?: Capability
+  /** How OOM kills are detected -- derived server-side from kmsg / cgroup. */
+  oom_detail?: 'with_process' | 'without_process' | 'none'
+  declared_at?: string
 }
 
 /**

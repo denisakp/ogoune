@@ -122,6 +122,63 @@ func runIncidentContract(t *testing.T, repo port.IncidentRepository) {
 		assert.Nil(t, got.HostID)
 	})
 
+	// The host declaration copied onto the incident when it opened (spec 093):
+	// four states, one of which carries a JSON copy. A row from before the
+	// feature carries neither column, and must read as a nil state -- which the
+	// domain renders as not known, never as the host's current declaration.
+	t.Run("FrozenCapabilitiesRoundTripsFourStates", func(t *testing.T) {
+		declared, notReported, notKnown, noMachine :=
+			domain.HostCapabilitiesDeclared, domain.HostCapabilitiesNotReported, domain.HostCapabilitiesNotKnown, domain.HostCapabilitiesNoMachine
+		caps := &domain.HostCapabilities{
+			Kmsg:      domain.Capability{Available: true},
+			CgroupOOM: domain.Capability{Available: true},
+			Segfault:  domain.Capability{Available: false, Reason: domain.CapabilityReasonSettingOff},
+		}
+		rows := []*domain.Incident{
+			{Base: domain.Base{ID: "fc-declared"}, ResourceID: "resource-2", Cause: "c", StartedAt: time.Now(), HostCapabilities: caps, HostCapabilitiesState: &declared},
+			{Base: domain.Base{ID: "fc-not-reported"}, ResourceID: "resource-2", Cause: "c", StartedAt: time.Now(), HostCapabilitiesState: &notReported},
+			{Base: domain.Base{ID: "fc-not-known"}, ResourceID: "resource-2", Cause: "c", StartedAt: time.Now(), HostCapabilitiesState: &notKnown},
+			{Base: domain.Base{ID: "fc-no-machine"}, ResourceID: "resource-2", Cause: "c", StartedAt: time.Now(), HostCapabilitiesState: &noMachine},
+		}
+		for _, inc := range rows {
+			_, err := repo.Create(ctx, inc)
+			require.NoError(t, err)
+		}
+
+		got, err := repo.FindByID(ctx, "fc-declared")
+		require.NoError(t, err)
+		require.NotNil(t, got.HostCapabilities)
+		assert.Equal(t, *caps, *got.HostCapabilities)
+		assert.Equal(t, domain.HostCapabilitiesDeclared, got.FrozenCapabilitiesState())
+
+		for id, want := range map[string]domain.HostCapabilitiesState{
+			"fc-not-reported": domain.HostCapabilitiesNotReported,
+			"fc-not-known":    domain.HostCapabilitiesNotKnown,
+			"fc-no-machine":   domain.HostCapabilitiesNoMachine,
+		} {
+			got, err := repo.FindByID(ctx, id)
+			require.NoError(t, err)
+			assert.Nil(t, got.HostCapabilities, id)
+			require.NotNil(t, got.HostCapabilitiesState, id)
+			assert.Equal(t, want, got.FrozenCapabilitiesState(), id)
+		}
+	})
+
+	t.Run("FrozenCapabilitiesDefaultsReadAsNil", func(t *testing.T) {
+		inc := &domain.Incident{
+			Base: domain.Base{ID: "fc-defaults"}, ResourceID: "resource-2",
+			Cause: "c", StartedAt: time.Now(),
+		}
+		_, err := repo.Create(ctx, inc)
+		require.NoError(t, err)
+
+		got, err := repo.FindByID(ctx, "fc-defaults")
+		require.NoError(t, err)
+		assert.Nil(t, got.HostCapabilities)
+		assert.Nil(t, got.HostCapabilitiesState, "a pre-feature row stores no state")
+		assert.Equal(t, domain.HostCapabilitiesNotKnown, got.FrozenCapabilitiesState(), "and reads as not known")
+	})
+
 	t.Run("Update", func(t *testing.T) {
 		inc := &domain.Incident{
 			Base:       domain.Base{ID: "test-update-incident", CreatedAt: time.Now()},

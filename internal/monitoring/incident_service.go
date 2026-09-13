@@ -42,6 +42,10 @@ type IncidentService struct {
 	// (spec 091). Optional: nil means alerts read exactly as they did before,
 	// and no query is spent finding that out.
 	correlator *correlation.Correlator
+	// hosts is read once per incident creation to freeze the host's capability
+	// declaration onto the incident (spec 093). Optional: nil means every
+	// incident records "not known", which is also what a lookup failure yields.
+	hosts port.HostRepository
 }
 
 // NotificationEmitter is the optional in-app notification-feed producer.
@@ -75,6 +79,49 @@ func NewIncidentService(
 func (s *IncidentService) WithCorrelator(c *correlation.Correlator) *IncidentService {
 	s.correlator = c
 	return s
+}
+
+// WithHosts wires the host lookup that lets an incident freeze what the host's
+// agent could observe when the incident opened (spec 093). Attached rather
+// than passed in, for the same reason as WithCorrelator.
+func (s *IncidentService) WithHosts(h port.HostRepository) *IncidentService {
+	s.hosts = h
+	return s
+}
+
+// freezeHostCapabilities decides what the incident remembers about the host's
+// observation capabilities, per the four-state table in spec 093:
+//
+//	no machine on the monitor            -> no_machine
+//	host found, declaration present      -> declared, with a copy
+//	host found, connected, no declaration -> not_reported
+//	host found, never connected           -> not_known
+//	lookup failed, or no lookup wired    -> not_known
+//
+// Recording cannot block creation: a failed lookup is logged and the incident
+// is created with "not known", which is the truth about what was recorded.
+func (s *IncidentService) freezeHostCapabilities(ctx context.Context, inc *domain.Incident) {
+	state := domain.HostCapabilitiesNotKnown
+	defer func() { inc.HostCapabilitiesState = &state }()
+
+	if inc.HostID == nil {
+		state = domain.HostCapabilitiesNoMachine
+		return
+	}
+	if s.hosts == nil {
+		return
+	}
+	host, err := s.hosts.FindByID(ctx, *inc.HostID)
+	if err != nil {
+		slog.Warn("incident: host lookup failed while freezing capabilities, recording as not known",
+			"resource_id", inc.ResourceID, "host_id", *inc.HostID, "error", err)
+		return
+	}
+	state = host.CapabilitiesState()
+	if state == domain.HostCapabilitiesDeclared && host.Capabilities != nil {
+		cp := *host.Capabilities
+		inc.HostCapabilities = &cp
+	}
 }
 
 // explainIncident resolves the causal narrative for a down alert, once.
@@ -184,6 +231,10 @@ func (s *IncidentService) CreateIncident(ctx context.Context, r *domain.Resource
 		HostID:           r.HostID,
 		HostLinkRecorded: true,
 	}
+	// What that machine's agent could observe, frozen alongside it (spec 093):
+	// the difference, in a postmortem, between "no kernel events" as evidence
+	// and as a blind spot. Never updated afterwards.
+	s.freezeHostCapabilities(ctx, incident)
 
 	if _, err := s.incidents.Create(ctx, incident); err != nil {
 		return fmt.Errorf("failed to create incident: %w", err)

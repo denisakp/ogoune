@@ -33,6 +33,11 @@ type gopsutilCollector struct {
 	// is exactly how a host that cannot read its kernel log behaves: the frame
 	// simply carries no events (spec 090).
 	events *eventCollector
+	// probe declares what this machine lets the agent observe, before every
+	// frame (spec 093). Nil means no declaration is sent -- the shape of an
+	// agent predating the feature, kept possible for tests.
+	probe capabilityProbe
+	open  sourceOpener
 	// eventsInFlight guards the deadline below: if a previous collection is
 	// somehow still running, skip this interval rather than stacking another
 	// goroutine behind it every tick.
@@ -60,6 +65,14 @@ func newGopsutilCollector(agentVersion string) *gopsutilCollector {
 // so capture stays optional and every existing call site keeps working.
 func (c *gopsutilCollector) WithKernelEvents(e *eventCollector) *gopsutilCollector {
 	c.events = e
+	return c
+}
+
+// WithCapabilityProbe attaches the per-frame capability declaration and the
+// opener used to adopt a source that becomes readable mid-run (spec 093).
+func (c *gopsutilCollector) WithCapabilityProbe(p capabilityProbe, open sourceOpener) *gopsutilCollector {
+	c.probe = p
+	c.open = open
 	return c
 }
 
@@ -93,6 +106,15 @@ func (c *gopsutilCollector) Collect(ctx context.Context) (agentwire.Frame, error
 	}
 
 	f.Disks = collectDisks(ctx)
+
+	// What this machine lets the agent observe, declared on every frame and
+	// reconciled with the readers before they drain (spec 093). Cheap: one
+	// open/close and two small reads. Never an error, never a reason to hold
+	// the frame.
+	if c.probe != nil {
+		caps := probeAndAdopt(c.probe, c.events, c.open)
+		f.Capabilities = &caps
+	}
 
 	// Kernel events observed during this interval (spec 090). Best-effort by
 	// contract, and enforced rather than asserted: capture cannot return an

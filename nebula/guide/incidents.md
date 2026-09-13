@@ -115,6 +115,13 @@ names the host it happened on, without a page to link to.
 
 ### When it is not shown
 
+When an incident has host context but no kernel events, the page says which of
+the reasons below applied to *that* host — as its agent declared **when the
+incident opened**, not as it is today. An agent that could not read the kernel
+log, or a segfault setting that was off, is stated in one sentence; an agent
+too old to declare, or an incident from before this was recorded, says *not
+known* rather than borrowing the host's current state. The list is background:
+
 - The monitor has no host attached — the common case, and it costs nothing.
 - No kernel event fell inside the window.
 - The host's agent cannot read kernel events at all. See

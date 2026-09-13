@@ -178,3 +178,47 @@ func TestHostMetricsService_History_DefaultsToLastHour(t *testing.T) {
 	require.Len(t, samples, 1, "zero from/to should default to the last hour")
 	assert.Equal(t, 10.0, samples[0].CPUPct)
 }
+
+// Spec 093: the declaration rides on the sample. Stored when present, CLEARED
+// when absent -- a host must not keep claiming what a downgraded agent no
+// longer says -- and never a reason for ingestion to fail.
+func TestHostMetricsService_Ingest_CapabilitiesFollowTheLatestSample(t *testing.T) {
+	ctx := context.Background()
+	svc, hosts, hostID := newHostMetricsFixture(t)
+	now := time.Date(2026, 9, 12, 12, 0, 0, 0, time.UTC)
+	svc.SetNow(func() time.Time { return now })
+
+	declared := &domain.HostCapabilities{
+		Kmsg:      domain.Capability{Available: true},
+		CgroupOOM: domain.Capability{Available: true},
+		Segfault:  domain.Capability{Available: false, Reason: domain.CapabilityReasonSettingOff},
+	}
+	require.NoError(t, svc.Ingest(ctx, hostID, IngestSample{CPUPct: 1, MemPct: 1, Capabilities: declared}))
+	h, err := hosts.FindByID(ctx, hostID)
+	require.NoError(t, err)
+	require.NotNil(t, h.Capabilities)
+	assert.Equal(t, *declared, *h.Capabilities)
+	require.NotNil(t, h.CapabilitiesAt)
+	assert.Equal(t, now, *h.CapabilitiesAt)
+	assert.Equal(t, domain.HostCapabilitiesDeclared, h.CapabilitiesState())
+
+	// The next sample comes from an agent that does not declare.
+	require.NoError(t, svc.Ingest(ctx, hostID, IngestSample{CPUPct: 2, MemPct: 2}))
+	h, err = hosts.FindByID(ctx, hostID)
+	require.NoError(t, err)
+	assert.Nil(t, h.Capabilities, "absence clears")
+	assert.Nil(t, h.CapabilitiesAt)
+	assert.Equal(t, domain.HostCapabilitiesNotReported, h.CapabilitiesState(), "connected, not declaring")
+	require.NotNil(t, h.LastSeenAt, "and metrics were still stored")
+}
+
+func TestHostMetricsService_Ingest_MalformedSampleDoesNotStoreTheDeclarationEither(t *testing.T) {
+	ctx := context.Background()
+	svc, hosts, hostID := newHostMetricsFixture(t)
+	err := svc.Ingest(ctx, hostID, IngestSample{CPUPct: math.NaN(), MemPct: 1,
+		Capabilities: &domain.HostCapabilities{Kmsg: domain.Capability{Available: true}}})
+	require.ErrorIs(t, err, ErrValidationFailed)
+	h, err := hosts.FindByID(ctx, hostID)
+	require.NoError(t, err)
+	assert.Nil(t, h.Capabilities, "a rejected frame stores nothing, declaration included")
+}

@@ -79,7 +79,7 @@ func (q *Queries) DeleteHost(ctx context.Context, id string) (int64, error) {
 }
 
 const findHostByID = `-- name: FindHostByID :one
-SELECT id, created_at, updated_at, name, os, agent_version, last_seen_at, last_cpu_pct, last_mem_pct, last_disk_pct, last_net_in, last_net_out, last_disks FROM hosts WHERE id = ?
+SELECT id, created_at, updated_at, name, os, agent_version, last_seen_at, last_cpu_pct, last_mem_pct, last_disk_pct, last_net_in, last_net_out, last_disks, capabilities, capabilities_at FROM hosts WHERE id = ?
 `
 
 func (q *Queries) FindHostByID(ctx context.Context, id string) (Host, error) {
@@ -99,12 +99,14 @@ func (q *Queries) FindHostByID(ctx context.Context, id string) (Host, error) {
 		&i.LastNetIn,
 		&i.LastNetOut,
 		&i.LastDisks,
+		&i.Capabilities,
+		&i.CapabilitiesAt,
 	)
 	return i, err
 }
 
 const listHosts = `-- name: ListHosts :many
-SELECT id, created_at, updated_at, name, os, agent_version, last_seen_at, last_cpu_pct, last_mem_pct, last_disk_pct, last_net_in, last_net_out, last_disks FROM hosts
+SELECT id, created_at, updated_at, name, os, agent_version, last_seen_at, last_cpu_pct, last_mem_pct, last_disk_pct, last_net_in, last_net_out, last_disks, capabilities, capabilities_at FROM hosts
 ORDER BY created_at DESC
 LIMIT ? OFFSET ?
 `
@@ -137,6 +139,8 @@ func (q *Queries) ListHosts(ctx context.Context, arg ListHostsParams) ([]Host, e
 			&i.LastNetIn,
 			&i.LastNetOut,
 			&i.LastDisks,
+			&i.Capabilities,
+			&i.CapabilitiesAt,
 		); err != nil {
 			return nil, err
 		}
@@ -162,22 +166,26 @@ SET last_seen_at  = ?2,
     last_disks    = ?8,
     os            = COALESCE(?9, os),
     agent_version = COALESCE(?10, agent_version),
-    updated_at    = ?11
+    updated_at    = ?11,
+    capabilities    = ?12,
+    capabilities_at = ?13
 WHERE id = ?1
 `
 
 type UpdateHostSnapshotParams struct {
-	ID           string          `json:"id"`
-	LastSeenAt   sql.NullTime    `json:"last_seen_at"`
-	LastCpuPct   sql.NullFloat64 `json:"last_cpu_pct"`
-	LastMemPct   sql.NullFloat64 `json:"last_mem_pct"`
-	LastDiskPct  sql.NullFloat64 `json:"last_disk_pct"`
-	LastNetIn    sql.NullInt64   `json:"last_net_in"`
-	LastNetOut   sql.NullInt64   `json:"last_net_out"`
-	LastDisks    sql.NullString  `json:"last_disks"`
-	Os           sql.NullString  `json:"os"`
-	AgentVersion sql.NullString  `json:"agent_version"`
-	UpdatedAt    time.Time       `json:"updated_at"`
+	ID             string          `json:"id"`
+	LastSeenAt     sql.NullTime    `json:"last_seen_at"`
+	LastCpuPct     sql.NullFloat64 `json:"last_cpu_pct"`
+	LastMemPct     sql.NullFloat64 `json:"last_mem_pct"`
+	LastDiskPct    sql.NullFloat64 `json:"last_disk_pct"`
+	LastNetIn      sql.NullInt64   `json:"last_net_in"`
+	LastNetOut     sql.NullInt64   `json:"last_net_out"`
+	LastDisks      sql.NullString  `json:"last_disks"`
+	Os             sql.NullString  `json:"os"`
+	AgentVersion   sql.NullString  `json:"agent_version"`
+	UpdatedAt      time.Time       `json:"updated_at"`
+	Capabilities   sql.NullString  `json:"capabilities"`
+	CapabilitiesAt sql.NullTime    `json:"capabilities_at"`
 }
 
 func (q *Queries) UpdateHostSnapshot(ctx context.Context, arg UpdateHostSnapshotParams) (int64, error) {
@@ -193,6 +201,8 @@ func (q *Queries) UpdateHostSnapshot(ctx context.Context, arg UpdateHostSnapshot
 		arg.Os,
 		arg.AgentVersion,
 		arg.UpdatedAt,
+		arg.Capabilities,
+		arg.CapabilitiesAt,
 	)
 	if err != nil {
 		return 0, err
