@@ -5,6 +5,8 @@ follows [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.0.0-beta.7] - 2026-09-13
+
 ### Added
 
 - **The agent says what it can see.** Kernel-event capture is best-effort and often
@@ -57,6 +59,11 @@ follows [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/).
   The entry keeps the shallowest mount path as its name, so it reads as `/` rather than
   `/opt/vendor/data/subvol`. A host with more than 32 distinct filesystems reports the 32 fullest —
   the ones somebody will be paged about — and logs that it did rather than truncating quietly.
+- **`release.yml` runs its actions on Node 24.** `setup-go`, `setup-qemu-action` and
+  `action-gh-release` were on majors GitHub had started forcing onto Node 24 with a warning; the
+  day the forcing stops, the release stops publishing. Each is on the major that declares Node 24.
+- **The test job gives each package 300 s, and has a 15-minute ceiling.** The repository package
+  took 117.9 s on a green run and timed out at 120 on the next; the limit was being met by luck.
 
 ## [1.0.0-beta.6] - 2026-09-10
 
