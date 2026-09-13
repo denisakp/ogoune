@@ -5,6 +5,24 @@ follows [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+
+- **The agent says what it can see.** Kernel-event capture is best-effort and often
+  unavailable — a containerised agent usually cannot read the kernel log, and most machines
+  ship with segfault reporting off — and until now the only trace was one log line at startup.
+  Nobody could tell *"this host had no out-of-memory kills"* from *"this host could never have
+  reported one"*. The agent now checks, before every report, whether it can read the kernel
+  log, the cgroup out-of-memory counter, and whether segfault capture is usable, and declares
+  the result. The host page shows it in words: *Out-of-memory kills: detected, without the
+  process name* for a container; *Segfault capture: unavailable — the kernel is not reporting
+  userspace faults*, with the one-line `sysctl` that enables it, for a native install. A change
+  on the machine shows within one interval, no restart. Each incident freezes the host's
+  declaration when it opens, so a postmortem's "no kernel events" reads as evidence or as a
+  blind spot — and stays that way when the host changes later. The container remains the
+  recommended install; segfault capture is explicitly best-effort. Older agents show *not
+  reported* until upgraded; incidents from before this read *not known*, permanently. The wire
+  protocol version did not change: old agents and old backends interoperate as before.
+
 ### Fixed
 
 - **An incident now remembers the machine it happened on.** The host context, the causal

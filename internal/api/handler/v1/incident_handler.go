@@ -67,7 +67,26 @@ func mapIncidentResponse(inc *domain.Incident) dtoV1.IncidentResponse {
 		resp.HostEvents = append(resp.HostEvents, mapHostEvent(e))
 	}
 	resp.HostLink = mapHostLink(inc.HostLink)
+	resp.HostCapabilities = mapFrozenCapabilities(inc)
 	return resp
+}
+
+// mapFrozenCapabilities renders the declaration frozen on the incident (spec
+// 093). Emitted only alongside a host link: the link is set on the detail path
+// alone, so this is detail-only by construction and never reaches the list
+// body; and an incident with no machine (no link, or a stored "no_machine")
+// has nothing to say. A nil stored state is a pre-feature row and reads as
+// "not known" -- never the host's current declaration.
+func mapFrozenCapabilities(inc *domain.Incident) *dtoV1.HostCapabilitiesResponse {
+	if inc.HostLink == nil {
+		return nil
+	}
+	state := inc.FrozenCapabilitiesState()
+	if state == domain.HostCapabilitiesNoMachine {
+		return nil
+	}
+	resp := mapCapabilities(state, inc.HostCapabilities, nil)
+	return &resp
 }
 
 // mapHostLink converts the read-side host link into its v1 shape (spec 092).

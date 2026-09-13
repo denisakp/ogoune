@@ -3,12 +3,16 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
 	"os"
 	"os/exec"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/denisakp/ogoune/pkg/agentwire"
 )
@@ -267,4 +271,45 @@ func waitForReport(t *testing.T, src *kmsgSource, match func(kmsgReport) bool) k
 	}
 	t.Fatal("no matching kernel report reached the agent within the deadline")
 	return kmsgReport{}
+}
+
+// --- Capability declaration against the real kernel (spec 093) --------------
+//
+// Every assertion here is made against what the runner's files say, never
+// against a constant: the runner image's defaults are not ours to assume, and
+// a test that encodes them would start lying the day the image changes.
+
+func TestRealKernel_DeclaresKmsg(t *testing.T) {
+	realKmsgSource(t) // skip-or-fail if the log is out of reach
+	got := newCapabilityProbe().Probe()
+	assert.True(t, got.Kmsg.Available, "the log opened a moment ago; the probe must agree")
+	assert.Empty(t, got.Kmsg.Reason)
+}
+
+func TestRealKernel_DeclaresCgroupOOMAgainstTheFile(t *testing.T) {
+	realKmsgSource(t)
+	b, err := os.ReadFile(cgroupEventsPath)
+	readable := err == nil && bytes.Contains(b, []byte("oom_kill"))
+
+	got := newCapabilityProbe().Probe()
+	assert.Equal(t, readable, got.CgroupOOM.Available, "declared exactly as %s reads", cgroupEventsPath)
+	if !readable {
+		assert.Equal(t, agentwire.ReasonUnreadable, got.CgroupOOM.Reason)
+	}
+}
+
+func TestRealKernel_DeclaresSegfaultAgainstTheSysctl(t *testing.T) {
+	realKmsgSource(t)
+	b, err := os.ReadFile(probeExceptionTracePath)
+	if err != nil {
+		skipOrFail(t, probeExceptionTracePath+" is not readable")
+	}
+	settingOn := strings.TrimSpace(string(b)) == "1"
+
+	got := newCapabilityProbe().Probe()
+	require.True(t, got.Kmsg.Available)
+	assert.Equal(t, settingOn, got.Segfault.Available, "declared exactly as debug.exception-trace reads (%q)", strings.TrimSpace(string(b)))
+	if !settingOn {
+		assert.Equal(t, agentwire.ReasonSettingOff, got.Segfault.Reason, "the log is readable, so the reason must be the setting")
+	}
 }

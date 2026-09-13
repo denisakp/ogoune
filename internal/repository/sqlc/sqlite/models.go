@@ -93,19 +93,21 @@ type ExpiryNotificationLog struct {
 }
 
 type Host struct {
-	ID           string          `json:"id"`
-	CreatedAt    time.Time       `json:"created_at"`
-	UpdatedAt    time.Time       `json:"updated_at"`
-	Name         string          `json:"name"`
-	Os           sql.NullString  `json:"os"`
-	AgentVersion sql.NullString  `json:"agent_version"`
-	LastSeenAt   sql.NullTime    `json:"last_seen_at"`
-	LastCpuPct   sql.NullFloat64 `json:"last_cpu_pct"`
-	LastMemPct   sql.NullFloat64 `json:"last_mem_pct"`
-	LastDiskPct  sql.NullFloat64 `json:"last_disk_pct"`
-	LastNetIn    sql.NullInt64   `json:"last_net_in"`
-	LastNetOut   sql.NullInt64   `json:"last_net_out"`
-	LastDisks    sql.NullString  `json:"last_disks"`
+	ID             string          `json:"id"`
+	CreatedAt      time.Time       `json:"created_at"`
+	UpdatedAt      time.Time       `json:"updated_at"`
+	Name           string          `json:"name"`
+	Os             sql.NullString  `json:"os"`
+	AgentVersion   sql.NullString  `json:"agent_version"`
+	LastSeenAt     sql.NullTime    `json:"last_seen_at"`
+	LastCpuPct     sql.NullFloat64 `json:"last_cpu_pct"`
+	LastMemPct     sql.NullFloat64 `json:"last_mem_pct"`
+	LastDiskPct    sql.NullFloat64 `json:"last_disk_pct"`
+	LastNetIn      sql.NullInt64   `json:"last_net_in"`
+	LastNetOut     sql.NullInt64   `json:"last_net_out"`
+	LastDisks      sql.NullString  `json:"last_disks"`
+	Capabilities   sql.NullString  `json:"capabilities"`
+	CapabilitiesAt sql.NullTime    `json:"capabilities_at"`
 }
 
 type HostAlertState struct {
@@ -149,16 +151,18 @@ type HostMetric struct {
 }
 
 type Incident struct {
-	ID               string         `json:"id"`
-	CreatedAt        time.Time      `json:"created_at"`
-	UpdatedAt        time.Time      `json:"updated_at"`
-	ResourceID       string         `json:"resource_id"`
-	Cause            string         `json:"cause"`
-	ResolvedAt       sql.NullTime   `json:"resolved_at"`
-	StartedAt        time.Time      `json:"started_at"`
-	Details          []byte         `json:"details"`
-	HostID           sql.NullString `json:"host_id"`
-	HostLinkRecorded int64          `json:"host_link_recorded"`
+	ID                    string         `json:"id"`
+	CreatedAt             time.Time      `json:"created_at"`
+	UpdatedAt             time.Time      `json:"updated_at"`
+	ResourceID            string         `json:"resource_id"`
+	Cause                 string         `json:"cause"`
+	ResolvedAt            sql.NullTime   `json:"resolved_at"`
+	StartedAt             time.Time      `json:"started_at"`
+	Details               []byte         `json:"details"`
+	HostID                sql.NullString `json:"host_id"`
+	HostLinkRecorded      int64          `json:"host_link_recorded"`
+	HostCapabilities      sql.NullString `json:"host_capabilities"`
+	HostCapabilitiesState sql.NullString `json:"host_capabilities_state"`
 }
 
 type IncidentDiagnostic struct {

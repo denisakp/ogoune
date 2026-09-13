@@ -111,6 +111,9 @@ func (r *HostFake) UpdateSnapshot(ctx context.Context, h *domain.Host) error {
 	existing.LastNetIn = h.LastNetIn
 	existing.LastNetOut = h.LastNetOut
 	existing.LastDisks = h.LastDisks
+	// Mirrors the store: written every frame, NOT coalesced (spec 093).
+	existing.Capabilities = h.Capabilities
+	existing.CapabilitiesAt = h.CapabilitiesAt
 	if h.OS != nil {
 		existing.OS = h.OS
 	}

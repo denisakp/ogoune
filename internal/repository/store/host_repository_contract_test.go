@@ -142,6 +142,55 @@ func runHostContract(t *testing.T, repo port.HostRepository) {
 		assert.ErrorIs(t, repo.Delete(ctx, "nonexistent"), repository.ErrNotFound)
 	})
 
+	// What the agent declares it can observe, latest wins (spec 093). The
+	// second subtest is the one that matters: a frame with no declaration
+	// must CLEAR the previous one, or a downgraded agent's host keeps
+	// claiming what it no longer says.
+	t.Run("CapabilitiesRoundTrip", func(t *testing.T) {
+		h := &domain.Host{Name: "caps"}
+		require.NoError(t, repo.Create(ctx, h))
+
+		at := time.Now().UTC().Truncate(time.Second)
+		seen := at
+		h.LastSeenAt = timeptr(seen)
+		h.Capabilities = &domain.HostCapabilities{
+			Kmsg:      domain.Capability{Available: false, Reason: domain.CapabilityReasonUnreadable},
+			CgroupOOM: domain.Capability{Available: true},
+			Segfault:  domain.Capability{Available: false, Reason: domain.CapabilityReasonUnreadable},
+		}
+		h.CapabilitiesAt = timeptr(at)
+		require.NoError(t, repo.UpdateSnapshot(ctx, h))
+
+		found, err := repo.FindByID(ctx, h.ID)
+		require.NoError(t, err)
+		require.NotNil(t, found.Capabilities)
+		assert.Equal(t, *h.Capabilities, *found.Capabilities)
+		require.NotNil(t, found.CapabilitiesAt)
+		assert.WithinDuration(t, at, found.CapabilitiesAt.UTC(), time.Second)
+		assert.Equal(t, domain.HostCapabilitiesDeclared, found.CapabilitiesState())
+	})
+
+	t.Run("AbsentDeclarationClearsPrevious", func(t *testing.T) {
+		h := &domain.Host{Name: "caps-clear"}
+		require.NoError(t, repo.Create(ctx, h))
+		seen := time.Now().UTC().Truncate(time.Second)
+		h.LastSeenAt = timeptr(seen)
+		h.Capabilities = &domain.HostCapabilities{Kmsg: domain.Capability{Available: true}, CgroupOOM: domain.Capability{Available: true}, Segfault: domain.Capability{Available: true}}
+		h.CapabilitiesAt = timeptr(seen)
+		require.NoError(t, repo.UpdateSnapshot(ctx, h))
+
+		// Next frame: an older agent, no declaration.
+		h.Capabilities = nil
+		h.CapabilitiesAt = nil
+		require.NoError(t, repo.UpdateSnapshot(ctx, h))
+
+		found, err := repo.FindByID(ctx, h.ID)
+		require.NoError(t, err)
+		assert.Nil(t, found.Capabilities, "no COALESCE: absence clears")
+		assert.Nil(t, found.CapabilitiesAt)
+		assert.Equal(t, domain.HostCapabilitiesNotReported, found.CapabilitiesState(), "connected but not declaring")
+	})
+
 	t.Run("UpdateSnapshot_SetsValues", func(t *testing.T) {
 		h := &domain.Host{Name: "snap"}
 		require.NoError(t, repo.Create(ctx, h))

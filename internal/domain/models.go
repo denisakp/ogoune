@@ -258,9 +258,17 @@ type Incident struct {
 	// monitor had none" -- a state that must NEVER fall back to the monitor's
 	// current machine. False means the row predates recording, and nothing can
 	// be inferred from HostID being nil; those rows fall back, visibly marked.
-	HostLinkRecorded    bool                 `json:"host_link_recorded"`
-	EventStep           []IncidentEventStep  `json:"event_steps"`
-	IncidentDiagnostics *IncidentDiagnostics `json:"diagnostics"`
+	HostLinkRecorded bool `json:"host_link_recorded"`
+	// HostCapabilities is a copy of the host's declaration -- what its agent
+	// could observe -- taken when the incident opened, never updated (spec 093).
+	// It is what makes "no kernel events" readable in a postmortem: evidence,
+	// or a blind spot. HostCapabilitiesState says which of the four situations
+	// the copy was taken in; nil on every row predating the feature, and those
+	// read as not known rather than borrowing the host's current declaration.
+	HostCapabilities      *HostCapabilities      `json:"host_capabilities"`
+	HostCapabilitiesState *HostCapabilitiesState `json:"host_capabilities_state"`
+	EventStep             []IncidentEventStep    `json:"event_steps"`
+	IncidentDiagnostics   *IncidentDiagnostics   `json:"diagnostics"`
 	// HostContext is computed on read, never persisted: what the monitor's host
 	// was doing around StartedAt. Nil whenever there is nothing to say
 	// (spec 089).
@@ -1046,7 +1054,13 @@ type Host struct {
 	LastNetIn    *int64
 	LastNetOut   *int64
 	LastDisks    []DiskUsage // decoded from last_disks JSON
-	Online       bool        // derived (not persisted): computed via IsOnline
+	// Capabilities is the LATEST declaration the agent sent of what it can
+	// observe (spec 093); nil when the last frame carried none, which is how a
+	// host stops claiming what a downgraded agent no longer says. CapabilitiesAt
+	// is when that declaration arrived.
+	Capabilities   *HostCapabilities // decoded from capabilities JSON
+	CapabilitiesAt *time.Time
+	Online         bool // derived (not persisted): computed via IsOnline
 }
 
 // IsOnline reports whether the host has reported within the freshness threshold

@@ -4456,6 +4456,12 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        "github_com_denisakp_ogoune_internal_domain.Capability": {
+            available?: boolean;
+            reason?: components["schemas"]["github_com_denisakp_ogoune_internal_domain.CapabilityReason"];
+        };
+        /** @enum {string} */
+        "github_com_denisakp_ogoune_internal_domain.CapabilityReason": "unreadable" | "setting_off" | "platform";
         "github_com_denisakp_ogoune_internal_domain.Component": {
             created_at?: string;
             description?: string;
@@ -4470,12 +4476,29 @@ export interface components {
         "github_com_denisakp_ogoune_internal_domain.ComponentStatus": "up" | "degraded" | "down";
         /** @enum {string} */
         "github_com_denisakp_ogoune_internal_domain.ExpiryStatus": "ok" | "warning" | "critical" | "expired";
+        /**
+         * @description HostCapabilities is a copy of the host's declaration -- what its agent
+         *     could observe -- taken when the incident opened, never updated (spec 093).
+         *     It is what makes "no kernel events" readable in a postmortem: evidence,
+         *     or a blind spot. HostCapabilitiesState says which of the four situations
+         *     the copy was taken in; nil on every row predating the feature, and those
+         *     read as not known rather than borrowing the host's current declaration.
+         */
+        "github_com_denisakp_ogoune_internal_domain.HostCapabilities": {
+            cgroup_oom?: components["schemas"]["github_com_denisakp_ogoune_internal_domain.Capability"];
+            kmsg?: components["schemas"]["github_com_denisakp_ogoune_internal_domain.Capability"];
+            segfault?: components["schemas"]["github_com_denisakp_ogoune_internal_domain.Capability"];
+        };
+        /** @enum {string} */
+        "github_com_denisakp_ogoune_internal_domain.HostCapabilitiesState": "declared" | "not_reported" | "not_known" | "no_machine";
         "github_com_denisakp_ogoune_internal_domain.Incident": {
             cause?: string;
             created_at?: string;
             details?: number[];
             diagnostics?: components["schemas"]["github_com_denisakp_ogoune_internal_domain.IncidentDiagnostics"];
             event_steps?: components["schemas"]["github_com_denisakp_ogoune_internal_domain.IncidentEventStep"][];
+            host_capabilities?: components["schemas"]["github_com_denisakp_ogoune_internal_domain.HostCapabilities"];
+            host_capabilities_state?: components["schemas"]["github_com_denisakp_ogoune_internal_domain.HostCapabilitiesState"];
             /**
              * @description HostID is the machine this incident happened on, AS IT WAS when the
              *     incident opened (spec 092). Written once, never updated. The monitor's
@@ -5029,6 +5052,12 @@ export interface components {
         "github_com_denisakp_ogoune_internal_dto_v1.BulkResourceIDsRequest": {
             resource_ids?: string[];
         };
+        /** @description Segfault: segfault capture is usable (kernel log + kernel setting). Best-effort. */
+        "github_com_denisakp_ogoune_internal_dto_v1.CapabilityResponse": {
+            available?: boolean;
+            /** @enum {string} */
+            reason?: "unreadable" | "setting_off" | "platform";
+        };
         "github_com_denisakp_ogoune_internal_dto_v1.CreateAnnouncementRequest": {
             description?: string;
             dismissible?: boolean;
@@ -5145,6 +5174,34 @@ export interface components {
         "github_com_denisakp_ogoune_internal_dto_v1.HeartbeatPingResponse": {
             received_at?: string;
         };
+        /**
+         * @description HostCapabilities is what that machine's agent could observe WHEN THIS
+         *     INCIDENT OPENED (spec 093), frozen at creation. Detail path only, and
+         *     only when there is a machine to speak of; `omitempty` keeps the list
+         *     endpoint byte-identical.
+         */
+        "github_com_denisakp_ogoune_internal_dto_v1.HostCapabilitiesResponse": {
+            cgroup_oom?: components["schemas"]["github_com_denisakp_ogoune_internal_dto_v1.CapabilityResponse"];
+            /**
+             * @description DeclaredAt: when the host received this declaration. Absent on the
+             *     frozen incident copy, whose time is the incident's started_at.
+             */
+            declared_at?: string;
+            kmsg?: components["schemas"]["github_com_denisakp_ogoune_internal_dto_v1.CapabilityResponse"];
+            /**
+             * @description OOMDetail: how out-of-memory kills are detected -- with_process (kernel
+             *     log), without_process (cgroup counter only), none.
+             * @enum {string}
+             */
+            oom_detail?: "with_process" | "without_process" | "none";
+            segfault?: components["schemas"]["github_com_denisakp_ogoune_internal_dto_v1.CapabilityResponse"];
+            /**
+             * @description State: declared | not_reported (agent connected, too old to declare) |
+             *     not_known (never connected; or, on an incident, predates the feature).
+             * @enum {string}
+             */
+            state?: "declared" | "not_reported" | "not_known";
+        };
         "github_com_denisakp_ogoune_internal_dto_v1.HostContextResponse": {
             host_id?: string;
             host_name?: string;
@@ -5221,6 +5278,7 @@ export interface components {
         };
         "github_com_denisakp_ogoune_internal_dto_v1.HostResponse": {
             agent_version?: string;
+            capabilities?: components["schemas"]["github_com_denisakp_ogoune_internal_dto_v1.HostCapabilitiesResponse"];
             created_at?: string;
             /**
              * @description Events are the kernel events this host's agent reported, newest first
@@ -5303,6 +5361,7 @@ export interface components {
             diagnostics?: components["schemas"]["github_com_denisakp_ogoune_internal_domain.IncidentDiagnostics"];
             event_steps?: components["schemas"]["github_com_denisakp_ogoune_internal_domain.IncidentEventStep"][];
             explanation?: components["schemas"]["github_com_denisakp_ogoune_internal_dto_v1.IncidentExplanationResponse"];
+            host_capabilities?: components["schemas"]["github_com_denisakp_ogoune_internal_dto_v1.HostCapabilitiesResponse"];
             host_context?: components["schemas"]["github_com_denisakp_ogoune_internal_dto_v1.HostContextResponse"];
             host_events?: components["schemas"]["github_com_denisakp_ogoune_internal_dto_v1.HostEventResponse"][];
             host_link?: components["schemas"]["github_com_denisakp_ogoune_internal_dto_v1.HostLinkResponse"];

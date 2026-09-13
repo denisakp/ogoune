@@ -375,3 +375,25 @@ func TestForIncident_InferredMachineGetsEventsButNoSentence(t *testing.T) {
 	assert.Nil(t, got.Explanation, "no claim is made about a machine that was only inferred")
 	assert.Zero(t, h.hosts.FindByIDCalls, "and no host lookup is spent on a sentence that will not exist")
 }
+
+// Spec 093, FR-015: the declaration explains an absence of events; it never
+// filters or annotates their presence. A declaration of "nothing observable"
+// frozen on the incident changes neither the events nor the sentence --
+// including for an event the declaration says could not have been seen.
+func TestForIncident_UnaffectedByTheFrozenDeclaration(t *testing.T) {
+	h := newHarness(t, "host-A")
+	h.add(t, "host-A", "ev-1", "oom_kill", started.Add(-13*time.Second))
+
+	plain := incidentOn("host-A")
+	plainRes := h.c.ForIncident(context.Background(), plain)
+
+	blind := incidentOn("host-A")
+	none := domain.Capability{Available: false, Reason: domain.CapabilityReasonUnreadable}
+	blind.HostCapabilities = &domain.HostCapabilities{Kmsg: none, CgroupOOM: none, Segfault: none}
+	st := domain.HostCapabilitiesDeclared
+	blind.HostCapabilitiesState = &st
+	blindRes := h.c.ForIncident(context.Background(), blind)
+
+	require.NotEmpty(t, plainRes.Events, "the fixture must correlate for the comparison to mean anything")
+	assert.Equal(t, plainRes, blindRes, "the correlator does not read the declaration")
+}

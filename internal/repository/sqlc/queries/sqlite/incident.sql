@@ -7,9 +7,10 @@
 INSERT INTO incidents (
     id, created_at, updated_at, resource_id, cause,
     resolved_at, started_at, details,
-    host_id, host_link_recorded
+    host_id, host_link_recorded,
+    host_capabilities, host_capabilities_state
 )
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
 
 -- name: FindIncidentByID :one
 SELECT * FROM incidents WHERE id = ?;

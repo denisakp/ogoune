@@ -99,6 +99,31 @@ func mapHostResponse(h *domain.Host) dtoV1.HostResponse {
 		s := h.LastSeenAt.UTC().Format(time.RFC3339)
 		resp.LastSeenAt = &s
 	}
+	resp.Capabilities = mapCapabilities(h.CapabilitiesState(), h.Capabilities, h.CapabilitiesAt)
+	return resp
+}
+
+// mapCapabilities renders a declaration and the state it was read in (spec
+// 093). Mapping only: the state rule lives on the domain, and the sentence a
+// reader sees is the frontend's. Fields beyond state appear only when there is
+// a declaration to show -- "not known" carries nothing, on purpose, so it can
+// never be mistaken for three unavailables.
+func mapCapabilities(state domain.HostCapabilitiesState, caps *domain.HostCapabilities, at *time.Time) dtoV1.HostCapabilitiesResponse {
+	resp := dtoV1.HostCapabilitiesResponse{State: string(state)}
+	if state != domain.HostCapabilitiesDeclared || caps == nil {
+		return resp
+	}
+	conv := func(c domain.Capability) *dtoV1.CapabilityResponse {
+		return &dtoV1.CapabilityResponse{Available: c.Available, Reason: string(c.Reason)}
+	}
+	resp.Kmsg = conv(caps.Kmsg)
+	resp.CgroupOOM = conv(caps.CgroupOOM)
+	resp.Segfault = conv(caps.Segfault)
+	resp.OOMDetail = string(caps.OOMDetail())
+	if at != nil {
+		s := at.UTC().Format(time.RFC3339)
+		resp.DeclaredAt = &s
+	}
 	return resp
 }
 

@@ -3,6 +3,7 @@ import type {
   DiskUsage,
   Host,
   HostEvent,
+  HostCapabilities,
   HostMetricSample,
   RegisterHostResult,
   HostCredentialResult,
@@ -54,6 +55,7 @@ interface HostDTO {
   created_at?: string
   updated_at?: string
   events?: HostEventDTO[] | null
+  capabilities?: HostCapabilities | null
 }
 interface HostMetricSampleDTO {
   sampled_at?: string
@@ -92,6 +94,9 @@ export function mapHost(dto: HostDTO): Host {
     lastNetOut: dto.last_net_out ?? null,
     lastDisks: mapDisks(dto.last_disks),
     events: mapHostEvents(dto.events),
+    // Always present on the wire; a missing object can only be an older
+    // backend, and "not known" is the honest reading of that too.
+    capabilities: dto.capabilities ?? { state: 'not_known' },
     createdAt: dto.created_at ?? '',
     updatedAt: dto.updated_at ?? '',
   }
