@@ -7,7 +7,7 @@ import type {
   IncidentUpdateStatus,
 } from '@/services/incidentUpdateService'
 import RichTextEditor from '@/components/ui/RichTextEditor.vue'
-import DOMPurify from 'dompurify'
+import { sanitizeRichText } from '@/libs/sanitize'
 
 function isEmptyHtml(html: string): boolean {
   const tmp = document.createElement('div')
@@ -16,35 +16,7 @@ function isEmptyHtml(html: string): boolean {
 }
 
 function sanitize(html: string): string {
-  return DOMPurify.sanitize(html, {
-    ALLOWED_TAGS: [
-      'p',
-      'br',
-      'strong',
-      'em',
-      'code',
-      'a',
-      'ul',
-      'ol',
-      'li',
-      'h1',
-      'h2',
-      'input',
-      'label',
-      'div',
-    ],
-    ALLOWED_ATTR: [
-      'href',
-      'rel',
-      'target',
-      'type',
-      'checked',
-      'disabled',
-      'data-checked',
-      'data-type',
-      'class',
-    ],
-  })
+  return sanitizeRichText(html)
 }
 
 const props = defineProps<{ incidentId: string }>()
