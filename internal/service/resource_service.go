@@ -93,36 +93,19 @@ func NewResourceService(
 // After successful creation, it schedules monitoring for the resource and triggers
 // asynchronous metadata enrichment so the HTTP request is not blocked by SSL/WHOIS lookups.
 func (s *ResourceService) CreateResource(ctx context.Context, payload *dto.CreateResourcePayload) (*domain.Resource, error) {
-	// Gate ICMP monitor creation: requires ENABLE_ICMP and runtime capability.
-	if payload.Type == domain.ResourceICMP {
-		cfg := config.Load()
-		if !cfg.EnableICMP {
-			return nil, ErrICMPUnavailable
-		}
-		if cap := icmppkg.Detect(); !cap.Available {
-			return nil, ErrICMPUnavailable
-		}
+	// The checks run in the order a caller sees them fail: capability, then
+	// target, then confirmation window, then the type-specific fields.
+	if err := checkICMPAvailable(payload.Type); err != nil {
+		return nil, err
 	}
-
-	// Validate target format
 	if payload.Type != domain.ResourceHeartbeat {
 		if err := domain.ValidateResourceTarget(payload.Target, payload.Type); err != nil {
 			return nil, fmt.Errorf(errWrapFmt, ErrValidationFailed, err)
 		}
 	}
-
-	defaultChecks, defaultInterval := confirmationDefaults()
-	resolvedChecks, resolvedInterval := domain.ResolveConfirmationDefaults(
-		payload.ConfirmationChecks,
-		payload.ConfirmationInterval,
-		defaultChecks,
-		defaultInterval,
-	)
-	if payload.ConfirmationInterval == nil && payload.Interval > 1 && resolvedInterval >= payload.Interval {
-		resolvedInterval = payload.Interval - 1
-	}
-	if err := domain.ValidateConfirmationSettings(payload.Interval, resolvedChecks, resolvedInterval); err != nil {
-		return nil, fmt.Errorf(errWrapFmt, ErrValidationFailed, err)
+	resolvedChecks, resolvedInterval, err := resolveConfirmation(payload)
+	if err != nil {
+		return nil, err
 	}
 
 	resource := &domain.Resource{
@@ -137,100 +120,17 @@ func (s *ResourceService) CreateResource(ctx context.Context, payload *dto.Creat
 		ConfirmationInterval:  resolvedInterval,
 		ExpiryAlertThresholds: payload.ExpiryAlertThresholds,
 	}
-
-	if payload.Type == domain.ResourceHeartbeat {
-		if payload.HeartbeatInterval == nil || payload.HeartbeatGrace == nil {
-			return nil, fmt.Errorf("%w: heartbeat_interval and heartbeat_grace are required", ErrValidationFailed)
-		}
-		if err := domain.ValidateHeartbeatSettings(*payload.HeartbeatInterval, *payload.HeartbeatGrace); err != nil {
-			return nil, err
-		}
-		slug := uuid.NewString()
-		resource.HeartbeatSlug = &slug
-		resource.HeartbeatInterval = payload.HeartbeatInterval
-		resource.HeartbeatGrace = payload.HeartbeatGrace
-		resource.Status = domain.StatusUp
-		if resource.Target == "" {
-			resource.Target = "heartbeat"
-		}
-	}
-
-	if payload.Type == domain.ResourceKeyword {
-		if err := validateKeywordFields(payload.Keyword, payload.KeywordMode); err != nil {
-			return nil, err
-		}
-		resource.Keyword = payload.Keyword
-		defaultMode := "contains"
-		if payload.KeywordMode != nil {
-			resource.KeywordMode = payload.KeywordMode
-		} else {
-			resource.KeywordMode = &defaultMode
-		}
-	}
-
-	if payload.Type == domain.ResourceProtocol {
-		if err := validateProtocolFields(payload.ProtocolType, payload.ProtocolPort, payload.Target); err != nil {
-			return nil, err
-		}
-		resource.ProtocolType = payload.ProtocolType
-		resource.ProtocolPort = payload.ProtocolPort
-	}
-
-	// Optional component assignment
-	// Apply smart alerting config defaults and per-resource overrides
-	cfg := config.Load()
-	resource.FlapDetectionEnabled = cfg.FlapDetectionEnabled
-	resource.FlapThreshold = cfg.FlapThreshold
-	resource.FlapWindowSeconds = cfg.FlapWindowSeconds
-	resource.FlapMaxDurationMinutes = cfg.FlapMaxDurationMinutes
-	resource.ReminderIntervalMinutes = cfg.ReminderIntervalMinutes
-	if payload.FlapDetectionEnabled != nil {
-		resource.FlapDetectionEnabled = *payload.FlapDetectionEnabled
-	}
-	if payload.FlapThreshold != nil {
-		resource.FlapThreshold = *payload.FlapThreshold
-	}
-	if payload.FlapWindowSeconds != nil {
-		resource.FlapWindowSeconds = *payload.FlapWindowSeconds
-	}
-	if payload.FlapMaxDurationMinutes != nil {
-		resource.FlapMaxDurationMinutes = *payload.FlapMaxDurationMinutes
-	}
-	if payload.ReminderIntervalMinutes != nil {
-		resource.ReminderIntervalMinutes = *payload.ReminderIntervalMinutes
-	}
-	if err := validateSmartAlertingFields(resource.FlapThreshold, resource.FlapWindowSeconds, resource.FlapMaxDurationMinutes, resource.ReminderIntervalMinutes); err != nil {
+	if err := applyTypeSpecificFields(resource, payload); err != nil {
 		return nil, err
 	}
-
-	// Optional component assignment
-	if payload.ComponentID != nil && *payload.ComponentID != "" {
-		if s.components == nil {
-			return nil, fmt.Errorf("%w: component support is not configured", ErrValidationFailed)
-		}
-		if _, err := s.components.GetComponent(ctx, *payload.ComponentID); err != nil {
-			return nil, fmt.Errorf("%w: invalid component reference", ErrValidationFailed)
-		}
-		resource.ComponentID = payload.ComponentID
+	if err := applySmartAlerting(resource, payload); err != nil {
+		return nil, err
 	}
-
-	// Find or create tags by name if provided
-	if len(payload.Tags) > 0 {
-		tags, err := s.findOrCreateTags(ctx, payload.Tags)
-		if err != nil {
-			return nil, fmt.Errorf("failed to process tags: %w", err)
-		}
-		resource.Tags = tags
+	if err := s.resolveComponent(ctx, resource, payload.ComponentID); err != nil {
+		return nil, err
 	}
-
-	// Resolve notification channels by name (lookup-only; never created here).
-	// Used by the bulk import path. Missing channel is a validation error.
-	if len(payload.NotificationChannelNames) > 0 {
-		channels, err := s.resolveChannelsByName(ctx, payload.NotificationChannelNames)
-		if err != nil {
-			return nil, err
-		}
-		resource.NotificationChannels = channels
+	if err := s.resolveTagsAndChannels(ctx, resource, payload.Tags, payload.NotificationChannelNames); err != nil {
+		return nil, err
 	}
 
 	// Create resource in database
@@ -258,6 +158,144 @@ func (s *ResourceService) CreateResource(ctx context.Context, payload *dto.Creat
 	}
 
 	return created, nil
+}
+
+// checkICMPAvailable gates ICMP monitor creation on ENABLE_ICMP and on the
+// runtime actually being able to send echo requests.
+func checkICMPAvailable(t domain.ResourceType) error {
+	if t != domain.ResourceICMP {
+		return nil
+	}
+	if !config.Load().EnableICMP {
+		return ErrICMPUnavailable
+	}
+	if cap := icmppkg.Detect(); !cap.Available {
+		return ErrICMPUnavailable
+	}
+	return nil
+}
+
+// resolveConfirmation fills the confirmation window from the payload and the
+// configured defaults, keeps the retry interval under the check interval when
+// the caller left it to us, and validates the result.
+func resolveConfirmation(payload *dto.CreateResourcePayload) (checks, interval int, err error) {
+	defaultChecks, defaultInterval := confirmationDefaults()
+	checks, interval = domain.ResolveConfirmationDefaults(
+		payload.ConfirmationChecks,
+		payload.ConfirmationInterval,
+		defaultChecks,
+		defaultInterval,
+	)
+	if payload.ConfirmationInterval == nil && payload.Interval > 1 && interval >= payload.Interval {
+		interval = payload.Interval - 1
+	}
+	if err := domain.ValidateConfirmationSettings(payload.Interval, checks, interval); err != nil {
+		return 0, 0, fmt.Errorf(errWrapFmt, ErrValidationFailed, err)
+	}
+	return checks, interval, nil
+}
+
+// applyTypeSpecificFields validates and copies the fields that exist for one
+// monitor type only: heartbeat, keyword, protocol.
+func applyTypeSpecificFields(resource *domain.Resource, payload *dto.CreateResourcePayload) error {
+	switch payload.Type {
+	case domain.ResourceHeartbeat:
+		if payload.HeartbeatInterval == nil || payload.HeartbeatGrace == nil {
+			return fmt.Errorf("%w: heartbeat_interval and heartbeat_grace are required", ErrValidationFailed)
+		}
+		if err := domain.ValidateHeartbeatSettings(*payload.HeartbeatInterval, *payload.HeartbeatGrace); err != nil {
+			return err
+		}
+		slug := uuid.NewString()
+		resource.HeartbeatSlug = &slug
+		resource.HeartbeatInterval = payload.HeartbeatInterval
+		resource.HeartbeatGrace = payload.HeartbeatGrace
+		resource.Status = domain.StatusUp
+		if resource.Target == "" {
+			resource.Target = "heartbeat"
+		}
+	case domain.ResourceKeyword:
+		if err := validateKeywordFields(payload.Keyword, payload.KeywordMode); err != nil {
+			return err
+		}
+		resource.Keyword = payload.Keyword
+		defaultMode := "contains"
+		if payload.KeywordMode != nil {
+			resource.KeywordMode = payload.KeywordMode
+		} else {
+			resource.KeywordMode = &defaultMode
+		}
+	case domain.ResourceProtocol:
+		if err := validateProtocolFields(payload.ProtocolType, payload.ProtocolPort, payload.Target); err != nil {
+			return err
+		}
+		resource.ProtocolType = payload.ProtocolType
+		resource.ProtocolPort = payload.ProtocolPort
+	}
+	return nil
+}
+
+// applySmartAlerting starts from the configured flap/reminder defaults and
+// lets the payload override each one, then validates the combination.
+func applySmartAlerting(resource *domain.Resource, payload *dto.CreateResourcePayload) error {
+	cfg := config.Load()
+	resource.FlapDetectionEnabled = cfg.FlapDetectionEnabled
+	resource.FlapThreshold = cfg.FlapThreshold
+	resource.FlapWindowSeconds = cfg.FlapWindowSeconds
+	resource.FlapMaxDurationMinutes = cfg.FlapMaxDurationMinutes
+	resource.ReminderIntervalMinutes = cfg.ReminderIntervalMinutes
+	if payload.FlapDetectionEnabled != nil {
+		resource.FlapDetectionEnabled = *payload.FlapDetectionEnabled
+	}
+	if payload.FlapThreshold != nil {
+		resource.FlapThreshold = *payload.FlapThreshold
+	}
+	if payload.FlapWindowSeconds != nil {
+		resource.FlapWindowSeconds = *payload.FlapWindowSeconds
+	}
+	if payload.FlapMaxDurationMinutes != nil {
+		resource.FlapMaxDurationMinutes = *payload.FlapMaxDurationMinutes
+	}
+	if payload.ReminderIntervalMinutes != nil {
+		resource.ReminderIntervalMinutes = *payload.ReminderIntervalMinutes
+	}
+	return validateSmartAlertingFields(resource.FlapThreshold, resource.FlapWindowSeconds, resource.FlapMaxDurationMinutes, resource.ReminderIntervalMinutes)
+}
+
+// resolveComponent validates an optional component reference and assigns it.
+func (s *ResourceService) resolveComponent(ctx context.Context, resource *domain.Resource, componentID *string) error {
+	if componentID == nil || *componentID == "" {
+		return nil
+	}
+	if s.components == nil {
+		return fmt.Errorf("%w: component support is not configured", ErrValidationFailed)
+	}
+	if _, err := s.components.GetComponent(ctx, *componentID); err != nil {
+		return fmt.Errorf("%w: invalid component reference", ErrValidationFailed)
+	}
+	resource.ComponentID = componentID
+	return nil
+}
+
+// resolveTagsAndChannels finds or creates tags by name, and resolves
+// notification channels by name (lookup only; a missing channel is a
+// validation error -- the bulk import path relies on that).
+func (s *ResourceService) resolveTagsAndChannels(ctx context.Context, resource *domain.Resource, tagNames, channelNames []string) error {
+	if len(tagNames) > 0 {
+		tags, err := s.findOrCreateTags(ctx, tagNames)
+		if err != nil {
+			return fmt.Errorf("failed to process tags: %w", err)
+		}
+		resource.Tags = tags
+	}
+	if len(channelNames) > 0 {
+		channels, err := s.resolveChannelsByName(ctx, channelNames)
+		if err != nil {
+			return err
+		}
+		resource.NotificationChannels = channels
+	}
+	return nil
 }
 
 // GetResourceByID retrieves a resource by its ID.
