@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"sort"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -32,6 +33,11 @@ type gopsutilCollector struct {
 	// is exactly how a host that cannot read its kernel log behaves: the frame
 	// simply carries no events (spec 090).
 	events *eventCollector
+	// probe declares what this machine lets the agent observe, before every
+	// frame (spec 093). Nil means no declaration is sent -- the shape of an
+	// agent predating the feature, kept possible for tests.
+	probe capabilityProbe
+	open  sourceOpener
 	// eventsInFlight guards the deadline below: if a previous collection is
 	// somehow still running, skip this interval rather than stacking another
 	// goroutine behind it every tick.
@@ -59,6 +65,14 @@ func newGopsutilCollector(agentVersion string) *gopsutilCollector {
 // so capture stays optional and every existing call site keeps working.
 func (c *gopsutilCollector) WithKernelEvents(e *eventCollector) *gopsutilCollector {
 	c.events = e
+	return c
+}
+
+// WithCapabilityProbe attaches the per-frame capability declaration and the
+// opener used to adopt a source that becomes readable mid-run (spec 093).
+func (c *gopsutilCollector) WithCapabilityProbe(p capabilityProbe, open sourceOpener) *gopsutilCollector {
+	c.probe = p
+	c.open = open
 	return c
 }
 
@@ -92,6 +106,15 @@ func (c *gopsutilCollector) Collect(ctx context.Context) (agentwire.Frame, error
 	}
 
 	f.Disks = collectDisks(ctx)
+
+	// What this machine lets the agent observe, declared on every frame and
+	// reconciled with the readers before they drain (spec 093). Cheap: one
+	// open/close and two small reads. Never an error, never a reason to hold
+	// the frame.
+	if c.probe != nil {
+		caps := probeAndAdopt(c.probe, c.events, c.open)
+		f.Capabilities = &caps
+	}
 
 	// Kernel events observed during this interval (spec 090). Best-effort by
 	// contract, and enforced rather than asserted: capture cannot return an
@@ -151,36 +174,107 @@ var pseudoFSTypes = map[string]struct{}{
 
 // collectDisks returns per-mount usage for real (non-pseudo) filesystems,
 // skipping kernel/virtual mounts and anything that errors or reports zero total.
+// maxReportedFilesystems bounds what one frame carries after deduplication.
+//
+// A host with more than this many distinct filesystems exists, but a page
+// listing them is not read by anyone. The cap keeps the frame and the stored
+// sample bounded; the entries kept are the fullest, because those are the ones
+// somebody is going to be paged about.
+const maxReportedFilesystems = 32
+
+// collectDisks reports one entry per FILESYSTEM, not per mount point.
+//
+// A mount table is not a list of disks. A btrfs root with subvolumes, a ZFS
+// pool, a Docker or Kubernetes node with overlay layers, any bind mount -- each
+// produces many mount points backed by one filesystem, all reporting the same
+// capacity. A development VM here had 486 mounts over 18 devices: 434 of them on
+// a single /dev/vdb1, every one answering "188G, 145G used, 77%".
+//
+// Reporting them all cost three things: a host page nobody can read, a stored
+// sample per interval carrying hundreds of identical rows, and one statfs syscall
+// per mount every collection -- 442 of them, ten seconds apart, to learn the same
+// three numbers.
+//
+// Grouping happens BEFORE the usage lookup, which is what removes the syscalls
+// rather than merely the duplicate rows.
 func collectDisks(ctx context.Context) []agentwire.DiskUsage {
 	parts, err := disk.PartitionsWithContext(ctx, true)
 	if err != nil {
 		slog.Debug("collect: disk partitions failed", "error", err)
 		return nil
 	}
-	var out []agentwire.DiskUsage
-	seen := make(map[string]struct{})
-	for _, p := range parts {
-		if _, pseudo := pseudoFSTypes[p.Fstype]; pseudo {
-			continue
-		}
-		if isSystemMount(p.Mountpoint) {
-			continue
-		}
-		if _, dup := seen[p.Mountpoint]; dup {
-			continue
-		}
-		u, err := disk.UsageWithContext(ctx, p.Mountpoint)
+
+	out := make([]agentwire.DiskUsage, 0, 8)
+	for _, mount := range representativeMounts(parts) {
+		u, err := disk.UsageWithContext(ctx, mount)
 		if err != nil {
-			slog.Debug("collect: disk usage failed", "mount", p.Mountpoint, "error", err)
+			slog.Debug("collect: disk usage failed", "mount", mount, "error", err)
 			continue
 		}
 		if u.Total == 0 {
 			continue // virtual / empty mount
 		}
-		seen[p.Mountpoint] = struct{}{}
-		out = append(out, agentwire.DiskUsage{Mount: p.Mountpoint, UsedPct: u.UsedPercent})
+		out = append(out, agentwire.DiskUsage{Mount: mount, UsedPct: u.UsedPercent})
 	}
+
+	return capAndSort(out)
+}
+
+// representativeMounts picks one mount per device: the shallowest path, because
+// "/" is more use to an operator than "/opt/vendor/data/subvol", with ties
+// broken lexicographically so the choice never depends on mount order.
+//
+// Grouping by device NAME rather than by filesystem identity collapses several
+// overlay mounts that share the name "overlay" into one. That is the right
+// answer rather than a compromise: each of them reports the backing
+// filesystem's capacity, so they are the same numbers under different paths.
+func representativeMounts(parts []disk.PartitionStat) []string {
+	best := make(map[string]string, len(parts))
+	for _, p := range parts {
+		if _, pseudo := pseudoFSTypes[p.Fstype]; pseudo {
+			continue
+		}
+		if isSystemMount(p.Mountpoint) || p.Device == "" {
+			continue
+		}
+		if cur, ok := best[p.Device]; !ok || shorterMount(p.Mountpoint, cur) {
+			best[p.Device] = p.Mountpoint
+		}
+	}
+
+	out := make([]string, 0, len(best))
+	for _, m := range best {
+		out = append(out, m)
+	}
+	// Map iteration is random; the caller's output must not be.
+	sort.Strings(out)
 	return out
+}
+
+// capAndSort bounds the list and orders it for display.
+func capAndSort(in []agentwire.DiskUsage) []agentwire.DiskUsage {
+	out := in
+	if len(out) > maxReportedFilesystems {
+		// Fullest first, so a cap keeps what somebody will be paged about, and
+		// said out loud rather than silently: a truncated list read as complete
+		// is worse than an obviously partial one.
+		sort.Slice(out, func(i, j int) bool { return out[i].UsedPct > out[j].UsedPct })
+		slog.Warn("agent: reporting only the fullest filesystems",
+			"found", len(out), "reported", maxReportedFilesystems)
+		out = out[:maxReportedFilesystems]
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].Mount < out[j].Mount })
+	return out
+}
+
+// shorterMount reports whether a is the better representative of a filesystem:
+// the shallower path, and on a tie the lexicographically smaller one so the
+// choice never depends on mount order.
+func shorterMount(a, b string) bool {
+	if len(a) != len(b) {
+		return len(a) < len(b)
+	}
+	return a < b
 }
 
 // isSystemMount reports whether a mountpoint is under a kernel/pseudo tree we

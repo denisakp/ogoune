@@ -8,6 +8,7 @@ import DiagnosticsPanel from '@/components/incidents/DiagnosticsPanel.vue'
 import HostContextPanel from '@/components/incidents/HostContextPanel.vue'
 import IncidentExplanation from '@/components/incidents/IncidentExplanation.vue'
 import HostEventsList from '@/components/hosts/HostEventsList.vue'
+import CapabilityNotice from '@/components/hosts/CapabilityNotice.vue'
 import NotificationsPanel from '@/components/incidents/NotificationsPanel.vue'
 import IncidentStatusUpdates from '@/components/incidents/IncidentStatusUpdates.vue'
 import type { Incident } from '@/types'
@@ -39,8 +40,21 @@ function onAction(p: { kind: 'back' }) {
 const events = computed(() => incident.value?.event_steps ?? [])
 const diagnostics = computed(() => incident.value?.diagnostics ?? null)
 const hostContext = computed(() => incident.value?.host_context ?? null)
+const hostLink = computed(() => incident.value?.host_link ?? null)
+// The panel renders for a context, or for a recorded machine that no longer
+// exists -- that absence is a fact to state, not a blank (spec 092).
+const showHostPanel = computed(
+  () => hostContext.value != null || (hostLink.value != null && !hostLink.value.exists),
+)
 const explanation = computed(() => incident.value?.explanation ?? null)
 const hostEvents = computed(() => incident.value?.host_events ?? [])
+// What the host's agent could observe WHEN THE INCIDENT OPENED (spec 093).
+// Spoken only when there is host context and nothing in the window: it
+// explains an absence, never annotates a presence.
+const hostCapabilities = computed(() => incident.value?.host_capabilities ?? null)
+const showCapabilityNotice = computed(
+  () => hostContext.value != null && hostEvents.value.length === 0 && hostCapabilities.value != null,
+)
 
 onMounted(() => {
   void loadIncident()
@@ -83,8 +97,13 @@ defineExpose({ incident, loadIncident, onAction })
         </div>
 
         <div class="flex flex-col gap-5">
-          <HostContextPanel v-if="hostContext" :context="hostContext" />
+          <HostContextPanel v-if="showHostPanel" :context="hostContext" :host-link="hostLink" />
           <HostEventsList v-if="hostEvents.length" :events="hostEvents" />
+          <CapabilityNotice
+            v-if="showCapabilityNotice && hostCapabilities"
+            :capabilities="hostCapabilities"
+            variant="incident"
+          />
           <DiagnosticsPanel :diagnostics="diagnostics" />
           <NotificationsPanel :events="events" />
         </div>

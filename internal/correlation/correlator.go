@@ -65,10 +65,13 @@ func (c *Correlator) ForIncident(ctx context.Context, incident *domain.Incident)
 	// The normal state of most monitors, and the reason this feature costs
 	// nothing to operators who run no agent: return before issuing any query,
 	// not after finding nothing.
-	if incident.Resource.HostID == nil || *incident.Resource.HostID == "" {
+	// The machine as it was when the incident opened (spec 092), through the
+	// same rule the host context uses, so the sentence and the evidence beneath
+	// it can never name different machines.
+	hostID, source := incident.ResolveHost()
+	if source == domain.HostLinkSourceNone {
 		return Result{}
 	}
-	hostID := *incident.Resource.HostID
 
 	from := incident.StartedAt.Add(-domain.HostContextWindowBefore)
 	to := incident.StartedAt.Add(domain.HostContextWindowAfter)
@@ -91,6 +94,18 @@ func (c *Correlator) ForIncident(ctx context.Context, incident *domain.Incident)
 		// Absence is silence: no event means no sentence, not a sentence saying
 		// nothing happened (FR-008).
 		return Result{}
+	}
+
+	// An INFERRED machine gets the events but not the sentence (spec 092).
+	// The events are data, shown beside a marker saying where they came from,
+	// and a reader weighs them. The sentence is a claim -- the most quotable
+	// thing on the page, in plain prose, asserting that a named machine did
+	// something -- and it must not be made about a machine that was only
+	// inferred from where the monitor points today. It costs nothing: an alert
+	// is only ever dispatched for a new incident, so no live incident is ever
+	// inferred and no notification ever loses a sentence to this.
+	if source == domain.HostLinkSourceInferred {
+		return Result{Events: events}
 	}
 
 	named := selectEvent(events, incident.StartedAt)

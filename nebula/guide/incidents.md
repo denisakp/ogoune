@@ -96,7 +96,31 @@ correlation, and you are never woken a second time to be told why. Because
 confirmation normally takes minutes and the agent pushes every few seconds, the
 alert almost always has the sentence anyway.
 
+### Which machine it means
+
+An incident remembers the machine its monitor was attached to **at the moment it
+opened**. Move the monitor to another host afterwards and the incident keeps
+saying what it saw; it does not follow the monitor. The same goes for a monitor
+that had no machine when the incident opened: the incident records that absence
+and never borrows a host attached later.
+
+Incidents from before this was recorded have nothing to remember. For those, the
+page shows the monitor's **current** machine and says so plainly, with a marker
+above the figures. Read that context as "the machine this monitor is on today",
+not "the machine that was involved" — nothing anywhere records what a monitor was
+attached to in the past, so these older incidents cannot be repaired.
+
+A machine that has since been deleted leaves the record intact: the incident still
+names the host it happened on, without a page to link to.
+
 ### When it is not shown
+
+When an incident has host context but no kernel events, the page says which of
+the reasons below applied to *that* host — as its agent declared **when the
+incident opened**, not as it is today. An agent that could not read the kernel
+log, or a segfault setting that was off, is stated in one sentence; an agent
+too old to declare, or an incident from before this was recorded, says *not
+known* rather than borrowing the host's current state. The list is background:
 
 - The monitor has no host attached — the common case, and it costs nothing.
 - No kernel event fell inside the window.

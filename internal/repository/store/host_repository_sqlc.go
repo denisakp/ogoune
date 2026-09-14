@@ -191,20 +191,28 @@ func (r *HostRepositorySQLC) UpdateSnapshot(ctx context.Context, h *domain.Host)
 	if err != nil {
 		return err
 	}
+	// Written every frame, NULL when the frame carried no declaration: a host
+	// must never keep claiming what a downgraded agent no longer says (spec 093).
+	caps, err := marshalCapabilities(h.Capabilities)
+	if err != nil {
+		return err
+	}
 	switch {
 	case r.pgQ != nil:
 		n, err := r.pgQ.UpdateHostSnapshot(ctx, pgsqlc.UpdateHostSnapshotParams{
-			ID:           h.ID,
-			LastSeenAt:   pgTimestampFromPtr(h.LastSeenAt),
-			LastCpuPct:   pgFloat8FromPtr(h.LastCPUPct),
-			LastMemPct:   pgFloat8FromPtr(h.LastMemPct),
-			LastDiskPct:  pgFloat8FromPtr(h.LastDiskPct),
-			LastNetIn:    pgInt8FromPtr(h.LastNetIn),
-			LastNetOut:   pgInt8FromPtr(h.LastNetOut),
-			LastDisks:    disks,
-			Os:           pgTextFromPtr(h.OS),
-			AgentVersion: pgTextFromPtr(h.AgentVersion),
-			UpdatedAt:    pgtype.Timestamptz{Time: now, Valid: true},
+			ID:             h.ID,
+			LastSeenAt:     pgTimestampFromPtr(h.LastSeenAt),
+			LastCpuPct:     pgFloat8FromPtr(h.LastCPUPct),
+			LastMemPct:     pgFloat8FromPtr(h.LastMemPct),
+			LastDiskPct:    pgFloat8FromPtr(h.LastDiskPct),
+			LastNetIn:      pgInt8FromPtr(h.LastNetIn),
+			LastNetOut:     pgInt8FromPtr(h.LastNetOut),
+			LastDisks:      disks,
+			Os:             pgTextFromPtr(h.OS),
+			AgentVersion:   pgTextFromPtr(h.AgentVersion),
+			UpdatedAt:      pgtype.Timestamptz{Time: now, Valid: true},
+			Capabilities:   caps,
+			CapabilitiesAt: pgTimestampFromPtr(h.CapabilitiesAt),
 		})
 		if err != nil {
 			return fmt.Errorf("sqlc: update host snapshot: %w", err)
@@ -215,17 +223,19 @@ func (r *HostRepositorySQLC) UpdateSnapshot(ctx context.Context, h *domain.Host)
 		return nil
 	case r.sqliteQ != nil:
 		n, err := r.sqliteQ.UpdateHostSnapshot(ctx, sqlitesqlc.UpdateHostSnapshotParams{
-			ID:           h.ID,
-			LastSeenAt:   nullTimeFromPtr(h.LastSeenAt),
-			LastCpuPct:   nullFloatFromPtr(h.LastCPUPct),
-			LastMemPct:   nullFloatFromPtr(h.LastMemPct),
-			LastDiskPct:  nullFloatFromPtr(h.LastDiskPct),
-			LastNetIn:    nullInt64FromPtr(h.LastNetIn),
-			LastNetOut:   nullInt64FromPtr(h.LastNetOut),
-			LastDisks:    nullStringFromBytes(disks),
-			Os:           nullStringFromPtr(h.OS),
-			AgentVersion: nullStringFromPtr(h.AgentVersion),
-			UpdatedAt:    now,
+			ID:             h.ID,
+			LastSeenAt:     nullTimeFromPtr(h.LastSeenAt),
+			LastCpuPct:     nullFloatFromPtr(h.LastCPUPct),
+			LastMemPct:     nullFloatFromPtr(h.LastMemPct),
+			LastDiskPct:    nullFloatFromPtr(h.LastDiskPct),
+			LastNetIn:      nullInt64FromPtr(h.LastNetIn),
+			LastNetOut:     nullInt64FromPtr(h.LastNetOut),
+			LastDisks:      nullStringFromBytes(disks),
+			Os:             nullStringFromPtr(h.OS),
+			AgentVersion:   nullStringFromPtr(h.AgentVersion),
+			UpdatedAt:      now,
+			Capabilities:   nullStringFromBytes(caps),
+			CapabilitiesAt: nullTimeFromPtr(h.CapabilitiesAt),
 		})
 		if err != nil {
 			return fmt.Errorf("sqlc: update host snapshot: %w", err)
@@ -246,18 +256,24 @@ func hostFromPG(row pgsqlc.Host) (*domain.Host, error) {
 	if err != nil {
 		return nil, err
 	}
+	caps, err := unmarshalCapabilities(row.Capabilities)
+	if err != nil {
+		return nil, err
+	}
 	return &domain.Host{
-		Base:         domain.Base{ID: row.ID, CreatedAt: row.CreatedAt.Time, UpdatedAt: row.UpdatedAt.Time},
-		Name:         row.Name,
-		OS:           ptrStringFromPGText(row.Os),
-		AgentVersion: ptrStringFromPGText(row.AgentVersion),
-		LastSeenAt:   pgtzPtr(row.LastSeenAt),
-		LastCPUPct:   ptrFloatFromPGFloat8(row.LastCpuPct),
-		LastMemPct:   ptrFloatFromPGFloat8(row.LastMemPct),
-		LastDiskPct:  ptrFloatFromPGFloat8(row.LastDiskPct),
-		LastNetIn:    ptrInt64FromPGInt8(row.LastNetIn),
-		LastNetOut:   ptrInt64FromPGInt8(row.LastNetOut),
-		LastDisks:    disks,
+		Base:           domain.Base{ID: row.ID, CreatedAt: row.CreatedAt.Time, UpdatedAt: row.UpdatedAt.Time},
+		Name:           row.Name,
+		OS:             ptrStringFromPGText(row.Os),
+		AgentVersion:   ptrStringFromPGText(row.AgentVersion),
+		LastSeenAt:     pgtzPtr(row.LastSeenAt),
+		LastCPUPct:     ptrFloatFromPGFloat8(row.LastCpuPct),
+		LastMemPct:     ptrFloatFromPGFloat8(row.LastMemPct),
+		LastDiskPct:    ptrFloatFromPGFloat8(row.LastDiskPct),
+		LastNetIn:      ptrInt64FromPGInt8(row.LastNetIn),
+		LastNetOut:     ptrInt64FromPGInt8(row.LastNetOut),
+		LastDisks:      disks,
+		Capabilities:   caps,
+		CapabilitiesAt: pgtzPtr(row.CapabilitiesAt),
 	}, nil
 }
 
@@ -266,18 +282,24 @@ func hostFromSQLite(row sqlitesqlc.Host) (*domain.Host, error) {
 	if err != nil {
 		return nil, err
 	}
+	caps, err := unmarshalCapabilities([]byte(row.Capabilities.String))
+	if err != nil {
+		return nil, err
+	}
 	return &domain.Host{
-		Base:         domain.Base{ID: row.ID, CreatedAt: row.CreatedAt, UpdatedAt: row.UpdatedAt},
-		Name:         row.Name,
-		OS:           ptrStringFromNullString(row.Os),
-		AgentVersion: ptrStringFromNullString(row.AgentVersion),
-		LastSeenAt:   nullTimePtr(row.LastSeenAt),
-		LastCPUPct:   ptrFloatFromNullFloat(row.LastCpuPct),
-		LastMemPct:   ptrFloatFromNullFloat(row.LastMemPct),
-		LastDiskPct:  ptrFloatFromNullFloat(row.LastDiskPct),
-		LastNetIn:    ptrInt64FromNullInt64(row.LastNetIn),
-		LastNetOut:   ptrInt64FromNullInt64(row.LastNetOut),
-		LastDisks:    disks,
+		Base:           domain.Base{ID: row.ID, CreatedAt: row.CreatedAt, UpdatedAt: row.UpdatedAt},
+		Name:           row.Name,
+		OS:             ptrStringFromNullString(row.Os),
+		AgentVersion:   ptrStringFromNullString(row.AgentVersion),
+		LastSeenAt:     nullTimePtr(row.LastSeenAt),
+		LastCPUPct:     ptrFloatFromNullFloat(row.LastCpuPct),
+		LastMemPct:     ptrFloatFromNullFloat(row.LastMemPct),
+		LastDiskPct:    ptrFloatFromNullFloat(row.LastDiskPct),
+		LastNetIn:      ptrInt64FromNullInt64(row.LastNetIn),
+		LastNetOut:     ptrInt64FromNullInt64(row.LastNetOut),
+		LastDisks:      disks,
+		Capabilities:   caps,
+		CapabilitiesAt: nullTimePtr(row.CapabilitiesAt),
 	}, nil
 }
 
@@ -303,6 +325,32 @@ func unmarshalDisks(b []byte) ([]domain.DiskUsage, error) {
 		return nil, fmt.Errorf("unmarshal disks: %w", err)
 	}
 	return out, nil
+}
+
+// ---------- capabilities JSON helpers (spec 093) ----------
+
+// marshalCapabilities: nil -> nil, which the callers write as NULL. Same shape
+// as the disks helpers; shared with the incident repository for the frozen copy.
+func marshalCapabilities(c *domain.HostCapabilities) ([]byte, error) {
+	if c == nil {
+		return nil, nil
+	}
+	b, err := json.Marshal(c)
+	if err != nil {
+		return nil, fmt.Errorf("marshal capabilities: %w", err)
+	}
+	return b, nil
+}
+
+func unmarshalCapabilities(b []byte) (*domain.HostCapabilities, error) {
+	if len(b) == 0 {
+		return nil, nil
+	}
+	var out domain.HostCapabilities
+	if err := json.Unmarshal(b, &out); err != nil {
+		return nil, fmt.Errorf("unmarshal capabilities: %w", err)
+	}
+	return &out, nil
 }
 
 func nullStringFromBytes(b []byte) sql.NullString {

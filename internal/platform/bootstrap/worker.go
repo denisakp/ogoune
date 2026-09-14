@@ -114,7 +114,8 @@ func initTimingWheelWorker(app *App, enrichmentService *service.EnrichmentServic
 	// The causal narrative on down alerts (spec 091). Wired at BOTH monitoring
 	// service construction sites in this file: wiring one would give the
 	// timing-wheel and Asynq runtimes different alert content.
-	incidentService = incidentService.WithCorrelator(correlation.New(app.HostEventRepo, app.HostRepo))
+	incidentService = incidentService.WithCorrelator(correlation.New(app.HostEventRepo, app.HostRepo)).
+		WithHosts(app.HostRepo) // spec 093: freeze the declaration at creation, same two-site rule
 	if app.IncidentUpdateService != nil {
 		incidentService.SetUpdateSeeder(app.IncidentUpdateService)
 	}
@@ -326,7 +327,8 @@ func initAsynqProcessor(app *App, enrichmentService *service.EnrichmentService) 
 	// The causal narrative on down alerts (spec 091). Wired at BOTH monitoring
 	// service construction sites in this file: wiring one would give the
 	// timing-wheel and Asynq runtimes different alert content.
-	incidentService = incidentService.WithCorrelator(correlation.New(app.HostEventRepo, app.HostRepo))
+	incidentService = incidentService.WithCorrelator(correlation.New(app.HostEventRepo, app.HostRepo)).
+		WithHosts(app.HostRepo) // spec 093: freeze the declaration at creation, same two-site rule
 	if app.IncidentUpdateService != nil {
 		incidentService.SetUpdateSeeder(app.IncidentUpdateService)
 	}

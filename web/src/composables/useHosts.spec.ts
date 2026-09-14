@@ -21,6 +21,7 @@ function makeHost(over: Partial<Host>): Host {
     lastNetIn: 0,
     lastNetOut: 0,
     lastDisks: [],
+    capabilities: { state: 'not_known' },
     createdAt: '2026-07-01T00:00:00Z',
     updatedAt: '2026-07-30T10:00:00Z',
     ...over,

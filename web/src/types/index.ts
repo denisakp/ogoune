@@ -1,4 +1,4 @@
-import type { HostEvent } from './host'
+import type { HostCapabilities, HostEvent } from './host'
 
 /**
  * Resource metadata containing SSL and domain information
@@ -319,9 +319,34 @@ export interface Incident {
    * endpoint, which never loads them.
    */
   host_events?: HostEvent[]
+  /**
+   * Which machine the host context and explanation describe, and how that is
+   * known (spec 092). Absent when the incident has no machine to describe.
+   *
+   * `recorded` was written when the incident opened and is authoritative.
+   * `inferred` is the monitor's machine today, for an incident created before
+   * Ogoune recorded it -- possibly not the machine involved, and shown as such.
+   * `exists: false` means that machine has since been deleted: the record
+   * stands, its name and metrics cannot be shown.
+   */
+  host_link?: HostLink | null
+  /**
+   * What the host's agent could observe WHEN THIS INCIDENT OPENED (spec 093),
+   * frozen at creation. Detail endpoint only; absent when there is nothing to
+   * say (no machine, or a pre-feature incident with no host link).
+   */
+  host_capabilities?: HostCapabilities | null
   event_steps?: IncidentEventStep[]
   created_at: string
   updated_at: string
+}
+
+/** Which machine an incident describes, and how that is known (spec 092). */
+export interface HostLink {
+  host_id: string
+  /** Treat an unknown value as `inferred` -- the conservative reading. */
+  source: 'recorded' | 'inferred'
+  exists: boolean
 }
 
 /**
@@ -1025,6 +1050,9 @@ export type {
   Host,
   HostEvent,
   HostEventDetail,
+  HostCapabilities,
+  Capability,
+  CapabilityReason,
   HostMetricSample,
   HostCredentialResult,
   RegisterHostResult,

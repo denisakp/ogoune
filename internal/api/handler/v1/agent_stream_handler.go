@@ -2,7 +2,9 @@ package v1
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"time"
@@ -148,6 +150,7 @@ func (h *AgentStreamHandler) Stream(w http.ResponseWriter, r *http.Request) {
 			slog.Debug("agent stream: rejected frame", "host_id", hostID, "error", err)
 			continue
 		}
+		noteUnknownCapabilityReasons(hostID, data)
 		if err := h.metrics.Ingest(ctx, hostID, frameToSample(frame)); err != nil {
 			slog.Warn("agent stream: ingest failed", "host_id", hostID, "error", err)
 			// Keep the connection open; a transient bad frame must not drop the agent.
@@ -195,5 +198,35 @@ func frameToSample(f agentwire.Frame) service.IngestSample {
 	for _, d := range f.Disks {
 		s.Disks = append(s.Disks, domain.DiskUsage{Mount: d.Mount, UsedPct: d.UsedPct})
 	}
+	if f.Capabilities != nil {
+		s.Capabilities = capabilitiesToDomain(*f.Capabilities)
+	}
 	return s
+}
+
+// capabilitiesToDomain carries a (normalised) declaration across the wire /
+// domain boundary. Reasons are the same fixed vocabulary on both sides.
+func capabilitiesToDomain(c agentwire.Capabilities) *domain.HostCapabilities {
+	conv := func(x agentwire.Capability) domain.Capability {
+		return domain.Capability{Available: x.Available, Reason: domain.CapabilityReason(x.Reason)}
+	}
+	return &domain.HostCapabilities{Kmsg: conv(c.Kmsg), CgroupOOM: conv(c.CgroupOOM), Segfault: conv(c.Segfault)}
+}
+
+// noteUnknownCapabilityReasons is the one place an unrecognised reason is
+// visible (spec 093, R3). Decode already normalised it to "unreadable" so the
+// frame is stored truthfully enough; this re-reads only the declaration from
+// the raw bytes and says, at debug, what the agent actually sent -- the trace a
+// newer agent leaves on an older backend.
+func noteUnknownCapabilityReasons(hostID string, raw []byte) {
+	var probe struct {
+		Capabilities *agentwire.Capabilities `json:"capabilities"`
+	}
+	if err := json.Unmarshal(raw, &probe); err != nil || probe.Capabilities == nil {
+		return
+	}
+	sent := *probe.Capabilities
+	if sent.Normalize() {
+		slog.Debug("agent stream: capability declaration normalised", "host_id", hostID, "sent", fmt.Sprintf("%+v", *probe.Capabilities))
+	}
 }

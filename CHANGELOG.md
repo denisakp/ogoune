@@ -5,6 +5,66 @@ follows [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.0.0-beta.7] - 2026-09-13
+
+### Added
+
+- **The agent says what it can see.** Kernel-event capture is best-effort and often
+  unavailable — a containerised agent usually cannot read the kernel log, and most machines
+  ship with segfault reporting off — and until now the only trace was one log line at startup.
+  Nobody could tell *"this host had no out-of-memory kills"* from *"this host could never have
+  reported one"*. The agent now checks, before every report, whether it can read the kernel
+  log, the cgroup out-of-memory counter, and whether segfault capture is usable, and declares
+  the result. The host page shows it in words: *Out-of-memory kills: detected, without the
+  process name* for a container; *Segfault capture: unavailable — the kernel is not reporting
+  userspace faults*, with the one-line `sysctl` that enables it, for a native install. A change
+  on the machine shows within one interval, no restart. Each incident freezes the host's
+  declaration when it opens, so a postmortem's "no kernel events" reads as evidence or as a
+  blind spot — and stays that way when the host changes later. The container remains the
+  recommended install; segfault capture is explicitly best-effort. Older agents show *not
+  reported* until upgraded; incidents from before this read *not known*, permanently. The wire
+  protocol version did not change: old agents and old backends interoperate as before.
+
+### Fixed
+
+- **An incident now remembers the machine it happened on.** The host context, the causal
+  sentence and the kernel events beneath it were resolved through the monitor's *current* host,
+  so moving a monitor to another machine rewrote the history of every incident it ever had, and a
+  deleted host erased that context outright. Each new incident records its machine — or the
+  absence of one — at the moment it opens, and reads from that record afterwards. The fix is
+  **forward-only**: incidents from before it have nothing recorded and cannot be repaired. They
+  keep showing the monitor's current machine, now with a visible marker saying so, and the API
+  reports `host_link.source` as `recorded` or `inferred` so anyone grouping incidents by machine
+  can tell the two apart.
+- **A database-health test failed on the machine rather than on the code.** It asserted that 25 of
+  25 checks against a containerised PostgreSQL succeed within a 40 ms deadline — but that deadline
+  does double duty, bounding the connection as well as the health allowance it was meant to
+  squeeze under the floor. Under CI load a connection sometimes missed it, the check reported down
+  for that reason, and the test blamed health collection. It now asserts the property instead: a
+  check that connected is up and carries no health, and a check that failed did so because of the
+  connection. A test that fails on the machine teaches people to ignore it.
+
+### Changed
+
+- **The agent reports one entry per filesystem instead of one per mount point.** A mount table is
+  not a list of disks: a btrfs root with subvolumes, a ZFS pool, a Docker or Kubernetes node with
+  overlay layers, any bind mount — each produces many mounts backed by one filesystem, all
+  reporting the same capacity. A development VM measured here had 486 mounts over 18 devices, 434
+  of them on a single disk, every one answering "188G, 145G used, 77%". That machine now reports
+  **3 entries instead of 436**.
+  It was costing three things: a host page nobody could read, a stored sample per interval carrying
+  hundreds of identical rows, and one `statfs` syscall per mount every ten seconds — 442 of them,
+  to learn the same three numbers. Grouping happens before the usage lookup, so the syscalls go
+  too, not just the duplicate rows.
+  The entry keeps the shallowest mount path as its name, so it reads as `/` rather than
+  `/opt/vendor/data/subvol`. A host with more than 32 distinct filesystems reports the 32 fullest —
+  the ones somebody will be paged about — and logs that it did rather than truncating quietly.
+- **`release.yml` runs its actions on Node 24.** `setup-go`, `setup-qemu-action` and
+  `action-gh-release` were on majors GitHub had started forcing onto Node 24 with a warning; the
+  day the forcing stops, the release stops publishing. Each is on the major that declares Node 24.
+- **The test job gives each package 300 s, and has a 15-minute ceiling.** The repository package
+  took 117.9 s on a green run and timed out at 120 on the next; the limit was being met by luck.
+
 ## [1.0.0-beta.6] - 2026-09-10
 
 ### Added
@@ -216,7 +276,9 @@ follows [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
-- **The agent stopped streaming metrics on any host where it could read the kernel log.** Draining
+- **The agent stopped streaming metrics on any host where it could read the kernel log.** Introduced
+  by this release's own agent work and caught before publication, so no released version carried it.
+  Draining
   `/dev/kmsg` used a blocking read on the metrics path, so on a machine where the log was actually
   readable — a native systemd install running as root, the documented option B — the collector
   parked on the first quiet interval and never sent another frame. The host simply went offline,

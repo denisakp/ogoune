@@ -281,3 +281,29 @@ func TestIncidentHandler_Get_HostContextUntouchedByCorrelation(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotContains(t, string(raw), "explanation")
 }
+
+// FR-006 (spec 092): the sentence and the evidence beneath it name the SAME
+// machine -- asserted as one value equal to another, not as both merely present.
+func TestIncidentHandler_Get_ExplanationAndContextNameTheSameMachine(t *testing.T) {
+	inc := explainedIncident()
+	inc.HostContext = &domain.HostContext{
+		HostID:      inc.Explanation.HostID,
+		HostName:    inc.Explanation.HostName,
+		PeakCPUPct:  50,
+		PeakMemPct:  50,
+		SampleCount: 3,
+		Resolution:  domain.HostContextFull,
+		WindowFrom:  inc.Explanation.WindowFrom,
+		WindowTo:    inc.Explanation.WindowTo,
+	}
+
+	body := getIncidentBody(t, inc)
+	ctx, ok := body["host_context"].(map[string]any)
+	require.True(t, ok)
+	expl, ok := body["explanation"].(map[string]any)
+	require.True(t, ok)
+
+	assert.Equal(t, ctx["host_id"], expl["host_id"],
+		"two surfaces describing two different machines on one incident is the defect spec 092 removes")
+	assert.Equal(t, ctx["host_name"], expl["host_name"])
+}

@@ -154,10 +154,39 @@ func (s *IncidentService) GetIncidentByID(ctx context.Context, id string) (*doma
 
 	incident.EventStep = incidentSteps
 
-	incident.HostContext = s.buildHostContext(ctx, incident)
+	// One host lookup for the whole read (spec 092): it decides whether the
+	// recorded machine still exists, and it is handed to the context builder so
+	// that builder does not look the same host up again.
+	host := s.resolveHostLink(ctx, incident)
+	incident.HostContext = s.buildHostContext(ctx, incident, host)
 	s.attachExplanation(ctx, incident)
 
 	return incident, nil
+}
+
+// resolveHostLink answers "which machine, and how do we know" for the read path
+// (spec 092, FR-008a), sets it on the incident, and returns the host row so the
+// caller can reuse the lookup.
+//
+// A recorded machine that no longer exists stays recorded -- Exists: false,
+// Source unchanged. Falling back would put the incident on a machine that was
+// never involved, which is the defect this exists to remove. Nothing is set when
+// there is no machine to describe: absence is absence, not a zero-filled object.
+func (s *IncidentService) resolveHostLink(ctx context.Context, incident *domain.Incident) *domain.Host {
+	hostID, source := incident.ResolveHost()
+	if source == domain.HostLinkSourceNone {
+		return nil
+	}
+	link := &domain.HostLink{HostID: hostID, Source: source}
+	if s.hosts != nil {
+		if host, err := s.hosts.FindByID(ctx, hostID); err == nil && host != nil {
+			link.Exists = true
+			incident.HostLink = link
+			return host
+		}
+	}
+	incident.HostLink = link
+	return nil
 }
 
 // attachExplanation adds the causal narrative and the events behind it
@@ -246,18 +275,21 @@ func (s *IncidentService) GetActiveIncident(ctx context.Context, resourceID stri
 // so the incident detail response is never lost to its own enrichment
 // (spec 089, FR-012).
 //
-// The monitor -> host link is resolved here, at read time, not frozen when the
-// incident opened. Re-attaching a monitor therefore changes what its past
-// incidents display; that is a documented limitation (FR-017), not an oversight.
-func (s *IncidentService) buildHostContext(ctx context.Context, incident *domain.Incident) *domain.HostContext {
+// The machine is the one recorded when the incident opened (spec 092). Only an
+// incident that predates recording falls back to the monitor's current host,
+// and every surface showing that fallback marks it as inferred.
+func (s *IncidentService) buildHostContext(ctx context.Context, incident *domain.Incident, host *domain.Host) *domain.HostContext {
 	if s.hostMetrics == nil || s.hosts == nil {
 		return nil
 	}
-	if incident.Resource.HostID == nil || *incident.Resource.HostID == "" {
+	// The machine as it was when the incident opened, not as the monitor points
+	// at today (spec 092). One rule, on the domain type, shared with the
+	// correlation package so the two surfaces cannot disagree.
+	hostID, source := incident.ResolveHost()
+	if source == domain.HostLinkSourceNone {
 		// The normal state of most monitors, not a signal. Not logged, not counted.
 		return nil
 	}
-	hostID := *incident.Resource.HostID
 
 	from := incident.StartedAt.Add(-domain.HostContextWindowBefore)
 	to := incident.StartedAt.Add(domain.HostContextWindowAfter)
@@ -288,10 +320,13 @@ func (s *IncidentService) buildHostContext(ctx context.Context, incident *domain
 		return nil
 	}
 
-	host, err := s.hosts.FindByID(ctx, hostID)
-	if err != nil || host == nil {
-		slog.Debug("incident host context: host lookup failed",
-			"incident_id", incident.ID, "host_id", hostID, "error", err)
+	// The host was looked up once by the caller. Nil here means it no longer
+	// exists: the record stands on the incident's HostLink, but there is no
+	// name to show and, since retention cascades with the host, no metrics --
+	// so no context. Counted the way it always was.
+	if host == nil {
+		slog.Debug("incident host context: recorded host no longer exists",
+			"incident_id", incident.ID, "host_id", hostID)
 		s.recordAbsence("lookup_error")
 		return nil
 	}

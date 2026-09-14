@@ -18,7 +18,10 @@ In Ogoune, open **Hosts → Register host**, enter a name, and copy the
 ## 2. Install the agent
 
 Two ways to run it — a container, or a native binary managed by systemd. Both use
-the host's credential from step 1.
+the host's credential from step 1. **The container is the recommended install.**
+It is ten seconds of work, and everything the agent is for works there — with one
+difference in detail, described under [kernel events](#kernel-events) below, and
+the host page in Ogoune tells you exactly what your install captures.
 
 > **Use TLS (`wss://`) in production.** The agent streams the credential and
 > metrics over the connection; a plaintext `ws://` to a non-local host exposes
@@ -239,6 +242,22 @@ sets — only the defaults changed.
 > a different host and its older incidents will display the new host's metrics. Detach
 > rather than re-point if an incident's history matters to you.
 
+### One entry per filesystem, not per mount
+
+A mount table is not a list of disks. A btrfs root with subvolumes, a ZFS pool, a
+Docker or Kubernetes node with overlay layers, any bind mount — each produces
+many mount points backed by one filesystem, all reporting the same capacity. A
+development VM measured here had 486 mounts over 18 devices, 434 of them on a
+single disk, every one answering "188G, 145G used, 77%".
+
+The agent reports **one entry per filesystem**, choosing the shallowest mount
+path as its name — `/` rather than `/opt/vendor/data/subvol`. That is why a host
+page shows a handful of rows where the machine has hundreds of mounts, and why
+the agent makes three `statfs` calls per collection instead of four hundred.
+
+A host with more than 32 distinct filesystems reports the 32 fullest, and says so
+in its log once rather than truncating quietly.
+
 ## Kernel events
 
 Beyond metrics, the agent reports two things the kernel does that a health check
@@ -266,14 +285,34 @@ If you want full capture in a container, grant it access to the kernel log
 (`--privileged`, or an explicit device mapping). Nothing about the monitor's
 behaviour changes either way.
 
-### Segmentation faults need a kernel setting
+**You do not have to guess which of these applies.** The agent checks, before
+every report, what it can read on the machine it runs on, and the host page in
+Ogoune says so under *What this agent can observe*: whether the kernel log is
+readable, whether out-of-memory kills are detected *with* or *without* the name
+of the killed process, and whether segfault capture is available — with the
+reason when it is not. A containerised agent typically reads:
 
-Out-of-memory kills are always logged. **Segmentation faults usually are not.**
-Most distributions ship with `debug.exception-trace` set to `0`, and a kernel
-that is not asked to report userspace faults simply says nothing — which is
-indistinguishable from a healthy machine.
+- Kernel log: not readable in this install
+- Out-of-memory kills: detected, **without the process name**
+- Segfault capture: unavailable — needs the kernel log
 
-To capture them:
+Change the machine — recreate the container with kernel-log access, say — and
+the page follows within one reporting interval, without restarting the agent.
+On an incident with host context but no kernel events, the page says what that
+host could observe *at the time*, so "no events" reads as evidence or as a blind
+spot, not as a guess.
+
+### Segmentation faults are best-effort
+
+Out-of-memory kills are the signal this feature exists for, and they need no
+setting. **Segmentation faults are a weaker signal, captured when the machine
+allows it** — and an agent that cannot capture them is a normal agent, not a
+misconfigured one. Most distributions ship with `debug.exception-trace` set to
+`0`, so the kernel says nothing about userspace faults; the host page then reads
+*Segfault capture: unavailable — the kernel is not reporting userspace faults*,
+with the line below. Nothing is silent, and nothing is required.
+
+To enable it:
 
 ```bash
 sudo sysctl -w debug.exception-trace=1
@@ -281,8 +320,9 @@ sudo sysctl -w debug.exception-trace=1
 echo 'debug.exception-trace = 1' | sudo tee /etc/sysctl.d/60-ogoune-agent.conf
 ```
 
-Leave it off if you would rather not have userspace faults in your kernel log;
-out-of-memory capture is unaffected either way.
+The host page shows the change within one reporting interval, without restarting
+the agent. Leave it off if you would rather not have userspace faults in your
+kernel log; out-of-memory capture is unaffected either way.
 
 ### Storms are one line, not two hundred
 

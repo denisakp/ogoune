@@ -17,6 +17,10 @@ import (
 type IngestSample struct {
 	OS           *string
 	AgentVersion *string
+	// Capabilities is the agent's declaration of what it can observe (spec
+	// 093); nil when the frame carried none, which is stored as such -- a host
+	// must not keep a declaration its agent no longer sends.
+	Capabilities *domain.HostCapabilities
 	CPUPct       float64
 	MemPct       float64
 	NetIn        int64
@@ -101,6 +105,10 @@ func (s *HostMetricsService) Ingest(ctx context.Context, hostID string, in Inges
 		LastNetIn:    &in.NetIn,
 		LastNetOut:   &in.NetOut,
 		LastDisks:    disks,
+		Capabilities: in.Capabilities,
+	}
+	if in.Capabilities != nil {
+		snapshot.CapabilitiesAt = &now
 	}
 	if hasDisk {
 		w := worst

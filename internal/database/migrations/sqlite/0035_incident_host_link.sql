@@ -1,0 +1,21 @@
+-- 0035: An incident remembers which machine was involved (spec 092).
+--
+-- Until now the machine behind an incident was resolved through
+-- resources.host_id at READ time, so moving a monitor rewrote what its past
+-- incidents displayed -- a postmortem showing facts about a machine that was
+-- never involved. The machine is now recorded on the incident when it opens.
+--
+-- Two columns carry three states:
+--   host_link_recorded = 1, host_id = <id>  -> recorded; read it
+--   host_link_recorded = 1, host_id = NULL  -> no machine at the time; NEVER fall back
+--   host_link_recorded = 0, host_id = NULL  -> predates this feature; fall back, marked
+--
+-- No foreign key on host_id, deliberately: it is a historical record, not a live
+-- pointer. ON DELETE SET NULL would silently turn a recorded machine into an
+-- absent one and hand the incident straight back to the fallback.
+--
+-- Single file, no .down: this migrator has no down path and used to execute
+-- those files forward. One ALTER per statement; SQLite takes no multi-column
+-- ALTER and no IF NOT EXISTS on ADD COLUMN. Nothing is rewritten.
+ALTER TABLE incidents ADD COLUMN host_id TEXT;
+ALTER TABLE incidents ADD COLUMN host_link_recorded INTEGER NOT NULL DEFAULT 0;

@@ -36,6 +36,7 @@ function makeHost(over: Partial<Host> = {}): Host {
     lastNetIn: 1000,
     lastNetOut: 500,
     lastDisks: [],
+    capabilities: { state: 'not_known' },
     createdAt: '2026-07-01T00:00:00Z',
     updatedAt: '2026-07-30T12:00:00Z',
     ...over,
@@ -185,5 +186,41 @@ describe('HostDetailView kernel events', () => {
       await flushPromises()
       expect(w.findAll('.host-metric-chart').length).toBeGreaterThan(0)
     }
+  })
+})
+
+// --- spec 093: what this agent can observe ---------------------------------
+
+describe('HostDetailView — capability declaration (spec 093)', () => {
+  it('shows the three capabilities for a declared container agent', async () => {
+    getHostMock.mockResolvedValue(
+      makeHost({
+        capabilities: {
+          state: 'declared',
+          kmsg: { available: false, reason: 'unreadable' },
+          cgroup_oom: { available: true },
+          segfault: { available: false, reason: 'unreadable' },
+          oom_detail: 'without_process',
+        },
+      }),
+    )
+    const w = build()
+    await flushPromises()
+
+    const notice = w.find('[data-test="capability-notice-host"]')
+    expect(notice.exists()).toBe(true)
+    expect(notice.attributes('data-state')).toBe('declared')
+    expect(notice.text()).toContain('Detected, without the process name')
+  })
+
+  it('says "not yet known" for a host whose agent never connected -- never "unavailable"', async () => {
+    getHostMock.mockResolvedValue(makeHost({ capabilities: { state: 'not_known' } }))
+    const w = build()
+    await flushPromises()
+
+    const notice = w.find('[data-test="capability-notice-host"]')
+    expect(notice.exists()).toBe(true)
+    expect(notice.text()).toContain('Not yet known')
+    expect(notice.text()).not.toContain('unavailable')
   })
 })

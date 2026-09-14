@@ -53,6 +53,13 @@ type Frame struct {
 	// unchanged, and a frame from an agent predating this feature simply arrives
 	// with no events.
 	Events []KernelEvent `json:"events,omitempty"`
+	// Capabilities is what the agent can observe on its machine (spec 093).
+	// Optional, and deliberately added WITHOUT bumping SchemaVersion: Decode
+	// refuses only versions greater than it knows, so a bump would make every
+	// backend that predates this feature reject a new agent outright -- for an
+	// object it could have ignored. An unknown optional key is not what the
+	// version exists to guard against.
+	Capabilities *Capabilities `json:"capabilities,omitempty"`
 }
 
 // Encode serialises a frame to JSON, stamping the current SchemaVersion when the
@@ -103,6 +110,8 @@ func Decode(b []byte) (Frame, error) {
 	if f.SchemaVersion > SchemaVersion {
 		return Frame{}, fmt.Errorf("%w: %d (max %d)", ErrUnsupportedVersion, f.SchemaVersion, SchemaVersion)
 	}
+	// A declaration is never a reason to reject a frame (spec 093, FR-009).
+	f.Capabilities.Normalize()
 	return f, nil
 }
 

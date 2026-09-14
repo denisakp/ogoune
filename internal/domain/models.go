@@ -240,14 +240,35 @@ type Component struct {
 // Incident represents an event where a Resource is down or experiencing issues.
 type Incident struct {
 	Base
-	ResourceID          string               `json:"resource_id"`
-	Resource            Resource             `json:"resource"`
-	Cause               string               `json:"cause"`
-	ResolvedAt          *time.Time           `json:"resolved_at"` // nil = active, timestamp = resolved
-	StartedAt           time.Time            `json:"started_at"`
-	Details             []byte               `json:"details"`
-	EventStep           []IncidentEventStep  `json:"event_steps"`
-	IncidentDiagnostics *IncidentDiagnostics `json:"diagnostics"`
+	ResourceID string     `json:"resource_id"`
+	Resource   Resource   `json:"resource"`
+	Cause      string     `json:"cause"`
+	ResolvedAt *time.Time `json:"resolved_at"` // nil = active, timestamp = resolved
+	StartedAt  time.Time  `json:"started_at"`
+	Details    []byte     `json:"details"`
+	// HostID is the machine this incident happened on, AS IT WAS when the
+	// incident opened (spec 092). Written once, never updated. The monitor's
+	// own host link (Resource.HostID) is what it points at today; this is what
+	// it pointed at then, and the two diverge the moment a monitor is moved.
+	//
+	// Nil means one of two things, and HostLinkRecorded tells them apart.
+	HostID *string `json:"host_id"`
+	// HostLinkRecorded says whether this incident was created by a version that
+	// records the machine. True with a nil HostID means "we looked, and the
+	// monitor had none" -- a state that must NEVER fall back to the monitor's
+	// current machine. False means the row predates recording, and nothing can
+	// be inferred from HostID being nil; those rows fall back, visibly marked.
+	HostLinkRecorded bool `json:"host_link_recorded"`
+	// HostCapabilities is a copy of the host's declaration -- what its agent
+	// could observe -- taken when the incident opened, never updated (spec 093).
+	// It is what makes "no kernel events" readable in a postmortem: evidence,
+	// or a blind spot. HostCapabilitiesState says which of the four situations
+	// the copy was taken in; nil on every row predating the feature, and those
+	// read as not known rather than borrowing the host's current declaration.
+	HostCapabilities      *HostCapabilities      `json:"host_capabilities"`
+	HostCapabilitiesState *HostCapabilitiesState `json:"host_capabilities_state"`
+	EventStep             []IncidentEventStep    `json:"event_steps"`
+	IncidentDiagnostics   *IncidentDiagnostics   `json:"diagnostics"`
 	// HostContext is computed on read, never persisted: what the monitor's host
 	// was doing around StartedAt. Nil whenever there is nothing to say
 	// (spec 089).
@@ -262,9 +283,14 @@ type Incident struct {
 	// field here would write a causal narrative into the database -- FR-018
 	// broken by a missing tag rather than by a decision.
 	Explanation *IncidentExplanation `json:"-"`
+	// HostLink is computed on read, never persisted: which machine the surfaces
+	// above describe and where that answer came from (spec 092). Nil when there
+	// is no machine to describe. `json:"-"` for the same reason as its
+	// neighbours -- IncidentDiagnostics embeds an Incident and is persisted.
+	HostLink *HostLink `json:"-"`
 	// HostEvents are the kernel events inside the correlation window, newest
 	// first. Computed on read, never persisted, and `json:"-"` for the same
-	// reason as the two fields above.
+	// reason as the fields above.
 	//
 	// Served alongside Explanation so the sentence is checkable in place rather
 	// than merely trusted, and present even when no sentence could be produced:
@@ -317,6 +343,66 @@ type IncidentExplanation struct {
 	// This feature defines no window of its own.
 	WindowFrom time.Time
 	WindowTo   time.Time
+}
+
+// HostLinkSource says where the machine an incident describes came from.
+type HostLinkSource string
+
+const (
+	// HostLinkRecorded: written when the incident opened. Authoritative.
+	HostLinkSourceRecorded HostLinkSource = "recorded"
+	// HostLinkInferred: the monitor's machine today, for an incident that
+	// predates recording. Possibly not the machine involved, and every surface
+	// showing it must say so.
+	HostLinkSourceInferred HostLinkSource = "inferred"
+	// HostLinkNone: no machine to describe, and no fallback permitted.
+	HostLinkSourceNone HostLinkSource = "none"
+)
+
+// ResolveHost returns the machine this incident's surfaces should describe,
+// and where that answer came from (spec 092).
+//
+// The rule, in full:
+//
+//	HostLinkRecorded  HostID   result
+//	true              set      recorded
+//	true              nil      none      -- the monitor genuinely had none; NEVER falls back
+//	false             --       inferred from Resource.HostID, or none if the monitor has none today
+//
+// It lives here rather than in a service because two packages need it -- the
+// host-context service and the correlation package -- and neither may import
+// the other. One definition on a type both depend on is what makes "the
+// surfaces must never disagree about which machine they describe" a structural
+// fact rather than a discipline maintained in two places.
+func (i *Incident) ResolveHost() (string, HostLinkSource) {
+	if i == nil {
+		return "", HostLinkSourceNone
+	}
+	if i.HostLinkRecorded {
+		if i.HostID != nil && *i.HostID != "" {
+			return *i.HostID, HostLinkSourceRecorded
+		}
+		return "", HostLinkSourceNone
+	}
+	if i.Resource.HostID != nil && *i.Resource.HostID != "" {
+		return *i.Resource.HostID, HostLinkSourceInferred
+	}
+	return "", HostLinkSourceNone
+}
+
+// HostLink is the read-side answer to "which machine, and how do we know":
+// the resolved id, its source, and whether that machine still exists
+// (spec 092, FR-008a). Never persisted.
+//
+// Exists comes from the host lookup the host-context builder already performs;
+// the link costs no query of its own. A recorded machine that has since been
+// deleted is still recorded -- Exists: false, Source unchanged -- because the
+// record that it happened there stands, and falling back would put the incident
+// on a machine that was never involved.
+type HostLink struct {
+	HostID string
+	Source HostLinkSource
+	Exists bool
 }
 
 // IncidentDiagnostics contains enriched diagnostic information about an incident
@@ -968,7 +1054,13 @@ type Host struct {
 	LastNetIn    *int64
 	LastNetOut   *int64
 	LastDisks    []DiskUsage // decoded from last_disks JSON
-	Online       bool        // derived (not persisted): computed via IsOnline
+	// Capabilities is the LATEST declaration the agent sent of what it can
+	// observe (spec 093); nil when the last frame carried none, which is how a
+	// host stops claiming what a downgraded agent no longer says. CapabilitiesAt
+	// is when that declaration arrived.
+	Capabilities   *HostCapabilities // decoded from capabilities JSON
+	CapabilitiesAt *time.Time
+	Online         bool // derived (not persisted): computed via IsOnline
 }
 
 // IsOnline reports whether the host has reported within the freshness threshold

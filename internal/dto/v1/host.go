@@ -61,6 +61,41 @@ type HostResponse struct {
 	// sometimes absent and sometimes empty is two shapes for one meaning, and every
 	// consumer would have to handle both.
 	Events []HostEventResponse `json:"events"`
+	// Capabilities is what this host's agent declares it can observe (spec
+	// 093). Always present: the state is always known, even when it is "the
+	// agent has never connected".
+	Capabilities HostCapabilitiesResponse `json:"capabilities"`
+}
+
+// HostCapabilitiesResponse is a declaration of what an agent can observe on
+// its machine, plus the situation it was read in. On a host it is the LATEST
+// declaration; on an incident it is the copy frozen when the incident opened.
+// The per-capability fields are present only when state is "declared".
+// @name HostCapabilitiesResponse
+type HostCapabilitiesResponse struct {
+	// State: declared | not_reported (agent connected, too old to declare) |
+	// not_known (never connected; or, on an incident, predates the feature).
+	State string `json:"state" enums:"declared,not_reported,not_known"`
+	// Kmsg: the kernel log is readable.
+	Kmsg *CapabilityResponse `json:"kmsg,omitempty"`
+	// CgroupOOM: the cgroup v2 out-of-memory counter is readable.
+	CgroupOOM *CapabilityResponse `json:"cgroup_oom,omitempty"`
+	// Segfault: segfault capture is usable (kernel log + kernel setting). Best-effort.
+	Segfault *CapabilityResponse `json:"segfault,omitempty"`
+	// OOMDetail: how out-of-memory kills are detected -- with_process (kernel
+	// log), without_process (cgroup counter only), none.
+	OOMDetail string `json:"oom_detail,omitempty" enums:"with_process,without_process,none"`
+	// DeclaredAt: when the host received this declaration. Absent on the
+	// frozen incident copy, whose time is the incident's started_at.
+	DeclaredAt *string `json:"declared_at,omitempty"`
+}
+
+// CapabilityResponse is one source's readability and, when unavailable, why:
+// unreadable | setting_off | platform.
+// @name CapabilityResponse
+type CapabilityResponse struct {
+	Available bool   `json:"available"`
+	Reason    string `json:"reason,omitempty" enums:"unreadable,setting_off,platform"`
 }
 
 // HostMetricSampleResponse is a single point-in-time host metric sample.

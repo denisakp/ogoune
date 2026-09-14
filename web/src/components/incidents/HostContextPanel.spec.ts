@@ -78,3 +78,64 @@ describe('HostContextPanel', () => {
     expect(w.find('[data-test="host-context-reduced"]').exists()).toBe(true)
   })
 })
+
+// --- spec 092: where the machine came from, and whether it still exists ------
+
+import type { HostLink } from '@/types'
+
+const stubsWithAlert = {
+  ...stubs,
+  UAlert: {
+    template: '<div :data-test="$attrs[\'data-test\']"><b>{{ title }}</b> {{ description }}</div>',
+    props: ['title', 'description', 'color', 'variant', 'icon'],
+  },
+}
+
+function buildWithLink(context: HostContext | null, hostLink: HostLink | null) {
+  return mount(HostContextPanel, {
+    props: { context, hostLink },
+    global: { stubs: stubsWithAlert },
+  })
+}
+
+describe('HostContextPanel — host link (spec 092)', () => {
+  it('shows nothing extra for a recorded machine', () => {
+    const w = buildWithLink(ctx(), { host_id: 'host-1', source: 'recorded', exists: true })
+    expect(w.find('[data-test="host-context-inferred"]').exists()).toBe(false)
+    expect(w.find('[data-test="host-context-deleted"]').exists()).toBe(false)
+    expect(w.get('[data-test="host-context-cpu"]').text()).toContain('97.4%')
+  })
+
+  // The marker is what keeps a historical incident from being silently wrong.
+  it('marks an inferred machine, before the figures', () => {
+    const w = buildWithLink(ctx(), { host_id: 'host-1', source: 'inferred', exists: true })
+    const marker = w.get('[data-test="host-context-inferred"]')
+    expect(marker.text()).toContain('inferred')
+    expect(marker.text()).toContain('may not be the one at the time')
+    // The figures are still shown -- data, weighed with the marker in view.
+    expect(w.get('[data-test="host-context-cpu"]').text()).toContain('97.4%')
+  })
+
+  // A deleted machine is a fact, not a blank. The record stands; the name and
+  // metrics cannot be shown; and it does not fall back.
+  it('renders the deleted state when there is no context and the machine is gone', () => {
+    const w = buildWithLink(null, { host_id: 'host-gone', source: 'recorded', exists: false })
+    expect(w.get('[data-test="host-context-deleted"]').text()).toContain('since been deleted')
+    expect(w.get('[data-test="host-context-deleted-id"]').text()).toContain('host-gone')
+    expect(w.find('[data-test="host-context-link"]').exists()).toBe(false)
+    expect(w.find('[data-test="host-context-cpu"]').exists()).toBe(false)
+  })
+
+  it('does not call a deleted recorded machine inferred', () => {
+    const w = buildWithLink(null, { host_id: 'host-gone', source: 'recorded', exists: false })
+    expect(w.find('[data-test="host-context-inferred"]').exists()).toBe(false)
+  })
+
+  // Without a link the panel is exactly what it was before spec 092.
+  it('behaves as before when no link is given', () => {
+    const w = buildWithLink(ctx(), null)
+    expect(w.find('[data-test="host-context-inferred"]').exists()).toBe(false)
+    expect(w.find('[data-test="host-context-deleted"]').exists()).toBe(false)
+    expect(w.get('[data-test="host-context-link"]').text()).toContain('web-01')
+  })
+})

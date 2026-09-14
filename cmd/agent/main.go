@@ -52,7 +52,9 @@ func main() {
 	events := newEventCollector(newKernelSources())
 	defer events.Close()
 
-	streamer := NewStreamer(cfg, newGopsutilCollector(version).WithKernelEvents(events))
+	streamer := NewStreamer(cfg, newGopsutilCollector(version).
+		WithKernelEvents(events).
+		WithCapabilityProbe(newCapabilityProbe(), openKernelSource))
 	if err := streamer.Run(ctx); err != nil && !errors.Is(err, context.Canceled) {
 		slog.Error("ogoune-agent stopped", "error", err)
 		os.Exit(1)
