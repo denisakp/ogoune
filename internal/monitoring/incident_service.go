@@ -186,6 +186,115 @@ func (s *IncidentService) emitFeedNotification(incident *domain.Incident, severi
 	}()
 }
 
+// recordDetection persists what the incident opened with: the diagnostics
+// (supplementary -- a failure is logged, never fatal) and the "detected"
+// event step.
+func (s *IncidentService) recordDetection(ctx context.Context, incident *domain.Incident, r *domain.Resource, result domain.CheckResult) {
+	diag := s.buildIncidentDiagnostics(incident.ID, result, r)
+	if _, err := s.diagnostics.Create(ctx, diag); err != nil {
+		slog.Warn("failed to persist incident diagnostics", "incident_id", incident.ID, "error", err)
+	} else {
+		slog.Debug("persisted incident diagnostics", "incident_id", incident.ID)
+	}
+
+	detectedStep := &domain.IncidentEventStep{
+		IncidentID: incident.ID,
+		Step:       domain.IncidentEventStepDetected,
+		Message:    stringPtr(fmt.Sprintf("Incident detected: %s", humanizeCause(incident.Cause))),
+	}
+	if _, err := s.eventSteps.Create(ctx, detectedStep); err != nil {
+		slog.Warn("failed to create detected event step", "incident_id", incident.ID, "error", err)
+	}
+}
+
+const errFindIncidents = "failed to find incidents: %w"
+
+// alertKind is what differs between a down alert and an up alert once the
+// dispatch loop is written once: the notification event type, the event step
+// recorded for the attempt, and the two words in its messages.
+type alertKind struct {
+	eventType domain.NotificationEventType
+	step      domain.IncidentEventStepType
+	label     string // "Down" / "Up"
+	warn      string // log line when the channel rejects it
+}
+
+var (
+	downAlert = alertKind{
+		eventType: domain.NotificationEventTypeDown,
+		step:      domain.IncidentEventStepDownAlert,
+		label:     "Down",
+		warn:      "failed to dispatch down notification",
+	}
+	upAlert = alertKind{
+		eventType: domain.NotificationEventTypeUp,
+		step:      domain.IncidentEventStepUpAlert,
+		label:     "Up",
+		warn:      "failed to dispatch resolution notification",
+	}
+)
+
+// dispatchAlert sends one payload to one channel and records everything
+// about the attempt: a pending notification event beforehand, an event step
+// whatever the outcome, and the event and channel counters afterwards.
+// Nothing here returns an error -- an alert that could not be sent is a
+// recorded fact about the incident, not a reason to abort the others.
+func (s *IncidentService) dispatchAlert(ctx context.Context, incident *domain.Incident, channel *domain.NotificationChannel, kind alertKind, payload notifier.NotificationPayload) {
+	notificationEvent := &domain.NotificationEvent{
+		IncidentID: incident.ID,
+		Type:       kind.eventType,
+		Status:     domain.NotificationEventStatusPending,
+	}
+	eventCreated := false
+	if err := s.notifications.Create(ctx, notificationEvent); err != nil {
+		slog.Warn("failed to create pending notification event", "incident_id", incident.ID, "error", err)
+	} else {
+		eventCreated = true
+	}
+
+	err := s.dispatchNotification(ctx, payload, channel)
+
+	// Create event step for notification attempt (regardless of success/failure)
+	statusMsg := "sent"
+	if err != nil {
+		statusMsg = fmt.Sprintf("failed: %v", err)
+		slog.Warn(kind.warn, "channel_id", channel.ID, "channel_type", channel.Type, "incident_id", incident.ID, "error", err)
+	}
+	alertStep := &domain.IncidentEventStep{
+		IncidentID: incident.ID,
+		Step:       kind.step,
+		Message:    stringPtr(fmt.Sprintf("%s notification %s via %s (%s): %s", kind.label, statusMsg, channel.Type, channel.Name, humanizeCause(incident.Cause))),
+	}
+	if _, stepErr := s.eventSteps.Create(ctx, alertStep); stepErr != nil {
+		slog.Warn("failed to create alert event step", "incident_id", incident.ID, "error", stepErr)
+	}
+
+	if eventCreated {
+		s.recordNotificationOutcome(ctx, notificationEvent.ID, channel.ID, err)
+	}
+}
+
+// recordNotificationOutcome marks the notification event and bumps the
+// channel's counters according to whether the dispatch succeeded.
+func (s *IncidentService) recordNotificationOutcome(ctx context.Context, eventID, channelID string, dispatchErr error) {
+	processedAt := time.Now()
+	if dispatchErr != nil {
+		if markErr := s.notifications.MarkAsFailed(ctx, eventID, dispatchErr.Error(), processedAt); markErr != nil {
+			slog.Warn("failed to mark notification event as failed", "notification_id", eventID, "error", markErr)
+		}
+		if markErr := s.notificationChannels.MarkFailure(ctx, channelID, processedAt); markErr != nil {
+			slog.Warn("failed to bump channel failure counter", "channel_id", channelID, "error", markErr)
+		}
+		return
+	}
+	if markErr := s.notifications.MarkAsSent(ctx, eventID, processedAt); markErr != nil {
+		slog.Warn("failed to mark notification event as sent", "notification_id", eventID, "error", markErr)
+	}
+	if markErr := s.notificationChannels.MarkSent(ctx, channelID, processedAt); markErr != nil {
+		slog.Warn("failed to bump channel last_sent_at", "channel_id", channelID, "error", markErr)
+	}
+}
+
 // CreateIncident creates a new incident when a resource reaches 3 consecutive failures.
 // It checks for existing active incidents, creates event steps, and dispatches notifications
 // to all configured notification channels associated with the resource.
@@ -194,19 +303,16 @@ func (s *IncidentService) CreateIncident(ctx context.Context, r *domain.Resource
 		return fmt.Errorf("resource cannot be nil")
 	}
 
-	// Check if there's already an active incident for this resource (ResolvedAt is nil)
-	incidents, err := s.incidents.FindByResource(ctx, r.ID, 1, 0)
+	// An active incident (ResolvedAt nil) means this is a reconciliation, not
+	// a new failure; creating a second one would double every alert.
+	active, err := s.findActiveIncident(ctx, r.ID, 1)
 	if err != nil {
 		return fmt.Errorf("failed to check for existing incidents: %w", err)
 	}
-
-	// Look for unresolved incidents (where ResolvedAt is nil)
-	for _, incident := range incidents {
-		if incident.ResolvedAt == nil {
-			slog.Info("active incident already exists, skipping creation",
-				"incident_id", incident.ID, "resource_id", r.ID, "started_at", incident.StartedAt.Format(time.RFC3339))
-			return nil // Active incident already exists, avoid duplicates
-		}
+	if active != nil {
+		slog.Info("active incident already exists, skipping creation",
+			"incident_id", active.ID, "resource_id", r.ID, "started_at", active.StartedAt.Format(time.RFC3339))
+		return nil
 	}
 
 	slog.Info("creating new incident", "resource_id", r.ID, "failure_count", r.FailureCount)
@@ -245,26 +351,7 @@ func (s *IncidentService) CreateIncident(ctx context.Context, r *domain.Resource
 	// Spec 072: surface in the in-app feed (fire-and-forget, never blocks).
 	s.emitFeedNotification(incident, domain.NotificationSeverityError, fmt.Sprintf("%s is down", r.Name))
 
-	// Persist incident diagnostics immediately after creation
-	// This captures error details, network timing, and other technical context
-	diag := s.buildIncidentDiagnostics(incident.ID, result, r)
-	if _, err := s.diagnostics.Create(ctx, diag); err != nil {
-		slog.Warn("failed to persist incident diagnostics", "incident_id", incident.ID, "error", err)
-		// Don't fail incident creation if diagnostics fail - they're supplementary
-	} else {
-		slog.Debug("persisted incident diagnostics", "incident_id", incident.ID)
-	}
-
-	// Step 1: Create "detected" event step
-	detectedStep := &domain.IncidentEventStep{
-		IncidentID: incident.ID,
-		Step:       domain.IncidentEventStepDetected,
-		Message:    stringPtr(fmt.Sprintf("Incident detected: %s", humanizeCause(cause))),
-	}
-
-	if _, err := s.eventSteps.Create(ctx, detectedStep); err != nil {
-		slog.Warn("failed to create detected event step", "incident_id", incident.ID, "error", err)
-	}
+	s.recordDetection(ctx, incident, r, result)
 
 	// Seed the first public-facing status update (US7).
 	if s.updates != nil {
@@ -291,57 +378,10 @@ func (s *IncidentService) CreateIncident(ctx context.Context, r *domain.Resource
 
 	// Dispatch notifications to all configured channels
 	for _, channel := range channels {
-		notificationEvent := &domain.NotificationEvent{
-			IncidentID: incident.ID,
-			Type:       domain.NotificationEventTypeDown,
-			Status:     domain.NotificationEventStatusPending,
-		}
-		eventCreated := false
-		if err := s.notifications.Create(ctx, notificationEvent); err != nil {
-			slog.Warn("failed to create pending notification event", "incident_id", incident.ID, "error", err)
-		} else {
-			eventCreated = true
-		}
-
-		err := s.dispatchNotification(ctx, notifier.NotificationPayload{
+		s.dispatchAlert(ctx, incident, channel, downAlert, notifier.NotificationPayload{
 			Incident:    incident,
 			Explanation: explanation,
-		}, channel)
-
-		// Create event step for notification attempt (regardless of success/failure)
-		statusMsg := "sent"
-		if err != nil {
-			statusMsg = fmt.Sprintf("failed: %v", err)
-			slog.Warn("failed to dispatch down notification", "channel_id", channel.ID, "channel_type", channel.Type, "incident_id", incident.ID, "error", err)
-		}
-
-		alertStep := &domain.IncidentEventStep{
-			IncidentID: incident.ID,
-			Step:       domain.IncidentEventStepDownAlert,
-			Message:    stringPtr(fmt.Sprintf("Down notification %s via %s (%s): %s", statusMsg, channel.Type, channel.Name, humanizeCause(incident.Cause))),
-		}
-		if _, err := s.eventSteps.Create(ctx, alertStep); err != nil {
-			slog.Warn("failed to create alert event step", "incident_id", incident.ID, "error", err)
-		}
-
-		if eventCreated {
-			processedAt := time.Now()
-			if err != nil {
-				if markErr := s.notifications.MarkAsFailed(ctx, notificationEvent.ID, err.Error(), processedAt); markErr != nil {
-					slog.Warn("failed to mark notification event as failed", "notification_id", notificationEvent.ID, "error", markErr)
-				}
-				if markErr := s.notificationChannels.MarkFailure(ctx, channel.ID, processedAt); markErr != nil {
-					slog.Warn("failed to bump channel failure counter", "channel_id", channel.ID, "error", markErr)
-				}
-			} else {
-				if markErr := s.notifications.MarkAsSent(ctx, notificationEvent.ID, processedAt); markErr != nil {
-					slog.Warn("failed to mark notification event as sent", "notification_id", notificationEvent.ID, "error", markErr)
-				}
-				if markErr := s.notificationChannels.MarkSent(ctx, channel.ID, processedAt); markErr != nil {
-					slog.Warn("failed to bump channel last_sent_at", "channel_id", channel.ID, "error", markErr)
-				}
-			}
-		}
+		})
 	}
 
 	return nil
@@ -389,9 +429,12 @@ func (s *IncidentService) SendReminderIfDue(ctx context.Context, r *domain.Resou
 	if r == nil || r.ReminderIntervalMinutes <= 0 {
 		return nil
 	}
-	activeIncident, err := s.findActiveIncident(ctx, r.ID)
-	if err != nil || activeIncident == nil || activeIncident.ResolvedAt != nil {
-		return err
+	activeIncident, err := s.findActiveIncident(ctx, r.ID, 10)
+	if err != nil {
+		return fmt.Errorf(errFindIncidents, err)
+	}
+	if activeIncident == nil || activeIncident.ResolvedAt != nil {
+		return nil
 	}
 	lastStep, err := s.eventSteps.FindLastByIncidentAndStep(ctx, activeIncident.ID, domain.IncidentEventStepDownAlert)
 	if err != nil {
@@ -455,10 +498,14 @@ func (s *IncidentService) SendReminderIfDue(ctx context.Context, r *domain.Resou
 	return nil
 }
 
-func (s *IncidentService) findActiveIncident(ctx context.Context, resourceID string) (*domain.Incident, error) {
-	incidents, err := s.incidents.FindByResource(ctx, resourceID, 10, 0)
+// findActiveIncident returns the most recent unresolved incident among the
+// last `limit` for the resource, or nil. The limit is the caller's: creation
+// looks at the latest only, resolution and reminders at the last ten. The
+// repository error is returned as is for the caller to wrap.
+func (s *IncidentService) findActiveIncident(ctx context.Context, resourceID string, limit int) (*domain.Incident, error) {
+	incidents, err := s.incidents.FindByResource(ctx, resourceID, limit, 0)
 	if err != nil {
-		return nil, fmt.Errorf("failed to find incidents: %w", err)
+		return nil, err
 	}
 	var activeIncident *domain.Incident
 	for _, incident := range incidents {
@@ -473,7 +520,7 @@ func (s *IncidentService) findActiveIncident(ctx context.Context, resourceID str
 func (s *IncidentService) FindLatestIncidentForResource(ctx context.Context, resourceID string) (*domain.Incident, error) {
 	incidents, err := s.incidents.FindByResource(ctx, resourceID, 1, 0)
 	if err != nil {
-		return nil, fmt.Errorf("failed to find incidents: %w", err)
+		return nil, fmt.Errorf(errFindIncidents, err)
 	}
 	if len(incidents) == 0 {
 		return nil, repository.ErrNotFound
@@ -489,20 +536,10 @@ func (s *IncidentService) ResolveIncident(ctx context.Context, r *domain.Resourc
 		return fmt.Errorf("resource cannot be nil")
 	}
 
-	// Find the active incident for this resource (ResolvedAt is nil)
-	incidents, err := s.incidents.FindByResource(ctx, r.ID, 10, 0)
+	// The most recent unresolved incident, if any.
+	activeIncident, err := s.findActiveIncident(ctx, r.ID, 10)
 	if err != nil {
-		return fmt.Errorf("failed to find incidents: %w", err)
-	}
-
-	// Look for the most recent unresolved incident
-	var activeIncident *domain.Incident
-	for _, incident := range incidents {
-		if incident.ResolvedAt == nil {
-			if activeIncident == nil || incident.StartedAt.After(activeIncident.StartedAt) {
-				activeIncident = incident
-			}
-		}
+		return fmt.Errorf(errFindIncidents, err)
 	}
 
 	// No active incident to resolve
@@ -552,54 +589,7 @@ func (s *IncidentService) ResolveIncident(ctx context.Context, r *domain.Resourc
 
 	// Dispatch resolution notifications to all configured channels
 	for _, channel := range channels {
-		notificationEvent := &domain.NotificationEvent{
-			IncidentID: activeIncident.ID,
-			Type:       domain.NotificationEventTypeUp,
-			Status:     domain.NotificationEventStatusPending,
-		}
-		eventCreated := false
-		if err := s.notifications.Create(ctx, notificationEvent); err != nil {
-			slog.Warn("failed to create pending notification event", "incident_id", activeIncident.ID, "error", err)
-		} else {
-			eventCreated = true
-		}
-
-		err := s.dispatchNotification(ctx, notifier.NotificationPayload{Incident: activeIncident}, channel)
-
-		// Create event step for notification attempt (regardless of success/failure)
-		statusMsg := "sent"
-		if err != nil {
-			statusMsg = fmt.Sprintf("failed: %v", err)
-			slog.Warn("failed to dispatch resolution notification", "channel_id", channel.ID, "channel_type", channel.Type, "incident_id", activeIncident.ID, "error", err)
-		}
-
-		upAlertStep := &domain.IncidentEventStep{
-			IncidentID: activeIncident.ID,
-			Step:       domain.IncidentEventStepUpAlert,
-			Message:    stringPtr(fmt.Sprintf("Up notification %s via %s (%s): %s", statusMsg, channel.Type, channel.Name, humanizeCause(activeIncident.Cause))),
-		}
-		if _, err := s.eventSteps.Create(ctx, upAlertStep); err != nil {
-			slog.Warn("failed to create up alert event step", "incident_id", activeIncident.ID, "error", err)
-		}
-
-		if eventCreated {
-			processedAt := time.Now()
-			if err != nil {
-				if markErr := s.notifications.MarkAsFailed(ctx, notificationEvent.ID, err.Error(), processedAt); markErr != nil {
-					slog.Warn("failed to mark notification event as failed", "notification_id", notificationEvent.ID, "error", markErr)
-				}
-				if markErr := s.notificationChannels.MarkFailure(ctx, channel.ID, processedAt); markErr != nil {
-					slog.Warn("failed to bump channel failure counter", "channel_id", channel.ID, "error", markErr)
-				}
-			} else {
-				if markErr := s.notifications.MarkAsSent(ctx, notificationEvent.ID, processedAt); markErr != nil {
-					slog.Warn("failed to mark notification event as sent", "notification_id", notificationEvent.ID, "error", markErr)
-				}
-				if markErr := s.notificationChannels.MarkSent(ctx, channel.ID, processedAt); markErr != nil {
-					slog.Warn("failed to bump channel last_sent_at", "channel_id", channel.ID, "error", markErr)
-				}
-			}
-		}
+		s.dispatchAlert(ctx, activeIncident, channel, upAlert, notifier.NotificationPayload{Incident: activeIncident})
 	}
 
 	return nil

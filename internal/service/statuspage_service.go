@@ -260,58 +260,63 @@ func (s *StatusPageService) GetResourceDetailStatus(ctx context.Context, resourc
 		RecentEvents:          recentEvents,
 	}
 
-	// Attach maintenance banner information: active has priority, else upcoming scheduled
-	// Active or currently within window
-	// Maintenance repo may be nil in some test contexts
-	now := time.Now()
+	// Maintenance banner: an active window has priority, else the nearest
+	// upcoming scheduled one. The repo may be nil in some test contexts.
 	if s.maintenanceRepo != nil {
-		activeMaintenances, err := s.maintenanceRepo.FindActiveForResource(ctx, resourceID, now)
-		if err == nil && len(activeMaintenances) > 0 {
-			m := activeMaintenances[0]
-			detail.Maintenance = &dto.MaintenanceBanner{
-				Status:   "active",
-				Title:    m.Title,
-				StartAt:  m.StartAt,
-				EndAt:    m.EndAt,
-				Timezone: m.Timezone,
-			}
-			return detail, nil
-		}
-
-		// Upcoming scheduled: pick the nearest future StartAt
-		scheduled, err := s.maintenanceRepo.List(ctx, "scheduled", 100, 0)
-		if err == nil && len(scheduled) > 0 {
-			var candidate *domain.Maintenance
-			for _, m := range scheduled {
-				if m.StartAt == nil || m.StartAt.Before(now) {
-					continue
-				}
-				// ensure the maintenance applies to this resource
-				applies := false
-				for _, r := range m.Resources {
-					if r.ID == resourceID {
-						applies = true
-						break
-					}
-				}
-				if !applies {
-					continue
-				}
-				if candidate == nil || m.StartAt.Before(*candidate.StartAt) {
-					candidate = m
-				}
-			}
-			if candidate != nil {
-				detail.Maintenance = &dto.MaintenanceBanner{
-					Status:   "scheduled",
-					Title:    candidate.Title,
-					StartAt:  candidate.StartAt,
-					EndAt:    candidate.EndAt,
-					Timezone: candidate.Timezone,
-				}
-			}
-		}
+		detail.Maintenance = s.maintenanceBanner(ctx, resourceID, time.Now())
 	}
 
 	return detail, nil
+}
+
+// maintenanceBanner is the banner shown on a resource's public detail page,
+// or nil. Lookup errors are treated as "no banner": the banner is
+// supplementary, the page is not.
+func (s *StatusPageService) maintenanceBanner(ctx context.Context, resourceID string, now time.Time) *dto.MaintenanceBanner {
+	active, err := s.maintenanceRepo.FindActiveForResource(ctx, resourceID, now)
+	if err == nil && len(active) > 0 {
+		return bannerFor(active[0], "active")
+	}
+	scheduled, err := s.maintenanceRepo.List(ctx, "scheduled", 100, 0)
+	if err != nil {
+		return nil
+	}
+	if next := nearestScheduledFor(scheduled, resourceID, now); next != nil {
+		return bannerFor(next, "scheduled")
+	}
+	return nil
+}
+
+// nearestScheduledFor picks, among scheduled maintenances, the one with the
+// earliest future start that applies to the resource.
+func nearestScheduledFor(scheduled []*domain.Maintenance, resourceID string, now time.Time) *domain.Maintenance {
+	var candidate *domain.Maintenance
+	for _, m := range scheduled {
+		if m.StartAt == nil || m.StartAt.Before(now) || !maintenanceApplies(m, resourceID) {
+			continue
+		}
+		if candidate == nil || m.StartAt.Before(*candidate.StartAt) {
+			candidate = m
+		}
+	}
+	return candidate
+}
+
+func maintenanceApplies(m *domain.Maintenance, resourceID string) bool {
+	for _, r := range m.Resources {
+		if r.ID == resourceID {
+			return true
+		}
+	}
+	return false
+}
+
+func bannerFor(m *domain.Maintenance, status string) *dto.MaintenanceBanner {
+	return &dto.MaintenanceBanner{
+		Status:   status,
+		Title:    m.Title,
+		StartAt:  m.StartAt,
+		EndAt:    m.EndAt,
+		Timezone: m.Timezone,
+	}
 }
