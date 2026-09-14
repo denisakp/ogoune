@@ -86,7 +86,7 @@ test-be-pg:
 		echo "Docker not available — skipping Postgres tests"; \
 		exit 0; \
 	fi
-	go test -race -timeout 300s ./internal/repository/store/... ./internal/repository/internaltest/...
+	go test -race -timeout 300s ./internal/repository/store/... ./internal/repository/internaltest/... ./internal/database/upgrade/...
 
 # Paired benches (spec 049): GORM vs sqlc p95 ratio gates on Resource.List
 # and Incident.GetIncidentStats. Runs WITHOUT -race (race detector inflates
