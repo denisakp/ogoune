@@ -212,9 +212,12 @@ sqlc-only workflow. Full walkthrough at `internal/repository/sqlc/README.md`; ca
 Quality gate must pass before merge (in addition to `make lint` + `make test`).
 
 ```bash
-make test-be && make test-fe        # coverage/unit.out + web/coverage/lcov.info
-sonar-scanner                       # uses SONAR_TOKEN env var; config in sonar-project.properties
+SONAR_TOKEN=… make sonar            # = make coverage (both reports) + sonar-scanner with
+                                    #   -Dsonar.projectVersion=<last tag>, so "new code" = since last release
 ```
+
+`make test-be` alone writes no coverage file — `make coverage` does. Generated sqlc code and
+test doubles are excluded (`sonar-project.properties`); do not "fix" their coverage.
 
 Dashboard: http://localhost:9009 (project `ogoune`). Block on CRITICAL/BLOCKER in either stack — Go (`cmd/`, `internal/`, `pkg/`) or Vue (`web/src/`). Two coverage reports are required because each stack scores independently. Cap at 3 fix-rescan cycles; report remaining if still failing.
 

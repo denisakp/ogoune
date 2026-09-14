@@ -20,7 +20,7 @@ GOFLAGS           := -trimpath
 GO_TEST_FLAGS     := -race -count=1
 GO_LINT_TIMEOUT   := 5m
 
-.PHONY: check-no-binaries test-agent-kernel build build-be build-fe test test-be test-be-pg test-be-bench bench-api test-fe type-check-fe lint clean docker run-ci ci-local license-audit sqlc-bin sqlc-generate sqlc-check migrations-drift-check fuzz-dynquery
+.PHONY: check-no-binaries test-agent-kernel build build-be build-fe test test-be test-be-pg coverage sonar test-be-bench bench-api test-fe type-check-fe lint clean docker run-ci ci-local license-audit sqlc-bin sqlc-generate sqlc-check migrations-drift-check fuzz-dynquery
 
 build: build-fe build-be
 
@@ -109,6 +109,20 @@ bench-api:
 
 test-fe:
 	cd web && pnpm test
+
+# SAST / quality gate (SonarQube, local instance -- see CLAUDE.md). Produces
+# both coverage reports, then scans with the version pinned to the latest
+# release tag so "new code" means "since the last release". Tags live on
+# main's merge commits, unreachable from dev, so this is the newest tag by
+# version, not git-describe.
+# Needs SONAR_TOKEN in the environment.
+coverage:
+	mkdir -p coverage
+	go test -race -coverprofile=coverage/unit.out ./...
+	cd web && pnpm vitest run --coverage --coverage.reporter=lcov
+
+sonar: coverage
+	sonar-scanner -Dsonar.token=$(SONAR_TOKEN) -Dsonar.projectVersion=$$(git tag --sort=-v:refname | head -1)
 
 type-check-fe:
 	cd web && pnpm type-check
