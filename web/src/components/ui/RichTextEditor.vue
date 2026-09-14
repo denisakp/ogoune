@@ -7,7 +7,7 @@ import TaskItem from '@tiptap/extension-task-item'
 import { Extension } from '@tiptap/core'
 import { Plugin, PluginKey } from '@tiptap/pm/state'
 import { ref, watch, onBeforeUnmount, computed } from 'vue'
-import DOMPurify from 'dompurify'
+import { sanitizeRichText } from '@/libs/sanitize'
 
 const props = defineProps<{
   modelValue: string
@@ -146,35 +146,7 @@ function togglePreview() {
 }
 
 const sanitizedHtml = computed(() =>
-  DOMPurify.sanitize(props.modelValue || '', {
-    ALLOWED_TAGS: [
-      'p',
-      'br',
-      'strong',
-      'em',
-      'code',
-      'a',
-      'ul',
-      'ol',
-      'li',
-      'h1',
-      'h2',
-      'input',
-      'label',
-      'div',
-    ],
-    ALLOWED_ATTR: [
-      'href',
-      'rel',
-      'target',
-      'type',
-      'checked',
-      'disabled',
-      'data-checked',
-      'data-type',
-      'class',
-    ],
-  }),
+  sanitizeRichText(props.modelValue || ''),
 )
 
 interface TbItem {
