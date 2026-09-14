@@ -251,90 +251,80 @@ func (r *MaintenanceRepositorySQLC) Update(ctx context.Context, m *domain.Mainte
 	switch {
 	case r.pgQ != nil:
 		return pgsqlc.WithTx(ctx, r.pgPool, func(q *pgsqlc.Queries) error {
-			if err := q.UpdateMaintenance(ctx, pgsqlc.UpdateMaintenanceParams{
-				ID:             m.ID,
-				Title:          m.Title,
-				Description:    pgTextFromPtr(m.Description),
-				Strategy:       string(m.Strategy),
-				Status:         m.Status,
-				StartAt:        pgTimestampFromPtr(m.StartAt),
-				EndAt:          pgTimestampFromPtr(m.EndAt),
-				CronExpr:       pgTextFromPtr(m.CronExpr),
-				WindowMinutes:  pgIntPtrFromInt(m.WindowMinutes),
-				Timezone:       pgTextFromPtr(m.Timezone),
-				EffectiveFrom:  pgTimestampFromPtr(m.EffectiveFrom),
-				EffectiveUntil: pgTimestampFromPtr(m.EffectiveUntil),
-				StartedAt:      pgTimestampFromPtr(m.StartedAt),
-				EndedAt:        pgTimestampFromPtr(m.EndedAt),
-				UpdatedAt:      pgtype.Timestamptz{Time: m.UpdatedAt, Valid: true},
-			}); err != nil {
+			if err := q.UpdateMaintenance(ctx, maintenanceToPGUpdate(m)); err != nil {
 				return err
 			}
 			currentIDs, err := q.ListMaintenanceResourceIDsByMaintenanceID(ctx, m.ID)
 			if err != nil {
 				return err
 			}
-			toAdd, toRemove := diffJunctionSets(currentIDs, targetIDs)
-			for _, rid := range toRemove {
-				if err := q.UnlinkMaintenanceResource(ctx, pgsqlc.UnlinkMaintenanceResourceParams{
-					MaintenanceID: m.ID, ResourceID: rid,
-				}); err != nil {
-					return err
-				}
-			}
-			for _, rid := range toAdd {
-				if err := q.LinkMaintenanceResource(ctx, pgsqlc.LinkMaintenanceResourceParams{
-					MaintenanceID: m.ID, ResourceID: rid,
-				}); err != nil {
-					return err
-				}
-			}
-			return nil
+			return syncJunction(currentIDs, targetIDs,
+				func(id string) error {
+					return q.UnlinkMaintenanceResource(ctx, pgsqlc.UnlinkMaintenanceResourceParams{MaintenanceID: m.ID, ResourceID: id})
+				},
+				func(id string) error {
+					return q.LinkMaintenanceResource(ctx, pgsqlc.LinkMaintenanceResourceParams{MaintenanceID: m.ID, ResourceID: id})
+				})
 		})
 	case r.sqliteQ != nil:
 		return sqlitesqlc.WithTx(ctx, r.sqliteDB, func(q *sqlitesqlc.Queries) error {
-			if err := q.UpdateMaintenance(ctx, sqlitesqlc.UpdateMaintenanceParams{
-				ID:             m.ID,
-				Title:          m.Title,
-				Description:    nullStringFromPtr(m.Description),
-				Strategy:       string(m.Strategy),
-				Status:         m.Status,
-				StartAt:        nullTimeFromPtr(m.StartAt),
-				EndAt:          nullTimeFromPtr(m.EndAt),
-				CronExpr:       nullStringFromPtr(m.CronExpr),
-				WindowMinutes:  sqliteNullInt64Ptr(m.WindowMinutes),
-				Timezone:       nullStringFromPtr(m.Timezone),
-				EffectiveFrom:  nullTimeFromPtr(m.EffectiveFrom),
-				EffectiveUntil: nullTimeFromPtr(m.EffectiveUntil),
-				StartedAt:      nullTimeFromPtr(m.StartedAt),
-				EndedAt:        nullTimeFromPtr(m.EndedAt),
-				UpdatedAt:      m.UpdatedAt,
-			}); err != nil {
+			if err := q.UpdateMaintenance(ctx, maintenanceToSQLiteUpdate(m)); err != nil {
 				return err
 			}
 			currentIDs, err := q.ListMaintenanceResourceIDsByMaintenanceID(ctx, m.ID)
 			if err != nil {
 				return err
 			}
-			toAdd, toRemove := diffJunctionSets(currentIDs, targetIDs)
-			for _, rid := range toRemove {
-				if err := q.UnlinkMaintenanceResource(ctx, sqlitesqlc.UnlinkMaintenanceResourceParams{
-					MaintenanceID: m.ID, ResourceID: rid,
-				}); err != nil {
-					return err
-				}
-			}
-			for _, rid := range toAdd {
-				if err := q.LinkMaintenanceResource(ctx, sqlitesqlc.LinkMaintenanceResourceParams{
-					MaintenanceID: m.ID, ResourceID: rid,
-				}); err != nil {
-					return err
-				}
-			}
-			return nil
+			return syncJunction(currentIDs, targetIDs,
+				func(id string) error {
+					return q.UnlinkMaintenanceResource(ctx, sqlitesqlc.UnlinkMaintenanceResourceParams{MaintenanceID: m.ID, ResourceID: id})
+				},
+				func(id string) error {
+					return q.LinkMaintenanceResource(ctx, sqlitesqlc.LinkMaintenanceResourceParams{MaintenanceID: m.ID, ResourceID: id})
+				})
 		})
 	default:
 		return r.unconfigured()
+	}
+}
+
+func maintenanceToPGUpdate(m *domain.Maintenance) pgsqlc.UpdateMaintenanceParams {
+	return pgsqlc.UpdateMaintenanceParams{
+		ID:             m.ID,
+		Title:          m.Title,
+		Description:    pgTextFromPtr(m.Description),
+		Strategy:       string(m.Strategy),
+		Status:         m.Status,
+		StartAt:        pgTimestampFromPtr(m.StartAt),
+		EndAt:          pgTimestampFromPtr(m.EndAt),
+		CronExpr:       pgTextFromPtr(m.CronExpr),
+		WindowMinutes:  pgIntPtrFromInt(m.WindowMinutes),
+		Timezone:       pgTextFromPtr(m.Timezone),
+		EffectiveFrom:  pgTimestampFromPtr(m.EffectiveFrom),
+		EffectiveUntil: pgTimestampFromPtr(m.EffectiveUntil),
+		StartedAt:      pgTimestampFromPtr(m.StartedAt),
+		EndedAt:        pgTimestampFromPtr(m.EndedAt),
+		UpdatedAt:      pgtype.Timestamptz{Time: m.UpdatedAt, Valid: true},
+	}
+}
+
+func maintenanceToSQLiteUpdate(m *domain.Maintenance) sqlitesqlc.UpdateMaintenanceParams {
+	return sqlitesqlc.UpdateMaintenanceParams{
+		ID:             m.ID,
+		Title:          m.Title,
+		Description:    nullStringFromPtr(m.Description),
+		Strategy:       string(m.Strategy),
+		Status:         m.Status,
+		StartAt:        nullTimeFromPtr(m.StartAt),
+		EndAt:          nullTimeFromPtr(m.EndAt),
+		CronExpr:       nullStringFromPtr(m.CronExpr),
+		WindowMinutes:  sqliteNullInt64Ptr(m.WindowMinutes),
+		Timezone:       nullStringFromPtr(m.Timezone),
+		EffectiveFrom:  nullTimeFromPtr(m.EffectiveFrom),
+		EffectiveUntil: nullTimeFromPtr(m.EffectiveUntil),
+		StartedAt:      nullTimeFromPtr(m.StartedAt),
+		EndedAt:        nullTimeFromPtr(m.EndedAt),
+		UpdatedAt:      m.UpdatedAt,
 	}
 }
 
