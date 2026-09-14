@@ -32,3 +32,26 @@ func diffJunctionSets(current, target []string) (toAdd, toRemove []string) {
 	}
 	return toAdd, toRemove
 }
+
+// linkEach calls link for every id and stops at the first error. The loop
+// that every Create used to spell out per dialect.
+func linkEach(ids []string, link func(id string) error) error {
+	for _, id := range ids {
+		if err := link(id); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// syncJunction brings a junction table from current to target: unlink what
+// is gone, then link what is new -- in that order, inside the caller's
+// transaction. It is the whole of what an Update does to a junction, and it
+// was written out twice per repository (once per dialect) before this.
+func syncJunction(current, target []string, unlink, link func(id string) error) error {
+	toAdd, toRemove := diffJunctionSets(current, target)
+	if err := linkEach(toRemove, unlink); err != nil {
+		return err
+	}
+	return linkEach(toAdd, link)
+}
