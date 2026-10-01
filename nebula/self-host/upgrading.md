@@ -23,7 +23,7 @@ The reverse order also works — a newer agent streams to an older server — bu
 
 ## What is guaranteed
 
-Every build is tested by restoring a database **written by an earlier released version** (both SQLite and PostgreSQL), running the new migrations against it, and checking that every table survives with the same rows, byte-for-byte on the columns that existed before. The oldest release covered is v1.0.0-beta.4. A migration that rewrote or dropped existing data would not pass CI.
+Every build is tested by restoring a database **written by an earlier released version** (both SQLite and PostgreSQL), running the new migrations against it, and checking that every table survives with the same rows, byte-for-byte on the columns that existed before. The releases covered are v1.0.0-beta.4 and v1.0.0-beta.7. A migration that rewrote or dropped existing data would not pass CI.
 
 Migrations are forward-only and additive. A migration file is never edited after release; a correction is a new migration.
 
@@ -34,6 +34,10 @@ Stop the new version, restore the backup, start the previous version. The previo
 ## Per-version notes
 
 Only what changes for an operator. Full detail is in the [release notes](https://github.com/denisakp/ogoune/releases).
+
+### v1.0.0-beta.8
+- Nothing to do: no migration, no configuration change, agent unchanged since beta.7.
+- Every build from here on is tested by upgrading databases written by beta.4 and beta.7.
 
 ### v1.0.0-beta.7
 - Two migrations, both additive: an incident records the machine and the agent capabilities it saw when it opened. Nothing to configure.

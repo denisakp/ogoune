@@ -28,8 +28,12 @@ pg_dump -d ogoune_rel --inserts --no-owner --no-privileges --no-comments --no-ta
   > testdata/vX.Y.Z.postgres.sql
 ```
 
-Seed at least: one host, one monitor linked to it, one incident, one tag. The test
-refuses a fixture with no `resources` rows, and one whose schema is already current.
+Seed at least: one host, one monitor linked to it, one incident, one tag — and, from
+beta.7 on, have an agent connected before the incident opens so the frozen capability
+declaration is exercised (any build of the agent works; macOS declares `platform`).
+The test refuses a fixture with no `resources` rows, and one dumped from a build
+newer than the tree. A fixture already at the current schema is fine: it proves this
+build starts on it untouched, and becomes a real upgrade at the next migration.
 Then add the tag to `fixtures` in `upgrade_test.go`.
 
 The `users` row carries the bcrypt hash of a throwaway fixture password. Nothing here
