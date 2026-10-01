@@ -5,6 +5,14 @@ follows [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Changed
+
+- **The search palette no longer ships a fuzzy-search library.** Real queries have gone to the
+  backend search endpoint since beta; the browser kept `fuse.js` only for one-character queries and
+  as a fallback when the endpoint is unreachable. Both now use a plain case-insensitive match,
+  ranked name-prefix, then name, then target — fuzzy matching over a few dozen local items never
+  justified the dependency. Typo tolerance is lost in that fallback only.
+
 ## [1.0.0-beta.8] - 2026-10-01
 
 ### Added
