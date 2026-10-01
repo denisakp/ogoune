@@ -34,7 +34,11 @@ import (
 // fixtures lists the released versions an upgrade is proven from. Add a
 // version by booting that tag against a fresh database, seeding it through
 // its own API, and dumping it as text (sqlite3 .dump / pg_dump --inserts).
-var fixtures = []string{"v1.0.0-beta.4"}
+// The newest entry is often already at the current schema (no migration
+// since that release). It still earns its place: this build must start on it
+// and leave every row alone, and it becomes a real upgrade the moment the
+// next migration lands -- without anyone remembering to add it then.
+var fixtures = []string{"v1.0.0-beta.4", "v1.0.0-beta.7"}
 
 // tableSnapshot is every row of a table, rendered as strings over a fixed
 // column list, sorted. Comparing two of them over the PRE-upgrade column list
@@ -198,8 +202,10 @@ func assertUpgrade(t *testing.T, driver database.Driver, dialect string, before 
 		assert.Equalf(t, was.rows, reread, "table %s: a pre-existing row was rewritten", table)
 	}
 
+	// A fixture behind the tree must be brought forward; one already current
+	// must be left exactly as it was. Either way it ends at the latest file.
 	count, max := schemaVersions(t, db)
-	assert.Greater(t, count, beforeCount, "the migrator applied nothing")
+	assert.GreaterOrEqual(t, count, beforeCount, "schema_migrations lost rows")
 	assert.Equal(t, latestMigrationVersion(t, dialect), max, "schema_migrations did not reach the latest migration on disk")
 }
 
@@ -229,7 +235,7 @@ func TestUpgrade_SQLite(t *testing.T) {
 			beforeCount, beforeMax := schemaVersions(t, pre)
 			require.NoError(t, pre.Close())
 			require.NotEmpty(t, before["resources"].rows, "fixture must carry data, or the gate proves nothing")
-			require.Less(t, beforeMax, latestMigrationVersion(t, "sqlite"), "fixture is already current; nothing to upgrade")
+			require.LessOrEqual(t, beforeMax, latestMigrationVersion(t, "sqlite"), "fixture is AHEAD of this tree -- it was dumped from a newer build")
 
 			rt, err := database.Open(context.Background(), database.Config{
 				Driver: database.DriverSQLite, SQLitePath: path, LogLevel: "silent",
@@ -280,7 +286,7 @@ func TestUpgrade_Postgres(t *testing.T) {
 			beforeCount, beforeMax := schemaVersions(t, pre)
 			require.NoError(t, pre.Close())
 			require.NotEmpty(t, before["resources"].rows, "fixture must carry data, or the gate proves nothing")
-			require.Less(t, beforeMax, latestMigrationVersion(t, "postgres"), "fixture is already current; nothing to upgrade")
+			require.LessOrEqual(t, beforeMax, latestMigrationVersion(t, "postgres"), "fixture is AHEAD of this tree -- it was dumped from a newer build")
 
 			rt, err := database.Open(context.Background(), database.Config{
 				Driver: database.DriverPostgres, DatabaseURL: dsn, LogLevel: "silent",
