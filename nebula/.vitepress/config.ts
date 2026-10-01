@@ -85,6 +85,8 @@ export default withMermaid(defineConfig({
             { text: 'Configuration', link: '/self-host/configuration' },
             { text: 'Host agent', link: '/self-host/agent' },
             { text: 'Observability (Prometheus)', link: '/self-host/observability' },
+            { text: 'Upgrading', link: '/self-host/upgrading' },
+            { text: 'Compatibility', link: '/self-host/compatibility' },
           ],
         },
       ],

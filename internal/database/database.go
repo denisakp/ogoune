@@ -302,10 +302,14 @@ func (cfg Config) resolve() (resolvedConfig, error) {
 	}
 }
 
+// configFromEnv reads the database settings from the environment. There is
+// deliberately no default DATABASE_URL: a fallback DSN is a credential in the
+// source, and a Postgres install that forgot to set one should fail on
+// "no DSN", not connect to a database it never chose.
 func configFromEnv() Config {
 	return Config{
 		Driver:      Driver(getEnv("DB_DRIVER", string(DriverSQLite))),
-		DatabaseURL: getEnv("DATABASE_URL", "postgres://ogoune:EE94PPHGz3TZ@postgres:5432/pulse?sslmode=disable"),
+		DatabaseURL: getEnv("DATABASE_URL", ""),
 		SQLitePath:  getEnv("SQLITE_PATH", "ogoune.db"),
 		LogLevel:    getEnv("DB_LOG_LEVEL", "error"),
 	}

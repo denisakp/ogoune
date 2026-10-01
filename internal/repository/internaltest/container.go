@@ -181,6 +181,39 @@ func (c *pgContainer) Acquire(t testing.TB) string {
 	return withDBName(c.adminDSN, name)
 }
 
+// AcquireEmpty returns the DSN of a fresh, EMPTY per-test database -- no
+// template, no migrations. For tests that must restore an older schema first
+// and then watch the migrator bring it forward (the upgrade-path gate).
+func (c *pgContainer) AcquireEmpty(t testing.TB) string {
+	t.Helper()
+	name := "ogoune_empty_" + randomSuffix(t)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	admin, err := sql.Open("pgx", c.adminDSN)
+	if err != nil {
+		t.Fatalf("internaltest: connect admin: %v", err)
+	}
+	defer admin.Close()
+	if _, err := admin.ExecContext(ctx, fmt.Sprintf(`CREATE DATABASE %s`, name)); err != nil {
+		t.Fatalf("internaltest: create empty db: %v", err)
+	}
+	t.Cleanup(func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+		defer cancel()
+		admin, err := sql.Open("pgx", c.adminDSN)
+		if err != nil {
+			t.Errorf("internaltest: cleanup connect: %v", err)
+			return
+		}
+		defer admin.Close()
+		if _, err := admin.ExecContext(ctx, fmt.Sprintf(`DROP DATABASE %s WITH (FORCE)`, name)); err != nil {
+			t.Errorf("internaltest: drop %s: %v", name, err)
+		}
+	})
+	return withDBName(c.adminDSN, name)
+}
+
 // withDBName rewrites the path component of a Postgres DSN to a new database name.
 func withDBName(dsn, newName string) string {
 	u, err := url.Parse(dsn)

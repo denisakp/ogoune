@@ -11,3 +11,5 @@ Ogoune runs in two modes depending on your scale.
 - [Community (SQLite)](/self-host/community) — one binary, zero external deps
 - [Production (Postgres + Redis)](/self-host/production) — horizontal scale
 - [Configuration](/self-host/configuration) — environment variables
+- [Upgrading](/self-host/upgrading) — backup, order, what is guaranteed, per-version notes
+- [Compatibility](/self-host/compatibility) — what semver covers, and what it does not

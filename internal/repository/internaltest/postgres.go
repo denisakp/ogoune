@@ -44,3 +44,16 @@ func SetupPostgres(t testing.TB) *DialectFixture {
 
 	return &DialectFixture{Dialect: "postgres", Runtime: rt, DSN: dsn}
 }
+
+// EmptyPostgresDSN returns the DSN of a fresh database with NO schema, or
+// skips when Postgres is unavailable. The caller restores whatever it needs
+// and opens a database.Runtime on it afterwards.
+func EmptyPostgresDSN(t testing.TB) string {
+	t.Helper()
+	c, skipReason := getPgContainer(t)
+	if c == nil {
+		t.Skipf("postgres backend unavailable: %s (set POSTGRES_TEST_DSN or run Docker)", skipReason)
+		return ""
+	}
+	return c.AcquireEmpty(t)
+}

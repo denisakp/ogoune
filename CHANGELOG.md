@@ -5,6 +5,31 @@ follows [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.0.0-beta.8] - 2026-10-01
+
+### Added
+
+- **The upgrade guide and the compatibility contract.** `/self-host/upgrading` (backup, order,
+  what is guaranteed, rollback, per-version notes) and `/self-host/compatibility` (what semver
+  covers — the v1 API, the agent wire protocol, configuration, the database as an upgrade path,
+  platforms — and what it does not).
+- **Upgrades are tested against real databases.** Every build restores databases written by
+  v1.0.0-beta.4 and v1.0.0-beta.7, on SQLite and PostgreSQL, runs its migrations, and fails unless
+  every pre-existing row survives byte-for-byte.
+
+### Security
+
+- **Rich text accepts `<input>` only as a read-only checkbox.** Incident updates and the public
+  status timeline allowed any `<input>` element, needed for task lists. Any other kind is now
+  dropped. No known abuse — field names and values were never allowed — but a public page should
+  not render form fields. The three copies of the sanitizer are now one.
+
+### Changed
+
+- The most complex functions in the repository, monitoring, incident and authentication code are
+  split up with no behaviour change. `make sonar` runs the SonarQube gate locally, versioned by
+  release.
+
 ## [1.0.0-beta.7] - 2026-09-13
 
 ### Added

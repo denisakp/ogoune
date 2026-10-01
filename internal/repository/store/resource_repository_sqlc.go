@@ -62,6 +62,43 @@ func (r *ResourceRepositorySQLC) unconfigured() error {
 // ---------- Public surface (port.ResourceRepository) ----------
 
 func (r *ResourceRepositorySQLC) Create(ctx context.Context, res *domain.Resource) (*domain.Resource, error) {
+	applyResourceCreateDefaults(res)
+	tagIDs := tagIDsFromResource(res)
+	channelIDs := channelIDsFromResource(res)
+	var err error
+	switch {
+	case r.pgQ != nil:
+		err = pgsqlc.WithTx(ctx, r.pgPool, func(q *pgsqlc.Queries) error {
+			if err := q.CreateResource(ctx, resourceToPGCreate(res)); err != nil {
+				return err
+			}
+			if err := linkEach(tagIDs, pgLinkTag(ctx, q, res.ID)); err != nil {
+				return err
+			}
+			return linkEach(channelIDs, pgLinkChannel(ctx, q, res.ID))
+		})
+	case r.sqliteQ != nil:
+		err = sqlitesqlc.WithTx(ctx, r.sqliteDB, func(q *sqlitesqlc.Queries) error {
+			if err := q.CreateResource(ctx, resourceToSQLiteCreate(res)); err != nil {
+				return err
+			}
+			if err := linkEach(tagIDs, sqliteLinkTag(ctx, q, res.ID)); err != nil {
+				return err
+			}
+			return linkEach(channelIDs, sqliteLinkChannel(ctx, q, res.ID))
+		})
+	default:
+		return nil, r.unconfigured()
+	}
+	if err != nil {
+		return nil, fmt.Errorf("sqlc: create resource: %w", err)
+	}
+	return res, nil
+}
+
+// applyResourceCreateDefaults fills what a caller may leave zero: the ID,
+// both timestamps, and the three monitoring defaults.
+func applyResourceCreateDefaults(res *domain.Resource) {
 	if res.ID == "" {
 		res.EnsureID()
 	}
@@ -81,61 +118,55 @@ func (r *ResourceRepositorySQLC) Create(ctx context.Context, res *domain.Resourc
 	if res.Timeout == 0 {
 		res.Timeout = 10
 	}
-	tagIDs := tagIDsFromResource(res)
-	channelIDs := channelIDsFromResource(res)
-	switch {
-	case r.pgQ != nil:
-		err := pgsqlc.WithTx(ctx, r.pgPool, func(q *pgsqlc.Queries) error {
-			if err := q.CreateResource(ctx, resourceToPGCreate(res)); err != nil {
-				return err
-			}
-			for _, tid := range tagIDs {
-				if err := q.LinkResourceTag(ctx, pgsqlc.LinkResourceTagParams{
-					ResourceID: res.ID, TagID: tid,
-				}); err != nil {
-					return err
-				}
-			}
-			for _, cid := range channelIDs {
-				if err := q.LinkResourceChannel(ctx, pgsqlc.LinkResourceChannelParams{
-					ResourceID: res.ID, NotificationChannelID: cid,
-				}); err != nil {
-					return err
-				}
-			}
-			return nil
-		})
-		if err != nil {
-			return nil, fmt.Errorf("sqlc: create resource: %w", err)
-		}
-		return res, nil
-	case r.sqliteQ != nil:
-		err := sqlitesqlc.WithTx(ctx, r.sqliteDB, func(q *sqlitesqlc.Queries) error {
-			if err := q.CreateResource(ctx, resourceToSQLiteCreate(res)); err != nil {
-				return err
-			}
-			for _, tid := range tagIDs {
-				if err := q.LinkResourceTag(ctx, sqlitesqlc.LinkResourceTagParams{
-					ResourceID: res.ID, TagID: tid,
-				}); err != nil {
-					return err
-				}
-			}
-			for _, cid := range channelIDs {
-				if err := q.LinkResourceChannel(ctx, sqlitesqlc.LinkResourceChannelParams{
-					ResourceID: res.ID, NotificationChannelID: cid,
-				}); err != nil {
-					return err
-				}
-			}
-			return nil
-		})
-		if err != nil {
-			return nil, fmt.Errorf("sqlc: create resource: %w", err)
-		}
-		return res, nil
-	default:
-		return nil, r.unconfigured()
+}
+
+// Junction operations bound to one resource, one per dialect, so Create and
+// Update read as "link these" / "sync to these" instead of eight loops.
+func pgLinkTag(ctx context.Context, q *pgsqlc.Queries, resourceID string) func(string) error {
+	return func(id string) error {
+		return q.LinkResourceTag(ctx, pgsqlc.LinkResourceTagParams{ResourceID: resourceID, TagID: id})
+	}
+}
+
+func pgUnlinkTag(ctx context.Context, q *pgsqlc.Queries, resourceID string) func(string) error {
+	return func(id string) error {
+		return q.UnlinkResourceTag(ctx, pgsqlc.UnlinkResourceTagParams{ResourceID: resourceID, TagID: id})
+	}
+}
+
+func pgLinkChannel(ctx context.Context, q *pgsqlc.Queries, resourceID string) func(string) error {
+	return func(id string) error {
+		return q.LinkResourceChannel(ctx, pgsqlc.LinkResourceChannelParams{ResourceID: resourceID, NotificationChannelID: id})
+	}
+}
+
+func pgUnlinkChannel(ctx context.Context, q *pgsqlc.Queries, resourceID string) func(string) error {
+	return func(id string) error {
+		return q.UnlinkResourceChannel(ctx, pgsqlc.UnlinkResourceChannelParams{ResourceID: resourceID, NotificationChannelID: id})
+	}
+}
+
+func sqliteLinkTag(ctx context.Context, q *sqlitesqlc.Queries, resourceID string) func(string) error {
+	return func(id string) error {
+		return q.LinkResourceTag(ctx, sqlitesqlc.LinkResourceTagParams{ResourceID: resourceID, TagID: id})
+	}
+}
+
+func sqliteUnlinkTag(ctx context.Context, q *sqlitesqlc.Queries, resourceID string) func(string) error {
+	return func(id string) error {
+		return q.UnlinkResourceTag(ctx, sqlitesqlc.UnlinkResourceTagParams{ResourceID: resourceID, TagID: id})
+	}
+}
+
+func sqliteLinkChannel(ctx context.Context, q *sqlitesqlc.Queries, resourceID string) func(string) error {
+	return func(id string) error {
+		return q.LinkResourceChannel(ctx, sqlitesqlc.LinkResourceChannelParams{ResourceID: resourceID, NotificationChannelID: id})
+	}
+}
+
+func sqliteUnlinkChannel(ctx context.Context, q *sqlitesqlc.Queries, resourceID string) func(string) error {
+	return func(id string) error {
+		return q.UnlinkResourceChannel(ctx, sqlitesqlc.UnlinkResourceChannelParams{ResourceID: resourceID, NotificationChannelID: id})
 	}
 }
 
@@ -248,47 +279,18 @@ func (r *ResourceRepositorySQLC) Update(ctx context.Context, res *domain.Resourc
 			if err := r.updateMainPG(ctx, q, res); err != nil {
 				return err
 			}
-			// Tags diff
 			currentTagIDs, err := q.ListTagIDsByResourceID(ctx, res.ID)
 			if err != nil {
 				return err
 			}
-			tagAdd, tagRemove := diffJunctionSets(currentTagIDs, targetTagIDs)
-			for _, tid := range tagRemove {
-				if err := q.UnlinkResourceTag(ctx, pgsqlc.UnlinkResourceTagParams{
-					ResourceID: res.ID, TagID: tid,
-				}); err != nil {
-					return err
-				}
+			if err := syncJunction(currentTagIDs, targetTagIDs, pgUnlinkTag(ctx, q, res.ID), pgLinkTag(ctx, q, res.ID)); err != nil {
+				return err
 			}
-			for _, tid := range tagAdd {
-				if err := q.LinkResourceTag(ctx, pgsqlc.LinkResourceTagParams{
-					ResourceID: res.ID, TagID: tid,
-				}); err != nil {
-					return err
-				}
-			}
-			// Channels diff
 			currentChannelIDs, err := q.ListChannelIDsByResourceID(ctx, res.ID)
 			if err != nil {
 				return err
 			}
-			chAdd, chRemove := diffJunctionSets(currentChannelIDs, targetChannelIDs)
-			for _, cid := range chRemove {
-				if err := q.UnlinkResourceChannel(ctx, pgsqlc.UnlinkResourceChannelParams{
-					ResourceID: res.ID, NotificationChannelID: cid,
-				}); err != nil {
-					return err
-				}
-			}
-			for _, cid := range chAdd {
-				if err := q.LinkResourceChannel(ctx, pgsqlc.LinkResourceChannelParams{
-					ResourceID: res.ID, NotificationChannelID: cid,
-				}); err != nil {
-					return err
-				}
-			}
-			return nil
+			return syncJunction(currentChannelIDs, targetChannelIDs, pgUnlinkChannel(ctx, q, res.ID), pgLinkChannel(ctx, q, res.ID))
 		})
 	case r.sqliteQ != nil:
 		return sqlitesqlc.WithTx(ctx, r.sqliteDB, func(q *sqlitesqlc.Queries) error {
@@ -299,41 +301,14 @@ func (r *ResourceRepositorySQLC) Update(ctx context.Context, res *domain.Resourc
 			if err != nil {
 				return err
 			}
-			tagAdd, tagRemove := diffJunctionSets(currentTagIDs, targetTagIDs)
-			for _, tid := range tagRemove {
-				if err := q.UnlinkResourceTag(ctx, sqlitesqlc.UnlinkResourceTagParams{
-					ResourceID: res.ID, TagID: tid,
-				}); err != nil {
-					return err
-				}
-			}
-			for _, tid := range tagAdd {
-				if err := q.LinkResourceTag(ctx, sqlitesqlc.LinkResourceTagParams{
-					ResourceID: res.ID, TagID: tid,
-				}); err != nil {
-					return err
-				}
+			if err := syncJunction(currentTagIDs, targetTagIDs, sqliteUnlinkTag(ctx, q, res.ID), sqliteLinkTag(ctx, q, res.ID)); err != nil {
+				return err
 			}
 			currentChannelIDs, err := q.ListChannelIDsByResourceID(ctx, res.ID)
 			if err != nil {
 				return err
 			}
-			chAdd, chRemove := diffJunctionSets(currentChannelIDs, targetChannelIDs)
-			for _, cid := range chRemove {
-				if err := q.UnlinkResourceChannel(ctx, sqlitesqlc.UnlinkResourceChannelParams{
-					ResourceID: res.ID, NotificationChannelID: cid,
-				}); err != nil {
-					return err
-				}
-			}
-			for _, cid := range chAdd {
-				if err := q.LinkResourceChannel(ctx, sqlitesqlc.LinkResourceChannelParams{
-					ResourceID: res.ID, NotificationChannelID: cid,
-				}); err != nil {
-					return err
-				}
-			}
-			return nil
+			return syncJunction(currentChannelIDs, targetChannelIDs, sqliteUnlinkChannel(ctx, q, res.ID), sqliteLinkChannel(ctx, q, res.ID))
 		})
 	default:
 		return r.unconfigured()
@@ -1128,119 +1103,156 @@ func (r *ResourceRepositorySQLC) attachIncidentCounts(ctx context.Context, resou
 // for the same window. Resources with no data leave both pointers nil so the
 // JSON fields omit and the frontend renders `-`.
 func (r *ResourceRepositorySQLC) attachUptimeStats(ctx context.Context, resources []*domain.Resource) error {
-	if len(resources) == 0 {
+	ids := resourceIDs(resources)
+	if len(ids) == 0 {
 		return nil
 	}
+	now := time.Now().UTC()
+	window := uptimeWindow{
+		since:     now.Add(-30 * 24 * time.Hour),
+		fromDay30: now.AddDate(0, 0, -29), // inclusive 30-day window
+		fromDay7:  now.AddDate(0, 0, -6),  // inclusive 7-day window
+	}
+
+	var stats uptimeStats
+	var err error
+	switch {
+	case r.pgQ != nil:
+		stats, err = r.uptimeStatsPG(ctx, ids, window)
+	case r.sqliteQ != nil:
+		stats, err = r.uptimeStatsSQLite(ctx, ids, window)
+	default:
+		return r.unconfigured()
+	}
+	if err != nil {
+		return err
+	}
+	stats.applyTo(resources)
+	return nil
+}
+
+func resourceIDs(resources []*domain.Resource) []string {
 	ids := make([]string, 0, len(resources))
 	for _, res := range resources {
 		if res != nil {
 			ids = append(ids, res.ID)
 		}
 	}
-	if len(ids) == 0 {
-		return nil
+	return ids
+}
+
+// uptimeWindow is the three lower bounds the stats are computed over.
+type uptimeWindow struct {
+	since     time.Time // response-time average: last 30 days of samples
+	fromDay30 time.Time // uptime: 30 inclusive days of daily aggregates
+	fromDay7  time.Time // uptime: 7 inclusive days
+}
+
+// uptimeStats is what the two dialects each compute, keyed by resource ID.
+// A resource absent from a map has no data and keeps its nil pointer.
+type uptimeStats struct {
+	uptime30 map[string]float64
+	uptime7  map[string]float64
+	resp     map[string]int
+}
+
+func newUptimeStats(n int) uptimeStats {
+	return uptimeStats{
+		uptime30: make(map[string]float64, n),
+		uptime7:  make(map[string]float64, n),
+		resp:     make(map[string]int, n),
 	}
-	now := time.Now().UTC()
-	since := now.Add(-30 * 24 * time.Hour)
-	fromDay30 := now.AddDate(0, 0, -29) // inclusive 30-day window
-	fromDay7 := now.AddDate(0, 0, -6)   // inclusive 7-day window
+}
 
-	uptime30 := make(map[string]float64, len(resources))
-	uptime7 := make(map[string]float64, len(resources))
-	resp := make(map[string]int, len(resources))
-
-	switch {
-	case r.pgQ != nil:
-		rows30, err := r.pgQ.SumUptimeAggByResourcesSince(ctx, pgsqlc.SumUptimeAggByResourcesSinceParams{
-			Day:     pgtype.Date{Time: fromDay30, Valid: true},
-			Column2: ids,
-		})
-		if err != nil {
-			return fmt.Errorf("sqlc: sum uptime agg 30d: %w", err)
-		}
-		for _, row := range rows30 {
-			if row.SamplesSum > 0 {
-				uptime30[row.ResourceID] = float64(row.UpSum) / float64(row.SamplesSum)
-			}
-		}
-		rows7, err := r.pgQ.SumUptimeAggByResourcesSince(ctx, pgsqlc.SumUptimeAggByResourcesSinceParams{
-			Day:     pgtype.Date{Time: fromDay7, Valid: true},
-			Column2: ids,
-		})
-		if err != nil {
-			return fmt.Errorf("sqlc: sum uptime agg 7d: %w", err)
-		}
-		for _, row := range rows7 {
-			if row.SamplesSum > 0 {
-				uptime7[row.ResourceID] = float64(row.UpSum) / float64(row.SamplesSum)
-			}
-		}
-		aRows, err := r.pgQ.AvgResponseTimeByResourcesSince(ctx, pgsqlc.AvgResponseTimeByResourcesSinceParams{
-			CreatedAt: pgtype.Timestamptz{Time: since, Valid: true},
-			Column2:   ids,
-		})
-		if err != nil {
-			return fmt.Errorf("sqlc: avg response time per resource: %w", err)
-		}
-		for _, row := range aRows {
-			resp[row.ResourceID] = int(row.AvgMs + 0.5)
-		}
-	case r.sqliteQ != nil:
-		rows30, err := r.sqliteQ.SumUptimeAggByResourcesSince(ctx, sqlitesqlc.SumUptimeAggByResourcesSinceParams{
-			FromDay:     fromDay30.Format("2006-01-02"),
-			ResourceIds: ids,
-		})
-		if err != nil {
-			return fmt.Errorf("sqlc: sum uptime agg 30d: %w", err)
-		}
-		for _, row := range rows30 {
-			if row.SamplesSum.Valid && row.SamplesSum.Float64 > 0 && row.UpSum.Valid {
-				uptime30[row.ResourceID] = row.UpSum.Float64 / row.SamplesSum.Float64
-			}
-		}
-		rows7, err := r.sqliteQ.SumUptimeAggByResourcesSince(ctx, sqlitesqlc.SumUptimeAggByResourcesSinceParams{
-			FromDay:     fromDay7.Format("2006-01-02"),
-			ResourceIds: ids,
-		})
-		if err != nil {
-			return fmt.Errorf("sqlc: sum uptime agg 7d: %w", err)
-		}
-		for _, row := range rows7 {
-			if row.SamplesSum.Valid && row.SamplesSum.Float64 > 0 && row.UpSum.Valid {
-				uptime7[row.ResourceID] = row.UpSum.Float64 / row.SamplesSum.Float64
-			}
-		}
-		aRows, err := r.sqliteQ.AvgResponseTimeByResourcesSince(ctx, sqlitesqlc.AvgResponseTimeByResourcesSinceParams{
-			Since:       since,
-			ResourceIds: ids,
-		})
-		if err != nil {
-			return fmt.Errorf("sqlc: avg response time per resource: %w", err)
-		}
-		for _, row := range aRows {
-			if row.AvgMs.Valid {
-				resp[row.ResourceID] = int(row.AvgMs.Float64 + 0.5)
-			}
-		}
-	default:
-		return r.unconfigured()
-	}
-
+func (st uptimeStats) applyTo(resources []*domain.Resource) {
 	for _, res := range resources {
 		if res == nil {
 			continue
 		}
-		if v, ok := uptime30[res.ID]; ok {
+		if v, ok := st.uptime30[res.ID]; ok {
 			res.Uptime30d = &v
 		}
-		if v, ok := uptime7[res.ID]; ok {
+		if v, ok := st.uptime7[res.ID]; ok {
 			res.Uptime7d = &v
 		}
-		if v, ok := resp[res.ID]; ok {
+		if v, ok := st.resp[res.ID]; ok {
 			res.ResponseTimeAvg = &v
 		}
 	}
-	return nil
+}
+
+func (r *ResourceRepositorySQLC) uptimeStatsPG(ctx context.Context, ids []string, w uptimeWindow) (uptimeStats, error) {
+	st := newUptimeStats(len(ids))
+	sum := func(from time.Time, into map[string]float64, label string) error {
+		rows, err := r.pgQ.SumUptimeAggByResourcesSince(ctx, pgsqlc.SumUptimeAggByResourcesSinceParams{
+			Day:     pgtype.Date{Time: from, Valid: true},
+			Column2: ids,
+		})
+		if err != nil {
+			return fmt.Errorf("sqlc: sum uptime agg %s: %w", label, err)
+		}
+		for _, row := range rows {
+			if row.SamplesSum > 0 {
+				into[row.ResourceID] = float64(row.UpSum) / float64(row.SamplesSum)
+			}
+		}
+		return nil
+	}
+	if err := sum(w.fromDay30, st.uptime30, "30d"); err != nil {
+		return st, err
+	}
+	if err := sum(w.fromDay7, st.uptime7, "7d"); err != nil {
+		return st, err
+	}
+	aRows, err := r.pgQ.AvgResponseTimeByResourcesSince(ctx, pgsqlc.AvgResponseTimeByResourcesSinceParams{
+		CreatedAt: pgtype.Timestamptz{Time: w.since, Valid: true},
+		Column2:   ids,
+	})
+	if err != nil {
+		return st, fmt.Errorf("sqlc: avg response time per resource: %w", err)
+	}
+	for _, row := range aRows {
+		st.resp[row.ResourceID] = int(row.AvgMs + 0.5)
+	}
+	return st, nil
+}
+
+func (r *ResourceRepositorySQLC) uptimeStatsSQLite(ctx context.Context, ids []string, w uptimeWindow) (uptimeStats, error) {
+	st := newUptimeStats(len(ids))
+	sum := func(from time.Time, into map[string]float64, label string) error {
+		rows, err := r.sqliteQ.SumUptimeAggByResourcesSince(ctx, sqlitesqlc.SumUptimeAggByResourcesSinceParams{
+			FromDay:     from.Format("2006-01-02"),
+			ResourceIds: ids,
+		})
+		if err != nil {
+			return fmt.Errorf("sqlc: sum uptime agg %s: %w", label, err)
+		}
+		for _, row := range rows {
+			if row.SamplesSum.Valid && row.SamplesSum.Float64 > 0 && row.UpSum.Valid {
+				into[row.ResourceID] = row.UpSum.Float64 / row.SamplesSum.Float64
+			}
+		}
+		return nil
+	}
+	if err := sum(w.fromDay30, st.uptime30, "30d"); err != nil {
+		return st, err
+	}
+	if err := sum(w.fromDay7, st.uptime7, "7d"); err != nil {
+		return st, err
+	}
+	aRows, err := r.sqliteQ.AvgResponseTimeByResourcesSince(ctx, sqlitesqlc.AvgResponseTimeByResourcesSinceParams{
+		Since:       w.since,
+		ResourceIds: ids,
+	})
+	if err != nil {
+		return st, fmt.Errorf("sqlc: avg response time per resource: %w", err)
+	}
+	for _, row := range aRows {
+		if row.AvgMs.Valid {
+			st.resp[row.ResourceID] = int(row.AvgMs.Float64 + 0.5)
+		}
+	}
+	return st, nil
 }
 
 // ---------- M2M (resource_tags) helpers ----------
@@ -1724,81 +1736,100 @@ func (r *ResourceRepositorySQLC) ListResourcesByFilter(ctx context.Context, f dy
 		return nil, 0, fmt.Errorf("dynquery: build monitor count: %w", err)
 	}
 
+	ids, total, err := r.filteredIDsAndCount(ctx, idSQL, idArgs, countSQL, countArgs)
+	if err != nil {
+		return nil, 0, err
+	}
+	if len(ids) == 0 {
+		return []*domain.Resource{}, total, nil
+	}
+
+	out, err := r.findResourcesInOrder(ctx, ids)
+	if err != nil {
+		return nil, 0, err
+	}
+	if err := r.attachTagsOnly(ctx, out); err != nil {
+		return nil, 0, err
+	}
+	if err := r.attachIncidentCounts(ctx, out); err != nil {
+		return nil, 0, err
+	}
+	if err := r.attachUptimeStats(ctx, out); err != nil {
+		return nil, 0, err
+	}
+	return out, total, nil
+}
+
+// filteredIDsAndCount runs the two dynquery statements -- the page of IDs and
+// the total -- on whichever handle is configured. The scan loop is the same
+// on both; only the handle differs.
+func (r *ResourceRepositorySQLC) filteredIDsAndCount(ctx context.Context, idSQL string, idArgs []any, countSQL string, countArgs []any) ([]string, int, error) {
 	var ids []string
 	var total int64
-
 	switch {
 	case r.pgQ != nil:
 		rows, err := r.pgPool.Query(ctx, idSQL, idArgs...)
 		if err != nil {
 			return nil, 0, fmt.Errorf("sqlc: list monitors by filter (ids): %w", err)
 		}
-		for rows.Next() {
-			var id string
-			if err := rows.Scan(&id); err != nil {
-				rows.Close()
-				return nil, 0, fmt.Errorf("sqlc: scan monitor id: %w", err)
-			}
-			ids = append(ids, id)
+		ids, err = scanIDs(rows.Next, rows.Scan, rows.Close)
+		if err != nil {
+			return nil, 0, err
 		}
-		rows.Close()
 		if err := r.pgPool.QueryRow(ctx, countSQL, countArgs...).Scan(&total); err != nil {
 			return nil, 0, fmt.Errorf("sqlc: list monitors by filter (count): %w", err)
 		}
-		if len(ids) == 0 {
-			return []*domain.Resource{}, int(total), nil
-		}
-		rrows, err := r.pgQ.FindResourcesByIDs(ctx, ids)
-		if err != nil {
-			return nil, 0, fmt.Errorf("sqlc: find resources by ids: %w", err)
-		}
-		out := resourcesInOrder(resourcesFromPG(rrows), ids)
-		if err := r.attachTagsOnly(ctx, out); err != nil {
-			return nil, 0, err
-		}
-		if err := r.attachIncidentCounts(ctx, out); err != nil {
-			return nil, 0, err
-		}
-		if err := r.attachUptimeStats(ctx, out); err != nil {
-			return nil, 0, err
-		}
-		return out, int(total), nil
 	case r.sqliteQ != nil:
 		rows, err := r.sqliteDB.QueryContext(ctx, idSQL, idArgs...)
 		if err != nil {
 			return nil, 0, fmt.Errorf("sqlc: list monitors by filter (ids): %w", err)
 		}
-		for rows.Next() {
-			var id string
-			if err := rows.Scan(&id); err != nil {
-				rows.Close()
-				return nil, 0, fmt.Errorf("sqlc: scan monitor id: %w", err)
-			}
-			ids = append(ids, id)
+		ids, err = scanIDs(rows.Next, rows.Scan, func() { _ = rows.Close() })
+		if err != nil {
+			return nil, 0, err
 		}
-		rows.Close()
 		if err := r.sqliteDB.QueryRowContext(ctx, countSQL, countArgs...).Scan(&total); err != nil {
 			return nil, 0, fmt.Errorf("sqlc: list monitors by filter (count): %w", err)
 		}
-		if len(ids) == 0 {
-			return []*domain.Resource{}, int(total), nil
-		}
-		rrows, err := r.sqliteQ.FindResourcesByIDs(ctx, ids)
-		if err != nil {
-			return nil, 0, fmt.Errorf("sqlc: find resources by ids: %w", err)
-		}
-		out := resourcesInOrder(resourcesFromSQLite(rrows), ids)
-		if err := r.attachTagsOnly(ctx, out); err != nil {
-			return nil, 0, err
-		}
-		if err := r.attachIncidentCounts(ctx, out); err != nil {
-			return nil, 0, err
-		}
-		if err := r.attachUptimeStats(ctx, out); err != nil {
-			return nil, 0, err
-		}
-		return out, int(total), nil
 	default:
 		return nil, 0, r.unconfigured()
+	}
+	return ids, int(total), nil
+}
+
+// scanIDs drains a single-column result of IDs. Takes the three methods
+// rather than an interface because pgx rows and database/sql rows share the
+// shape but not a type.
+func scanIDs(next func() bool, scan func(...any) error, close func()) ([]string, error) {
+	defer close()
+	var ids []string
+	for next() {
+		var id string
+		if err := scan(&id); err != nil {
+			return nil, fmt.Errorf("sqlc: scan monitor id: %w", err)
+		}
+		ids = append(ids, id)
+	}
+	return ids, nil
+}
+
+// findResourcesInOrder materialises full rows for the given IDs, in the
+// order the IDs came in (the filter's sort), on whichever dialect is configured.
+func (r *ResourceRepositorySQLC) findResourcesInOrder(ctx context.Context, ids []string) ([]*domain.Resource, error) {
+	switch {
+	case r.pgQ != nil:
+		rrows, err := r.pgQ.FindResourcesByIDs(ctx, ids)
+		if err != nil {
+			return nil, fmt.Errorf("sqlc: find resources by ids: %w", err)
+		}
+		return resourcesInOrder(resourcesFromPG(rrows), ids), nil
+	case r.sqliteQ != nil:
+		rrows, err := r.sqliteQ.FindResourcesByIDs(ctx, ids)
+		if err != nil {
+			return nil, fmt.Errorf("sqlc: find resources by ids: %w", err)
+		}
+		return resourcesInOrder(resourcesFromSQLite(rrows), ids), nil
+	default:
+		return nil, r.unconfigured()
 	}
 }
