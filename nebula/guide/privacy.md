@@ -29,8 +29,49 @@ The file contains **no secret in usable form**: no password or hash, no two-fact
 
 The download is available only to the person signed in, in the web interface; API keys cannot request it.
 
-## What is not available yet
+## Erasing someone's data
 
-**Erasure.** Removing personal data — a former colleague's address left in a notification channel, a former administrator's account — is the next step and is not in this release. Today, remove an address by editing the channel or the report settings, and revoke sessions and API keys from their pages.
+Erasure requests come from two kinds of person, and **Settings → Privacy → Erase someone's data** serves both:
 
-**Requests from someone without an account.** A person whose address appears in your configuration but who never signs in cannot use this page; answer for them by searching the channels and report settings.
+- **Someone who never had an account** — a former colleague whose address is still on an email notification channel, or the recipient of the monthly report. Enter their address.
+- **A former account** — accounts pile up on their own: the administrator account is created at start-up from `AUTH_EMAIL`, so changing that variable, or changing your email in your profile, leaves the old account behind. Other accounts are listed; pick one.
+
+You cannot erase your own account or your own address here, and an erasure can never leave the install without an account able to sign in.
+
+### Preview first
+
+The preview shows, before anything changes:
+
+| | |
+|---|---|
+| **Will be removed** | each notification channel holding the address and in which field; whether it is the monthly report recipient; how many reports were sent to it; for an account, its sessions and API keys |
+| **Kept** | incident updates the account posted — they stay on the public status page, without an author |
+| **Review by hand** | channels whose configuration could not be decrypted, and channels where the address is inside a URL (a webhook parameter, for instance): Ogoune does not rewrite a URL |
+| **Erased before** | when the same address was already erased, and on which date |
+
+### Confirm
+
+Type the address again, then your current password — and your two-factor code (or a backup code) if two-factor is on. A wrong value changes nothing and leaves you signed in; attempts are rate-limited like sign-in.
+
+The erasure is **all or nothing**: either every item listed changes, or nothing does. If someone edits one of the channels at the same moment, the erasure stops, changes nothing, and asks you to try again.
+
+### What happens
+
+- **Channels with other recipients** lose only that address and keep notifying the others.
+- **Channels left with no recipient are disabled, not deleted.** A disabled channel sends nothing — no alerts, reminders, escalations, reports or tests — and counts no failures. The channel list shows it as *Disabled by an erasure on …*. Add a recipient, save, then **Enable** it; enabling is refused while it has none. A monitor whose only linked channels are disabled behaves as if it had none linked: its alerts go to the component's channels or the default channels.
+- **Monthly reports and escalation digests** are sent through the oldest email channel. If the erasure disables that channel, the preview says which channel takes over — or that none is left.
+- **The monthly report recipient** is cleared and **reports are switched off**. Set a new recipient and switch them back on in Reports.
+- **Report history** keeps each month's period, status and figures; only the address is removed.
+- **A former account** is deleted with its sessions and API keys: they stop working on the next request.
+
+### What is kept
+
+Each erasure leaves a record: when, by which operator, which kinds of items changed — and a **fingerprint** of the address, never the address itself. The fingerprint is a keyed one-way hash (HMAC-SHA256 with the install's `APP_SECRET_KEY`): it lets a later preview say "erased on …" without storing the address. Whoever holds `APP_SECRET_KEY` could test a guessed address against it; changing that key makes earlier records unrecognisable. The server log records that an erasure happened, by whom and how it ended — never the address.
+
+::: warning Do not downgrade after an erasure
+Releases before this feature do not know about disabled channels: a channel disabled by an erasure would start sending again on an older version.
+:::
+
+## Requests from someone without an account
+
+A person whose address appears in your configuration but who never signs in cannot use this page themselves; you answer for them — look the address up with the erasure preview, then erase it.

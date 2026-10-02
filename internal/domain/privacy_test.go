@@ -80,3 +80,58 @@ func TestInventoryCounts(t *testing.T) {
 	assert.Equal(t, 0, empty.Counts()["reports"])
 	assert.Len(t, empty.Counts(), len(PrivacyCategories), "every category present, zeros included")
 }
+
+func TestRemoveAddressFromConfig(t *testing.T) {
+	const me = " Jane@Example.com "
+	cases := map[string]struct {
+		config, want  string
+		changed, urls []string
+	}{
+		"single field emptied":         {`{"to":"jane@example.com"}`, `{"to":""}`, []string{"to"}, nil},
+		"list keeps the others":        {`{"to":"ops@example.com,  JANE@example.com ;x@y.io"}`, `{"to":"ops@example.com, x@y.io"}`, []string{"to"}, nil},
+		"space separated list":         {`{"to":"ops@example.com jane@example.com"}`, `{"to":"ops@example.com"}`, []string{"to"}, nil},
+		"display-name form":            {`{"to":"Ops Team <ops@example.com>, Jane Doe <jane@example.com>"}`, `{"to":"Ops Team <ops@example.com>"}`, []string{"to"}, nil},
+		"nested object":                {`{"smtp":{"from":"bot@example.com","reply_to":"jane@example.com"}}`, `{"smtp":{"from":"bot@example.com","reply_to":""}}`, []string{"smtp.reply_to"}, nil},
+		"array element removed":        {`{"recipients":["ops@example.com","jane@example.com"]}`, `{"recipients":["ops@example.com"]}`, []string{"recipients[1]"}, nil},
+		"array emptied":                {`{"recipients":["jane@example.com"]}`, `{"recipients":[]}`, []string{"recipients[0]"}, nil},
+		"array element holding a list": {`{"cc":["a@x.io; jane@example.com"]}`, `{"cc":["a@x.io"]}`, []string{"cc[0]"}, nil},
+		"twice in one config":          {`{"recipients":["jane@example.com"],"cc":["JANE@example.com","b@x.io"]}`, `{"recipients":[],"cc":["b@x.io"]}`, []string{"cc[0]", "recipients[0]"}, nil},
+		"url left alone and reported":  {`{"url":"https://hooks.example.com/n?to=jane@example.com","to":"jane@example.com"}`, `{"url":"https://hooks.example.com/n?to=jane@example.com","to":""}`, []string{"to"}, []string{"url"}},
+		"numbers and bools kept":       {`{"port":587,"big":12345678901234567890,"tls":true,"to":"jane@example.com","x":null}`, `{"port":587,"big":12345678901234567890,"tls":true,"to":"","x":null}`, []string{"to"}, nil},
+		"prefix is not a match":        {`{"to":"jane@example.com.evil"}`, `{"to":"jane@example.com.evil"}`, nil, nil},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			out, changed, urls, err := RemoveAddressFromConfig([]byte(tc.config), me)
+			require.NoError(t, err)
+			assert.JSONEq(t, tc.want, string(out))
+			sort.Strings(changed)
+			assert.Equal(t, tc.changed, changed)
+			assert.Equal(t, tc.urls, urls)
+
+			// What Find sees, Remove removes -- except inside URLs.
+			left, err := FindAddressInConfig(out, me)
+			require.NoError(t, err)
+			assert.Equal(t, tc.urls, left, "only URL matches remain after removal")
+		})
+	}
+}
+
+func TestRemoveAddressFromConfig_NoMatchReturnsInputUnchanged(t *testing.T) {
+	in := []byte(`{"b":1,  "a":"ops@example.com"}`)
+	out, changed, urls, err := RemoveAddressFromConfig(in, "jane@example.com")
+	require.NoError(t, err)
+	assert.Equal(t, in, out, "byte-for-byte: a channel without the address is not rewritten")
+	assert.Nil(t, changed)
+	assert.Nil(t, urls)
+}
+
+func TestRemoveAddressFromConfig_EdgeInputs(t *testing.T) {
+	out, changed, _, err := RemoveAddressFromConfig([]byte(`{"to":"jane@example.com"}`), "  ")
+	require.NoError(t, err)
+	assert.JSONEq(t, `{"to":"jane@example.com"}`, string(out), "empty address removes nothing")
+	assert.Nil(t, changed)
+
+	_, _, _, err = RemoveAddressFromConfig([]byte(`not json`), "jane@example.com")
+	assert.Error(t, err)
+}

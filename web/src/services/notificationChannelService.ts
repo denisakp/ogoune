@@ -109,3 +109,13 @@ export const testChannelConfig = async (payload: TestNotificationChannelConfig):
     { method: 'POST', json: payload },
   )
 }
+
+/** Re-enables a channel that an erasure switched off. 422 CHANNEL_NEEDS_RECIPIENT when it has no recipient. */
+export const enableChannel = async (id: string): Promise<NotificationChannel> => {
+  const res = await request<{ data: NotificationChannel }>(
+    getAuthenticatedClient(),
+    `v1/notification-channels/${id}/enable`,
+    { method: 'POST', json: {} },
+  )
+  return res.data
+}

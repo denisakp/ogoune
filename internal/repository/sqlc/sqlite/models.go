@@ -63,6 +63,16 @@ type Dashboard struct {
 	UpdatedAt        time.Time `json:"updated_at"`
 }
 
+type ErasureRecord struct {
+	ID                 string    `json:"id"`
+	CreatedAt          time.Time `json:"created_at"`
+	OperatorID         string    `json:"operator_id"`
+	SubjectKind        string    `json:"subject_kind"`
+	SubjectFingerprint string    `json:"subject_fingerprint"`
+	Changes            string    `json:"changes"`
+	ManualReview       int64     `json:"manual_review"`
+}
+
 type EscalationPolicy struct {
 	ID         string    `json:"id"`
 	Name       string    `json:"name"`
@@ -272,16 +282,18 @@ type Notification struct {
 }
 
 type NotificationChannel struct {
-	ID               string      `json:"id"`
-	CreatedAt        time.Time   `json:"created_at"`
-	UpdatedAt        time.Time   `json:"updated_at"`
-	Name             string      `json:"name"`
-	Type             string      `json:"type"`
-	Config           []byte      `json:"config"`
-	EnabledByDefault int64       `json:"enabled_by_default"`
-	LastSentAt       interface{} `json:"last_sent_at"`
-	LastFailureAt    interface{} `json:"last_failure_at"`
-	Failures24h      int64       `json:"failures_24h"`
+	ID               string         `json:"id"`
+	CreatedAt        time.Time      `json:"created_at"`
+	UpdatedAt        time.Time      `json:"updated_at"`
+	Name             string         `json:"name"`
+	Type             string         `json:"type"`
+	Config           []byte         `json:"config"`
+	EnabledByDefault int64          `json:"enabled_by_default"`
+	LastSentAt       interface{}    `json:"last_sent_at"`
+	LastFailureAt    interface{}    `json:"last_failure_at"`
+	Failures24h      int64          `json:"failures_24h"`
+	DisabledAt       sql.NullTime   `json:"disabled_at"`
+	DisabledReason   sql.NullString `json:"disabled_reason"`
 }
 
 type NotificationEscalationState struct {

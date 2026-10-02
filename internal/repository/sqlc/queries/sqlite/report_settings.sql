@@ -14,3 +14,11 @@ ON CONFLICT(id) DO UPDATE SET
     last_sent_at = excluded.last_sent_at,
     updated_at = excluded.updated_at
 RETURNING *;
+
+-- name: ClearReportRecipient :execrows
+-- Spec 095: an erasure clears the recipient and switches the report off
+-- (enabled requires a recipient).
+UPDATE report_settings
+SET recipient_email = '',
+    enabled = 0,
+    updated_at = sqlc.arg('updated_at');

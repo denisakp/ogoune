@@ -14,7 +14,11 @@ vi.mock('@/services/privacyService', async () => {
   )
   return {
     ...actual,
-    default: { getPrivacySummary: getSummaryMock, exportPersonalData: exportMock },
+    default: {
+      getPrivacySummary: getSummaryMock,
+      exportPersonalData: exportMock,
+      listOtherAccounts: () => Promise.resolve([]),
+    },
   }
 })
 

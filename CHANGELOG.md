@@ -16,7 +16,22 @@ follows [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/).
   is rate-limited like sign-in. The file holds no secret in usable form — API keys appear by prefix,
   channels by the name of the matching field. A channel configuration that cannot be decrypted is
   reported as "could not be checked", never skipped. Nothing is written: the feature only reads.
-  Erasure is not in this release.
+- **Erase a person's data on request.** Settings → Privacy → *Erase someone's data* serves an
+  erasure request for an address that never had an account (a former colleague left on an email
+  channel, the report recipient) or for a former account (left behind by changing `AUTH_EMAIL` or
+  your profile email). A preview lists what will be removed, what is kept (incident updates stay
+  published without an author) and what needs a manual review (undecryptable configurations,
+  addresses inside URLs). Confirming takes the address typed again plus your password and
+  two-factor code; a wrong value changes nothing and never signs you out. The erasure is all or
+  nothing; it keeps a record holding a keyed fingerprint of the address, never the address.
+  Your own account cannot be erased here.
+- **Notification channels can be disabled.** A channel an erasure leaves with no recipient is
+  disabled, not deleted: it sends nothing — alerts, reminders, escalations, reports, tests — and
+  counts no failures, and the list shows why. Add a recipient, then **Enable** it
+  (`POST /api/v1/notification-channels/{id}/enable`, refused while it has none). Channels expose
+  `disabled_at` / `disabled_reason`. A monitor whose only linked channels are disabled falls back
+  to component or default channels, as if it had none. **Do not downgrade below this release after
+  an erasure:** older versions would send to disabled channels again.
 
 ### Changed
 
@@ -28,6 +43,8 @@ follows [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- **The API reference listed the privacy endpoints under a doubled prefix** (`/api/v1/v1/me/privacy`).
+  They are documented where they are served, `/api/v1/me/privacy`.
 - **A mistyped current password no longer signs you out.** Changing your password, resetting it,
   or turning off two-factor authentication with a wrong current password answered "unauthorised",
   which the interface reads as an expired session: it signed you out mid-typo. These now answer as

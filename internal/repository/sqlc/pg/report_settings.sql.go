@@ -11,6 +11,23 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const clearReportRecipient = `-- name: ClearReportRecipient :execrows
+UPDATE report_settings
+SET recipient_email = '',
+    enabled = false,
+    updated_at = $1
+`
+
+// Spec 095: an erasure clears the recipient and switches the report off
+// (enabled requires a recipient).
+func (q *Queries) ClearReportRecipient(ctx context.Context, updatedAt pgtype.Timestamptz) (int64, error) {
+	result, err := q.db.Exec(ctx, clearReportRecipient, updatedAt)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const getReportSettings = `-- name: GetReportSettings :one
 SELECT id, enabled, recipient_email, schedule, scope, last_sent_at, created_at, updated_at
 FROM report_settings

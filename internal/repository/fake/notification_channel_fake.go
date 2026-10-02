@@ -72,7 +72,7 @@ func (f *NotificationChannelFake) Delete(ctx context.Context, id string) error {
 func (f *NotificationChannelFake) FindByType(ctx context.Context, channelType domain.NotificationChannelType) ([]*domain.NotificationChannel, error) {
 	var channels []*domain.NotificationChannel
 	for _, channel := range f.channels {
-		if channel.Type == channelType {
+		if channel.Type == channelType && !channel.IsDisabled() {
 			channels = append(channels, channel)
 		}
 	}
@@ -83,7 +83,7 @@ func (f *NotificationChannelFake) FindByType(ctx context.Context, channelType do
 func (f *NotificationChannelFake) FindDefaultChannels(ctx context.Context) ([]*domain.NotificationChannel, error) {
 	var channels []*domain.NotificationChannel
 	for _, channel := range f.channels {
-		if channel.EnabledByDefault {
+		if channel.EnabledByDefault && !channel.IsDisabled() {
 			channels = append(channels, channel)
 		}
 	}
@@ -99,7 +99,7 @@ func (f *NotificationChannelFake) FindByResourceID(ctx context.Context, resource
 
 	var channels []*domain.NotificationChannel
 	for _, channelID := range channelIDs {
-		if channel, ok := f.channels[channelID]; ok {
+		if channel, ok := f.channels[channelID]; ok && !channel.IsDisabled() {
 			channels = append(channels, channel)
 		}
 	}
@@ -116,6 +116,17 @@ func (f *NotificationChannelFake) FindByComponentID(ctx context.Context, compone
 // AssociateChannelWithResource links a channel to a resource (test helper).
 func (f *NotificationChannelFake) AssociateChannelWithResource(resourceID, channelID string) {
 	f.resourceChannels[resourceID] = append(f.resourceChannels[resourceID], channelID)
+}
+
+// Enable clears the disabled state (spec 095).
+func (f *NotificationChannelFake) Enable(_ context.Context, id string) error {
+	ch, ok := f.channels[id]
+	if !ok {
+		return repository.ErrNotFound
+	}
+	ch.DisabledAt = nil
+	ch.DisabledReason = ""
+	return nil
 }
 
 func (f *NotificationChannelFake) MarkSent(_ context.Context, channelID string, at time.Time) error {

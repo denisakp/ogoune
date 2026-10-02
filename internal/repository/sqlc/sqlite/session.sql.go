@@ -56,6 +56,18 @@ func (q *Queries) CreateSession(ctx context.Context, arg CreateSessionParams) (S
 	return i, err
 }
 
+const deleteSessionsByUser = `-- name: DeleteSessionsByUser :execrows
+DELETE FROM sessions WHERE user_id = ?1
+`
+
+func (q *Queries) DeleteSessionsByUser(ctx context.Context, userID string) (int64, error) {
+	result, err := q.db.ExecContext(ctx, deleteSessionsByUser, userID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
 const findSessionByID = `-- name: FindSessionByID :one
 SELECT id, user_id, browser, os, ip, location, last_active_at, created_at, revoked_at FROM sessions WHERE id = ?
 `

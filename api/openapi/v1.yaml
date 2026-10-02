@@ -325,6 +325,13 @@ components:
           uniqueItems: false
         created_at:
           type: string
+        disabled_at:
+          description: |-
+            DisabledAt is set when the channel was switched off (spec 095); a
+            disabled channel is never sent to. DisabledReason says why.
+          type: string
+        disabled_reason:
+          type: string
         enabled_by_default:
           type: boolean
         failures_24h:
@@ -725,6 +732,13 @@ components:
           additionalProperties: {}
           type: object
         created_at:
+          type: string
+        disabled_at:
+          description: |-
+            DisabledAt is set when the channel sends nothing (spec 095);
+            DisabledReason says why ("erasure").
+          type: string
+        disabled_reason:
           type: string
         enabled_by_default:
           type: boolean
@@ -1474,6 +1488,136 @@ components:
           type: string
         used_pct:
           type: number
+      type: object
+    github_com_denisakp_ogoune_internal_dto_v1.ErasureAccountResponse:
+      properties:
+        email:
+          type: string
+        id:
+          type: string
+        last_login_at:
+          type: string
+      type: object
+    github_com_denisakp_ogoune_internal_dto_v1.ErasureChannelHitResponse:
+      properties:
+        fields:
+          items:
+            type: string
+          type: array
+          uniqueItems: false
+        id:
+          type: string
+        name:
+          type: string
+        type:
+          type: string
+        will_disable:
+          type: boolean
+      type: object
+    github_com_denisakp_ogoune_internal_dto_v1.ErasureChannelRef:
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+      type: object
+    github_com_denisakp_ogoune_internal_dto_v1.ErasureManualItemResponse:
+      properties:
+        channel_id:
+          type: string
+        channel_name:
+          type: string
+        channel_type:
+          type: string
+        reason:
+          enum:
+            - undecryptable
+            - address_in_url
+          type: string
+      type: object
+    github_com_denisakp_ogoune_internal_dto_v1.ErasurePreviewRequest:
+      properties:
+        account_id:
+          type: string
+        email:
+          type: string
+      type: object
+    github_com_denisakp_ogoune_internal_dto_v1.ErasurePreviewResponse:
+      properties:
+        account:
+          $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.ErasureAccountResponse'
+        api_keys:
+          type: integer
+        channels:
+          items:
+            $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.ErasureChannelHitResponse'
+          type: array
+          uniqueItems: false
+        kind:
+          enum:
+            - address
+            - account
+          type: string
+        manual_review:
+          items:
+            $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.ErasureManualItemResponse'
+          type: array
+          uniqueItems: false
+        previously_erased_at:
+          type: string
+        report_recipient:
+          type: boolean
+        reports_sent:
+          type: integer
+        sessions:
+          type: integer
+        transport_change:
+          $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.ErasureTransportChangeResponse'
+        updates_unlinked:
+          type: integer
+      type: object
+    github_com_denisakp_ogoune_internal_dto_v1.ErasureRequest:
+      properties:
+        account_id:
+          type: string
+        code:
+          type: string
+        confirm_email:
+          type: string
+        email:
+          type: string
+        password:
+          type: string
+      type: object
+    github_com_denisakp_ogoune_internal_dto_v1.ErasureResultResponse:
+      properties:
+        changes:
+          additionalProperties:
+            type: integer
+          type: object
+        disabled_channels:
+          items:
+            $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.ErasureChannelHitResponse'
+          type: array
+          uniqueItems: false
+        manual_review:
+          items:
+            $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.ErasureManualItemResponse'
+          type: array
+          uniqueItems: false
+        record_id:
+          type: string
+        report_recipient_cleared:
+          type: boolean
+        transport_change:
+          $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.ErasureTransportChangeResponse'
+      type: object
+    github_com_denisakp_ogoune_internal_dto_v1.ErasureTransportChangeResponse:
+      properties:
+        from_channel:
+          $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.ErasureChannelRef'
+        to_channel:
+          $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.ErasureChannelRef'
       type: object
     github_com_denisakp_ogoune_internal_dto_v1.ErrorDetail:
       properties:
@@ -2338,6 +2482,16 @@ components:
           description: Meta is short context (e.g. a monitor's target), omitted when empty.
           type: string
       type: object
+    ? github_com_denisakp_ogoune_internal_dto_v1.SingleResponse-array_github_com_denisakp_ogoune_internal_dto_v1_ErasureAccountResponse
+    : properties:
+        data:
+          items:
+            $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.ErasureAccountResponse'
+          type: array
+          uniqueItems: false
+        meta:
+          $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.MetaResponse'
+      type: object
     github_com_denisakp_ogoune_internal_dto_v1.SingleResponse-github_com_denisakp_ogoune_internal_dto_ComponentResponse:
       properties:
         data:
@@ -2398,6 +2552,20 @@ components:
       properties:
         data:
           $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.DashboardResponse'
+        meta:
+          $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.MetaResponse'
+      type: object
+    github_com_denisakp_ogoune_internal_dto_v1.SingleResponse-github_com_denisakp_ogoune_internal_dto_v1_ErasurePreviewResponse:
+      properties:
+        data:
+          $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.ErasurePreviewResponse'
+        meta:
+          $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.MetaResponse'
+      type: object
+    github_com_denisakp_ogoune_internal_dto_v1.SingleResponse-github_com_denisakp_ogoune_internal_dto_v1_ErasureResultResponse:
+      properties:
+        data:
+          $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.ErasureResultResponse'
         meta:
           $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.MetaResponse'
       type: object
@@ -3833,6 +4001,234 @@ paths:
       summary: Download config-derived Grafana dashboard (JSON)
       tags:
         - integrations
+  /me/privacy:
+    get:
+      description: Counts per category of personal data held about the signed-in user, the categories that are not personal data, and configurations that could not be checked. Interactive sessions only.
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.SingleResponse-github_com_denisakp_ogoune_internal_dto_v1_PrivacySummaryResponse'
+          description: OK
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse'
+          description: Unauthorized
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse'
+          description: Forbidden
+      security:
+        - BearerAuth: []
+      summary: What this install holds about me
+      tags:
+        - privacy
+  /me/privacy/accounts:
+    get:
+      description: Every account but the signed-in one, with its address and last sign-in. Interactive sessions only.
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.SingleResponse-array_github_com_denisakp_ogoune_internal_dto_v1_ErasureAccountResponse'
+          description: OK
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse'
+          description: Unauthorized
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse'
+          description: Forbidden
+      security:
+        - BearerAuth: []
+      summary: Other accounts that can be erased
+      tags:
+        - privacy
+  /me/privacy/erasure:
+    post:
+      description: 'Removes the address from every place it was found (or erases a former account), in one transaction: all or nothing. Requires the address typed again, the current password and, when enabled, the two-factor code; any of them wrong is one 422, never 401. A notification channel changed meanwhile is 409, nothing changed. Rate-limited like sign-in. Interactive sessions only.'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - type: object
+                - $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.ErasureRequest'
+                  summary: body
+                  description: Subject, typed address and re-authentication
+        description: Subject, typed address and re-authentication
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.SingleResponse-github_com_denisakp_ogoune_internal_dto_v1_ErasureResultResponse'
+          description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse'
+          description: Bad Request
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse'
+          description: Unauthorized
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse'
+          description: Forbidden
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse'
+          description: Not Found
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse'
+          description: Conflict
+        "422":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse'
+          description: Unprocessable Entity
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse'
+          description: Too Many Requests
+      security:
+        - BearerAuth: []
+      summary: Erase a person's data
+      tags:
+        - privacy
+  /me/privacy/erasure/preview:
+    post:
+      description: What erasing an address, or a former account, would remove, keep and leave for manual review. Changes nothing. The address travels in the body, never in a URL. Interactive sessions only.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - type: object
+                - $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.ErasurePreviewRequest'
+                  summary: body
+                  description: An address, or a former account
+        description: An address, or a former account
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.SingleResponse-github_com_denisakp_ogoune_internal_dto_v1_ErasurePreviewResponse'
+          description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse'
+          description: Bad Request
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse'
+          description: Unauthorized
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse'
+          description: Forbidden
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse'
+          description: Not Found
+        "422":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse'
+          description: Unprocessable Entity
+      security:
+        - BearerAuth: []
+      summary: Preview an erasure
+      tags:
+        - privacy
+  /me/privacy/export:
+    post:
+      description: Re-authenticates (password, plus the two-factor code when enabled) and returns every item of personal data held about the signed-in user as one JSON document. Contains no secret. A failed re-authentication is 422 -- never 401, which would end the session. Rate-limited like sign-in. Interactive sessions only.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - type: object
+                - $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.PrivacyExportRequest'
+                  summary: body
+                  description: Current password, and the two-factor code when enabled
+        description: Current password, and the two-factor code when enabled
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.PersonalDataExport'
+          description: OK
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse'
+          description: Unauthorized
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse'
+          description: Forbidden
+        "422":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse'
+          description: Unprocessable Entity
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse'
+          description: Too Many Requests
+      security:
+        - BearerAuth: []
+      summary: Download my personal data
+      tags:
+        - privacy
   /monitors:
     get:
       parameters:
@@ -4819,6 +5215,45 @@ paths:
       summary: Update a notification channel
       tags:
         - notification-channels
+  /notification-channels/{id}/enable:
+    post:
+      parameters:
+        - description: Channel ID
+          in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.SingleResponse-github_com_denisakp_ogoune_internal_dto_NotificationChannelResponse'
+          description: OK
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse'
+          description: Forbidden
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse'
+          description: Not Found
+        "422":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse'
+          description: Unprocessable Entity
+      security:
+        - BearerAuth: []
+      summary: Enable a disabled notification channel
+      tags:
+        - notification-channels
   /notification-channels/{id}/test:
     post:
       parameters:
@@ -5667,83 +6102,6 @@ paths:
       summary: Look up domain registration data
       tags:
         - toolbox
-  /v1/me/privacy:
-    get:
-      description: Counts per category of personal data held about the signed-in user, the categories that are not personal data, and configurations that could not be checked. Interactive sessions only.
-      responses:
-        "200":
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.SingleResponse-github_com_denisakp_ogoune_internal_dto_v1_PrivacySummaryResponse'
-          description: OK
-        "401":
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse'
-          description: Unauthorized
-        "403":
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse'
-          description: Forbidden
-      security:
-        - BearerAuth: []
-      summary: What this install holds about me
-      tags:
-        - privacy
-  /v1/me/privacy/export:
-    post:
-      description: Re-authenticates (password, plus the two-factor code when enabled) and returns every item of personal data held about the signed-in user as one JSON document. Contains no secret. A failed re-authentication is 422 -- never 401, which would end the session. Rate-limited like sign-in. Interactive sessions only.
-      requestBody:
-        content:
-          application/json:
-            schema:
-              oneOf:
-                - type: object
-                - $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.PrivacyExportRequest'
-                  summary: body
-                  description: Current password, and the two-factor code when enabled
-        description: Current password, and the two-factor code when enabled
-        required: true
-      responses:
-        "200":
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.PersonalDataExport'
-          description: OK
-        "401":
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse'
-          description: Unauthorized
-        "403":
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse'
-          description: Forbidden
-        "422":
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse'
-          description: Unprocessable Entity
-        "429":
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse'
-          description: Too Many Requests
-      security:
-        - BearerAuth: []
-      summary: Download my personal data
-      tags:
-        - privacy
 openapi: 3.1.0
 servers:
   - url: localhost:9596/api/v1

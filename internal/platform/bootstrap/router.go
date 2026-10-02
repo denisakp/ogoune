@@ -90,6 +90,7 @@ func InitRouter(app *App) {
 	// URL are what the export states about the install that produced it.
 	privacyV1Handler := v1handler.NewPrivacyHandler(
 		service.NewPrivacyService(app.UserRepo, app.SessionRepo, app.APIKeyRepo, app.IncidentUpdateRepo, app.NotificationChannelRepo, app.ReportSettingsRepo, app.ReportHistoryRepo),
+		service.NewErasureService(app.UserRepo, app.SessionRepo, app.APIKeyRepo, app.IncidentUpdateRepo, app.NotificationChannelRepo, app.ReportSettingsRepo, app.ReportHistoryRepo, app.ErasureRepo),
 		app.AuthService, appVersion(), os.Getenv("APP_BASE_URL"))
 	escalationV1Handler := v1handler.NewEscalationHandler(app.EscalationService)
 

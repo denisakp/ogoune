@@ -10,6 +10,22 @@ import (
 	"time"
 )
 
+const anonymizeReportHistoryRecipient = `-- name: AnonymizeReportHistoryRecipient :execrows
+UPDATE report_history
+SET recipient_email = ''
+WHERE LOWER(TRIM(recipient_email)) = ?1
+`
+
+// Spec 095: an erasure removes the address from report history; period,
+// status and figures are kept. The caller passes the address normalised.
+func (q *Queries) AnonymizeReportHistoryRecipient(ctx context.Context, email string) (int64, error) {
+	result, err := q.db.ExecContext(ctx, anonymizeReportHistoryRecipient, email)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
 const createReportHistory = `-- name: CreateReportHistory :one
 INSERT INTO report_history (id, period, sent_at, status, uptime_pct, incident_count, downtime_seconds, recipient_email, resource_breakdown, created_at)
 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)

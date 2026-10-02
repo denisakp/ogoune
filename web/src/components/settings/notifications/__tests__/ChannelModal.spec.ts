@@ -121,4 +121,23 @@ describe('ChannelModal', () => {
     expect(vm.testResult?.delivered).toBe(true)
     expect(vm.testResult?.latency_ms).toBe(42)
   })
+
+  it('warns when editing a disabled channel, not otherwise', async () => {
+    const initial = {
+      id: 'c1',
+      type: 'webhook' as const,
+      name: 'pd',
+      config: { url: 'https://example.com', method: 'POST' as const, headers: [] },
+    }
+    const off = mount(ChannelModal, {
+      props: { open: true, initial: { ...initial, disabled_at: '2026-10-02T08:00:00Z' } },
+    })
+    await flushPromises()
+    expect(document.body.innerHTML + off.html()).toContain('This channel is disabled and sends nothing')
+    off.unmount()
+
+    const on = mount(ChannelModal, { props: { open: true, initial } })
+    await flushPromises()
+    expect(document.body.innerHTML + on.html()).not.toContain('This channel is disabled')
+  })
 })

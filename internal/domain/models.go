@@ -592,7 +592,18 @@ type NotificationChannel struct {
 	LastSentAt       *time.Time              `json:"last_sent_at,omitempty"`
 	LastFailureAt    *time.Time              `json:"last_failure_at,omitempty"`
 	Failures24h      int                     `json:"failures_24h"`
+	// DisabledAt is set when the channel was switched off (spec 095); a
+	// disabled channel is never sent to. DisabledReason says why.
+	DisabledAt     *time.Time `json:"disabled_at,omitempty"`
+	DisabledReason string     `json:"disabled_reason,omitempty"`
 }
+
+// ChannelDisabledByErasure is the DisabledReason of a channel an erasure left
+// with no recipient (spec 095).
+const ChannelDisabledByErasure = "erasure"
+
+// IsDisabled reports whether the channel is switched off.
+func (c *NotificationChannel) IsDisabled() bool { return c.DisabledAt != nil }
 
 // ResourceCredential holds optional auth credentials for protocol-aware resources
 // (Redis, MySQL, PostgreSQL). One row per resource at most. Password and Options are

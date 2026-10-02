@@ -205,6 +205,11 @@ func (s *NotificationService) TestNotificationChannel(ctx context.Context, id st
 		return err
 	}
 
+	// A disabled channel is never sent to, tests included (spec 095).
+	if channel.IsDisabled() {
+		return ErrChannelDisabled
+	}
+
 	// For MVP, only support SMTP
 	if channel.Type != domain.NotificationChannelTypeSMTP {
 		return fmt.Errorf("only SMTP channels are supported in this version")
@@ -245,8 +250,41 @@ func (s *NotificationService) TestNotificationChannel(ctx context.Context, id st
 	return nil
 }
 
+// EnableChannel switches a disabled channel back on (spec 095). It is refused
+// while the configuration would not be accepted on save -- for a channel an
+// erasure emptied, until it has a recipient again. Enabling an enabled channel
+// changes nothing.
+func (s *NotificationService) EnableChannel(ctx context.Context, id string) (*domain.NotificationChannel, error) {
+	channel, err := s.channels.FindByID(ctx, id)
+	if err != nil {
+		if errors.Is(err, repository.ErrNotFound) {
+			return nil, fmt.Errorf("%w: notification channel not found", ErrResourceNotFound)
+		}
+		return nil, err
+	}
+	if !channel.IsDisabled() {
+		return channel, nil
+	}
+	if err := ValidateChannelConfig(channel.Type, channel.Config); err != nil {
+		return nil, fmt.Errorf("%w: %v", ErrChannelNeedsRecipient, err)
+	}
+	if err := s.channels.Enable(ctx, id); err != nil {
+		return nil, fmt.Errorf("failed to enable notification channel: %w", err)
+	}
+	channel.DisabledAt = nil
+	channel.DisabledReason = ""
+	return channel, nil
+}
+
 // validateChannelConfig validates the configuration JSON for a given channel type
 func (s *NotificationService) validateChannelConfig(channelType domain.NotificationChannelType, configJSON json.RawMessage) error {
+	return ValidateChannelConfig(channelType, configJSON)
+}
+
+// ValidateChannelConfig is the rule a channel configuration must pass to be
+// saved -- and, for spec 095, to be enabled: a channel an erasure leaves
+// failing it is disabled.
+func ValidateChannelConfig(channelType domain.NotificationChannelType, configJSON json.RawMessage) error {
 	switch channelType {
 	case domain.NotificationChannelTypeSMTP:
 		var config dto.SMTPConfig

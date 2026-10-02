@@ -85,7 +85,9 @@ func (m *mockChannelRepo) FindByResourceID(_ context.Context, _ string) ([]*doma
 func (m *mockChannelRepo) FindByComponentID(_ context.Context, _ string) ([]*domain.NotificationChannel, error) {
 	return nil, nil
 }
-func (m *mockChannelRepo) MarkSent(_ context.Context, _ string, _ time.Time) error    { return nil }
+func (m *mockChannelRepo) MarkSent(_ context.Context, _ string, _ time.Time) error { return nil }
+func (m *mockChannelRepo) Enable(_ context.Context, _ string) error                { return nil }
+
 func (m *mockChannelRepo) MarkFailure(_ context.Context, _ string, _ time.Time) error { return nil }
 
 // ---------------------------------------------------------------------------

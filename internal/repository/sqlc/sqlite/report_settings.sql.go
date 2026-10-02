@@ -11,6 +11,23 @@ import (
 	"time"
 )
 
+const clearReportRecipient = `-- name: ClearReportRecipient :execrows
+UPDATE report_settings
+SET recipient_email = '',
+    enabled = 0,
+    updated_at = ?1
+`
+
+// Spec 095: an erasure clears the recipient and switches the report off
+// (enabled requires a recipient).
+func (q *Queries) ClearReportRecipient(ctx context.Context, updatedAt time.Time) (int64, error) {
+	result, err := q.db.ExecContext(ctx, clearReportRecipient, updatedAt)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
 const getReportSettings = `-- name: GetReportSettings :one
 SELECT id, enabled, recipient_email, schedule, scope, last_sent_at, created_at, updated_at
 FROM report_settings

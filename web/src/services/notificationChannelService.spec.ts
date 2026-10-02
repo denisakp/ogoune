@@ -10,6 +10,7 @@ import {
   testChannel,
   testChannelConfig,
   setDefault,
+  enableChannel,
 } from '@/services/notificationChannelService'
 import { ServerError, ValidationError } from '@/core/errors'
 import { server } from '@/test/msw/server'
@@ -212,6 +213,28 @@ describe('notificationChannelService', () => {
       await expect(
         testChannelConfig({ type: 'slack', config: { webhook_url: 'https://hooks.slack.com/x' } }),
       ).rejects.toBeInstanceOf(ValidationError)
+    })
+  })
+
+  describe('enableChannel', () => {
+    it('POSTs to /enable and unwraps the channel', async () => {
+      server.use(
+        http.post('*/v1/notification-channels/c1/enable', () =>
+          HttpResponse.json({ data: { id: 'c1', disabled_at: null, disabled_reason: null } }),
+        ),
+      )
+      const c = await enableChannel('c1')
+      expect(c.id).toBe('c1')
+      expect(c.disabled_at).toBeNull()
+    })
+
+    it('surfaces CHANNEL_NEEDS_RECIPIENT on 422', async () => {
+      server.use(
+        http.post('*/v1/notification-channels/c1/enable', () =>
+          HttpResponse.json({ detail: 'no recipient', code: 'CHANNEL_NEEDS_RECIPIENT' }, { status: 422 }),
+        ),
+      )
+      await expect(enableChannel('c1')).rejects.toMatchObject({ code: 'CHANNEL_NEEDS_RECIPIENT' })
     })
   })
 })
