@@ -26,6 +26,13 @@ follows [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/).
   ranked name-prefix, then name, then target — fuzzy matching over a few dozen local items never
   justified the dependency. Typo tolerance is lost in that fallback only.
 
+### Fixed
+
+- **A mistyped current password no longer signs you out.** Changing your password, resetting it,
+  or turning off two-factor authentication with a wrong current password answered "unauthorised",
+  which the interface reads as an expired session: it signed you out mid-typo. These now answer as
+  a validation error, shown next to the field; you stay signed in and can try again.
+
 ## [1.0.0-beta.8] - 2026-10-01
 
 ### Added
