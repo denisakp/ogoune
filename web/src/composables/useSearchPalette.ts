@@ -1,4 +1,3 @@
-import Fuse, { type IFuseOptions } from 'fuse.js'
 import { computed, ref, watch, type ComputedRef } from 'vue'
 import type { RouteLocationRaw } from 'vue-router'
 import { storeToRefs } from 'pinia'
@@ -15,7 +14,7 @@ interface StaticPage {
 
 // Local nav targets. Mirrors the server-side `searchPages` list in
 // internal/service/search_service.go — kept here for the empty-query "browse"
-// state and the offline Fuse fallback (the backend owns them for real queries).
+// state and the offline local-match fallback (the backend owns them for real queries).
 const STATIC_PAGES: StaticPage[] = [
   { label: 'Overview', meta: 'Dashboard', route: '/overview' },
   { label: 'Resources', meta: 'All monitors', route: '/resources' },
@@ -29,18 +28,22 @@ const STATIC_PAGES: StaticPage[] = [
   { label: 'Sessions', meta: 'Settings', route: '/settings/sessions' },
 ]
 
-const FUSE_OPTIONS: IFuseOptions<SearchResult> = {
-  keys: [
-    { name: 'label', weight: 3 },
-    { name: 'meta', weight: 1 },
-  ],
-  threshold: 0.4,
-  includeScore: true,
-  ignoreLocation: true,
+/**
+ * Local matching for what the backend does not see: a one-character query,
+ * and the fallback when the search endpoint is unreachable. A plain
+ * case-insensitive substring match ranked label-prefix, then label, then
+ * meta -- the palette's corpus is a few dozen items, and fuzzy matching over
+ * it never justified shipping a fuzzy-search library to every browser.
+ * Lower score ranks first, like the backend's.
+ */
+function localMatchScore(item: SearchResult, q: string): number | null {
+  const label = item.label.toLowerCase()
+  if (label.startsWith(q)) return 0
+  if (label.includes(q)) return 1
+  if (item.meta?.toLowerCase().includes(q)) return 2
+  return null
 }
 
-// Server search kicks in at 2 chars (matches the backend's min-length guard);
-// shorter non-empty queries filter the in-memory corpus locally.
 const SEARCH_MIN_LEN = 2
 const DEBOUNCE_MS = 150
 const BROWSE_LIMIT = 20
@@ -53,7 +56,7 @@ const loadingMore = ref(false)
 const searching = ref(false)
 const lastQueryDurationMs = ref(0)
 // Results for queries >= SEARCH_MIN_LEN, populated by the debounced backend call
-// (or the Fuse fallback when the endpoint is unreachable).
+// (or the local-match fallback when the endpoint is unreachable).
 const remoteResults = ref<SearchResult[]>([])
 
 // Singleton — palette state is global across the app.
@@ -105,9 +108,15 @@ export function useSearchPalette() {
     return items
   })
 
-  function localSearch(q: string): SearchResult[] {
-    const fuse = new Fuse(corpus.value, FUSE_OPTIONS)
-    return fuse.search(q, { limit: RESULT_LIMIT }).map((m) => ({ ...m.item, score: m.score ?? 0 }))
+  function localSearch(raw: string): SearchResult[] {
+    const q = raw.toLowerCase()
+    const matched: SearchResult[] = []
+    for (const item of corpus.value) {
+      const score = localMatchScore(item, q)
+      if (score !== null) matched.push({ ...item, score })
+    }
+    // Stable sort: equal scores keep corpus order (resources, incidents, pages).
+    return matched.sort((a, b) => a.score - b.score).slice(0, RESULT_LIMIT)
   }
 
   const results: ComputedRef<SearchResult[]> = computed(() => {
@@ -125,7 +134,7 @@ export function useSearchPalette() {
     page: results.value.filter((r) => r.category === 'page'),
   }))
 
-  // Fetch results for queries >= SEARCH_MIN_LEN. Falls back to a local Fuse pass
+  // Fetch results for queries >= SEARCH_MIN_LEN. Falls back to a local match
   // over the corpus if the backend is unreachable (resilience — spec 084 PRD).
   async function runRemoteQuery(q: string): Promise<void> {
     const mySeq = ++requestSeq
