@@ -1,6 +1,13 @@
 import { HTTPError } from 'ky'
 import { getAuthenticatedClient, request } from '@/core/http/client'
-import type { PrivacySummary } from '@/types'
+import type {
+  ErasureAccount,
+  ErasurePreview,
+  ErasureRequest,
+  ErasureResult,
+  ErasureSubject,
+  PrivacySummary,
+} from '@/types'
 
 // Personal data (spec 094). The summary is a plain read; the export
 // re-authenticates and comes back as a file.
@@ -60,5 +67,87 @@ export async function exportPersonalData(input: {
   }
 }
 
-const privacyService = { getPrivacySummary, exportPersonalData }
+/** The account asked about is the signed-in one: nobody erases themselves here. */
+export class CannotEraseSelfError extends Error {
+  constructor() {
+    super('You cannot erase your own account here. Use account deletion instead.')
+    this.name = 'CannotEraseSelfError'
+  }
+}
+
+/** A channel changed while the erasure ran. Nothing was changed. */
+export class ErasureConflictError extends Error {
+  constructor() {
+    super('A notification channel changed while this ran. Nothing was changed -- try again.')
+    this.name = 'ErasureConflictError'
+  }
+}
+
+/** Any other refusal (bad address, unknown account, server failure) with the server's wording. */
+export class ErasureRequestError extends Error {
+  constructor(message: string) {
+    super(message)
+    this.name = 'ErasureRequestError'
+  }
+}
+
+function problemOf(error: HTTPError): { type?: string; detail?: string } {
+  const data = (error as unknown as { data?: unknown }).data
+  return data && typeof data === 'object' ? (data as { type?: string; detail?: string }) : {}
+}
+
+/** Maps the erasure endpoints' refusals to typed errors; none of them is a 401. */
+function mapErasureError(error: unknown): never {
+  if (!(error instanceof HTTPError)) throw error
+  const { status } = error.response
+  const problem = problemOf(error)
+  if (status === 422 && problem.type === '/problems/cannot-erase-self') throw new CannotEraseSelfError()
+  if (status === 422 && problem.type === '/problems/last-account') {
+    throw new ErasureRequestError(problem.detail ?? 'The erasure would leave no account able to sign in.')
+  }
+  if (status === 422) throw new InvalidCredentialsError()
+  if (status === 409) throw new ErasureConflictError()
+  throw new ErasureRequestError(problem.detail ?? 'The request could not be completed.')
+}
+
+export async function listOtherAccounts(): Promise<ErasureAccount[]> {
+  const r = await request<{ data: ErasureAccount[] }>(
+    getAuthenticatedClient(),
+    'v1/me/privacy/accounts',
+    { headers: { 'x-skip-success-toast': '1' } },
+  )
+  return r.data
+}
+
+/** What erasing this address or account would touch. Changes nothing. */
+export async function previewErasure(subject: ErasureSubject): Promise<ErasurePreview> {
+  try {
+    const r = await getAuthenticatedClient()
+      .post('v1/me/privacy/erasure/preview', { json: subject, headers: SKIP_TOASTS })
+      .json<{ data: ErasurePreview }>()
+    return r.data
+  } catch (error) {
+    return mapErasureError(error)
+  }
+}
+
+/** Erases. A wrong password or code is a 422 (never 401) and becomes InvalidCredentialsError. */
+export async function erase(req: ErasureRequest): Promise<ErasureResult> {
+  try {
+    const r = await getAuthenticatedClient()
+      .post('v1/me/privacy/erasure', { json: req, headers: SKIP_TOASTS })
+      .json<{ data: ErasureResult }>()
+    return r.data
+  } catch (error) {
+    return mapErasureError(error)
+  }
+}
+
+const privacyService = {
+  getPrivacySummary,
+  exportPersonalData,
+  listOtherAccounts,
+  previewErasure,
+  erase,
+}
 export default privacyService

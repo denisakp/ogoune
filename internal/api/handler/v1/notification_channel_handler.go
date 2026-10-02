@@ -22,6 +22,7 @@ type ChannelV1ServiceInterface interface {
 	UpdateNotificationChannel(ctx context.Context, id string, payload *dto.UpdateNotificationChannelPayload) (*domain.NotificationChannel, error)
 	DeleteNotificationChannel(ctx context.Context, id string) error
 	TestNotificationChannel(ctx context.Context, id string) error
+	EnableChannel(ctx context.Context, id string) (*domain.NotificationChannel, error)
 	ValidateAndTestChannelConfig(ctx context.Context, channelType domain.NotificationChannelType, config json.RawMessage) error
 	Stats(ctx context.Context) (*service.NotificationStats, error)
 }
@@ -351,10 +352,50 @@ func (h *NotificationChannelHandler) Delete(w http.ResponseWriter, r *http.Reque
 func (h *NotificationChannelHandler) Test(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 	if err := h.service.TestNotificationChannel(r.Context(), id); err != nil {
+		if errors.Is(err, service.ErrChannelDisabled) {
+			respondError(w, r, http.StatusUnprocessableEntity, "CHANNEL_DISABLED", "this channel is disabled and sends nothing; enable it first")
+			return
+		}
 		respondError(w, r, http.StatusUnprocessableEntity, "TEST_FAILED", err.Error())
 		return
 	}
 	respond(w, http.StatusOK, dtoV1.MessageResponse{Message: "test notification sent"})
+}
+
+// Enable handles POST /api/v1/notification-channels/{id}/enable — switches a
+// disabled channel back on (spec 095). Refused while its configuration is
+// incomplete, e.g. a channel an erasure left with no recipient.
+//
+// @Summary     Enable a disabled notification channel
+// @Tags        notification-channels
+// @Security    BearerAuth
+// @Produce     json
+// @Param       id path string true "Channel ID"
+// @Success     200 {object} dtoV1.SingleResponse[dto.NotificationChannelResponse]
+// @Failure     404 {object} dtoV1.ErrorResponse
+// @Failure     422 {object} dtoV1.ErrorResponse
+// @Failure     403 {object} dtoV1.ErrorResponse
+// @Router      /notification-channels/{id}/enable [post]
+func (h *NotificationChannelHandler) Enable(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+	ch, err := h.service.EnableChannel(r.Context(), id)
+	if err != nil {
+		switch {
+		case errors.Is(err, service.ErrResourceNotFound):
+			respondError(w, r, http.StatusNotFound, "RESOURCE_NOT_FOUND", "channel not found")
+		case errors.Is(err, service.ErrChannelNeedsRecipient):
+			respondError(w, r, http.StatusUnprocessableEntity, "CHANNEL_NEEDS_RECIPIENT", "add a recipient to this channel before enabling it")
+		default:
+			respondError(w, r, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to enable channel")
+		}
+		return
+	}
+	resp, err := maskChannelResponse(ch)
+	if err != nil {
+		respondError(w, r, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to map channel")
+		return
+	}
+	respond(w, http.StatusOK, resp)
 }
 
 // TestConfig handles POST /api/v1/notification-channels/test-config — validates and

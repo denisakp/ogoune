@@ -32,3 +32,6 @@ WHERE user_id = ? AND id <> ? AND revoked_at IS NULL;
 SELECT * FROM sessions
 WHERE user_id = ?
 ORDER BY created_at DESC;
+
+-- name: DeleteSessionsByUser :execrows
+DELETE FROM sessions WHERE user_id = sqlc.arg('user_id');

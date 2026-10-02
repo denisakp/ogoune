@@ -25,11 +25,17 @@ type Querier interface {
 	// needed for a plain comparison, only for extracting epoch seconds.
 	// Keep this file pure ASCII: sqlc slices SQLite query text by byte offset.
 	AggregateHostMetricsInWindow(ctx context.Context, arg AggregateHostMetricsInWindowParams) ([]AggregateHostMetricsInWindowRow, error)
+	// Spec 095: an erasure removes the address from report history; period,
+	// status and figures are kept. The caller passes the address normalised.
+	AnonymizeReportHistoryRecipient(ctx context.Context, email string) (int64, error)
 	AvgResponseTimeByResourceInWindow(ctx context.Context, arg AvgResponseTimeByResourceInWindowParams) (sql.NullFloat64, error)
 	// One round-trip bulk avg grouped by resource. Used by the list path to
 	// enrich each resource with its avg response time over a sliding window (30d).
 	AvgResponseTimeByResourcesSince(ctx context.Context, arg AvgResponseTimeByResourcesSinceParams) ([]AvgResponseTimeByResourcesSinceRow, error)
 	ClaimNotificationEvent(ctx context.Context, arg ClaimNotificationEventParams) (int64, error)
+	// Spec 095: an erasure clears the recipient and switches the report off
+	// (enabled requires a recipient).
+	ClearReportRecipient(ctx context.Context, updatedAt time.Time) (int64, error)
 	ClearResourceHostIDByHost(ctx context.Context, hostID sql.NullString) error
 	CountAPIKeysByUserID(ctx context.Context, userID string) (int64, error)
 	CountExpiryNotificationLogsByKey(ctx context.Context, arg CountExpiryNotificationLogsByKeyParams) (int64, error)
@@ -50,6 +56,8 @@ type Querier interface {
 	CreateAnnouncement(ctx context.Context, arg CreateAnnouncementParams) (Announcement, error)
 	CreateComponent(ctx context.Context, arg CreateComponentParams) error
 	CreateDashboard(ctx context.Context, arg CreateDashboardParams) (Dashboard, error)
+	// Spec 095: one row per erasure. Never the address: a keyed fingerprint.
+	CreateErasureRecord(ctx context.Context, arg CreateErasureRecordParams) error
 	CreateEscalationPolicy(ctx context.Context, arg CreateEscalationPolicyParams) error
 	CreateEscalationStep(ctx context.Context, arg CreateEscalationStepParams) error
 	CreateExpiryNotificationLog(ctx context.Context, arg CreateExpiryNotificationLogParams) error
@@ -84,6 +92,7 @@ type Querier interface {
 	// deleting the rest. MIN(id) is the earliest ULID in each minute bucket;
 	// substr(sampled_at,1,16) buckets by 'YYYY-MM-DD HH:MM'.
 	DecimateHostMetrics(ctx context.Context, sampledAt time.Time) (int64, error)
+	DeleteAPIKeysByUser(ctx context.Context, userID string) (int64, error)
 	DeleteAnnouncement(ctx context.Context, id string) (int64, error)
 	DeleteComponent(ctx context.Context, id string) (int64, error)
 	DeleteDashboard(ctx context.Context, id string) (int64, error)
@@ -112,8 +121,13 @@ type Querier interface {
 	// Called when a check collects nothing at all, so the interface shows no figures
 	// rather than yesterday's.
 	DeleteResourceHealth(ctx context.Context, resourceID string) error
+	DeleteSessionsByUser(ctx context.Context, userID string) (int64, error)
 	DeleteTag(ctx context.Context, id string) (int64, error)
 	DeleteUser(ctx context.Context, id string) error
+	// Spec 095: the four finders above are the send paths; they skip disabled
+	// channels. Enable clears the disabled state; the erasure rewrites a channel's
+	// configuration inside its transaction after re-reading it.
+	EnableNotificationChannel(ctx context.Context, arg EnableNotificationChannelParams) (int64, error)
 	FindAPIKeyByIDForUser(ctx context.Context, arg FindAPIKeyByIDForUserParams) (ApiKey, error)
 	FindAPIKeyByKeyHash(ctx context.Context, keyHash string) (ApiKey, error)
 	FindActiveHostCredentialByHash(ctx context.Context, hash string) (HostCredential, error)
@@ -184,6 +198,7 @@ type Querier interface {
 	ListComponentsByIDs(ctx context.Context, ids []string) ([]Component, error)
 	ListCredentialsByResourceIDs(ctx context.Context, resourceIds []string) ([]ResourceCredential, error)
 	ListDashboards(ctx context.Context, arg ListDashboardsParams) ([]ListDashboardsRow, error)
+	ListErasureRecordsByFingerprint(ctx context.Context, subjectFingerprint string) ([]ErasureRecord, error)
 	ListEscalationPolicies(ctx context.Context) ([]EscalationPolicy, error)
 	ListEscalationStepsByPolicy(ctx context.Context, policyID string) ([]EscalationStep, error)
 	ListHostCredentialsByHost(ctx context.Context, hostID string) ([]HostCredential, error)
@@ -225,6 +240,7 @@ type Querier interface {
 	ListTags(ctx context.Context, arg ListTagsParams) ([]Tag, error)
 	ListTagsByResourceIDs(ctx context.Context, resourceIds []string) ([]ListTagsByResourceIDsRow, error)
 	ListUnreadForEscalation(ctx context.Context, arg ListUnreadForEscalationParams) ([]Notification, error)
+	ListUsers(ctx context.Context) ([]User, error)
 	MarkAllNotificationsReadForUser(ctx context.Context, arg MarkAllNotificationsReadForUserParams) (int64, error)
 	MarkNotificationChannelFailure(ctx context.Context, arg MarkNotificationChannelFailureParams) error
 	MarkNotificationChannelSent(ctx context.Context, arg MarkNotificationChannelSentParams) error
@@ -237,6 +253,7 @@ type Querier interface {
 	RevokeAPIKey(ctx context.Context, arg RevokeAPIKeyParams) (int64, error)
 	RevokeAllSessionsExcept(ctx context.Context, arg RevokeAllSessionsExceptParams) (int64, error)
 	RevokeSession(ctx context.Context, arg RevokeSessionParams) (int64, error)
+	RewriteNotificationChannelConfig(ctx context.Context, arg RewriteNotificationChannelConfigParams) (int64, error)
 	SelectMonitoringActivityHourlyAggregateInputs(ctx context.Context, arg SelectMonitoringActivityHourlyAggregateInputsParams) ([]SelectMonitoringActivityHourlyAggregateInputsRow, error)
 	SelectMonitoringActivitySuccessInWindow(ctx context.Context, arg SelectMonitoringActivitySuccessInWindowParams) ([]int64, error)
 	SetEscalationPolicyPriority(ctx context.Context, arg SetEscalationPolicyPriorityParams) (int64, error)
@@ -249,6 +266,8 @@ type Querier interface {
 	// caller read, so a backup code cannot be consumed twice concurrently.
 	SwapUserTwoFactorBackupCodes(ctx context.Context, arg SwapUserTwoFactorBackupCodesParams) (int64, error)
 	TouchHostCredentialLastUsed(ctx context.Context, arg TouchHostCredentialLastUsedParams) error
+	// Spec 095: an erased account's updates stay published, without an author.
+	UnlinkIncidentUpdatesAuthor(ctx context.Context, userID string) (int64, error)
 	UnlinkMaintenanceResource(ctx context.Context, arg UnlinkMaintenanceResourceParams) error
 	UnlinkResourceChannel(ctx context.Context, arg UnlinkResourceChannelParams) error
 	UnlinkResourceTag(ctx context.Context, arg UnlinkResourceTagParams) error

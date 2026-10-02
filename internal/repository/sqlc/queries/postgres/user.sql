@@ -61,3 +61,6 @@ UPDATE users
 SET two_factor_backup_codes = sqlc.narg(next_codes)
 WHERE id = sqlc.arg(id)
   AND two_factor_backup_codes = sqlc.arg(expected_codes);
+
+-- name: ListUsers :many
+SELECT * FROM users ORDER BY email;

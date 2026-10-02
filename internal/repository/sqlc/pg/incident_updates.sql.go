@@ -148,6 +148,19 @@ func (q *Queries) ListIncidentUpdatesByPostedBy(ctx context.Context, postedBy st
 	return items, nil
 }
 
+const unlinkIncidentUpdatesAuthor = `-- name: UnlinkIncidentUpdatesAuthor :execrows
+UPDATE incident_updates SET posted_by = '' WHERE posted_by = $1
+`
+
+// Spec 095: an erased account's updates stay published, without an author.
+func (q *Queries) UnlinkIncidentUpdatesAuthor(ctx context.Context, userID string) (int64, error) {
+	result, err := q.db.Exec(ctx, unlinkIncidentUpdatesAuthor, userID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const updateIncidentUpdate = `-- name: UpdateIncidentUpdate :exec
 UPDATE incident_updates
 SET status = $2,

@@ -21,3 +21,10 @@ SELECT id, period, sent_at, status, uptime_pct, incident_count, downtime_seconds
 FROM report_history
 WHERE LOWER(TRIM(recipient_email)) = sqlc.arg('email')
 ORDER BY period DESC;
+
+-- name: AnonymizeReportHistoryRecipient :execrows
+-- Spec 095: an erasure removes the address from report history; period,
+-- status and figures are kept. The caller passes the address normalised.
+UPDATE report_history
+SET recipient_email = ''
+WHERE LOWER(TRIM(recipient_email)) = sqlc.arg('email');

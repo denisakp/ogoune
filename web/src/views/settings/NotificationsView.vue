@@ -14,6 +14,7 @@ import {
   updateChannel,
   deleteChannel,
   setDefault,
+  enableChannel,
 } from '@/services/notificationChannelService'
 import { fetchNotificationStats } from '@/services/notificationStatsService'
 import type { NotificationChannel, CreateNotificationChannel } from '@/types'
@@ -26,6 +27,7 @@ const channels = ref<NotificationChannel[]>([])
 const loading = ref(true)
 const modalOpen = ref(false)
 const editing = ref<NotificationChannel | null>(null)
+const enableError = ref<string | null>(null)
 
 const notifStats = ref<{
   sent_30d: number
@@ -228,6 +230,32 @@ async function onToggleDefault(c: NotificationChannel) {
   }
 }
 
+function disabledText(c: NotificationChannel): string {
+  if (c.disabled_reason === 'erasure') {
+    const d = c.disabled_at ? new Date(c.disabled_at) : null
+    const when = d && !Number.isNaN(d.getTime()) ? ` on ${d.toLocaleDateString()}` : ''
+    return `Disabled by an erasure${when}`
+  }
+  return 'Disabled'
+}
+
+async function onEnable(c: NotificationChannel) {
+  enableError.value = null
+  try {
+    const updated = await enableChannel(c.id)
+    channels.value = channels.value.map((x) =>
+      x.id === c.id ? { ...x, ...updated, disabled_at: null, disabled_reason: null } : x,
+    )
+  } catch (e) {
+    const code = (e as { code?: string } | null)?.code
+    if (code === 'CHANNEL_NEEDS_RECIPIENT') {
+      enableError.value = 'Add a recipient to this channel before enabling it'
+    } else {
+      enableError.value = e instanceof Error ? e.message : 'The channel could not be enabled'
+    }
+  }
+}
+
 const initialForModal = computed(() => {
   if (!editing.value) return undefined
   return {
@@ -236,6 +264,7 @@ const initialForModal = computed(() => {
     type: editing.value.type as NotificationChannelInput['type'],
     is_default: editing.value.enabled_by_default,
     is_active: true,
+    disabled_at: editing.value.disabled_at ?? null,
     config: editing.value.config as unknown as NotificationChannelInput['config'],
   }
 })
@@ -280,11 +309,24 @@ const columns: TableColumn<NotificationChannel>[] = [
   {
     id: 'status',
     header: 'Status',
-    cell: () =>
-      h(resolveComponent('UBadge'), { color: 'success', variant: 'subtle', size: 'sm' }, () => [
+    cell: ({ row }) => {
+      const c = row.original
+      if (c.disabled_at) {
+        return h('div', { class: 'space-y-1', 'data-test': 'channel-disabled' }, [
+          h(resolveComponent('UBadge'), { color: 'warning', variant: 'subtle', size: 'sm' }, () => 'Disabled'),
+          h('p', { class: 'text-xs text-muted' }, disabledText(c)),
+          h(
+            resolveComponent('UButton'),
+            { size: 'xs', variant: 'outline', 'data-test': 'channel-enable', onClick: () => onEnable(c) },
+            () => 'Enable',
+          ),
+        ])
+      }
+      return h(resolveComponent('UBadge'), { color: 'success', variant: 'subtle', size: 'sm' }, () => [
         h('span', { class: 'inline-block size-1.5 rounded-full mr-1 bg-success' }),
         'Verified',
-      ]),
+      ])
+    },
   },
   {
     id: 'default',
@@ -334,7 +376,7 @@ const columns: TableColumn<NotificationChannel>[] = [
   },
 ]
 
-defineExpose({ channels, stats, openCreate, openEdit, onSubmit, onToggleDefault, onDelete, columns })
+defineExpose({ channels, stats, openCreate, openEdit, onSubmit, onToggleDefault, onDelete, onEnable, enableError, columns })
 </script>
 
 <template>
@@ -383,7 +425,16 @@ defineExpose({ channels, stats, openCreate, openEdit, onSubmit, onToggleDefault,
       </template>
     </UEmpty>
 
-    <div v-else class="overflow-hidden rounded-xl border border-default bg-default">
+    <UAlert
+      v-if="enableError"
+      color="error"
+      variant="soft"
+      icon="i-lucide-triangle-alert"
+      :title="enableError"
+      data-test="channel-enable-error"
+    />
+
+    <div v-if="!loading && channels.length > 0" class="overflow-hidden rounded-xl border border-default bg-default">
       <UTable :data="channels" :columns="columns" />
     </div>
 

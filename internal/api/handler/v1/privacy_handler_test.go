@@ -41,11 +41,13 @@ const (
 )
 
 type privacyEnv struct {
-	router  *chi.Mux
-	users   *fake.UserRepository
-	hash    string
-	keyHash string
-	twoFA   bool
+	router   *chi.Mux
+	erasures *fake.ErasureFake
+	keys     *fake.APIKeyRepository
+	users    *fake.UserRepository
+	hash     string
+	keyHash  string
+	twoFA    bool
 }
 
 // newPrivacyEnv wires the real AuthService and PrivacyService over fakes, and
@@ -89,15 +91,23 @@ func newPrivacyEnv(t *testing.T, twoFactor bool, exportLimit int) *privacyEnv {
 
 	auth := service.NewAuthService(users, service.NewJWTManager("test-secret-key-at-least-32-bytes-long", "ogoune", time.Hour))
 	privacy := service.NewPrivacyService(users, sessions, keys, updates, channels, settings, history)
-	h := v1.NewPrivacyHandler(privacy, auth, "1.0.0-test", "")
+	t.Setenv("APP_SECRET_KEY", "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef")
+	_, err = users.Create(ctx, &domain.User{Base: domain.Base{ID: "user-old"}, Email: "old@example.com", Name: "Old admin"})
+	require.NoError(t, err)
+	erasures := fake.NewErasureFake()
+	eraser := service.NewErasureService(service.ErasureRepositories{Users: users, Sessions: sessions, APIKeys: keys, Updates: updates, Channels: channels, ReportSettings: settings, ReportHistory: history, Erasures: erasures})
+	h := v1.NewPrivacyHandler(privacy, eraser, auth, "1.0.0-test", "")
 
 	r := chi.NewRouter()
 	r.Route("/api/v1/me/privacy", func(r chi.Router) {
 		r.Use(middleware.RequireJWTOnly)
 		r.Get("/", h.Summary)
 		r.With(httprate.LimitByIP(exportLimit, time.Minute)).Post("/export", h.Export)
+		r.Get("/accounts", h.ErasureAccounts)
+		r.Post("/erasure/preview", h.PreviewErasure)
+		r.With(httprate.LimitByIP(exportLimit, time.Minute)).Post("/erasure", h.Erase)
 	})
-	return &privacyEnv{router: r, users: users, hash: string(hash), keyHash: keyHash, twoFA: twoFactor}
+	return &privacyEnv{router: r, erasures: erasures, keys: keys, users: users, hash: string(hash), keyHash: keyHash, twoFA: twoFactor}
 }
 
 func asUser(req *http.Request, method string) *http.Request {
@@ -313,7 +323,7 @@ func TestPrivacy_ReadsOnly(t *testing.T) {
 	privacy := service.NewPrivacyService(users, sessions, store.NewAPIKeyRepositorySQLC(rt),
 		store.NewIncidentUpdateRepositorySQLC(rt), store.NewNotificationChannelRepositorySQLC(rt),
 		store.NewReportSettingsRepositorySQLC(rt), store.NewReportHistoryRepositorySQLC(rt))
-	h := v1.NewPrivacyHandler(privacy, auth, "test", "")
+	h := v1.NewPrivacyHandler(privacy, nil, auth, "test", "")
 	r := chi.NewRouter()
 	r.Get("/s", h.Summary)
 	r.Post("/e", h.Export)

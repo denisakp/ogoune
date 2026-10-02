@@ -65,6 +65,8 @@ func (m *mockExpiryChannelRepo) FindByComponentID(_ context.Context, _ string) (
 	return nil, nil
 }
 func (m *mockExpiryChannelRepo) MarkSent(_ context.Context, _ string, _ time.Time) error { return nil }
+func (m *mockExpiryChannelRepo) Enable(_ context.Context, _ string) error                { return nil }
+
 func (m *mockExpiryChannelRepo) MarkFailure(_ context.Context, _ string, _ time.Time) error {
 	return nil
 }

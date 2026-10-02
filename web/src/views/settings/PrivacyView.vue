@@ -10,6 +10,7 @@
 import { computed, onMounted, reactive, ref } from 'vue'
 import privacyService, { InvalidCredentialsError } from '@/services/privacyService'
 import { privacyExportSchema } from '@/schemas/privacyExport.schema'
+import ErasurePanel from '@/components/privacy/ErasurePanel.vue'
 import type { PrivacyCategory, PrivacySummary } from '@/types'
 
 const loading = ref(true)
@@ -173,6 +174,8 @@ defineExpose({ summary, loading, loadError, exportOpen, exportError, form, onSub
           Download
         </UButton>
       </div>
+
+      <ErasurePanel :two-factor-enabled="summary.two_factor_enabled" />
     </template>
 
     <UModal

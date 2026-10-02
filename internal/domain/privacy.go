@@ -1,6 +1,7 @@
 package domain
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"strings"
@@ -214,4 +215,111 @@ func valueHoldsAddress(value, target string) bool {
 		}
 	}
 	return false
+}
+
+// RemoveAddressFromConfig returns config with every occurrence of email
+// removed from recipient-style values (spec 095): a string holding one address
+// or a list of them (comma, semicolon or space separated, "Name <addr>" form
+// included) loses the matching entries, and an array loses the matching
+// elements. Other recipients are kept. A value containing "://" that holds the
+// address is left untouched and reported in inURL -- a URL cannot be rewritten
+// safely. changed lists the paths that were rewritten, in the notation of
+// FindAddressInConfig. config is returned as-is when nothing changed.
+//
+// It uses the same matching rule as FindAddressInConfig, so after a removal
+// FindAddressInConfig finds only the inURL paths.
+func RemoveAddressFromConfig(config []byte, email string) (out []byte, changed, inURL []string, err error) {
+	target := NormalizeEmail(email)
+	if target == "" || len(config) == 0 {
+		return config, nil, nil, nil
+	}
+	dec := json.NewDecoder(bytes.NewReader(config))
+	dec.UseNumber() // keep numbers exactly as written
+	var root any
+	if err := dec.Decode(&root); err != nil {
+		return nil, nil, nil, fmt.Errorf("privacy: config is not JSON: %w", err)
+	}
+	r := addressRemover{target: target}
+	next, _ := r.walk(root, "")
+	if len(r.changed) == 0 {
+		return config, nil, r.inURL, nil
+	}
+	out, err = json.Marshal(next)
+	if err != nil {
+		return nil, nil, nil, fmt.Errorf("privacy: re-encode config: %w", err)
+	}
+	return out, r.changed, r.inURL, nil
+}
+
+type addressRemover struct {
+	target         string
+	changed, inURL []string
+}
+
+// walk returns the value without the address, and whether the value was
+// nothing but the address (so an array drops the element).
+func (r *addressRemover) walk(v any, path string) (any, bool) {
+	switch t := v.(type) {
+	case map[string]any:
+		for k, child := range t {
+			p := k
+			if path != "" {
+				p = path + "." + k
+			}
+			t[k], _ = r.walk(child, p)
+		}
+		return t, false
+	case []any:
+		kept := make([]any, 0, len(t))
+		for i, child := range t {
+			next, onlyAddress := r.walk(child, fmt.Sprintf("%s[%d]", path, i))
+			if !onlyAddress {
+				kept = append(kept, next)
+			}
+		}
+		return kept, false
+	case string:
+		return r.rewriteString(t, path)
+	}
+	return v, false
+}
+
+func (r *addressRemover) rewriteString(value, path string) (any, bool) {
+	if !valueHoldsAddress(value, r.target) {
+		return value, false
+	}
+	if strings.Contains(value, "://") {
+		r.inURL = append(r.inURL, path)
+		return value, false
+	}
+	r.changed = append(r.changed, path)
+	var kept []string
+	for _, entry := range recipientEntries(value) {
+		if !valueHoldsAddress(entry, r.target) {
+			kept = append(kept, entry)
+		}
+	}
+	if len(kept) == 0 {
+		return "", true
+	}
+	return strings.Join(kept, ", "), false
+}
+
+// recipientEntries splits a recipient-style string into its entries. Commas
+// and semicolons always separate; spaces separate too unless an entry uses
+// the "Name <addr>" form, whose name may contain spaces.
+func recipientEntries(value string) []string {
+	var out []string
+	for _, part := range strings.FieldsFunc(value, func(r rune) bool { return r == ',' || r == ';' }) {
+		part = strings.TrimSpace(part)
+		if part == "" {
+			continue
+		}
+		if strings.Contains(part, "<") {
+			out = append(out, part)
+			continue
+		}
+		out = append(out, strings.Fields(part)...)
+	}
+	return out
 }

@@ -25,8 +25,16 @@ type reauthenticator interface {
 	Reauthenticate(ctx context.Context, userID, password, code string) error
 }
 
+// privacyEraser previews and applies erasure requests (spec 095).
+type privacyEraser interface {
+	OtherAccounts(ctx context.Context, callerID string) ([]domain.ErasureAccount, error)
+	Preview(ctx context.Context, callerID string, subject service.ErasureSubject) (*domain.ErasurePreview, error)
+	Erase(ctx context.Context, callerID string, subject service.ErasureSubject, confirmEmail string, verify func(context.Context) error) (*domain.ErasureResult, error)
+}
+
 type PrivacyHandler struct {
 	privacy privacyInventory
+	erasure privacyEraser
 	auth    reauthenticator
 	version string
 	baseURL string
@@ -35,8 +43,8 @@ type PrivacyHandler struct {
 // NewPrivacyHandler takes the install's version and, only when explicitly
 // configured, its public base URL -- the two facts the export states about
 // what produced it.
-func NewPrivacyHandler(privacy privacyInventory, auth reauthenticator, version, baseURL string) *PrivacyHandler {
-	return &PrivacyHandler{privacy: privacy, auth: auth, version: version, baseURL: baseURL}
+func NewPrivacyHandler(privacy privacyInventory, erasure privacyEraser, auth reauthenticator, version, baseURL string) *PrivacyHandler {
+	return &PrivacyHandler{privacy: privacy, erasure: erasure, auth: auth, version: version, baseURL: baseURL}
 }
 
 // Where each category is managed in the interface (FR-011).
@@ -58,7 +66,7 @@ var privacyManagePaths = map[string]string{
 // @Failure      401 {object} dtoV1.ErrorResponse
 // @Failure      403 {object} dtoV1.ErrorResponse
 // @Security     BearerAuth
-// @Router       /v1/me/privacy [get]
+// @Router       /me/privacy [get]
 func (h *PrivacyHandler) Summary(w http.ResponseWriter, r *http.Request) {
 	userID := userIDFromContext(r)
 	if userID == "" {
@@ -97,7 +105,7 @@ func (h *PrivacyHandler) Summary(w http.ResponseWriter, r *http.Request) {
 // @Failure      422 {object} dtoV1.ErrorResponse
 // @Failure      429 {object} dtoV1.ErrorResponse
 // @Security     BearerAuth
-// @Router       /v1/me/privacy/export [post]
+// @Router       /me/privacy/export [post]
 func (h *PrivacyHandler) Export(w http.ResponseWriter, r *http.Request) {
 	userID := userIDFromContext(r)
 	if userID == "" {

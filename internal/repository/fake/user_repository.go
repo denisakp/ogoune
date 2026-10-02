@@ -3,6 +3,7 @@ package fake
 import (
 	"bytes"
 	"context"
+	"sort"
 	"sync"
 	"time"
 
@@ -53,6 +54,19 @@ func (r *UserRepository) FindByID(ctx context.Context, id string) (*domain.User,
 
 	copy := *user
 	return &copy, nil
+}
+
+// List returns every user, ordered by email.
+func (r *UserRepository) List(ctx context.Context) ([]*domain.User, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	out := make([]*domain.User, 0, len(r.users))
+	for _, u := range r.users {
+		c := *u
+		out = append(out, &c)
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].Email < out[j].Email })
+	return out, nil
 }
 
 // FindByEmail finds a user by email

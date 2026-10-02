@@ -28,3 +28,6 @@ WHERE id = $1 AND user_id = $2;
 
 -- name: CountAPIKeysByUserID :one
 SELECT COUNT(*) FROM api_keys WHERE user_id = $1;
+
+-- name: DeleteAPIKeysByUser :execrows
+DELETE FROM api_keys WHERE user_id = sqlc.arg('user_id');

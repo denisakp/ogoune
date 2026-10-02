@@ -134,3 +134,95 @@ type PersonalDataReportSent struct {
 	Status string  `json:"status"`
 	SentAt *string `json:"sent_at"`
 }
+
+// --- Erasure (spec 095). Field paths and counts, never a value: no response
+// carries the erased address back, except an account's own address in the
+// list of accounts the operator can already see.
+
+// ErasureAccountResponse is another account the operator may erase.
+// @name ErasureAccountResponse
+type ErasureAccountResponse struct {
+	ID          string  `json:"id"`
+	Email       string  `json:"email"`
+	LastLoginAt *string `json:"last_login_at"`
+}
+
+// ErasurePreviewRequest names the subject: exactly one of email or account_id.
+// @name ErasurePreviewRequest
+type ErasurePreviewRequest struct {
+	Email     string `json:"email,omitempty"`
+	AccountID string `json:"account_id,omitempty"`
+}
+
+// ErasureRequest confirms an erasure: the subject, the address typed again,
+// and the operator's re-authentication.
+// @name ErasureRequest
+type ErasureRequest struct {
+	Email        string `json:"email,omitempty"`
+	AccountID    string `json:"account_id,omitempty"`
+	ConfirmEmail string `json:"confirm_email"`
+	Password     string `json:"password"`
+	Code         string `json:"code,omitempty"`
+}
+
+// ErasureChannelHitResponse is a channel holding the address.
+// @name ErasureChannelHitResponse
+type ErasureChannelHitResponse struct {
+	ID          string   `json:"id"`
+	Name        string   `json:"name"`
+	Type        string   `json:"type"`
+	Fields      []string `json:"fields"`
+	WillDisable bool     `json:"will_disable"`
+}
+
+// ErasureManualItemResponse is a channel the erasure cannot change itself.
+// @name ErasureManualItemResponse
+type ErasureManualItemResponse struct {
+	ChannelID   string `json:"channel_id"`
+	ChannelName string `json:"channel_name"`
+	ChannelType string `json:"channel_type"`
+	Reason      string `json:"reason" enums:"undecryptable,address_in_url"`
+}
+
+// ErasureChannelRef names a channel.
+// @name ErasureChannelRef
+type ErasureChannelRef struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+}
+
+// ErasureTransportChangeResponse: monthly reports and escalation digests go
+// through the oldest enabled SMTP channel; this one is being disabled. A null
+// to_channel means none is left.
+// @name ErasureTransportChangeResponse
+type ErasureTransportChangeResponse struct {
+	FromChannel ErasureChannelRef  `json:"from_channel"`
+	ToChannel   *ErasureChannelRef `json:"to_channel"`
+}
+
+// ErasurePreviewResponse is what an erasure would do. Nothing changed.
+// @name ErasurePreviewResponse
+type ErasurePreviewResponse struct {
+	Kind               string                          `json:"kind" enums:"address,account"`
+	Account            *ErasureAccountResponse         `json:"account"`
+	Channels           []ErasureChannelHitResponse     `json:"channels"`
+	ReportRecipient    bool                            `json:"report_recipient"`
+	ReportsSent        int                             `json:"reports_sent"`
+	Sessions           int                             `json:"sessions"`
+	APIKeys            int                             `json:"api_keys"`
+	UpdatesUnlinked    int                             `json:"updates_unlinked"`
+	ManualReview       []ErasureManualItemResponse     `json:"manual_review"`
+	PreviouslyErasedAt *string                         `json:"previously_erased_at"`
+	TransportChange    *ErasureTransportChangeResponse `json:"transport_change"`
+}
+
+// ErasureResultResponse is what the erasure changed.
+// @name ErasureResultResponse
+type ErasureResultResponse struct {
+	RecordID               string                          `json:"record_id"`
+	Changes                map[string]int                  `json:"changes"`
+	DisabledChannels       []ErasureChannelHitResponse     `json:"disabled_channels"`
+	ManualReview           []ErasureManualItemResponse     `json:"manual_review"`
+	TransportChange        *ErasureTransportChangeResponse `json:"transport_change"`
+	ReportRecipientCleared bool                            `json:"report_recipient_cleared"`
+}

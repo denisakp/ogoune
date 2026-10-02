@@ -116,7 +116,8 @@ export function useSearchPalette() {
       if (score !== null) matched.push({ ...item, score })
     }
     // Stable sort: equal scores keep corpus order (resources, incidents, pages).
-    return matched.sort((a, b) => a.score - b.score).slice(0, RESULT_LIMIT)
+    matched.sort((a, b) => a.score - b.score)
+    return matched.slice(0, RESULT_LIMIT)
   }
 
   const results: ComputedRef<SearchResult[]> = computed(() => {

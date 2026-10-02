@@ -245,6 +245,8 @@ type NotificationChannelRepository interface {
 	// Spec 060 follow-up — per-channel dispatch counters.
 	MarkSent(ctx context.Context, channelID string, at time.Time) error
 	MarkFailure(ctx context.Context, channelID string, at time.Time) error
+	// Enable clears a channel's disabled state (spec 095).
+	Enable(ctx context.Context, id string) error
 	// ListForScan returns every channel with its configuration decrypted row
 	// by row (spec 094). A row that cannot be decrypted is returned with
 	// DecryptErr set and no Config, instead of failing the whole list as List
@@ -280,6 +282,8 @@ type UserRepository interface {
 	Create(ctx context.Context, user *domain.User) (*domain.User, error)
 	FindByID(ctx context.Context, id string) (*domain.User, error)
 	FindByEmail(ctx context.Context, email string) (*domain.User, error)
+	// List returns every account, ordered by email (spec 095).
+	List(ctx context.Context) ([]*domain.User, error)
 	Update(ctx context.Context, user *domain.User) error
 	Delete(ctx context.Context, id string) error
 	UpdatePassword(ctx context.Context, userID string, hashedPassword string) error
@@ -436,4 +440,11 @@ type IncidentUpdateRepository interface {
 	ListByPostedBy(ctx context.Context, userID string) ([]*domain.IncidentUpdate, error)
 	Update(ctx context.Context, u *domain.IncidentUpdate) error
 	Delete(ctx context.Context, id string) error
+}
+
+// ErasureRepository applies an erasure plan in one transaction and finds
+// earlier erasures of the same address by fingerprint (spec 095).
+type ErasureRepository interface {
+	Apply(ctx context.Context, plan domain.ErasurePlan) error
+	FindRecordsByFingerprint(ctx context.Context, fingerprint string) ([]domain.ErasureRecord, error)
 }

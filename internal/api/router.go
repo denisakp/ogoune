@@ -261,13 +261,17 @@ func NewRouter(
 		r.Group(func(r chi.Router) {
 			r.Use(middleware.AuthMiddleware(authService, apiKeyService, sessionService))
 			// Personal data (spec 094): the signed-in person only, never an API
-			// key. The export re-authenticates and carries the same per-address
-			// limit as sign-in, so it cannot be used to guess a password.
+			// key. The export and the erasure (spec 095) re-authenticate and carry
+			// the same per-address limit as sign-in, so they cannot be used to
+			// guess a password.
 			if privacyV1Handler != nil {
 				r.Route("/me/privacy", func(r chi.Router) {
 					r.Use(middleware.RequireJWTOnly)
 					r.Get("/", privacyV1Handler.Summary)
 					r.With(httprate.LimitByIP(cfg.RateLimitAuth, cfg.RateLimitAuthWindow)).Post("/export", privacyV1Handler.Export)
+					r.Get("/accounts", privacyV1Handler.ErasureAccounts)
+					r.Post("/erasure/preview", privacyV1Handler.PreviewErasure)
+					r.With(httprate.LimitByIP(cfg.RateLimitAuth, cfg.RateLimitAuthWindow)).Post("/erasure", privacyV1Handler.Erase)
 				})
 			}
 			// Monitors
@@ -332,6 +336,7 @@ func NewRouter(
 				r.With(middleware.RequireReadWrite).Patch("/{id}", channelV1Handler.Patch)
 				r.With(middleware.RequireReadWrite).Delete("/{id}", channelV1Handler.Delete)
 				r.With(middleware.RequireReadWrite).Post("/{id}/test", channelV1Handler.Test)
+				r.With(middleware.RequireReadWrite).Post("/{id}/enable", channelV1Handler.Enable)
 			})
 			// Component routes — registered in T034; membership (bulk assign/remove)
 			// + PATCH migrated from root (spec 086 US4).

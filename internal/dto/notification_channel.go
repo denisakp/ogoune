@@ -68,8 +68,12 @@ type NotificationChannelResponse struct {
 	LastSentAt       *string                        `json:"last_sent_at"`
 	LastFailureAt    *string                        `json:"last_failure_at"`
 	Failures24h      int                            `json:"failures_24h"`
-	CreatedAt        string                         `json:"created_at"`
-	UpdatedAt        string                         `json:"updated_at"`
+	// DisabledAt is set when the channel sends nothing (spec 095);
+	// DisabledReason says why ("erasure").
+	DisabledAt     *string `json:"disabled_at"`
+	DisabledReason *string `json:"disabled_reason"`
+	CreatedAt      string  `json:"created_at"`
+	UpdatedAt      string  `json:"updated_at"`
 }
 
 // ToNotificationChannelResponse converts a domain NotificationChannel to DTO response
@@ -96,7 +100,16 @@ func ToNotificationChannelResponse(channel *domain.NotificationChannel) (*Notifi
 		LastSentAt:       fmtTime(channel.LastSentAt),
 		LastFailureAt:    fmtTime(channel.LastFailureAt),
 		Failures24h:      channel.Failures24h,
+		DisabledAt:       fmtTime(channel.DisabledAt),
+		DisabledReason:   strPtrOrNil(channel.DisabledReason),
 		CreatedAt:        channel.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
 		UpdatedAt:        channel.UpdatedAt.Format("2006-01-02T15:04:05Z07:00"),
 	}, nil
+}
+
+func strPtrOrNil(s string) *string {
+	if s == "" {
+		return nil
+	}
+	return &s
 }

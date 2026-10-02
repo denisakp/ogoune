@@ -14,6 +14,9 @@ import (
 	"github.com/denisakp/ogoune/pkg/notifier"
 )
 
+// wrapReason wraps a sentinel error with the reason a check gave.
+const wrapReason = "%w: %v"
+
 // NotificationService provides business logic for notification operations.
 type NotificationService struct {
 	resources port.ResourceRepository
@@ -96,7 +99,7 @@ func (s *NotificationService) CreateNotificationChannel(ctx context.Context, pay
 
 	// Validate config based on type
 	if err := s.validateChannelConfig(payload.Type, payload.Config); err != nil {
-		return nil, fmt.Errorf("%w: %v", ErrValidationFailed, err)
+		return nil, fmt.Errorf(wrapReason, ErrValidationFailed, err)
 	}
 
 	// Create domain model
@@ -158,7 +161,7 @@ func (s *NotificationService) UpdateNotificationChannel(ctx context.Context, id 
 	if payload.Config != nil {
 		// Validate config based on type
 		if err := s.validateChannelConfig(channel.Type, payload.Config); err != nil {
-			return nil, fmt.Errorf("%w: %v", ErrValidationFailed, err)
+			return nil, fmt.Errorf(wrapReason, ErrValidationFailed, err)
 		}
 		channel.Config = payload.Config
 	}
@@ -205,6 +208,11 @@ func (s *NotificationService) TestNotificationChannel(ctx context.Context, id st
 		return err
 	}
 
+	// A disabled channel is never sent to, tests included (spec 095).
+	if channel.IsDisabled() {
+		return ErrChannelDisabled
+	}
+
 	// For MVP, only support SMTP
 	if channel.Type != domain.NotificationChannelTypeSMTP {
 		return fmt.Errorf("only SMTP channels are supported in this version")
@@ -245,58 +253,96 @@ func (s *NotificationService) TestNotificationChannel(ctx context.Context, id st
 	return nil
 }
 
+// EnableChannel switches a disabled channel back on (spec 095). It is refused
+// while the configuration would not be accepted on save -- for a channel an
+// erasure emptied, until it has a recipient again. Enabling an enabled channel
+// changes nothing.
+func (s *NotificationService) EnableChannel(ctx context.Context, id string) (*domain.NotificationChannel, error) {
+	channel, err := s.channels.FindByID(ctx, id)
+	if err != nil {
+		if errors.Is(err, repository.ErrNotFound) {
+			return nil, fmt.Errorf("%w: notification channel not found", ErrResourceNotFound)
+		}
+		return nil, err
+	}
+	if !channel.IsDisabled() {
+		return channel, nil
+	}
+	if err := ValidateChannelConfig(channel.Type, channel.Config); err != nil {
+		return nil, fmt.Errorf(wrapReason, ErrChannelNeedsRecipient, err)
+	}
+	if err := s.channels.Enable(ctx, id); err != nil {
+		return nil, fmt.Errorf("failed to enable notification channel: %w", err)
+	}
+	channel.DisabledAt = nil
+	channel.DisabledReason = ""
+	return channel, nil
+}
+
 // validateChannelConfig validates the configuration JSON for a given channel type
 func (s *NotificationService) validateChannelConfig(channelType domain.NotificationChannelType, configJSON json.RawMessage) error {
+	return ValidateChannelConfig(channelType, configJSON)
+}
+
+// ValidateChannelConfig is the rule a channel configuration must pass to be
+// saved -- and, for spec 095, to be enabled: a channel an erasure leaves
+// failing it is disabled.
+func ValidateChannelConfig(channelType domain.NotificationChannelType, configJSON json.RawMessage) error {
 	switch channelType {
 	case domain.NotificationChannelTypeSMTP:
-		var config dto.SMTPConfig
-		if err := json.Unmarshal(configJSON, &config); err != nil {
-			return fmt.Errorf("invalid SMTP config format: %w", err)
-		}
-		// Validate required SMTP fields
-		if config.Host == "" {
-			return errors.New("SMTP host is required")
-		}
-		if config.Port == 0 {
-			return errors.New("SMTP port is required")
-		}
-		if config.Sender == "" {
-			return errors.New("SMTP sender is required")
-		}
-		if len(config.Recipients) == 0 {
-			return errors.New("at least one recipient is required")
-		}
-		return nil
-
+		return validateSMTPConfig(configJSON)
 	case domain.NotificationChannelTypeSlack:
-		var config dto.SlackConfig
-		if err := json.Unmarshal(configJSON, &config); err != nil {
-			return fmt.Errorf("invalid Slack config format: %w", err)
-		}
-		if config.WebhookURL == "" {
-			return errors.New("slack webhook URL is required")
-		}
-		return nil
-
+		return validateSlackConfig(configJSON)
 	case domain.NotificationChannelTypeSMS:
-		var config dto.SMSConfig
-		if err := json.Unmarshal(configJSON, &config); err != nil {
-			return fmt.Errorf("invalid SMS config format: %w", err)
-		}
-		if config.Provider == "" {
-			return errors.New("SMS provider is required")
-		}
-		if config.FromNumber == "" {
-			return errors.New("SMS from number is required")
-		}
-		if len(config.ToNumbers) == 0 {
-			return errors.New("at least one SMS recipient is required")
-		}
-		return nil
-
+		return validateSMSConfig(configJSON)
 	default:
 		return fmt.Errorf("unsupported channel type: %s", channelType)
 	}
+}
+
+func validateSMTPConfig(configJSON json.RawMessage) error {
+	var config dto.SMTPConfig
+	if err := json.Unmarshal(configJSON, &config); err != nil {
+		return fmt.Errorf("invalid SMTP config format: %w", err)
+	}
+	switch {
+	case config.Host == "":
+		return errors.New("SMTP host is required")
+	case config.Port == 0:
+		return errors.New("SMTP port is required")
+	case config.Sender == "":
+		return errors.New("SMTP sender is required")
+	case len(config.Recipients) == 0:
+		return errors.New("at least one recipient is required")
+	}
+	return nil
+}
+
+func validateSlackConfig(configJSON json.RawMessage) error {
+	var config dto.SlackConfig
+	if err := json.Unmarshal(configJSON, &config); err != nil {
+		return fmt.Errorf("invalid Slack config format: %w", err)
+	}
+	if config.WebhookURL == "" {
+		return errors.New("slack webhook URL is required")
+	}
+	return nil
+}
+
+func validateSMSConfig(configJSON json.RawMessage) error {
+	var config dto.SMSConfig
+	if err := json.Unmarshal(configJSON, &config); err != nil {
+		return fmt.Errorf("invalid SMS config format: %w", err)
+	}
+	switch {
+	case config.Provider == "":
+		return errors.New("SMS provider is required")
+	case config.FromNumber == "":
+		return errors.New("SMS from number is required")
+	case len(config.ToNumbers) == 0:
+		return errors.New("at least one SMS recipient is required")
+	}
+	return nil
 }
 
 // ValidateAndTestChannelConfig validates and tests channel configuration without requiring it to be saved.

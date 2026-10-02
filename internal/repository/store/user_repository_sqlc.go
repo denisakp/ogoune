@@ -139,6 +139,34 @@ func (r *UserRepositorySQLC) FindByID(ctx context.Context, id string) (*domain.U
 	}
 }
 
+// List returns every account, ordered by email (spec 095).
+func (r *UserRepositorySQLC) List(ctx context.Context) ([]*domain.User, error) {
+	switch {
+	case r.pgQ != nil:
+		rows, err := r.pgQ.ListUsers(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("sqlc: list users: %w", err)
+		}
+		out := make([]*domain.User, 0, len(rows))
+		for _, row := range rows {
+			out = append(out, userFromPG(row))
+		}
+		return out, nil
+	case r.sqliteQ != nil:
+		rows, err := r.sqliteQ.ListUsers(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("sqlc: list users: %w", err)
+		}
+		out := make([]*domain.User, 0, len(rows))
+		for _, row := range rows {
+			out = append(out, userFromSQLite(row))
+		}
+		return out, nil
+	default:
+		return nil, r.unconfigured()
+	}
+}
+
 func (r *UserRepositorySQLC) FindByEmail(ctx context.Context, email string) (*domain.User, error) {
 	switch {
 	case r.pgQ != nil:

@@ -33,3 +33,7 @@ SELECT id, incident_id, status, message, posted_by, posted_at, created_at, updat
 FROM incident_updates
 WHERE posted_by = ?
 ORDER BY posted_at DESC;
+
+-- name: UnlinkIncidentUpdatesAuthor :execrows
+-- Spec 095: an erased account's updates stay published, without an author.
+UPDATE incident_updates SET posted_by = '' WHERE posted_by = sqlc.arg('user_id');
