@@ -68,9 +68,16 @@ func TestErasedAccount_IsRefusedByTheAuthMiddleware(t *testing.T) {
 	require.Equal(t, http.StatusOK, call("Authorization", "Bearer "+oldToken))
 	require.Equal(t, http.StatusOK, call("X-API-Key", oldKey.Key))
 
-	eraser := service.NewErasureService(users, sessions, keys, store.NewIncidentUpdateRepositorySQLC(rt),
-		store.NewNotificationChannelRepositorySQLC(rt), store.NewReportSettingsRepositorySQLC(rt),
-		store.NewReportHistoryRepositorySQLC(rt), store.NewErasureRepositorySQLC(rt))
+	eraser := service.NewErasureService(service.ErasureRepositories{
+		Users:          users,
+		Sessions:       sessions,
+		APIKeys:        keys,
+		Updates:        store.NewIncidentUpdateRepositorySQLC(rt),
+		Channels:       store.NewNotificationChannelRepositorySQLC(rt),
+		ReportSettings: store.NewReportSettingsRepositorySQLC(rt),
+		ReportHistory:  store.NewReportHistoryRepositorySQLC(rt),
+		Erasures:       store.NewErasureRepositorySQLC(rt),
+	})
 	_, err = eraser.Erase(ctx, "u-op", service.ErasureSubject{AccountID: "u-old"}, "old@example.com",
 		func(context.Context) error { return nil })
 	require.NoError(t, err)

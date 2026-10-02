@@ -108,18 +108,18 @@ func rewriteChannel(ctx context.Context, w erasureWriter, c domain.ChannelRewrit
 		if isErasureNoRows(err) {
 			return &repository.ErasureConflictError{ChannelID: c.ID}
 		}
-		return fmt.Errorf("erasure: notification channel %s: %w", c.ID, err)
+		return channelErr(c.ID, err)
 	}
 	current, err := decryptChannelConfig(stored)
 	if err != nil {
-		return fmt.Errorf("erasure: notification channel %s: %w", c.ID, err)
+		return channelErr(c.ID, err)
 	}
 	if !bytes.Equal(current, c.ExpectConfig) {
 		return &repository.ErasureConflictError{ChannelID: c.ID}
 	}
 	ct, err := encryptChannelConfig(c.Config)
 	if err != nil {
-		return fmt.Errorf("erasure: notification channel %s: %w", c.ID, err)
+		return channelErr(c.ID, err)
 	}
 	var disabledAt *time.Time
 	reason := ""
@@ -129,7 +129,7 @@ func rewriteChannel(ctx context.Context, w erasureWriter, c domain.ChannelRewrit
 	}
 	n, err := w.rewriteChannel(ctx, c.ID, ct, disabledAt, reason, now)
 	if err != nil {
-		return fmt.Errorf("erasure: notification channel %s: %w", c.ID, err)
+		return channelErr(c.ID, err)
 	}
 	if n == 0 {
 		return &repository.ErasureConflictError{ChannelID: c.ID}
@@ -156,6 +156,10 @@ func deleteAccount(ctx context.Context, w erasureWriter, userID string) error {
 		}
 	}
 	return nil
+}
+
+func channelErr(id string, err error) error {
+	return fmt.Errorf("erasure: notification channel %s: %w", id, err)
 }
 
 func isErasureNoRows(err error) bool {

@@ -18,6 +18,9 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
+// errInvalidOTP is returned for a wrong two-factor code, whichever check made it.
+var errInvalidOTP = errors.New("invalid OTP")
+
 const (
 	// DefaultPassword is the initial password for new accounts
 	DefaultPassword = "password"
@@ -193,10 +196,10 @@ func (s *AuthService) Verify2FA(ctx context.Context, email, otp string) (string,
 	ok, err := s.checkSecondFactor(ctx, user, otp)
 	if err != nil {
 		slog.Warn("auth: backup code check failed", "user_id", user.ID, "error", err)
-		return "", errors.New("invalid OTP")
+		return "", errInvalidOTP
 	}
 	if !ok {
-		return "", errors.New("invalid OTP")
+		return "", errInvalidOTP
 	}
 
 	// Generate JWT token bound to a fresh session row.
@@ -377,7 +380,7 @@ func generateTOTPKey(userEmail string) (secret, otpAuthURI string, err error) {
 func (s *AuthService) Enable2FA(ctx context.Context, userID, secret, otp string) error {
 	// Verify OTP matches the secret
 	if !totp.Validate(otp, secret) {
-		return errors.New("invalid OTP")
+		return errInvalidOTP
 	}
 
 	// Update user 2FA secret and enable flag

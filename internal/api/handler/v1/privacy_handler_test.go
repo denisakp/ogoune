@@ -44,10 +44,10 @@ type privacyEnv struct {
 	router   *chi.Mux
 	erasures *fake.ErasureFake
 	keys     *fake.APIKeyRepository
-	users   *fake.UserRepository
-	hash    string
-	keyHash string
-	twoFA   bool
+	users    *fake.UserRepository
+	hash     string
+	keyHash  string
+	twoFA    bool
 }
 
 // newPrivacyEnv wires the real AuthService and PrivacyService over fakes, and
@@ -95,7 +95,7 @@ func newPrivacyEnv(t *testing.T, twoFactor bool, exportLimit int) *privacyEnv {
 	_, err = users.Create(ctx, &domain.User{Base: domain.Base{ID: "user-old"}, Email: "old@example.com", Name: "Old admin"})
 	require.NoError(t, err)
 	erasures := fake.NewErasureFake()
-	eraser := service.NewErasureService(users, sessions, keys, updates, channels, settings, history, erasures)
+	eraser := service.NewErasureService(service.ErasureRepositories{Users: users, Sessions: sessions, APIKeys: keys, Updates: updates, Channels: channels, ReportSettings: settings, ReportHistory: history, Erasures: erasures})
 	h := v1.NewPrivacyHandler(privacy, eraser, auth, "1.0.0-test", "")
 
 	r := chi.NewRouter()

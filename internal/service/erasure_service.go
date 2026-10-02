@@ -49,19 +49,23 @@ type ErasureService struct {
 	erasures       port.ErasureRepository
 }
 
-func NewErasureService(
-	users port.UserRepository,
-	sessions port.SessionRepository,
-	apiKeys port.APIKeyRepository,
-	updates port.IncidentUpdateRepository,
-	channels port.NotificationChannelRepository,
-	reportSettings port.ReportSettingsRepository,
-	reportHistory port.ReportHistoryRepository,
-	erasures port.ErasureRepository,
-) *ErasureService {
+// ErasureRepositories is everything an erasure reads, and the repository
+// that applies it.
+type ErasureRepositories struct {
+	Users          port.UserRepository
+	Sessions       port.SessionRepository
+	APIKeys        port.APIKeyRepository
+	Updates        port.IncidentUpdateRepository
+	Channels       port.NotificationChannelRepository
+	ReportSettings port.ReportSettingsRepository
+	ReportHistory  port.ReportHistoryRepository
+	Erasures       port.ErasureRepository
+}
+
+func NewErasureService(r ErasureRepositories) *ErasureService {
 	return &ErasureService{
-		users: users, sessions: sessions, apiKeys: apiKeys, updates: updates, channels: channels,
-		reportSettings: reportSettings, reportHistory: reportHistory, erasures: erasures,
+		users: r.Users, sessions: r.Sessions, apiKeys: r.APIKeys, updates: r.Updates, channels: r.Channels,
+		reportSettings: r.ReportSettings, reportHistory: r.ReportHistory, erasures: r.Erasures,
 	}
 }
 

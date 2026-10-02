@@ -248,12 +248,11 @@ async function onEnable(c: NotificationChannel) {
     )
   } catch (e) {
     const code = (e as { code?: string } | null)?.code
-    enableError.value =
-      code === 'CHANNEL_NEEDS_RECIPIENT'
-        ? 'Add a recipient to this channel before enabling it'
-        : e instanceof Error
-          ? e.message
-          : 'The channel could not be enabled'
+    if (code === 'CHANNEL_NEEDS_RECIPIENT') {
+      enableError.value = 'Add a recipient to this channel before enabling it'
+    } else {
+      enableError.value = e instanceof Error ? e.message : 'The channel could not be enabled'
+    }
   }
 }
 

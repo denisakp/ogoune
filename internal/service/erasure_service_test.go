@@ -41,7 +41,7 @@ func newErasureFixture(t *testing.T) *erasureFixture {
 	p := newPrivacyFixture(t)
 	// The operator is Bob; Jane is the person asking to be erased.
 	f := &erasureFixture{privacyFixture: p, erasures: fake.NewErasureFake()}
-	f.svc = service.NewErasureService(p.users, p.sessions, p.keys, p.updates, p.channels, p.settings, p.history, f.erasures)
+	f.svc = service.NewErasureService(service.ErasureRepositories{Users: p.users, Sessions: p.sessions, APIKeys: p.keys, Updates: p.updates, Channels: p.channels, ReportSettings: p.settings, ReportHistory: p.history, Erasures: f.erasures})
 	return f
 }
 
