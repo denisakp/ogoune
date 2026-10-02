@@ -62,6 +62,16 @@ type Dashboard struct {
 	UpdatedAt        pgtype.Timestamptz `json:"updated_at"`
 }
 
+type ErasureRecord struct {
+	ID                 string             `json:"id"`
+	CreatedAt          pgtype.Timestamptz `json:"created_at"`
+	OperatorID         string             `json:"operator_id"`
+	SubjectKind        string             `json:"subject_kind"`
+	SubjectFingerprint string             `json:"subject_fingerprint"`
+	Changes            []byte             `json:"changes"`
+	ManualReview       int32              `json:"manual_review"`
+}
+
 type EscalationPolicy struct {
 	ID         string             `json:"id"`
 	Name       string             `json:"name"`
@@ -281,6 +291,8 @@ type NotificationChannel struct {
 	LastSentAt       pgtype.Timestamptz `json:"last_sent_at"`
 	LastFailureAt    pgtype.Timestamptz `json:"last_failure_at"`
 	Failures24h      int32              `json:"failures_24h"`
+	DisabledAt       pgtype.Timestamptz `json:"disabled_at"`
+	DisabledReason   pgtype.Text        `json:"disabled_reason"`
 }
 
 type NotificationEscalationState struct {

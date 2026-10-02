@@ -8,6 +8,7 @@ const createChannelMock = vi.fn()
 const updateChannelMock = vi.fn()
 const setDefaultMock = vi.fn()
 const deleteChannelMock = vi.fn()
+const enableChannelMock = vi.fn()
 
 vi.mock('@/services/notificationChannelService', () => ({
   fetchChannels: (...a: unknown[]) => fetchChannelsMock(...a),
@@ -15,6 +16,7 @@ vi.mock('@/services/notificationChannelService', () => ({
   updateChannel: (...a: unknown[]) => updateChannelMock(...a),
   setDefault: (...a: unknown[]) => setDefaultMock(...a),
   deleteChannel: (...a: unknown[]) => deleteChannelMock(...a),
+  enableChannel: (...a: unknown[]) => enableChannelMock(...a),
 }))
 
 const fetchNotificationStatsMock = vi.fn().mockResolvedValue(null)
@@ -78,6 +80,7 @@ beforeEach(() => {
   updateChannelMock.mockReset()
   setDefaultMock.mockReset()
   deleteChannelMock.mockReset()
+  enableChannelMock.mockReset()
   confirmMock.mockReset()
 })
 
@@ -226,5 +229,58 @@ describe('NotificationsView', () => {
     await vm.onDelete(a)
     expect(deleteChannelMock).toHaveBeenCalledWith('a')
     expect(vm.channels.find((c) => c.id === 'a')).toBeUndefined()
+  })
+
+  describe('disabled channels (spec 095)', () => {
+    const disabled = {
+      id: 'd',
+      name: 'Ops mail',
+      type: 'smtp',
+      config: {},
+      enabled_by_default: false,
+      disabled_at: '2026-10-02T08:00:00Z',
+      disabled_reason: 'erasure',
+    }
+    type DVm = {
+      channels: Array<Record<string, unknown>>
+      enableError: string | null
+      onEnable: (c: unknown) => Promise<void>
+      columns: Array<{ id: string; cell: (ctx: { row: { original: unknown } }) => unknown }>
+    }
+
+    it('the status cell shows Disabled, the erasure note and an Enable button', async () => {
+      fetchChannelsMock.mockResolvedValue([disabled])
+      const w = mount(NotificationsView)
+      await flushPromises()
+      const vm = w.vm as unknown as DVm
+      const status = vm.columns.find((c) => c.id === 'status')!
+      const html = mount({ render: () => status.cell({ row: { original: disabled } }) as never }).html()
+      expect(html).toContain('Disabled')
+      expect(html).toContain('Disabled by an erasure on')
+      expect(html).toContain('Enable')
+    })
+
+    it('Enable clears the disabled state on success', async () => {
+      fetchChannelsMock.mockResolvedValue([disabled])
+      enableChannelMock.mockResolvedValue({ ...disabled, disabled_at: null, disabled_reason: null })
+      const w = mount(NotificationsView)
+      await flushPromises()
+      const vm = w.vm as unknown as DVm
+      await vm.onEnable(disabled)
+      expect(enableChannelMock).toHaveBeenCalledWith('d')
+      expect(vm.channels[0].disabled_at).toBeNull()
+      expect(vm.enableError).toBeNull()
+    })
+
+    it('a 422 CHANNEL_NEEDS_RECIPIENT asks for a recipient and keeps the channel disabled', async () => {
+      fetchChannelsMock.mockResolvedValue([disabled])
+      enableChannelMock.mockRejectedValue(Object.assign(new Error('x'), { code: 'CHANNEL_NEEDS_RECIPIENT' }))
+      const w = mount(NotificationsView)
+      await flushPromises()
+      const vm = w.vm as unknown as DVm
+      await vm.onEnable(disabled)
+      expect(vm.enableError).toBe('Add a recipient to this channel before enabling it')
+      expect(vm.channels[0].disabled_at).toBe('2026-10-02T08:00:00Z')
+    })
   })
 })

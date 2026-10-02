@@ -423,6 +423,13 @@
                     "created_at": {
                         "type": "string"
                     },
+                    "disabled_at": {
+                        "description": "DisabledAt is set when the channel was switched off (spec 095); a\ndisabled channel is never sent to. DisabledReason says why.",
+                        "type": "string"
+                    },
+                    "disabled_reason": {
+                        "type": "string"
+                    },
                     "enabled_by_default": {
                         "type": "boolean"
                     },
@@ -970,6 +977,13 @@
                         "type": "object"
                     },
                     "created_at": {
+                        "type": "string"
+                    },
+                    "disabled_at": {
+                        "description": "DisabledAt is set when the channel sends nothing (spec 095);\nDisabledReason says why (\"erasure\").",
+                        "type": "string"
+                    },
+                    "disabled_reason": {
                         "type": "string"
                     },
                     "enabled_by_default": {
@@ -2082,6 +2096,202 @@
                 },
                 "type": "object"
             },
+            "github_com_denisakp_ogoune_internal_dto_v1.ErasureAccountResponse": {
+                "properties": {
+                    "email": {
+                        "type": "string"
+                    },
+                    "id": {
+                        "type": "string"
+                    },
+                    "last_login_at": {
+                        "type": "string"
+                    }
+                },
+                "type": "object"
+            },
+            "github_com_denisakp_ogoune_internal_dto_v1.ErasureChannelHitResponse": {
+                "properties": {
+                    "fields": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "uniqueItems": false
+                    },
+                    "id": {
+                        "type": "string"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "type": {
+                        "type": "string"
+                    },
+                    "will_disable": {
+                        "type": "boolean"
+                    }
+                },
+                "type": "object"
+            },
+            "github_com_denisakp_ogoune_internal_dto_v1.ErasureChannelRef": {
+                "properties": {
+                    "id": {
+                        "type": "string"
+                    },
+                    "name": {
+                        "type": "string"
+                    }
+                },
+                "type": "object"
+            },
+            "github_com_denisakp_ogoune_internal_dto_v1.ErasureManualItemResponse": {
+                "properties": {
+                    "channel_id": {
+                        "type": "string"
+                    },
+                    "channel_name": {
+                        "type": "string"
+                    },
+                    "channel_type": {
+                        "type": "string"
+                    },
+                    "reason": {
+                        "enum": [
+                            "undecryptable",
+                            "address_in_url"
+                        ],
+                        "type": "string"
+                    }
+                },
+                "type": "object"
+            },
+            "github_com_denisakp_ogoune_internal_dto_v1.ErasurePreviewRequest": {
+                "properties": {
+                    "account_id": {
+                        "type": "string"
+                    },
+                    "email": {
+                        "type": "string"
+                    }
+                },
+                "type": "object"
+            },
+            "github_com_denisakp_ogoune_internal_dto_v1.ErasurePreviewResponse": {
+                "properties": {
+                    "account": {
+                        "$ref": "#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.ErasureAccountResponse"
+                    },
+                    "api_keys": {
+                        "type": "integer"
+                    },
+                    "channels": {
+                        "items": {
+                            "$ref": "#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.ErasureChannelHitResponse"
+                        },
+                        "type": "array",
+                        "uniqueItems": false
+                    },
+                    "kind": {
+                        "enum": [
+                            "address",
+                            "account"
+                        ],
+                        "type": "string"
+                    },
+                    "manual_review": {
+                        "items": {
+                            "$ref": "#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.ErasureManualItemResponse"
+                        },
+                        "type": "array",
+                        "uniqueItems": false
+                    },
+                    "previously_erased_at": {
+                        "type": "string"
+                    },
+                    "report_recipient": {
+                        "type": "boolean"
+                    },
+                    "reports_sent": {
+                        "type": "integer"
+                    },
+                    "sessions": {
+                        "type": "integer"
+                    },
+                    "transport_change": {
+                        "$ref": "#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.ErasureTransportChangeResponse"
+                    },
+                    "updates_unlinked": {
+                        "type": "integer"
+                    }
+                },
+                "type": "object"
+            },
+            "github_com_denisakp_ogoune_internal_dto_v1.ErasureRequest": {
+                "properties": {
+                    "account_id": {
+                        "type": "string"
+                    },
+                    "code": {
+                        "type": "string"
+                    },
+                    "confirm_email": {
+                        "type": "string"
+                    },
+                    "email": {
+                        "type": "string"
+                    },
+                    "password": {
+                        "type": "string"
+                    }
+                },
+                "type": "object"
+            },
+            "github_com_denisakp_ogoune_internal_dto_v1.ErasureResultResponse": {
+                "properties": {
+                    "changes": {
+                        "additionalProperties": {
+                            "type": "integer"
+                        },
+                        "type": "object"
+                    },
+                    "disabled_channels": {
+                        "items": {
+                            "$ref": "#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.ErasureChannelHitResponse"
+                        },
+                        "type": "array",
+                        "uniqueItems": false
+                    },
+                    "manual_review": {
+                        "items": {
+                            "$ref": "#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.ErasureManualItemResponse"
+                        },
+                        "type": "array",
+                        "uniqueItems": false
+                    },
+                    "record_id": {
+                        "type": "string"
+                    },
+                    "report_recipient_cleared": {
+                        "type": "boolean"
+                    },
+                    "transport_change": {
+                        "$ref": "#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.ErasureTransportChangeResponse"
+                    }
+                },
+                "type": "object"
+            },
+            "github_com_denisakp_ogoune_internal_dto_v1.ErasureTransportChangeResponse": {
+                "properties": {
+                    "from_channel": {
+                        "$ref": "#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.ErasureChannelRef"
+                    },
+                    "to_channel": {
+                        "$ref": "#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.ErasureChannelRef"
+                    }
+                },
+                "type": "object"
+            },
             "github_com_denisakp_ogoune_internal_dto_v1.ErrorDetail": {
                 "properties": {
                     "code": {
@@ -2638,6 +2848,246 @@
                 },
                 "type": "object"
             },
+            "github_com_denisakp_ogoune_internal_dto_v1.PersonalDataAPIKey": {
+                "properties": {
+                    "active": {
+                        "type": "boolean"
+                    },
+                    "created_at": {
+                        "type": "string"
+                    },
+                    "expires_at": {
+                        "type": "string"
+                    },
+                    "id": {
+                        "type": "string"
+                    },
+                    "key_prefix": {
+                        "type": "string"
+                    },
+                    "last_used_at": {
+                        "type": "string"
+                    },
+                    "last_used_ip": {
+                        "type": "string"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "scope": {
+                        "type": "string"
+                    }
+                },
+                "type": "object"
+            },
+            "github_com_denisakp_ogoune_internal_dto_v1.PersonalDataAccount": {
+                "properties": {
+                    "created_at": {
+                        "type": "string"
+                    },
+                    "email": {
+                        "type": "string"
+                    },
+                    "id": {
+                        "type": "string"
+                    },
+                    "last_login_at": {
+                        "type": "string"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "two_factor_enabled": {
+                        "type": "boolean"
+                    }
+                },
+                "type": "object"
+            },
+            "github_com_denisakp_ogoune_internal_dto_v1.PersonalDataChannelMatch": {
+                "properties": {
+                    "fields": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "uniqueItems": false
+                    },
+                    "id": {
+                        "type": "string"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "type": {
+                        "type": "string"
+                    }
+                },
+                "type": "object"
+            },
+            "github_com_denisakp_ogoune_internal_dto_v1.PersonalDataExport": {
+                "properties": {
+                    "account": {
+                        "$ref": "#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.PersonalDataAccount"
+                    },
+                    "api_keys": {
+                        "items": {
+                            "$ref": "#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.PersonalDataAPIKey"
+                        },
+                        "type": "array",
+                        "uniqueItems": false
+                    },
+                    "covers": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "uniqueItems": false
+                    },
+                    "format": {
+                        "type": "string"
+                    },
+                    "generated_at": {
+                        "type": "string"
+                    },
+                    "incident_updates": {
+                        "items": {
+                            "$ref": "#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.PersonalDataIncidentUpdate"
+                        },
+                        "type": "array",
+                        "uniqueItems": false
+                    },
+                    "install": {
+                        "$ref": "#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.PersonalDataInstall"
+                    },
+                    "not_personal_data": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "uniqueItems": false
+                    },
+                    "notification_channels": {
+                        "items": {
+                            "$ref": "#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.PersonalDataChannelMatch"
+                        },
+                        "type": "array",
+                        "uniqueItems": false
+                    },
+                    "reports": {
+                        "$ref": "#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.PersonalDataReports"
+                    },
+                    "sessions": {
+                        "items": {
+                            "$ref": "#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.PersonalDataSession"
+                        },
+                        "type": "array",
+                        "uniqueItems": false
+                    },
+                    "unchecked_channels": {
+                        "items": {
+                            "$ref": "#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.PrivacyUncheckedChannel"
+                        },
+                        "type": "array",
+                        "uniqueItems": false
+                    }
+                },
+                "type": "object"
+            },
+            "github_com_denisakp_ogoune_internal_dto_v1.PersonalDataIncidentUpdate": {
+                "properties": {
+                    "id": {
+                        "type": "string"
+                    },
+                    "incident_id": {
+                        "type": "string"
+                    },
+                    "message": {
+                        "type": "string"
+                    },
+                    "posted_at": {
+                        "type": "string"
+                    },
+                    "public": {
+                        "type": "boolean"
+                    },
+                    "status": {
+                        "type": "string"
+                    }
+                },
+                "type": "object"
+            },
+            "github_com_denisakp_ogoune_internal_dto_v1.PersonalDataInstall": {
+                "properties": {
+                    "base_url": {
+                        "type": "string"
+                    },
+                    "edition": {
+                        "type": "string"
+                    },
+                    "version": {
+                        "type": "string"
+                    }
+                },
+                "type": "object"
+            },
+            "github_com_denisakp_ogoune_internal_dto_v1.PersonalDataReportSent": {
+                "properties": {
+                    "period": {
+                        "type": "string"
+                    },
+                    "sent_at": {
+                        "type": "string"
+                    },
+                    "status": {
+                        "type": "string"
+                    }
+                },
+                "type": "object"
+            },
+            "github_com_denisakp_ogoune_internal_dto_v1.PersonalDataReports": {
+                "properties": {
+                    "is_recipient": {
+                        "type": "boolean"
+                    },
+                    "sent": {
+                        "items": {
+                            "$ref": "#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.PersonalDataReportSent"
+                        },
+                        "type": "array",
+                        "uniqueItems": false
+                    }
+                },
+                "type": "object"
+            },
+            "github_com_denisakp_ogoune_internal_dto_v1.PersonalDataSession": {
+                "properties": {
+                    "browser": {
+                        "type": "string"
+                    },
+                    "created_at": {
+                        "type": "string"
+                    },
+                    "id": {
+                        "type": "string"
+                    },
+                    "ip": {
+                        "type": "string"
+                    },
+                    "last_active_at": {
+                        "type": "string"
+                    },
+                    "location": {
+                        "type": "string"
+                    },
+                    "os": {
+                        "type": "string"
+                    },
+                    "revoked_at": {
+                        "type": "string"
+                    }
+                },
+                "type": "object"
+            },
             "github_com_denisakp_ogoune_internal_dto_v1.PortResult": {
                 "properties": {
                     "banner": {
@@ -2691,6 +3141,85 @@
                     },
                     "scanned_count": {
                         "type": "integer"
+                    }
+                },
+                "type": "object"
+            },
+            "github_com_denisakp_ogoune_internal_dto_v1.PrivacyCategoryResponse": {
+                "properties": {
+                    "count": {
+                        "type": "integer"
+                    },
+                    "key": {
+                        "enum": [
+                            "account",
+                            "sessions",
+                            "api_keys",
+                            "incident_updates",
+                            "notification_channels",
+                            "reports"
+                        ],
+                        "type": "string"
+                    },
+                    "manage_path": {
+                        "type": "string"
+                    }
+                },
+                "type": "object"
+            },
+            "github_com_denisakp_ogoune_internal_dto_v1.PrivacyExportRequest": {
+                "properties": {
+                    "code": {
+                        "type": "string"
+                    },
+                    "password": {
+                        "type": "string"
+                    }
+                },
+                "type": "object"
+            },
+            "github_com_denisakp_ogoune_internal_dto_v1.PrivacySummaryResponse": {
+                "properties": {
+                    "categories": {
+                        "items": {
+                            "$ref": "#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.PrivacyCategoryResponse"
+                        },
+                        "type": "array",
+                        "uniqueItems": false
+                    },
+                    "generated_at": {
+                        "type": "string"
+                    },
+                    "not_personal_data": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "uniqueItems": false
+                    },
+                    "two_factor_enabled": {
+                        "type": "boolean"
+                    },
+                    "unchecked_channels": {
+                        "items": {
+                            "$ref": "#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.PrivacyUncheckedChannel"
+                        },
+                        "type": "array",
+                        "uniqueItems": false
+                    }
+                },
+                "type": "object"
+            },
+            "github_com_denisakp_ogoune_internal_dto_v1.PrivacyUncheckedChannel": {
+                "properties": {
+                    "id": {
+                        "type": "string"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "type": {
+                        "type": "string"
                     }
                 },
                 "type": "object"
@@ -2957,6 +3486,21 @@
                 },
                 "type": "object"
             },
+            "github_com_denisakp_ogoune_internal_dto_v1.SingleResponse-array_github_com_denisakp_ogoune_internal_dto_v1_ErasureAccountResponse": {
+                "properties": {
+                    "data": {
+                        "items": {
+                            "$ref": "#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.ErasureAccountResponse"
+                        },
+                        "type": "array",
+                        "uniqueItems": false
+                    },
+                    "meta": {
+                        "$ref": "#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.MetaResponse"
+                    }
+                },
+                "type": "object"
+            },
             "github_com_denisakp_ogoune_internal_dto_v1.SingleResponse-github_com_denisakp_ogoune_internal_dto_ComponentResponse": {
                 "properties": {
                     "data": {
@@ -3049,6 +3593,28 @@
                 "properties": {
                     "data": {
                         "$ref": "#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.DashboardResponse"
+                    },
+                    "meta": {
+                        "$ref": "#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.MetaResponse"
+                    }
+                },
+                "type": "object"
+            },
+            "github_com_denisakp_ogoune_internal_dto_v1.SingleResponse-github_com_denisakp_ogoune_internal_dto_v1_ErasurePreviewResponse": {
+                "properties": {
+                    "data": {
+                        "$ref": "#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.ErasurePreviewResponse"
+                    },
+                    "meta": {
+                        "$ref": "#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.MetaResponse"
+                    }
+                },
+                "type": "object"
+            },
+            "github_com_denisakp_ogoune_internal_dto_v1.SingleResponse-github_com_denisakp_ogoune_internal_dto_v1_ErasureResultResponse": {
+                "properties": {
+                    "data": {
+                        "$ref": "#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.ErasureResultResponse"
                     },
                     "meta": {
                         "$ref": "#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.MetaResponse"
@@ -3170,6 +3736,17 @@
                 "properties": {
                     "data": {
                         "$ref": "#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.PortScanResponse"
+                    },
+                    "meta": {
+                        "$ref": "#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.MetaResponse"
+                    }
+                },
+                "type": "object"
+            },
+            "github_com_denisakp_ogoune_internal_dto_v1.SingleResponse-github_com_denisakp_ogoune_internal_dto_v1_PrivacySummaryResponse": {
+                "properties": {
+                    "data": {
+                        "$ref": "#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.PrivacySummaryResponse"
                     },
                     "meta": {
                         "$ref": "#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.MetaResponse"
@@ -5435,6 +6012,396 @@
                 ]
             }
         },
+        "/me/privacy": {
+            "get": {
+                "description": "Counts per category of personal data held about the signed-in user, the categories that are not personal data, and configurations that could not be checked. Interactive sessions only.",
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.SingleResponse-github_com_denisakp_ogoune_internal_dto_v1_PrivacySummaryResponse"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    },
+                    "401": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse"
+                                }
+                            }
+                        },
+                        "description": "Unauthorized"
+                    },
+                    "403": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse"
+                                }
+                            }
+                        },
+                        "description": "Forbidden"
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "summary": "What this install holds about me",
+                "tags": [
+                    "privacy"
+                ]
+            }
+        },
+        "/me/privacy/accounts": {
+            "get": {
+                "description": "Every account but the signed-in one, with its address and last sign-in. Interactive sessions only.",
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.SingleResponse-array_github_com_denisakp_ogoune_internal_dto_v1_ErasureAccountResponse"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    },
+                    "401": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse"
+                                }
+                            }
+                        },
+                        "description": "Unauthorized"
+                    },
+                    "403": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse"
+                                }
+                            }
+                        },
+                        "description": "Forbidden"
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "summary": "Other accounts that can be erased",
+                "tags": [
+                    "privacy"
+                ]
+            }
+        },
+        "/me/privacy/erasure": {
+            "post": {
+                "description": "Removes the address from every place it was found (or erases a former account), in one transaction: all or nothing. Requires the address typed again, the current password and, when enabled, the two-factor code; any of them wrong is one 422, never 401. A notification channel changed meanwhile is 409, nothing changed. Rate-limited like sign-in. Interactive sessions only.",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "oneOf": [
+                                    {
+                                        "type": "object"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.ErasureRequest",
+                                        "summary": "body",
+                                        "description": "Subject, typed address and re-authentication"
+                                    }
+                                ]
+                            }
+                        }
+                    },
+                    "description": "Subject, typed address and re-authentication",
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.SingleResponse-github_com_denisakp_ogoune_internal_dto_v1_ErasureResultResponse"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    },
+                    "400": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse"
+                                }
+                            }
+                        },
+                        "description": "Bad Request"
+                    },
+                    "401": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse"
+                                }
+                            }
+                        },
+                        "description": "Unauthorized"
+                    },
+                    "403": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse"
+                                }
+                            }
+                        },
+                        "description": "Forbidden"
+                    },
+                    "404": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse"
+                                }
+                            }
+                        },
+                        "description": "Not Found"
+                    },
+                    "409": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse"
+                                }
+                            }
+                        },
+                        "description": "Conflict"
+                    },
+                    "422": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse"
+                                }
+                            }
+                        },
+                        "description": "Unprocessable Entity"
+                    },
+                    "429": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse"
+                                }
+                            }
+                        },
+                        "description": "Too Many Requests"
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "summary": "Erase a person's data",
+                "tags": [
+                    "privacy"
+                ]
+            }
+        },
+        "/me/privacy/erasure/preview": {
+            "post": {
+                "description": "What erasing an address, or a former account, would remove, keep and leave for manual review. Changes nothing. The address travels in the body, never in a URL. Interactive sessions only.",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "oneOf": [
+                                    {
+                                        "type": "object"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.ErasurePreviewRequest",
+                                        "summary": "body",
+                                        "description": "An address, or a former account"
+                                    }
+                                ]
+                            }
+                        }
+                    },
+                    "description": "An address, or a former account",
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.SingleResponse-github_com_denisakp_ogoune_internal_dto_v1_ErasurePreviewResponse"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    },
+                    "400": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse"
+                                }
+                            }
+                        },
+                        "description": "Bad Request"
+                    },
+                    "401": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse"
+                                }
+                            }
+                        },
+                        "description": "Unauthorized"
+                    },
+                    "403": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse"
+                                }
+                            }
+                        },
+                        "description": "Forbidden"
+                    },
+                    "404": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse"
+                                }
+                            }
+                        },
+                        "description": "Not Found"
+                    },
+                    "422": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse"
+                                }
+                            }
+                        },
+                        "description": "Unprocessable Entity"
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "summary": "Preview an erasure",
+                "tags": [
+                    "privacy"
+                ]
+            }
+        },
+        "/me/privacy/export": {
+            "post": {
+                "description": "Re-authenticates (password, plus the two-factor code when enabled) and returns every item of personal data held about the signed-in user as one JSON document. Contains no secret. A failed re-authentication is 422 -- never 401, which would end the session. Rate-limited like sign-in. Interactive sessions only.",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "oneOf": [
+                                    {
+                                        "type": "object"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.PrivacyExportRequest",
+                                        "summary": "body",
+                                        "description": "Current password, and the two-factor code when enabled"
+                                    }
+                                ]
+                            }
+                        }
+                    },
+                    "description": "Current password, and the two-factor code when enabled",
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.PersonalDataExport"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    },
+                    "401": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse"
+                                }
+                            }
+                        },
+                        "description": "Unauthorized"
+                    },
+                    "403": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse"
+                                }
+                            }
+                        },
+                        "description": "Forbidden"
+                    },
+                    "422": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse"
+                                }
+                            }
+                        },
+                        "description": "Unprocessable Entity"
+                    },
+                    "429": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse"
+                                }
+                            }
+                        },
+                        "description": "Too Many Requests"
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "summary": "Download my personal data",
+                "tags": [
+                    "privacy"
+                ]
+            }
+        },
         "/monitors": {
             "get": {
                 "parameters": [
@@ -7115,6 +8082,72 @@
                     }
                 ],
                 "summary": "Update a notification channel",
+                "tags": [
+                    "notification-channels"
+                ]
+            }
+        },
+        "/notification-channels/{id}/enable": {
+            "post": {
+                "parameters": [
+                    {
+                        "description": "Channel ID",
+                        "in": "path",
+                        "name": "id",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.SingleResponse-github_com_denisakp_ogoune_internal_dto_NotificationChannelResponse"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    },
+                    "403": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse"
+                                }
+                            }
+                        },
+                        "description": "Forbidden"
+                    },
+                    "404": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse"
+                                }
+                            }
+                        },
+                        "description": "Not Found"
+                    },
+                    "422": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse"
+                                }
+                            }
+                        },
+                        "description": "Unprocessable Entity"
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "summary": "Enable a disabled notification channel",
                 "tags": [
                     "notification-channels"
                 ]

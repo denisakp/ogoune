@@ -89,19 +89,20 @@ func (s *TwoFactorService) Setup(ctx context.Context, userID string) (*SetupResu
 		return nil, ErrTwoFactorAlreadyEnabled
 	}
 
-	resp, err := s.authService.GenerateTOTPSecret(ctx, user.ID, user.Email)
+	// Backup codes are issued by Verify, once the secret is confirmed.
+	secret, otpAuthURL, err := generateTOTPKey(user.Email)
 	if err != nil {
 		return nil, fmt.Errorf("generate totp secret: %w", err)
 	}
 
 	// Persist as unverified: enabled=false, secret stored.
-	if err := s.userRepo.UpdateTwoFactorSecret(ctx, user.ID, resp.Secret, false); err != nil {
+	if err := s.userRepo.UpdateTwoFactorSecret(ctx, user.ID, secret, false); err != nil {
 		return nil, fmt.Errorf("persist unverified secret: %w", err)
 	}
 
 	return &SetupResult{
-		Secret:     resp.Secret,
-		OTPAuthURL: resp.QRCode,
+		Secret:     secret,
+		OTPAuthURL: otpAuthURL,
 	}, nil
 }
 
@@ -121,12 +122,9 @@ func (s *TwoFactorService) Verify(ctx context.Context, userID, code string) ([]s
 	if err := s.userRepo.UpdateTwoFactorSecret(ctx, user.ID, user.TwoFactorSecret, true); err != nil {
 		return nil, fmt.Errorf("mark 2fa enabled: %w", err)
 	}
-	codes := generateBackupCodes(twoFactorBackupCodesCount)
-	// Backup codes persist intentionally unstored at this stage — the existing
-	// schema only carries an encrypted blob and AuthService owns that path.
-	// Persisting on the user happens via UpdateBackupCodes in a follow-up; the
-	// frontend shows the cleartext list once, then they're gone.
-	return codes, nil
+	// The hashes are stored (replacing any previous set); the cleartext codes
+	// are returned to be shown exactly once.
+	return storeNewBackupCodes(ctx, s.userRepo, user.ID, twoFactorBackupCodesCount)
 }
 
 // Disable verifies a TOTP code then wipes the secret.
@@ -141,7 +139,7 @@ func (s *TwoFactorService) Disable(ctx context.Context, userID, code string) err
 	if !totp.Validate(strings.TrimSpace(code), user.TwoFactorSecret) {
 		return ErrTwoFactorBadCode
 	}
-	return s.userRepo.UpdateTwoFactorSecret(ctx, user.ID, "", false)
+	return disableTwoFactor(ctx, s.userRepo, user.ID)
 }
 
 // RequestReset always returns nil (202 on the wire) — anti-enumeration.
@@ -212,7 +210,7 @@ func (s *TwoFactorService) ConfirmReset(ctx context.Context, cleartext string) (
 		}
 		return "", err
 	}
-	if err := s.userRepo.UpdateTwoFactorSecret(ctx, tok.UserID, "", false); err != nil {
+	if err := disableTwoFactor(ctx, s.userRepo, tok.UserID); err != nil {
 		return "", fmt.Errorf("wipe 2fa secret: %w", err)
 	}
 	return tok.UserID, nil

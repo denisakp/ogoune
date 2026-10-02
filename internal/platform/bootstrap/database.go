@@ -77,6 +77,7 @@ func InitDatabase(app *App) {
 	// first and registers the scheduled report generator.
 	app.ReportSettingsRepo = store.NewReportSettingsRepositorySQLC(rt)
 	app.ReportHistoryRepo = store.NewReportHistoryRepositorySQLC(rt)
+	app.ErasureRepo = store.NewErasureRepositorySQLC(rt)
 	app.ReportService = service.NewReportService(
 		app.ReportSettingsRepo,
 		app.ReportHistoryRepo,

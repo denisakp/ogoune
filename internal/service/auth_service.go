@@ -18,6 +18,9 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
+// errInvalidOTP is returned for a wrong two-factor code, whichever check made it.
+var errInvalidOTP = errors.New("invalid OTP")
+
 const (
 	// DefaultPassword is the initial password for new accounts
 	DefaultPassword = "password"
@@ -188,9 +191,15 @@ func (s *AuthService) Verify2FA(ctx context.Context, email, otp string) (string,
 		return "", errors.New("2FA not enabled for this user")
 	}
 
-	// Verify OTP
-	if !totp.Validate(otp, user.TwoFactorSecret) {
-		return "", errors.New("invalid OTP")
+	// Verify the second factor: a current TOTP code, or an unused backup
+	// code (consumed on success).
+	ok, err := s.checkSecondFactor(ctx, user, otp)
+	if err != nil {
+		slog.Warn("auth: backup code check failed", "user_id", user.ID, "error", err)
+		return "", errInvalidOTP
+	}
+	if !ok {
+		return "", errInvalidOTP
 	}
 
 	// Generate JWT token bound to a fresh session row.
@@ -273,6 +282,36 @@ func (s *AuthService) ChangePassword(ctx context.Context, userID, currentPasswor
 	return s.userRepo.UpdatePassword(ctx, userID, hash)
 }
 
+// Reauthenticate confirms that the person behind a valid session is the
+// account holder, before an action that hands out everything known about them
+// (spec 094, the personal-data export). It checks exactly what sign-in checks
+// -- the password, and when two-factor is on either a current TOTP code or an
+// unused backup code (which is consumed, as at sign-in). Every credential
+// failure is the same error, so the response says nothing about which factor
+// was wrong.
+func (s *AuthService) Reauthenticate(ctx context.Context, userID, password, code string) error {
+	if password == "" {
+		return ErrInvalidCredentials
+	}
+	user, err := s.userRepo.FindByID(ctx, userID)
+	if err != nil {
+		return ErrInvalidCredentials
+	}
+	if err := bcrypt.CompareHashAndPassword([]byte(user.HashedPassword), []byte(password)); err != nil {
+		return ErrInvalidCredentials
+	}
+	if user.TwoFactorEnabled && user.TwoFactorSecret != "" {
+		ok, err := s.checkSecondFactor(ctx, user, code)
+		if err != nil {
+			return err
+		}
+		if !ok {
+			return ErrInvalidCredentials
+		}
+	}
+	return nil
+}
+
 // ResetPasswordToDefault resets the password to the default value
 func (s *AuthService) ResetPasswordToDefault(ctx context.Context, userID, currentPassword string) error {
 	user, err := s.userRepo.FindByID(ctx, userID)
@@ -302,36 +341,46 @@ func (s *AuthService) ResetPasswordToDefault(ctx context.Context, userID, curren
 }
 
 // GenerateTOTPSecret generates a TOTP secret for 2FA setup
+// (legacy /account/2fa/enable path). The backup codes it returns are
+// persisted (hashed) here, replacing any previous set, so the codes the user
+// is shown are the ones that work.
 func (s *AuthService) GenerateTOTPSecret(ctx context.Context, userID, userEmail string) (*dto.Enable2FAResponse, error) {
-	// Generate TOTP secret
+	secret, otpAuthURI, err := generateTOTPKey(userEmail)
+	if err != nil {
+		return nil, err
+	}
+
+	backupCodes, err := storeNewBackupCodes(ctx, s.userRepo, userID, BackupCodeCount)
+	if err != nil {
+		return nil, err
+	}
+
+	return &dto.Enable2FAResponse{
+		Secret:      secret,
+		QRCode:      otpAuthURI, // Send the otpauth:// URI to frontend for QR code generation
+		BackupCodes: backupCodes,
+	}, nil
+}
+
+// generateTOTPKey creates a TOTP secret and its otpauth:// URI (the frontend
+// renders the QR code from the URI).
+func generateTOTPKey(userEmail string) (secret, otpAuthURI string, err error) {
 	key, err := totp.Generate(totp.GenerateOpts{
 		Issuer:      "Ogoune",
 		AccountName: userEmail,
 		SecretSize:  32,
 	})
 	if err != nil {
-		return nil, err
+		return "", "", err
 	}
-
-	// Get the OTPAuth URI for QR code generation on frontend
-	// Frontend will use qrcode.js or similar library to generate the QR code
-	otpAuthURI := key.URL()
-
-	// Generate backup codes
-	backupCodes := generateBackupCodes(BackupCodeCount)
-
-	return &dto.Enable2FAResponse{
-		Secret:      key.Secret(),
-		QRCode:      otpAuthURI, // Send the otpauth:// URI to frontend for QR code generation
-		BackupCodes: backupCodes,
-	}, nil
+	return key.Secret(), key.URL(), nil
 }
 
 // Enable2FA enables 2FA for a user after OTP verification
 func (s *AuthService) Enable2FA(ctx context.Context, userID, secret, otp string) error {
 	// Verify OTP matches the secret
 	if !totp.Validate(otp, secret) {
-		return errors.New("invalid OTP")
+		return errInvalidOTP
 	}
 
 	// Update user 2FA secret and enable flag
@@ -350,8 +399,16 @@ func (s *AuthService) Disable2FA(ctx context.Context, userID, password string) e
 		return ErrInvalidCredentials
 	}
 
-	// Disable 2FA
-	return s.userRepo.UpdateTwoFactorSecret(ctx, userID, "", false)
+	return disableTwoFactor(ctx, s.userRepo, userID)
+}
+
+// disableTwoFactor turns two-factor off and drops the backup codes with it,
+// so a later re-enable starts from a fresh set.
+func disableTwoFactor(ctx context.Context, users port.UserRepository, userID string) error {
+	if err := users.UpdateTwoFactorSecret(ctx, userID, "", false); err != nil {
+		return err
+	}
+	return users.UpdateTwoFactorBackupCodes(ctx, userID, nil)
 }
 
 // IssueTokenForUser is the handler-facing wrapper around issueTokenWithSession.
@@ -498,15 +555,6 @@ func generateRandomString(length int) string {
 		return ""
 	}
 	return base64.URLEncoding.EncodeToString(b)[:length]
-}
-
-// generateBackupCodes generates backup codes for account recovery
-func generateBackupCodes(count int) []string {
-	codes := make([]string, count)
-	for i := range count {
-		codes[i] = generateRandomString(8)
-	}
-	return codes
 }
 
 // imageToDataURL converts an image to a data URL for QR codes

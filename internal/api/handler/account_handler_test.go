@@ -5,6 +5,8 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"github.com/denisakp/ogoune/internal/repository/fake"
+	"golang.org/x/crypto/bcrypt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -232,4 +234,48 @@ func TestAccountHandler_RevokeAPIKey_MissingID(t *testing.T) {
 	h.RevokeAPIKey(rec, req)
 
 	assert.Equal(t, http.StatusBadRequest, rec.Code)
+}
+
+// A wrong value typed by a signed-in user is 422 with a field error, never 401:
+// the web client signs the user out on any 401, and a typo must not end the
+// session it was typed in.
+func TestAccountHandler_WrongCredentialIs422NotSignOut(t *testing.T) {
+	users := fake.NewUserRepository()
+	hash, err := bcrypt.GenerateFromPassword([]byte("current-password-1"), bcrypt.MinCost)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := users.Create(context.Background(), &domain.User{Base: domain.Base{ID: "u1"}, Email: "a@example.com", HashedPassword: string(hash), PasswordInitialized: true}); err != nil {
+		t.Fatal(err)
+	}
+	h := &AccountHandler{authService: service.NewAuthService(users, service.NewJWTManager("test-secret-key-at-least-32-bytes-long", "ogoune", time.Hour))}
+
+	cases := []struct {
+		name, path, body, field string
+		handle                  http.HandlerFunc
+	}{
+		{"change password, wrong current", "/account/change-password", `{"current_password":"nope","new_password":"brand-new-password","confirm_password":"brand-new-password"}`, "current", h.ChangePassword},
+		{"change password, new too short", "/account/change-password", `{"current_password":"current-password-1","new_password":"short","confirm_password":"short"}`, "new", h.ChangePassword},
+		{"reset password, wrong current", "/account/reset-password", `{"current_password":"nope"}`, "current", h.ResetPassword},
+		{"disable 2fa, wrong password", "/account/2fa/disable", `{"password":"nope"}`, "password", h.Disable2FA},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			req := withUserID(httptest.NewRequest(http.MethodPost, tc.path, bytes.NewBufferString(tc.body)), "u1")
+			rec := httptest.NewRecorder()
+			tc.handle(rec, req)
+			if rec.Code != http.StatusUnprocessableEntity {
+				t.Fatalf("status = %d, want 422 (never 401): %s", rec.Code, rec.Body.String())
+			}
+			var body struct {
+				FieldErrors map[string][]string `json:"fieldErrors"`
+			}
+			if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+				t.Fatal(err)
+			}
+			if len(body.FieldErrors[tc.field]) == 0 {
+				t.Fatalf("expected a field error on %q, got %v", tc.field, body.FieldErrors)
+			}
+		})
+	}
 }

@@ -139,6 +139,34 @@ func (r *UserRepositorySQLC) FindByID(ctx context.Context, id string) (*domain.U
 	}
 }
 
+// List returns every account, ordered by email (spec 095).
+func (r *UserRepositorySQLC) List(ctx context.Context) ([]*domain.User, error) {
+	switch {
+	case r.pgQ != nil:
+		rows, err := r.pgQ.ListUsers(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("sqlc: list users: %w", err)
+		}
+		out := make([]*domain.User, 0, len(rows))
+		for _, row := range rows {
+			out = append(out, userFromPG(row))
+		}
+		return out, nil
+	case r.sqliteQ != nil:
+		rows, err := r.sqliteQ.ListUsers(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("sqlc: list users: %w", err)
+		}
+		out := make([]*domain.User, 0, len(rows))
+		for _, row := range rows {
+			out = append(out, userFromSQLite(row))
+		}
+		return out, nil
+	default:
+		return nil, r.unconfigured()
+	}
+}
+
 func (r *UserRepositorySQLC) FindByEmail(ctx context.Context, email string) (*domain.User, error) {
 	switch {
 	case r.pgQ != nil:
@@ -302,4 +330,52 @@ func userFromSQLite(row sqlitesqlc.User) *domain.User {
 		out.LastLoginAt = &t
 	}
 	return out
+}
+
+func (r *UserRepositorySQLC) UpdateTwoFactorBackupCodes(ctx context.Context, userID string, codes []byte) error {
+	switch {
+	case r.pgQ != nil:
+		return r.pgQ.UpdateUserTwoFactorBackupCodes(ctx, pgsqlc.UpdateUserTwoFactorBackupCodesParams{
+			ID:                   userID,
+			TwoFactorBackupCodes: codes,
+		})
+	case r.sqliteQ != nil:
+		return r.sqliteQ.UpdateUserTwoFactorBackupCodes(ctx, sqlitesqlc.UpdateUserTwoFactorBackupCodesParams{
+			ID:                   userID,
+			TwoFactorBackupCodes: codes,
+		})
+	default:
+		return r.unconfigured()
+	}
+}
+
+func (r *UserRepositorySQLC) SwapTwoFactorBackupCodes(ctx context.Context, userID string, expected, next []byte) (bool, error) {
+	if len(expected) == 0 {
+		// Nothing stored means nothing to consume; NULL never compares equal anyway.
+		return false, nil
+	}
+	var (
+		n   int64
+		err error
+	)
+	switch {
+	case r.pgQ != nil:
+		n, err = r.pgQ.SwapUserTwoFactorBackupCodes(ctx, pgsqlc.SwapUserTwoFactorBackupCodesParams{
+			ID:            userID,
+			ExpectedCodes: expected,
+			NextCodes:     next,
+		})
+	case r.sqliteQ != nil:
+		n, err = r.sqliteQ.SwapUserTwoFactorBackupCodes(ctx, sqlitesqlc.SwapUserTwoFactorBackupCodesParams{
+			ID:            userID,
+			ExpectedCodes: expected,
+			NextCodes:     next,
+		})
+	default:
+		return false, r.unconfigured()
+	}
+	if err != nil {
+		return false, err
+	}
+	return n == 1, nil
 }

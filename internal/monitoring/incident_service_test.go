@@ -10,6 +10,7 @@ import (
 	"strings"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/denisakp/ogoune/internal/domain"
 	"github.com/denisakp/ogoune/internal/repository/fake"
@@ -223,6 +224,34 @@ func TestIncidentService_ResolveNotificationChannels_DefaultFallback(t *testing.
 	channels := service.resolveNotificationChannels(ctx, resource)
 	require.Len(t, channels, 1)
 	assert.Equal(t, "default-channel-1", channels[0].ID)
+}
+
+// Spec 095: a disabled channel is never resolved for sending. A resource whose
+// only linked channels are disabled falls back exactly like a resource with
+// none -- alerts are not silently dropped.
+func TestIncidentService_ResolveNotificationChannels_SkipsDisabled(t *testing.T) {
+	service, _, _, _, channelRepo, asynqClient := setupTestService()
+	defer asynqClient.Close()
+	ctx := context.Background()
+	at := time.Now()
+
+	smtp := []byte(`{"host":"h","port":25,"sender":"s@example.com","recipients":["a@example.com"]}`)
+	require.NoError(t, channelRepo.Create(ctx, &domain.NotificationChannel{Base: domain.Base{ID: "on"}, Type: domain.NotificationChannelTypeSMTP, Config: smtp}))
+	require.NoError(t, channelRepo.Create(ctx, &domain.NotificationChannel{Base: domain.Base{ID: "off"}, Type: domain.NotificationChannelTypeSMTP, Config: smtp, DisabledAt: &at, DisabledReason: domain.ChannelDisabledByErasure}))
+	channelRepo.AssociateChannelWithResource("res-both", "on")
+	channelRepo.AssociateChannelWithResource("res-both", "off")
+
+	got := service.resolveNotificationChannels(ctx, &domain.Resource{Base: domain.Base{ID: "res-both"}})
+	require.Len(t, got, 1)
+	assert.Equal(t, "on", got[0].ID, "the enabled channel keeps receiving; the disabled one gets nothing")
+
+	require.NoError(t, channelRepo.Create(ctx, &domain.NotificationChannel{Base: domain.Base{ID: "default"}, Type: domain.NotificationChannelTypeSMTP, Config: smtp, EnabledByDefault: true}))
+	require.NoError(t, channelRepo.Create(ctx, &domain.NotificationChannel{Base: domain.Base{ID: "default-off"}, Type: domain.NotificationChannelTypeSMTP, Config: smtp, EnabledByDefault: true, DisabledAt: &at}))
+	channelRepo.AssociateChannelWithResource("res-only-off", "off")
+
+	got = service.resolveNotificationChannels(ctx, &domain.Resource{Base: domain.Base{ID: "res-only-off"}})
+	require.Len(t, got, 1)
+	assert.Equal(t, "default", got[0].ID, "falls back like a resource with no channel; disabled defaults skipped too")
 }
 
 func TestIncidentService_CreateIncident_LogsActionableWarningWhenNoChannels(t *testing.T) {

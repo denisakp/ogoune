@@ -38,7 +38,7 @@ import (
 // since that release). It still earns its place: this build must start on it
 // and leave every row alone, and it becomes a real upgrade the moment the
 // next migration lands -- without anyone remembering to add it then.
-var fixtures = []string{"v1.0.0-beta.4", "v1.0.0-beta.7"}
+var fixtures = []string{"v1.0.0-beta.4", "v1.0.0-beta.7", "v1.0.0-beta.8"}
 
 // tableSnapshot is every row of a table, rendered as strings over a fixed
 // column list, sorted. Comparing two of them over the PRE-upgrade column list

@@ -118,7 +118,7 @@ describe('useSearchPalette', () => {
     expect(searchPaletteApiMock).toHaveBeenCalledWith('gate', { limit: 30 })
   })
 
-  it('falls back to local Fuse search when the backend is unreachable', async () => {
+  it('falls back to local search when the backend is unreachable', async () => {
     searchPaletteApiMock.mockRejectedValue(new Error('network down'))
     resourcesRef.value = [
       { id: 'r1', name: 'API gateway', target: 'https://api.example.com' } as never,
@@ -133,6 +133,26 @@ describe('useSearchPalette', () => {
     const labels = palette.results.value.map((r) => r.label)
     expect(labels[0]).toBe('API gateway')
     expect(palette.lastQueryDurationMs.value).toBeGreaterThan(0)
+  })
+
+  it('ranks local matches label-prefix, then label, then meta, case-insensitively', async () => {
+    searchPaletteApiMock.mockRejectedValue(new Error('network down'))
+    resourcesRef.value = [
+      { id: 'r1', name: 'Billing worker', target: 'https://pay.example.com' } as never,
+      { id: 'r2', name: 'Payments API', target: 'https://api.example.com' } as never,
+      { id: 'r3', name: 'Legacy PAY gateway', target: 'tcp://10.0.0.1' } as never,
+      { id: 'r4', name: 'Unrelated', target: 'https://other.example.com' } as never,
+    ]
+    const palette = useSearchPalette()
+    palette.setOpen(true)
+    palette.query.value = 'pay'
+    await flushDebounce()
+
+    expect(palette.results.value.filter((r) => r.category === 'resource').map((r) => r.label)).toEqual([
+      'Payments API', // label starts with the query
+      'Legacy PAY gateway', // label contains it
+      'Billing worker', // only the target (meta) does
+    ])
   })
 
   it('handles sub-2-char queries locally without hitting the backend', async () => {

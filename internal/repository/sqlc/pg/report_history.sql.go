@@ -11,6 +11,22 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const anonymizeReportHistoryRecipient = `-- name: AnonymizeReportHistoryRecipient :execrows
+UPDATE report_history
+SET recipient_email = ''
+WHERE LOWER(TRIM(recipient_email)) = $1
+`
+
+// Spec 095: an erasure removes the address from report history; period,
+// status and figures are kept. The caller passes the address normalised.
+func (q *Queries) AnonymizeReportHistoryRecipient(ctx context.Context, email string) (int64, error) {
+	result, err := q.db.Exec(ctx, anonymizeReportHistoryRecipient, email)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const createReportHistory = `-- name: CreateReportHistory :one
 INSERT INTO report_history (id, period, sent_at, status, uptime_pct, incident_count, downtime_seconds, recipient_email, resource_breakdown, created_at)
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
@@ -92,6 +108,46 @@ LIMIT $1
 
 func (q *Queries) ListRecentReportHistory(ctx context.Context, lim int32) ([]ReportHistory, error) {
 	rows, err := q.db.Query(ctx, listRecentReportHistory, lim)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ReportHistory{}
+	for rows.Next() {
+		var i ReportHistory
+		if err := rows.Scan(
+			&i.ID,
+			&i.Period,
+			&i.SentAt,
+			&i.Status,
+			&i.UptimePct,
+			&i.IncidentCount,
+			&i.DowntimeSeconds,
+			&i.RecipientEmail,
+			&i.ResourceBreakdown,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listReportHistoryByRecipient = `-- name: ListReportHistoryByRecipient :many
+SELECT id, period, sent_at, status, uptime_pct, incident_count, downtime_seconds, recipient_email, resource_breakdown, created_at
+FROM report_history
+WHERE LOWER(TRIM(recipient_email)) = $1
+ORDER BY period DESC
+`
+
+// Reports sent to one address, matched case- and space-insensitively
+// (spec 094). The caller passes the address already normalised.
+func (q *Queries) ListReportHistoryByRecipient(ctx context.Context, email string) ([]ReportHistory, error) {
+	rows, err := q.db.Query(ctx, listReportHistoryByRecipient, email)
 	if err != nil {
 		return nil, err
 	}

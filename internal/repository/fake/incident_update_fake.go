@@ -79,3 +79,18 @@ func (r *IncidentUpdateRepository) Delete(_ context.Context, id string) error {
 	delete(r.rows, id)
 	return nil
 }
+
+// ListByPostedBy returns the updates one user authored, newest first (spec 094).
+func (r *IncidentUpdateRepository) ListByPostedBy(_ context.Context, userID string) ([]*domain.IncidentUpdate, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	out := []*domain.IncidentUpdate{}
+	for _, row := range r.rows {
+		if row.PostedBy == userID {
+			cp := *row
+			out = append(out, &cp)
+		}
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].PostedAt.After(out[j].PostedAt) })
+	return out, nil
+}

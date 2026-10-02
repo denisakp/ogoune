@@ -5,6 +5,64 @@ follows [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.0.0-beta.9] - 2026-10-02
+
+### Added
+
+- **See and download the personal data an install holds about you.** Settings → Privacy lists
+  every category — account, sessions (revoked ones included), API keys, incident updates you
+  posted, notification channels whose configuration contains your address, report recipient and
+  reports sent — with counts and links to where each is managed, and the categories that are not
+  personal data. **Download my data** returns all of it as one JSON file after re-entering your
+  password (and two-factor code when it is on), every time; a wrong answer leaves you signed in and
+  is rate-limited like sign-in. The file holds no secret in usable form — API keys appear by prefix,
+  channels by the name of the matching field. A channel configuration that cannot be decrypted is
+  reported as "could not be checked", never skipped. Nothing is written: the feature only reads.
+- **Erase a person's data on request.** Settings → Privacy → *Erase someone's data* serves an
+  erasure request for an address that never had an account (a former colleague left on an email
+  channel, the report recipient) or for a former account (left behind by changing `AUTH_EMAIL` or
+  your profile email). A preview lists what will be removed, what is kept (incident updates stay
+  published without an author) and what needs a manual review (undecryptable configurations,
+  addresses inside URLs). Confirming takes the address typed again plus your password and
+  two-factor code; a wrong value changes nothing and never signs you out. The erasure is all or
+  nothing; it keeps a record holding a keyed fingerprint of the address, never the address.
+  Your own account cannot be erased here.
+- **Notification channels can be disabled.** A channel an erasure leaves with no recipient is
+  disabled, not deleted: it sends nothing — alerts, reminders, escalations, reports, tests — and
+  counts no failures, and the list shows why. Add a recipient, then **Enable** it
+  (`POST /api/v1/notification-channels/{id}/enable`, refused while it has none). Channels expose
+  `disabled_at` / `disabled_reason`. A monitor whose only linked channels are disabled falls back
+  to component or default channels, as if it had none. **Do not downgrade below this release after
+  an erasure:** older versions would send to disabled channels again.
+
+### Changed
+
+- **The upgrade gate also restores a database written by v1.0.0-beta.8** (SQLite and PostgreSQL);
+  it is the first fixture that crosses a migration since the gate exists (0037).
+- **The search palette no longer ships a fuzzy-search library.** Real queries have gone to the
+  backend search endpoint since beta; the browser kept `fuse.js` only for one-character queries and
+  as a fallback when the endpoint is unreachable. Both now use a plain case-insensitive match,
+  ranked name-prefix, then name, then target — fuzzy matching over a few dozen local items never
+  justified the dependency. Typo tolerance is lost in that fallback only.
+
+### Fixed
+
+- **The API reference listed the privacy endpoints under a doubled prefix** (`/api/v1/v1/me/privacy`).
+  They are documented where they are served, `/api/v1/me/privacy`.
+- **A mistyped current password no longer signs you out.** Changing your password, resetting it,
+  or turning off two-factor authentication with a wrong current password answered "unauthorised",
+  which the interface reads as an expired session: it signed you out mid-typo. These now answer as
+  a validation error, shown next to the field; you stay signed in and can try again.
+- **Two-factor backup codes now actually work.** The 10 codes shown when two-factor is turned on
+  were never saved, so none of them was accepted anywhere. They are now stored (as hashes only,
+  never in clear) and each one is accepted once in place of the authenticator code — at sign-in and
+  when re-entering your password to download your data. A code is spent the moment it is used;
+  setting up two-factor again replaces the whole set, and turning two-factor off deletes it.
+  **Codes from a setup done before this release were never stored and will not work:** to get a
+  working set, turn two-factor off (Settings → Security, with a current authenticator code) and
+  turn it on again, then save the new codes. New codes look like `xxxx-xxxx-xxxx`; case, spaces
+  and dashes do not matter when typing one.
+
 ## [1.0.0-beta.8] - 2026-10-01
 
 ### Added

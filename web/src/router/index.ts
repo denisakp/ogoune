@@ -9,6 +9,7 @@ const ComponentsView = () => import('@/views/ComponentsView.vue')
 const SettingsLayoutView = () => import('@/views/settings/SettingsLayoutView.vue')
 const AccountSettingsView = () => import('@/views/settings/AccountView.vue')
 const SessionsSettingsView = () => import('@/views/settings/SessionsView.vue')
+const PrivacySettingsView = () => import('@/views/settings/PrivacyView.vue')
 const TwoFactorSetupView = () => import('@/views/settings/TwoFactorSetupView.vue')
 const NotificationsSettingsView = () => import('@/views/settings/NotificationsView.vue')
 const ApiKeysSettingsView = () => import('@/views/settings/ApiKeysView.vue')
@@ -176,6 +177,12 @@ const routes: RouteRecordRaw[] = [
         name: 'SettingsSessions',
         component: SessionsSettingsView,
         meta: { breadcrumbLabel: 'Sessions' },
+      },
+      {
+        path: 'privacy',
+        name: 'SettingsPrivacy',
+        component: PrivacySettingsView,
+        meta: { breadcrumbLabel: 'Privacy' },
       },
       {
         path: 'security/2fa',

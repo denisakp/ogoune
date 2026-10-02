@@ -733,6 +733,9 @@ export interface NotificationChannel {
   last_sent_at?: string | null
   last_failure_at?: string | null
   failures_24h?: number
+  /** Set when the channel is switched off (spec 095); it sends nothing until re-enabled. */
+  disabled_at?: string | null
+  disabled_reason?: 'erasure' | null
   created_at: string
   updated_at: string
 }
@@ -1059,3 +1062,86 @@ export type {
   HostMetricRange,
   MonitorSummary,
 } from './host'
+
+/** Personal data held about the signed-in user (spec 094) -- the privacy page. */
+export interface PrivacyCategory {
+  key:
+    | 'account'
+    | 'sessions'
+    | 'api_keys'
+    | 'incident_updates'
+    | 'notification_channels'
+    | 'reports'
+  count: number
+  manage_path: string
+}
+
+export interface PrivacySummary {
+  generated_at: string
+  two_factor_enabled: boolean
+  categories: PrivacyCategory[]
+  not_personal_data: string[]
+  /** Channels whose configuration could not be decrypted, so whether they hold the address is unknown. */
+  unchecked_channels: { id: string; name: string; type: string }[]
+}
+
+/** Erasure of a person's data (spec 095). */
+export interface ErasureAccount {
+  id: string
+  email: string
+  last_login_at: string | null
+}
+
+export interface ErasureSubject {
+  email?: string
+  account_id?: string
+}
+
+export interface ErasureChannelHit {
+  id: string
+  name: string
+  type: string
+  fields: string[]
+  will_disable: boolean
+}
+
+export interface ErasureManualReview {
+  channel_id: string
+  channel_name: string
+  channel_type: string
+  reason: 'undecryptable' | 'address_in_url'
+}
+
+export interface ErasureTransportChange {
+  from_channel: { id: string; name: string }
+  to_channel: { id: string; name: string } | null
+}
+
+export interface ErasurePreview {
+  kind: 'address' | 'account'
+  account: ErasureAccount | null
+  channels: ErasureChannelHit[]
+  report_recipient: boolean
+  reports_sent: number
+  sessions: number
+  api_keys: number
+  updates_unlinked: number
+  manual_review: ErasureManualReview[]
+  previously_erased_at: string | null
+  transport_change: ErasureTransportChange | null
+}
+
+export type ErasureRequest = ErasureSubject & {
+  confirm_email: string
+  password: string
+  code?: string
+}
+
+export interface ErasureResult {
+  record_id: string
+  changes: Record<string, number>
+  disabled_channels: ErasureChannelHit[]
+  manual_review: ErasureManualReview[]
+  transport_change: ErasureTransportChange | null
+  report_recipient_cleared: boolean
+}

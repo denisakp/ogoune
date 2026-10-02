@@ -53,6 +53,7 @@ type App struct {
 	DashboardRepo             port.DashboardRepository
 	ReportSettingsRepo        port.ReportSettingsRepository
 	ReportHistoryRepo         port.ReportHistoryRepository
+	ErasureRepo               port.ErasureRepository
 	AnnouncementRepo          port.AnnouncementRepository
 	// Spec 079 — Agent device monitoring
 	HostRepo           port.HostRepository

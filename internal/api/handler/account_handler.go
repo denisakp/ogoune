@@ -111,7 +111,11 @@ func (h *AccountHandler) ChangePassword(w http.ResponseWriter, r *http.Request) 
 	}
 
 	if err := h.authService.ChangePassword(r.Context(), userID, req.CurrentPassword, req.NewPassword); err != nil {
-		response.Error(w, http.StatusUnauthorized, "Invalid current password")
+		if errors.Is(err, service.ErrInvalidPassword) {
+			writeCredentialError(w, "new", err.Error())
+			return
+		}
+		writeCredentialError(w, "current", "Invalid current password")
 		return
 	}
 
@@ -131,7 +135,7 @@ func (h *AccountHandler) ResetPassword(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.authService.ResetPasswordToDefault(r.Context(), userID, req.CurrentPassword); err != nil {
-		response.Error(w, http.StatusUnauthorized, "Invalid password")
+		writeCredentialError(w, "current", "Invalid password")
 		return
 	}
 
@@ -202,7 +206,7 @@ func (h *AccountHandler) Disable2FA(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.authService.Disable2FA(r.Context(), userID, req.Password); err != nil {
-		response.Error(w, http.StatusUnauthorized, "Invalid password")
+		writeCredentialError(w, "password", "Invalid password")
 		return
 	}
 
@@ -277,4 +281,23 @@ func (h *AccountHandler) RevokeAPIKey(w http.ResponseWriter, r *http.Request) {
 	}
 
 	response.Success(w, "API key revoked")
+}
+
+// writeCredentialError answers a wrong value the signed-in user typed --
+// their current password, typically -- with 422 and a field error the form
+// can show next to the field.
+//
+// Never 401 here: the session is valid, only the typed value is wrong, and the
+// web client treats any 401 as an expired session and signs the user out. A
+// mistyped password must not end the session it was typed in.
+func writeCredentialError(w http.ResponseWriter, field, message string) {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(http.StatusUnprocessableEntity)
+	_ = json.NewEncoder(w).Encode(map[string]any{
+		"type":        "/problems/invalid-credentials",
+		"title":       "Unprocessable Entity",
+		"status":      http.StatusUnprocessableEntity,
+		"detail":      message,
+		"fieldErrors": map[string][]string{field: {message}},
+	})
 }

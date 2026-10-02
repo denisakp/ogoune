@@ -1,7 +1,9 @@
 package fake
 
 import (
+	"bytes"
 	"context"
+	"sort"
 	"sync"
 	"time"
 
@@ -52,6 +54,19 @@ func (r *UserRepository) FindByID(ctx context.Context, id string) (*domain.User,
 
 	copy := *user
 	return &copy, nil
+}
+
+// List returns every user, ordered by email.
+func (r *UserRepository) List(ctx context.Context) ([]*domain.User, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	out := make([]*domain.User, 0, len(r.users))
+	for _, u := range r.users {
+		c := *u
+		out = append(out, &c)
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].Email < out[j].Email })
+	return out, nil
 }
 
 // FindByEmail finds a user by email
@@ -144,4 +159,36 @@ func (r *UserRepository) UpdateTwoFactorSecret(ctx context.Context, userID strin
 	user.TwoFactorEnabled = enabled
 	user.UpdatedAt = time.Now()
 	return nil
+}
+
+// UpdateTwoFactorBackupCodes replaces the stored backup-code set (nil clears it).
+func (r *UserRepository) UpdateTwoFactorBackupCodes(ctx context.Context, userID string, codes []byte) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	user, exists := r.users[userID]
+	if !exists {
+		return repository.ErrNotFound
+	}
+	user.TwoFactorBackupCodes = append([]byte(nil), codes...)
+	if len(codes) == 0 {
+		user.TwoFactorBackupCodes = nil
+	}
+	return nil
+}
+
+// SwapTwoFactorBackupCodes is the compare-and-swap used to consume a code.
+func (r *UserRepository) SwapTwoFactorBackupCodes(ctx context.Context, userID string, expected, next []byte) (bool, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	user, exists := r.users[userID]
+	if !exists || len(expected) == 0 || !bytes.Equal(user.TwoFactorBackupCodes, expected) {
+		return false, nil
+	}
+	user.TwoFactorBackupCodes = append([]byte(nil), next...)
+	if len(next) == 0 {
+		user.TwoFactorBackupCodes = nil
+	}
+	return true, nil
 }

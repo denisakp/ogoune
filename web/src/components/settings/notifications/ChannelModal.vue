@@ -24,7 +24,7 @@ const formComponents: Record<ChannelType, unknown> = {
 
 interface Props {
   open: boolean
-  initial?: Partial<NotificationChannelInput> & { id?: string }
+  initial?: Partial<NotificationChannelInput> & { id?: string; disabled_at?: string | null }
 }
 const props = defineProps<Props>()
 const emit = defineEmits<{
@@ -173,6 +173,14 @@ defineExpose({
   >
     <template #body>
       <div class="space-y-5 bg-white dark:bg-gray-900 relative isolate">
+        <UAlert
+          v-if="initial?.id && initial?.disabled_at"
+          color="warning"
+          variant="soft"
+          icon="i-lucide-triangle-alert"
+          title="This channel is disabled and sends nothing. Save your changes, then enable it from the list."
+          data-test="channel-disabled-banner"
+        />
         <UFormField label="Channel type">
           <UTabs
             v-model="type"

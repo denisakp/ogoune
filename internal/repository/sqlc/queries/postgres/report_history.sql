@@ -13,3 +13,18 @@ LIMIT sqlc.arg('lim');
 SELECT id, period, sent_at, status, uptime_pct, incident_count, downtime_seconds, recipient_email, resource_breakdown, created_at
 FROM report_history
 WHERE period = sqlc.arg('period');
+
+-- name: ListReportHistoryByRecipient :many
+-- Reports sent to one address, matched case- and space-insensitively
+-- (spec 094). The caller passes the address already normalised.
+SELECT id, period, sent_at, status, uptime_pct, incident_count, downtime_seconds, recipient_email, resource_breakdown, created_at
+FROM report_history
+WHERE LOWER(TRIM(recipient_email)) = sqlc.arg('email')
+ORDER BY period DESC;
+
+-- name: AnonymizeReportHistoryRecipient :execrows
+-- Spec 095: an erasure removes the address from report history; period,
+-- status and figures are kept. The caller passes the address normalised.
+UPDATE report_history
+SET recipient_email = ''
+WHERE LOWER(TRIM(recipient_email)) = sqlc.arg('email');

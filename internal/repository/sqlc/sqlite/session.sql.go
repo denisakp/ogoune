@@ -56,6 +56,18 @@ func (q *Queries) CreateSession(ctx context.Context, arg CreateSessionParams) (S
 	return i, err
 }
 
+const deleteSessionsByUser = `-- name: DeleteSessionsByUser :execrows
+DELETE FROM sessions WHERE user_id = ?1
+`
+
+func (q *Queries) DeleteSessionsByUser(ctx context.Context, userID string) (int64, error) {
+	result, err := q.db.ExecContext(ctx, deleteSessionsByUser, userID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
 const findSessionByID = `-- name: FindSessionByID :one
 SELECT id, user_id, browser, os, ip, location, last_active_at, created_at, revoked_at FROM sessions WHERE id = ?
 `
@@ -85,6 +97,47 @@ ORDER BY last_active_at DESC
 
 func (q *Queries) ListActiveSessionsByUser(ctx context.Context, userID string) ([]Session, error) {
 	rows, err := q.db.QueryContext(ctx, listActiveSessionsByUser, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Session{}
+	for rows.Next() {
+		var i Session
+		if err := rows.Scan(
+			&i.ID,
+			&i.UserID,
+			&i.Browser,
+			&i.Os,
+			&i.Ip,
+			&i.Location,
+			&i.LastActiveAt,
+			&i.CreatedAt,
+			&i.RevokedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listSessionsByUser = `-- name: ListSessionsByUser :many
+SELECT id, user_id, browser, os, ip, location, last_active_at, created_at, revoked_at FROM sessions
+WHERE user_id = ?
+ORDER BY created_at DESC
+`
+
+// Every session of a user, revoked included: a personal-data inventory
+// must list them all (spec 094).
+func (q *Queries) ListSessionsByUser(ctx context.Context, userID string) ([]Session, error) {
+	rows, err := q.db.QueryContext(ctx, listSessionsByUser, userID)
 	if err != nil {
 		return nil, err
 	}

@@ -36,6 +36,14 @@ var (
 	// which email addresses have accounts.
 	ErrPasswordInitializationRefused = errors.New("password initialization is not available for this account")
 
+	// ErrChannelDisabled is returned when a send is asked of a disabled
+	// notification channel (spec 095).
+	ErrChannelDisabled = errors.New("notification channel is disabled")
+
+	// ErrChannelNeedsRecipient is returned when enabling a channel whose
+	// configuration is incomplete -- typically no recipient (spec 095).
+	ErrChannelNeedsRecipient = errors.New("notification channel cannot be enabled until its configuration is complete")
+
 	// ErrAPIKeyNotFound indicates the requested API key doesn't exist for the user
 	ErrAPIKeyNotFound = errors.New("api key not found")
 

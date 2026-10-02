@@ -1698,6 +1698,396 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/me/privacy": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * What this install holds about me
+         * @description Counts per category of personal data held about the signed-in user, the categories that are not personal data, and configurations that could not be checked. Interactive sessions only.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["github_com_denisakp_ogoune_internal_dto_v1.SingleResponse-github_com_denisakp_ogoune_internal_dto_v1_PrivacySummaryResponse"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/privacy/accounts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Other accounts that can be erased
+         * @description Every account but the signed-in one, with its address and last sign-in. Interactive sessions only.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["github_com_denisakp_ogoune_internal_dto_v1.SingleResponse-array_github_com_denisakp_ogoune_internal_dto_v1_ErasureAccountResponse"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/privacy/erasure": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Erase a person's data
+         * @description Removes the address from every place it was found (or erases a former account), in one transaction: all or nothing. Requires the address typed again, the current password and, when enabled, the two-factor code; any of them wrong is one 422, never 401. A notification channel changed meanwhile is 409, nothing changed. Rate-limited like sign-in. Interactive sessions only.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            /** @description Subject, typed address and re-authentication */
+            requestBody: {
+                content: {
+                    "application/json": Record<string, never> | components["schemas"]["github_com_denisakp_ogoune_internal_dto_v1.ErasureRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["github_com_denisakp_ogoune_internal_dto_v1.SingleResponse-github_com_denisakp_ogoune_internal_dto_v1_ErasureResultResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse"];
+                    };
+                };
+                /** @description Unprocessable Entity */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse"];
+                    };
+                };
+                /** @description Too Many Requests */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/privacy/erasure/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Preview an erasure
+         * @description What erasing an address, or a former account, would remove, keep and leave for manual review. Changes nothing. The address travels in the body, never in a URL. Interactive sessions only.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            /** @description An address, or a former account */
+            requestBody: {
+                content: {
+                    "application/json": Record<string, never> | components["schemas"]["github_com_denisakp_ogoune_internal_dto_v1.ErasurePreviewRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["github_com_denisakp_ogoune_internal_dto_v1.SingleResponse-github_com_denisakp_ogoune_internal_dto_v1_ErasurePreviewResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse"];
+                    };
+                };
+                /** @description Unprocessable Entity */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/privacy/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Download my personal data
+         * @description Re-authenticates (password, plus the two-factor code when enabled) and returns every item of personal data held about the signed-in user as one JSON document. Contains no secret. A failed re-authentication is 422 -- never 401, which would end the session. Rate-limited like sign-in. Interactive sessions only.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            /** @description Current password, and the two-factor code when enabled */
+            requestBody: {
+                content: {
+                    "application/json": Record<string, never> | components["schemas"]["github_com_denisakp_ogoune_internal_dto_v1.PrivacyExportRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["github_com_denisakp_ogoune_internal_dto_v1.PersonalDataExport"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse"];
+                    };
+                };
+                /** @description Unprocessable Entity */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse"];
+                    };
+                };
+                /** @description Too Many Requests */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/monitors": {
         parameters: {
             query?: never;
@@ -3091,6 +3481,72 @@ export interface paths {
                 };
             };
         };
+        trace?: never;
+    };
+    "/notification-channels/{id}/enable": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Enable a disabled notification channel */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    /** @description Channel ID */
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["github_com_denisakp_ogoune_internal_dto_v1.SingleResponse-github_com_denisakp_ogoune_internal_dto_NotificationChannelResponse"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse"];
+                    };
+                };
+                /** @description Unprocessable Entity */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["github_com_denisakp_ogoune_internal_dto_v1.ErrorResponse"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/notification-channels/{id}/test": {
@@ -4618,6 +5074,12 @@ export interface components {
             /** @description JSON configuration specific to channel type */
             config?: number[];
             created_at?: string;
+            /**
+             * @description DisabledAt is set when the channel was switched off (spec 095); a
+             *     disabled channel is never sent to. DisabledReason says why.
+             */
+            disabled_at?: string;
+            disabled_reason?: string;
             enabled_by_default?: boolean;
             failures_24h?: number;
             id?: string;
@@ -4813,6 +5275,12 @@ export interface components {
                 [key: string]: unknown;
             };
             created_at?: string;
+            /**
+             * @description DisabledAt is set when the channel sends nothing (spec 095);
+             *     DisabledReason says why ("erasure").
+             */
+            disabled_at?: string;
+            disabled_reason?: string;
             enabled_by_default?: boolean;
             failures_24h?: number;
             id?: string;
@@ -5159,6 +5627,68 @@ export interface components {
             mount?: string;
             used_pct?: number;
         };
+        "github_com_denisakp_ogoune_internal_dto_v1.ErasureAccountResponse": {
+            email?: string;
+            id?: string;
+            last_login_at?: string;
+        };
+        "github_com_denisakp_ogoune_internal_dto_v1.ErasureChannelHitResponse": {
+            fields?: string[];
+            id?: string;
+            name?: string;
+            type?: string;
+            will_disable?: boolean;
+        };
+        "github_com_denisakp_ogoune_internal_dto_v1.ErasureChannelRef": {
+            id?: string;
+            name?: string;
+        };
+        "github_com_denisakp_ogoune_internal_dto_v1.ErasureManualItemResponse": {
+            channel_id?: string;
+            channel_name?: string;
+            channel_type?: string;
+            /** @enum {string} */
+            reason?: "undecryptable" | "address_in_url";
+        };
+        "github_com_denisakp_ogoune_internal_dto_v1.ErasurePreviewRequest": {
+            account_id?: string;
+            email?: string;
+        };
+        "github_com_denisakp_ogoune_internal_dto_v1.ErasurePreviewResponse": {
+            account?: components["schemas"]["github_com_denisakp_ogoune_internal_dto_v1.ErasureAccountResponse"];
+            api_keys?: number;
+            channels?: components["schemas"]["github_com_denisakp_ogoune_internal_dto_v1.ErasureChannelHitResponse"][];
+            /** @enum {string} */
+            kind?: "address" | "account";
+            manual_review?: components["schemas"]["github_com_denisakp_ogoune_internal_dto_v1.ErasureManualItemResponse"][];
+            previously_erased_at?: string;
+            report_recipient?: boolean;
+            reports_sent?: number;
+            sessions?: number;
+            transport_change?: components["schemas"]["github_com_denisakp_ogoune_internal_dto_v1.ErasureTransportChangeResponse"];
+            updates_unlinked?: number;
+        };
+        "github_com_denisakp_ogoune_internal_dto_v1.ErasureRequest": {
+            account_id?: string;
+            code?: string;
+            confirm_email?: string;
+            email?: string;
+            password?: string;
+        };
+        "github_com_denisakp_ogoune_internal_dto_v1.ErasureResultResponse": {
+            changes?: {
+                [key: string]: number;
+            };
+            disabled_channels?: components["schemas"]["github_com_denisakp_ogoune_internal_dto_v1.ErasureChannelHitResponse"][];
+            manual_review?: components["schemas"]["github_com_denisakp_ogoune_internal_dto_v1.ErasureManualItemResponse"][];
+            record_id?: string;
+            report_recipient_cleared?: boolean;
+            transport_change?: components["schemas"]["github_com_denisakp_ogoune_internal_dto_v1.ErasureTransportChangeResponse"];
+        };
+        "github_com_denisakp_ogoune_internal_dto_v1.ErasureTransportChangeResponse": {
+            from_channel?: components["schemas"]["github_com_denisakp_ogoune_internal_dto_v1.ErasureChannelRef"];
+            to_channel?: components["schemas"]["github_com_denisakp_ogoune_internal_dto_v1.ErasureChannelRef"];
+        };
         "github_com_denisakp_ogoune_internal_dto_v1.ErrorDetail": {
             code?: string;
             fields?: components["schemas"]["github_com_denisakp_ogoune_internal_dto_v1.FieldError"][];
@@ -5434,6 +5964,77 @@ export interface components {
             pending?: number;
             sent_30d?: number;
         };
+        "github_com_denisakp_ogoune_internal_dto_v1.PersonalDataAPIKey": {
+            active?: boolean;
+            created_at?: string;
+            expires_at?: string;
+            id?: string;
+            key_prefix?: string;
+            last_used_at?: string;
+            last_used_ip?: string;
+            name?: string;
+            scope?: string;
+        };
+        "github_com_denisakp_ogoune_internal_dto_v1.PersonalDataAccount": {
+            created_at?: string;
+            email?: string;
+            id?: string;
+            last_login_at?: string;
+            name?: string;
+            two_factor_enabled?: boolean;
+        };
+        "github_com_denisakp_ogoune_internal_dto_v1.PersonalDataChannelMatch": {
+            fields?: string[];
+            id?: string;
+            name?: string;
+            type?: string;
+        };
+        "github_com_denisakp_ogoune_internal_dto_v1.PersonalDataExport": {
+            account?: components["schemas"]["github_com_denisakp_ogoune_internal_dto_v1.PersonalDataAccount"];
+            api_keys?: components["schemas"]["github_com_denisakp_ogoune_internal_dto_v1.PersonalDataAPIKey"][];
+            covers?: string[];
+            format?: string;
+            generated_at?: string;
+            incident_updates?: components["schemas"]["github_com_denisakp_ogoune_internal_dto_v1.PersonalDataIncidentUpdate"][];
+            install?: components["schemas"]["github_com_denisakp_ogoune_internal_dto_v1.PersonalDataInstall"];
+            not_personal_data?: string[];
+            notification_channels?: components["schemas"]["github_com_denisakp_ogoune_internal_dto_v1.PersonalDataChannelMatch"][];
+            reports?: components["schemas"]["github_com_denisakp_ogoune_internal_dto_v1.PersonalDataReports"];
+            sessions?: components["schemas"]["github_com_denisakp_ogoune_internal_dto_v1.PersonalDataSession"][];
+            unchecked_channels?: components["schemas"]["github_com_denisakp_ogoune_internal_dto_v1.PrivacyUncheckedChannel"][];
+        };
+        "github_com_denisakp_ogoune_internal_dto_v1.PersonalDataIncidentUpdate": {
+            id?: string;
+            incident_id?: string;
+            message?: string;
+            posted_at?: string;
+            public?: boolean;
+            status?: string;
+        };
+        "github_com_denisakp_ogoune_internal_dto_v1.PersonalDataInstall": {
+            base_url?: string;
+            edition?: string;
+            version?: string;
+        };
+        "github_com_denisakp_ogoune_internal_dto_v1.PersonalDataReportSent": {
+            period?: string;
+            sent_at?: string;
+            status?: string;
+        };
+        "github_com_denisakp_ogoune_internal_dto_v1.PersonalDataReports": {
+            is_recipient?: boolean;
+            sent?: components["schemas"]["github_com_denisakp_ogoune_internal_dto_v1.PersonalDataReportSent"][];
+        };
+        "github_com_denisakp_ogoune_internal_dto_v1.PersonalDataSession": {
+            browser?: string;
+            created_at?: string;
+            id?: string;
+            ip?: string;
+            last_active_at?: string;
+            location?: string;
+            os?: string;
+            revoked_at?: string;
+        };
         "github_com_denisakp_ogoune_internal_dto_v1.PortResult": {
             banner?: string;
             port?: number;
@@ -5451,6 +6052,28 @@ export interface components {
             open_count?: number;
             results?: components["schemas"]["github_com_denisakp_ogoune_internal_dto_v1.PortResult"][];
             scanned_count?: number;
+        };
+        "github_com_denisakp_ogoune_internal_dto_v1.PrivacyCategoryResponse": {
+            count?: number;
+            /** @enum {string} */
+            key?: "account" | "sessions" | "api_keys" | "incident_updates" | "notification_channels" | "reports";
+            manage_path?: string;
+        };
+        "github_com_denisakp_ogoune_internal_dto_v1.PrivacyExportRequest": {
+            code?: string;
+            password?: string;
+        };
+        "github_com_denisakp_ogoune_internal_dto_v1.PrivacySummaryResponse": {
+            categories?: components["schemas"]["github_com_denisakp_ogoune_internal_dto_v1.PrivacyCategoryResponse"][];
+            generated_at?: string;
+            not_personal_data?: string[];
+            two_factor_enabled?: boolean;
+            unchecked_channels?: components["schemas"]["github_com_denisakp_ogoune_internal_dto_v1.PrivacyUncheckedChannel"][];
+        };
+        "github_com_denisakp_ogoune_internal_dto_v1.PrivacyUncheckedChannel": {
+            id?: string;
+            name?: string;
+            type?: string;
         };
         "github_com_denisakp_ogoune_internal_dto_v1.RegisterHostRequest": {
             name?: string;
@@ -5536,6 +6159,10 @@ export interface components {
             /** @description Meta is short context (e.g. a monitor's target), omitted when empty. */
             meta?: string;
         };
+        "github_com_denisakp_ogoune_internal_dto_v1.SingleResponse-array_github_com_denisakp_ogoune_internal_dto_v1_ErasureAccountResponse": {
+            data?: components["schemas"]["github_com_denisakp_ogoune_internal_dto_v1.ErasureAccountResponse"][];
+            meta?: components["schemas"]["github_com_denisakp_ogoune_internal_dto_v1.MetaResponse"];
+        };
         "github_com_denisakp_ogoune_internal_dto_v1.SingleResponse-github_com_denisakp_ogoune_internal_dto_ComponentResponse": {
             data?: components["schemas"]["github_com_denisakp_ogoune_internal_dto.ComponentResponse"];
             meta?: components["schemas"]["github_com_denisakp_ogoune_internal_dto_v1.MetaResponse"];
@@ -5570,6 +6197,14 @@ export interface components {
         };
         "github_com_denisakp_ogoune_internal_dto_v1.SingleResponse-github_com_denisakp_ogoune_internal_dto_v1_DashboardResponse": {
             data?: components["schemas"]["github_com_denisakp_ogoune_internal_dto_v1.DashboardResponse"];
+            meta?: components["schemas"]["github_com_denisakp_ogoune_internal_dto_v1.MetaResponse"];
+        };
+        "github_com_denisakp_ogoune_internal_dto_v1.SingleResponse-github_com_denisakp_ogoune_internal_dto_v1_ErasurePreviewResponse": {
+            data?: components["schemas"]["github_com_denisakp_ogoune_internal_dto_v1.ErasurePreviewResponse"];
+            meta?: components["schemas"]["github_com_denisakp_ogoune_internal_dto_v1.MetaResponse"];
+        };
+        "github_com_denisakp_ogoune_internal_dto_v1.SingleResponse-github_com_denisakp_ogoune_internal_dto_v1_ErasureResultResponse": {
+            data?: components["schemas"]["github_com_denisakp_ogoune_internal_dto_v1.ErasureResultResponse"];
             meta?: components["schemas"]["github_com_denisakp_ogoune_internal_dto_v1.MetaResponse"];
         };
         "github_com_denisakp_ogoune_internal_dto_v1.SingleResponse-github_com_denisakp_ogoune_internal_dto_v1_HeartbeatPingResponse": {
@@ -5614,6 +6249,10 @@ export interface components {
         };
         "github_com_denisakp_ogoune_internal_dto_v1.SingleResponse-github_com_denisakp_ogoune_internal_dto_v1_PortScanResponse": {
             data?: components["schemas"]["github_com_denisakp_ogoune_internal_dto_v1.PortScanResponse"];
+            meta?: components["schemas"]["github_com_denisakp_ogoune_internal_dto_v1.MetaResponse"];
+        };
+        "github_com_denisakp_ogoune_internal_dto_v1.SingleResponse-github_com_denisakp_ogoune_internal_dto_v1_PrivacySummaryResponse": {
+            data?: components["schemas"]["github_com_denisakp_ogoune_internal_dto_v1.PrivacySummaryResponse"];
             meta?: components["schemas"]["github_com_denisakp_ogoune_internal_dto_v1.MetaResponse"];
         };
         "github_com_denisakp_ogoune_internal_dto_v1.SingleResponse-github_com_denisakp_ogoune_internal_dto_v1_RegisterHostResponse": {

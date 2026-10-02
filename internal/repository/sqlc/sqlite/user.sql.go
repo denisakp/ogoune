@@ -127,6 +127,69 @@ func (q *Queries) FindUserByID(ctx context.Context, id string) (User, error) {
 	return i, err
 }
 
+const listUsers = `-- name: ListUsers :many
+SELECT id, email, name, hashed_password, password_initialized, force_password_change, two_factor_enabled, two_factor_secret, two_factor_backup_codes, last_login_at, created_at, updated_at FROM users ORDER BY email
+`
+
+func (q *Queries) ListUsers(ctx context.Context) ([]User, error) {
+	rows, err := q.db.QueryContext(ctx, listUsers)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []User{}
+	for rows.Next() {
+		var i User
+		if err := rows.Scan(
+			&i.ID,
+			&i.Email,
+			&i.Name,
+			&i.HashedPassword,
+			&i.PasswordInitialized,
+			&i.ForcePasswordChange,
+			&i.TwoFactorEnabled,
+			&i.TwoFactorSecret,
+			&i.TwoFactorBackupCodes,
+			&i.LastLoginAt,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const swapUserTwoFactorBackupCodes = `-- name: SwapUserTwoFactorBackupCodes :execrows
+UPDATE users
+SET two_factor_backup_codes = ?1
+WHERE id = ?2
+  AND two_factor_backup_codes = ?3
+`
+
+type SwapUserTwoFactorBackupCodesParams struct {
+	NextCodes     []byte `json:"next_codes"`
+	ID            string `json:"id"`
+	ExpectedCodes []byte `json:"expected_codes"`
+}
+
+// Compare-and-swap: only writes when the stored set is still the one the
+// caller read, so a backup code cannot be consumed twice concurrently.
+func (q *Queries) SwapUserTwoFactorBackupCodes(ctx context.Context, arg SwapUserTwoFactorBackupCodesParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, swapUserTwoFactorBackupCodes, arg.NextCodes, arg.ID, arg.ExpectedCodes)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
 const updateUser = `-- name: UpdateUser :exec
 UPDATE users
 SET email = ?,
@@ -199,6 +262,22 @@ type UpdateUserPasswordParams struct {
 
 func (q *Queries) UpdateUserPassword(ctx context.Context, arg UpdateUserPasswordParams) error {
 	_, err := q.db.ExecContext(ctx, updateUserPassword, arg.HashedPassword, arg.ID)
+	return err
+}
+
+const updateUserTwoFactorBackupCodes = `-- name: UpdateUserTwoFactorBackupCodes :exec
+UPDATE users
+SET two_factor_backup_codes = ?1
+WHERE id = ?2
+`
+
+type UpdateUserTwoFactorBackupCodesParams struct {
+	TwoFactorBackupCodes []byte `json:"two_factor_backup_codes"`
+	ID                   string `json:"id"`
+}
+
+func (q *Queries) UpdateUserTwoFactorBackupCodes(ctx context.Context, arg UpdateUserTwoFactorBackupCodesParams) error {
+	_, err := q.db.ExecContext(ctx, updateUserTwoFactorBackupCodes, arg.TwoFactorBackupCodes, arg.ID)
 	return err
 }
 

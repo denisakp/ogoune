@@ -160,4 +160,49 @@ func runUserContract(t *testing.T, repo port.UserRepository) {
 		assert.Equal(t, "TOTP-SECRET", got.TwoFactorSecret)
 		assert.True(t, got.TwoFactorEnabled)
 	})
+
+	t.Run("TwoFactorBackupCodes_update_and_swap", func(t *testing.T) {
+		u := &domain.User{
+			Base:           domain.Base{ID: uid("BKP")},
+			Email:          "bkp-" + tag + "@example.invalid",
+			HashedPassword: "h",
+		}
+		_, err := repo.Create(ctx, u)
+		require.NoError(t, err)
+
+		// Nothing stored: a swap never matches.
+		ok, err := repo.SwapTwoFactorBackupCodes(ctx, u.ID, []byte(`["a"]`), nil)
+		require.NoError(t, err)
+		assert.False(t, ok)
+
+		first := []byte(`["a","b"]`)
+		require.NoError(t, repo.UpdateTwoFactorBackupCodes(ctx, u.ID, first))
+		got, err := repo.FindByID(ctx, u.ID)
+		require.NoError(t, err)
+		assert.Equal(t, first, got.TwoFactorBackupCodes)
+
+		// Swap from the current set succeeds once; replaying it fails.
+		next := []byte(`["b"]`)
+		ok, err = repo.SwapTwoFactorBackupCodes(ctx, u.ID, first, next)
+		require.NoError(t, err)
+		assert.True(t, ok)
+		ok, err = repo.SwapTwoFactorBackupCodes(ctx, u.ID, first, next)
+		require.NoError(t, err)
+		assert.False(t, ok, "stale expected set must not match")
+
+		// Swapping to nil empties the column.
+		ok, err = repo.SwapTwoFactorBackupCodes(ctx, u.ID, next, nil)
+		require.NoError(t, err)
+		assert.True(t, ok)
+		got, err = repo.FindByID(ctx, u.ID)
+		require.NoError(t, err)
+		assert.Empty(t, got.TwoFactorBackupCodes)
+
+		// Update with nil clears.
+		require.NoError(t, repo.UpdateTwoFactorBackupCodes(ctx, u.ID, first))
+		require.NoError(t, repo.UpdateTwoFactorBackupCodes(ctx, u.ID, nil))
+		got, err = repo.FindByID(ctx, u.ID)
+		require.NoError(t, err)
+		assert.Empty(t, got.TwoFactorBackupCodes)
+	})
 }

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -34,6 +35,14 @@ type mockChannelService struct {
 	stats         *service.NotificationStats
 	statsErr      error
 	lastUpdate    *dto.UpdateNotificationChannelPayload
+	enableErr     error
+}
+
+func (m *mockChannelService) EnableChannel(_ context.Context, _ string) (*domain.NotificationChannel, error) {
+	if m.enableErr != nil {
+		return nil, m.enableErr
+	}
+	return m.channel, nil
 }
 
 func (m *mockChannelService) TestNotificationChannel(_ context.Context, _ string) error {
@@ -108,6 +117,7 @@ func newChannelRouter(svc v1.ChannelV1ServiceInterface) *chi.Mux {
 	r.With(middleware.RequireReadWrite).Patch("/api/v1/notification-channels/{id}", h.Patch)
 	r.With(middleware.RequireReadWrite).Delete("/api/v1/notification-channels/{id}", h.Delete)
 	r.With(middleware.RequireReadWrite).Post("/api/v1/notification-channels/{id}/test", h.Test)
+	r.With(middleware.RequireReadWrite).Post("/api/v1/notification-channels/{id}/enable", h.Enable)
 	r.Get("/api/v1/notifications/stats", h.Stats)
 	return r
 }
@@ -324,4 +334,63 @@ func TestChannelHandler_Get_NotFound_Returns404(t *testing.T) {
 	require.NoError(t, json.Unmarshal(rr.Body.Bytes(), &out))
 	assert.Equal(t, "RESOURCE_NOT_FOUND", out.Type)
 	assert.Contains(t, out.Detail, "channel not found")
+}
+
+// Spec 095: enabling a disabled channel, and the disabled state on the wire.
+
+func TestChannelHandler_Enable(t *testing.T) {
+	at := time.Date(2026, 10, 2, 9, 0, 0, 0, time.UTC)
+	disabled := &domain.NotificationChannel{
+		Base: domain.Base{ID: "ch-1", CreatedAt: at, UpdatedAt: at}, Name: "Jane only",
+		Type: domain.NotificationChannelTypeSMTP, Config: []byte(`{"recipients":["ops@example.com"]}`),
+	}
+	cases := []struct {
+		name string
+		err  error
+		code int
+		want string
+	}{
+		{"enabled", nil, http.StatusOK, `"id":"ch-1"`},
+		{"no recipient", fmt.Errorf("%w: at least one recipient is required", service.ErrChannelNeedsRecipient), http.StatusUnprocessableEntity, "add a recipient"},
+		{"unknown", service.ErrResourceNotFound, http.StatusNotFound, "channel not found"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			router := newChannelRouter(&mockChannelService{channel: disabled, enableErr: tc.err})
+			req := injectReadWriteScope(httptest.NewRequest(http.MethodPost, "/api/v1/notification-channels/ch-1/enable", nil))
+			rr := httptest.NewRecorder()
+			router.ServeHTTP(rr, req)
+			assert.Equal(t, tc.code, rr.Code)
+			assert.Contains(t, rr.Body.String(), tc.want)
+		})
+	}
+
+	t.Run("read-only key is refused", func(t *testing.T) {
+		router := newChannelRouter(&mockChannelService{channel: disabled})
+		req := injectReadScope(httptest.NewRequest(http.MethodPost, "/api/v1/notification-channels/ch-1/enable", nil))
+		rr := httptest.NewRecorder()
+		router.ServeHTTP(rr, req)
+		assert.Equal(t, http.StatusForbidden, rr.Code)
+	})
+}
+
+func TestChannelHandler_DisabledStateOnTheWire(t *testing.T) {
+	at := time.Date(2026, 10, 2, 9, 0, 0, 0, time.UTC)
+	ch := &domain.NotificationChannel{
+		Base: domain.Base{ID: "ch-1", CreatedAt: at, UpdatedAt: at}, Name: "Jane only",
+		Type: domain.NotificationChannelTypeSMTP, Config: []byte(`{"recipients":[]}`),
+		DisabledAt: &at, DisabledReason: domain.ChannelDisabledByErasure,
+	}
+	router := newChannelRouter(&mockChannelService{channel: ch, testErr: service.ErrChannelDisabled})
+
+	rr := httptest.NewRecorder()
+	router.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, "/api/v1/notification-channels/ch-1", nil))
+	require.Equal(t, http.StatusOK, rr.Code)
+	assert.Contains(t, rr.Body.String(), `"disabled_at":"2026-10-02T09:00:00Z"`)
+	assert.Contains(t, rr.Body.String(), `"disabled_reason":"erasure"`)
+
+	rr = httptest.NewRecorder()
+	router.ServeHTTP(rr, injectReadWriteScope(httptest.NewRequest(http.MethodPost, "/api/v1/notification-channels/ch-1/test", nil)))
+	assert.Equal(t, http.StatusUnprocessableEntity, rr.Code, "a disabled channel is not tested")
+	assert.Contains(t, rr.Body.String(), "CHANNEL_DISABLED")
 }

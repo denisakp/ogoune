@@ -52,4 +52,5 @@ var (
 	_ port.HostMetricsRepository                 = (*HostMetricRepositorySQLC)(nil)
 	_ port.ResourceHealthRepository              = (*ResourceHealthRepositorySQLC)(nil)
 	_ port.HostEventRepository                   = (*HostEventRepositorySQLC)(nil)
+	_ port.ErasureRepository                     = (*ErasureRepositorySQLC)(nil)
 )

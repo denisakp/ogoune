@@ -245,6 +245,20 @@ type NotificationChannelRepository interface {
 	// Spec 060 follow-up — per-channel dispatch counters.
 	MarkSent(ctx context.Context, channelID string, at time.Time) error
 	MarkFailure(ctx context.Context, channelID string, at time.Time) error
+	// Enable clears a channel's disabled state (spec 095).
+	Enable(ctx context.Context, id string) error
+	// ListForScan returns every channel with its configuration decrypted row
+	// by row (spec 094). A row that cannot be decrypted is returned with
+	// DecryptErr set and no Config, instead of failing the whole list as List
+	// does; an error is returned only when the query itself fails.
+	ListForScan(ctx context.Context) ([]ChannelScanRow, error)
+}
+
+// ChannelScanRow is one channel as seen by a personal-data scan: either its
+// decrypted configuration, or the reason it could not be read.
+type ChannelScanRow struct {
+	Channel    *domain.NotificationChannel
+	DecryptErr error
 }
 
 // MaintenanceRepository manages maintenance windows.
@@ -268,11 +282,20 @@ type UserRepository interface {
 	Create(ctx context.Context, user *domain.User) (*domain.User, error)
 	FindByID(ctx context.Context, id string) (*domain.User, error)
 	FindByEmail(ctx context.Context, email string) (*domain.User, error)
+	// List returns every account, ordered by email (spec 095).
+	List(ctx context.Context) ([]*domain.User, error)
 	Update(ctx context.Context, user *domain.User) error
 	Delete(ctx context.Context, id string) error
 	UpdatePassword(ctx context.Context, userID string, hashedPassword string) error
 	UpdateLastLogin(ctx context.Context, userID string) error
 	UpdateTwoFactorSecret(ctx context.Context, userID string, secret string, enabled bool) error
+	// UpdateTwoFactorBackupCodes replaces the stored (hashed) backup-code set;
+	// nil clears it.
+	UpdateTwoFactorBackupCodes(ctx context.Context, userID string, codes []byte) error
+	// SwapTwoFactorBackupCodes writes next only when the stored set still
+	// equals expected (compare-and-swap) and reports whether it did. It is
+	// how a backup code is consumed exactly once.
+	SwapTwoFactorBackupCodes(ctx context.Context, userID string, expected, next []byte) (bool, error)
 }
 
 // APIKeyRepository manages API key persistence and lookup.
@@ -330,6 +353,8 @@ type ReportSettingsRepository interface {
 type ReportHistoryRepository interface {
 	Create(ctx context.Context, r *domain.ReportHistory) (*domain.ReportHistory, error)
 	ListRecent(ctx context.Context, limit int) ([]*domain.ReportHistory, error)
+	// ListByRecipient returns reports sent to a normalised address (spec 094).
+	ListByRecipient(ctx context.Context, email string) ([]*domain.ReportHistory, error)
 	FindByPeriod(ctx context.Context, period string) (*domain.ReportHistory, error)
 }
 
@@ -362,6 +387,8 @@ type SessionRepository interface {
 	Create(ctx context.Context, s *domain.Session) error
 	FindByID(ctx context.Context, id string) (*domain.Session, error)
 	ListActiveByUser(ctx context.Context, userID string) ([]*domain.Session, error)
+	// ListAllByUser includes revoked sessions (spec 094 inventory).
+	ListAllByUser(ctx context.Context, userID string) ([]*domain.Session, error)
 	UpdateLastActive(ctx context.Context, id string, at time.Time) error
 	Revoke(ctx context.Context, id string, at time.Time) error
 	RevokeAllExcept(ctx context.Context, userID, currentSessionID string, at time.Time) (int64, error)
@@ -409,6 +436,15 @@ type IncidentUpdateRepository interface {
 	Create(ctx context.Context, u *domain.IncidentUpdate) (*domain.IncidentUpdate, error)
 	FindByID(ctx context.Context, id string) (*domain.IncidentUpdate, error)
 	ListByIncident(ctx context.Context, incidentID string) ([]*domain.IncidentUpdate, error)
+	// ListByPostedBy returns the updates one user authored (spec 094).
+	ListByPostedBy(ctx context.Context, userID string) ([]*domain.IncidentUpdate, error)
 	Update(ctx context.Context, u *domain.IncidentUpdate) error
 	Delete(ctx context.Context, id string) error
+}
+
+// ErasureRepository applies an erasure plan in one transaction and finds
+// earlier erasures of the same address by fingerprint (spec 095).
+type ErasureRepository interface {
+	Apply(ctx context.Context, plan domain.ErasurePlan) error
+	FindRecordsByFingerprint(ctx context.Context, fingerprint string) ([]domain.ErasureRecord, error)
 }

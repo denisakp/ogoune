@@ -232,6 +232,33 @@ func (r *NotificationChannelRepositorySQLC) MarkFailure(ctx context.Context, cha
 	}
 }
 
+// Enable clears the disabled state (spec 095). Whether the channel may be
+// enabled is the service's decision.
+func (r *NotificationChannelRepositorySQLC) Enable(ctx context.Context, id string) error {
+	now := time.Now()
+	var n int64
+	var err error
+	switch {
+	case r.pgQ != nil:
+		n, err = r.pgQ.EnableNotificationChannel(ctx, pgsqlc.EnableNotificationChannelParams{
+			UpdatedAt: pgtype.Timestamptz{Time: now, Valid: true}, ID: id,
+		})
+	case r.sqliteQ != nil:
+		n, err = r.sqliteQ.EnableNotificationChannel(ctx, sqlitesqlc.EnableNotificationChannelParams{
+			UpdatedAt: now, ID: id,
+		})
+	default:
+		return r.unconfigured()
+	}
+	if err != nil {
+		return fmt.Errorf("sqlc: enable notification channel: %w", err)
+	}
+	if n == 0 {
+		return repository.ErrNotFound
+	}
+	return nil
+}
+
 func (r *NotificationChannelRepositorySQLC) Delete(ctx context.Context, id string) error {
 	switch {
 	case r.pgQ != nil:
@@ -391,7 +418,25 @@ func channelFromPG(row pgsqlc.NotificationChannel) (*domain.NotificationChannel,
 		LastSentAt:       lastSent,
 		LastFailureAt:    lastFail,
 		Failures24h:      int(row.Failures24h),
+		DisabledAt:       timePtrFromPG(row.DisabledAt),
+		DisabledReason:   row.DisabledReason.String,
 	}, nil
+}
+
+func timePtrFromPG(t pgtype.Timestamptz) *time.Time {
+	if !t.Valid {
+		return nil
+	}
+	v := t.Time
+	return &v
+}
+
+func timePtrFromNull(t sql.NullTime) *time.Time {
+	if !t.Valid {
+		return nil
+	}
+	v := t.Time
+	return &v
 }
 
 func channelsFromPG(rows []pgsqlc.NotificationChannel) ([]*domain.NotificationChannel, error) {
@@ -426,6 +471,8 @@ func channelFromSQLite(row sqlitesqlc.NotificationChannel) (*domain.Notification
 		LastSentAt:       lastSent,
 		LastFailureAt:    lastFail,
 		Failures24h:      int(row.Failures24h),
+		DisabledAt:       timePtrFromNull(row.DisabledAt),
+		DisabledReason:   row.DisabledReason.String,
 	}, nil
 }
 
@@ -439,4 +486,47 @@ func channelsFromSQLite(rows []sqlitesqlc.NotificationChannel) ([]*domain.Notifi
 		out[i] = ch
 	}
 	return out, nil
+}
+
+// scanAll is a limit larger than any install's channel count; the scan reads
+// every channel through the existing paginated query.
+const scanAll = 1 << 30
+
+// ListForScan decrypts row by row (spec 094, FR-003): one configuration that
+// cannot be decrypted -- written under another key, or corrupted -- becomes a
+// row carrying DecryptErr and the channel's identity, never a failed scan.
+// List keeps its all-or-nothing behaviour, which every other caller relies on.
+func (r *NotificationChannelRepositorySQLC) ListForScan(ctx context.Context) ([]port.ChannelScanRow, error) {
+	switch {
+	case r.pgQ != nil:
+		rows, err := r.pgQ.ListNotificationChannels(ctx, pgsqlc.ListNotificationChannelsParams{Limit: scanAll, Offset: 0})
+		if err != nil {
+			return nil, fmt.Errorf("sqlc: scan notification channels: %w", err)
+		}
+		out := make([]port.ChannelScanRow, 0, len(rows))
+		for _, row := range rows {
+			ch, err := channelFromPG(row)
+			if err != nil {
+				ch = &domain.NotificationChannel{Base: domain.Base{ID: row.ID}, Name: row.Name, Type: domain.NotificationChannelType(row.Type)}
+			}
+			out = append(out, port.ChannelScanRow{Channel: ch, DecryptErr: err})
+		}
+		return out, nil
+	case r.sqliteQ != nil:
+		rows, err := r.sqliteQ.ListNotificationChannels(ctx, sqlitesqlc.ListNotificationChannelsParams{Limit: scanAll, Offset: 0})
+		if err != nil {
+			return nil, fmt.Errorf("sqlc: scan notification channels: %w", err)
+		}
+		out := make([]port.ChannelScanRow, 0, len(rows))
+		for _, row := range rows {
+			ch, err := channelFromSQLite(row)
+			if err != nil {
+				ch = &domain.NotificationChannel{Base: domain.Base{ID: row.ID}, Name: row.Name, Type: domain.NotificationChannelType(row.Type)}
+			}
+			out = append(out, port.ChannelScanRow{Channel: ch, DecryptErr: err})
+		}
+		return out, nil
+	default:
+		return nil, r.unconfigured()
+	}
 }

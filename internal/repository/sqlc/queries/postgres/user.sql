@@ -48,3 +48,19 @@ UPDATE users
 SET two_factor_secret = $2,
     two_factor_enabled = $3
 WHERE id = $1;
+
+-- name: UpdateUserTwoFactorBackupCodes :exec
+UPDATE users
+SET two_factor_backup_codes = sqlc.narg(two_factor_backup_codes)
+WHERE id = sqlc.arg(id);
+
+-- name: SwapUserTwoFactorBackupCodes :execrows
+-- Compare-and-swap: only writes when the stored set is still the one the
+-- caller read, so a backup code cannot be consumed twice concurrently.
+UPDATE users
+SET two_factor_backup_codes = sqlc.narg(next_codes)
+WHERE id = sqlc.arg(id)
+  AND two_factor_backup_codes = sqlc.arg(expected_codes);
+
+-- name: ListUsers :many
+SELECT * FROM users ORDER BY email;
