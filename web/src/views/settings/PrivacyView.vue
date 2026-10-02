@@ -191,12 +191,16 @@ defineExpose({ summary, loading, loadError, exportOpen, exportError, form, onSub
               data-test="privacy-password"
             />
           </UFormField>
-          <UFormField v-if="twoFactor" label="Two-factor code" name="code">
+          <UFormField
+            v-if="twoFactor"
+            label="Two-factor code"
+            name="code"
+            help="The 6-digit code from your authenticator app, or one of your backup codes (it is then used up)."
+          >
             <UInput
               v-model="form.code"
-              inputmode="numeric"
               autocomplete="one-time-code"
-              maxlength="6"
+              maxlength="20"
               class="w-full"
               data-test="privacy-code"
             />

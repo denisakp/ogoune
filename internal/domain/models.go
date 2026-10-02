@@ -728,7 +728,7 @@ type User struct {
 	ForcePasswordChange  bool       `json:"force_password_change"`
 	TwoFactorEnabled     bool       `json:"two_factor_enabled"`
 	TwoFactorSecret      string     `json:"-"` // TOTP secret, never serialize
-	TwoFactorBackupCodes []byte     `json:"-"` // Encrypted backup codes
+	TwoFactorBackupCodes []byte     `json:"-"` // JSON array of SHA-256 hashes of unused backup codes (never cleartext)
 	LastLoginAt          *time.Time `json:"last_login_at"`
 	CreatedAt            time.Time  `json:"created_at"`
 	UpdatedAt            time.Time  `json:"updated_at"`

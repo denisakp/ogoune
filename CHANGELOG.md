@@ -32,6 +32,15 @@ follows [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/).
   or turning off two-factor authentication with a wrong current password answered "unauthorised",
   which the interface reads as an expired session: it signed you out mid-typo. These now answer as
   a validation error, shown next to the field; you stay signed in and can try again.
+- **Two-factor backup codes now actually work.** The 10 codes shown when two-factor is turned on
+  were never saved, so none of them was accepted anywhere. They are now stored (as hashes only,
+  never in clear) and each one is accepted once in place of the authenticator code — at sign-in and
+  when re-entering your password to download your data. A code is spent the moment it is used;
+  setting up two-factor again replaces the whole set, and turning two-factor off deletes it.
+  **Codes from a setup done before this release were never stored and will not work:** to get a
+  working set, turn two-factor off (Settings → Security, with a current authenticator code) and
+  turn it on again, then save the new codes. New codes look like `xxxx-xxxx-xxxx`; case, spaces
+  and dashes do not matter when typing one.
 
 ## [1.0.0-beta.8] - 2026-10-01
 

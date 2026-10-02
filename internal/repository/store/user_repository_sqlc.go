@@ -303,3 +303,51 @@ func userFromSQLite(row sqlitesqlc.User) *domain.User {
 	}
 	return out
 }
+
+func (r *UserRepositorySQLC) UpdateTwoFactorBackupCodes(ctx context.Context, userID string, codes []byte) error {
+	switch {
+	case r.pgQ != nil:
+		return r.pgQ.UpdateUserTwoFactorBackupCodes(ctx, pgsqlc.UpdateUserTwoFactorBackupCodesParams{
+			ID:                   userID,
+			TwoFactorBackupCodes: codes,
+		})
+	case r.sqliteQ != nil:
+		return r.sqliteQ.UpdateUserTwoFactorBackupCodes(ctx, sqlitesqlc.UpdateUserTwoFactorBackupCodesParams{
+			ID:                   userID,
+			TwoFactorBackupCodes: codes,
+		})
+	default:
+		return r.unconfigured()
+	}
+}
+
+func (r *UserRepositorySQLC) SwapTwoFactorBackupCodes(ctx context.Context, userID string, expected, next []byte) (bool, error) {
+	if len(expected) == 0 {
+		// Nothing stored means nothing to consume; NULL never compares equal anyway.
+		return false, nil
+	}
+	var (
+		n   int64
+		err error
+	)
+	switch {
+	case r.pgQ != nil:
+		n, err = r.pgQ.SwapUserTwoFactorBackupCodes(ctx, pgsqlc.SwapUserTwoFactorBackupCodesParams{
+			ID:            userID,
+			ExpectedCodes: expected,
+			NextCodes:     next,
+		})
+	case r.sqliteQ != nil:
+		n, err = r.sqliteQ.SwapUserTwoFactorBackupCodes(ctx, sqlitesqlc.SwapUserTwoFactorBackupCodesParams{
+			ID:            userID,
+			ExpectedCodes: expected,
+			NextCodes:     next,
+		})
+	default:
+		return false, r.unconfigured()
+	}
+	if err != nil {
+		return false, err
+	}
+	return n == 1, nil
+}

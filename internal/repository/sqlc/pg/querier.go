@@ -246,6 +246,9 @@ type Querier interface {
 	// One round-trip bulk aggregation grouped by resource. Used by the list path
 	// to enrich each resource with its uptime ratio over a sliding window (30d).
 	SumUptimeAggByResourcesSince(ctx context.Context, arg SumUptimeAggByResourcesSinceParams) ([]SumUptimeAggByResourcesSinceRow, error)
+	// Compare-and-swap: only writes when the stored set is still the one the
+	// caller read, so a backup code cannot be consumed twice concurrently.
+	SwapUserTwoFactorBackupCodes(ctx context.Context, arg SwapUserTwoFactorBackupCodesParams) (int64, error)
 	TouchHostCredentialLastUsed(ctx context.Context, arg TouchHostCredentialLastUsedParams) error
 	UnlinkMaintenanceResource(ctx context.Context, arg UnlinkMaintenanceResourceParams) error
 	UnlinkResourceChannel(ctx context.Context, arg UnlinkResourceChannelParams) error
@@ -274,6 +277,7 @@ type Querier interface {
 	UpdateUser(ctx context.Context, arg UpdateUserParams) error
 	UpdateUserLastLogin(ctx context.Context, id string) error
 	UpdateUserPassword(ctx context.Context, arg UpdateUserPasswordParams) error
+	UpdateUserTwoFactorBackupCodes(ctx context.Context, arg UpdateUserTwoFactorBackupCodesParams) error
 	UpdateUserTwoFactorSecret(ctx context.Context, arg UpdateUserTwoFactorSecretParams) error
 	UpsertHostAlertState(ctx context.Context, arg UpsertHostAlertStateParams) error
 	UpsertNotificationEscalationState(ctx context.Context, arg UpsertNotificationEscalationStateParams) error

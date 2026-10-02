@@ -23,7 +23,7 @@ Notification channel configurations are encrypted. To find your address in them,
 
 ## Downloading a copy
 
-**Download my data** produces one JSON file with everything above. Before it does, it asks for your current password — and your two-factor code if two-factor is on — every time. A signed-in session alone is never enough to download everything known about a person. A wrong answer leaves you signed in; repeated wrong answers are limited the same way sign-in attempts are.
+**Download my data** produces one JSON file with everything above. Before it does, it asks for your current password — and your two-factor code (or one of your backup codes, which is then used up) if two-factor is on — every time. A signed-in session alone is never enough to download everything known about a person. A wrong answer leaves you signed in; repeated wrong answers are limited the same way sign-in attempts are.
 
 The file contains **no secret in usable form**: no password or hash, no two-factor secret, no API key (only its prefix), no session token, no channel credential. It is still a personal-data document: keep it accordingly. Ogoune generates it on request and keeps no copy. Each export is recorded in the server log — who, when, accepted or refused — never its content.
 
