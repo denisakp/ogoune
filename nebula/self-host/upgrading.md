@@ -23,7 +23,7 @@ The reverse order also works — a newer agent streams to an older server — bu
 
 ## What is guaranteed
 
-Every build is tested by restoring a database **written by an earlier released version** (both SQLite and PostgreSQL), running the new migrations against it, and checking that every table survives with the same rows, byte-for-byte on the columns that existed before. The releases covered are v1.0.0-beta.4 and v1.0.0-beta.7. A migration that rewrote or dropped existing data would not pass CI.
+Every build is tested by restoring a database **written by an earlier released version** (both SQLite and PostgreSQL), running the new migrations against it, and checking that every table survives with the same rows, byte-for-byte on the columns that existed before. The releases covered are v1.0.0-beta.4, v1.0.0-beta.7 and v1.0.0-beta.8. A migration that rewrote or dropped existing data would not pass CI.
 
 Migrations are forward-only and additive. A migration file is never edited after release; a correction is a new migration.
 
@@ -34,6 +34,12 @@ Stop the new version, restore the backup, start the previous version. The previo
 ## Per-version notes
 
 Only what changes for an operator. Full detail is in the [release notes](https://github.com/denisakp/ogoune/releases).
+
+### v1.0.0-beta.9
+- One migration, additive: notification channels can be disabled, and erasures are recorded. Existing channels stay enabled; nothing to configure.
+- **Do not go back to an earlier version after erasing someone's data.** Earlier versions do not know about disabled channels and would send to them again. Before any erasure, rolling back is the usual restore.
+- Two-factor backup codes shown by a setup made before this version were never stored: set up two-factor again to get a working set.
+- Every build from here on is also tested by upgrading a database written by beta.8.
 
 ### v1.0.0-beta.8
 - Nothing to do: no migration, no configuration change, agent unchanged since beta.7.

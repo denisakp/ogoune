@@ -5,6 +5,8 @@ follows [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.0.0-beta.9] - 2026-10-02
+
 ### Added
 
 - **See and download the personal data an install holds about you.** Settings → Privacy lists
@@ -35,6 +37,8 @@ follows [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- **The upgrade gate also restores a database written by v1.0.0-beta.8** (SQLite and PostgreSQL);
+  it is the first fixture that crosses a migration since the gate exists (0037).
 - **The search palette no longer ships a fuzzy-search library.** Real queries have gone to the
   backend search endpoint since beta; the browser kept `fuse.js` only for one-character queries and
   as a fallback when the endpoint is unreachable. Both now use a plain case-insensitive match,
