@@ -26,3 +26,10 @@ WHERE id = ?;
 
 -- name: DeleteIncidentUpdate :exec
 DELETE FROM incident_updates WHERE id = ?;
+
+-- name: ListIncidentUpdatesByPostedBy :many
+-- Updates a given user authored (spec 094). posted_by holds the user ID.
+SELECT id, incident_id, status, message, posted_by, posted_at, created_at, updated_at
+FROM incident_updates
+WHERE posted_by = ?
+ORDER BY posted_at DESC;

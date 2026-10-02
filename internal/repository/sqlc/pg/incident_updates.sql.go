@@ -111,6 +111,43 @@ func (q *Queries) ListIncidentUpdates(ctx context.Context, incidentID string) ([
 	return items, nil
 }
 
+const listIncidentUpdatesByPostedBy = `-- name: ListIncidentUpdatesByPostedBy :many
+SELECT id, incident_id, status, message, posted_by, posted_at, created_at, updated_at
+FROM incident_updates
+WHERE posted_by = $1
+ORDER BY posted_at DESC
+`
+
+// Updates a given user authored (spec 094). posted_by holds the user ID.
+func (q *Queries) ListIncidentUpdatesByPostedBy(ctx context.Context, postedBy string) ([]IncidentUpdate, error) {
+	rows, err := q.db.Query(ctx, listIncidentUpdatesByPostedBy, postedBy)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []IncidentUpdate{}
+	for rows.Next() {
+		var i IncidentUpdate
+		if err := rows.Scan(
+			&i.ID,
+			&i.IncidentID,
+			&i.Status,
+			&i.Message,
+			&i.PostedBy,
+			&i.PostedAt,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const updateIncidentUpdate = `-- name: UpdateIncidentUpdate :exec
 UPDATE incident_updates
 SET status = $2,

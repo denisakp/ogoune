@@ -25,3 +25,10 @@ WHERE id = ? AND revoked_at IS NULL;
 UPDATE sessions
 SET revoked_at = ?
 WHERE user_id = ? AND id <> ? AND revoked_at IS NULL;
+
+-- name: ListSessionsByUser :many
+-- Every session of a user, revoked included: a personal-data inventory
+-- must list them all (spec 094).
+SELECT * FROM sessions
+WHERE user_id = ?
+ORDER BY created_at DESC;

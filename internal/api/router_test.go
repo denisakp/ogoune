@@ -79,6 +79,7 @@ func TestNewRouter_PingIsPublicAndRootResourcesRemoved(t *testing.T) {
 		nil, // searchV1Handler (spec 084)
 		nil, // hostV1Handler
 		nil, // agentStreamV1Handler
+		nil, // privacyV1Handler
 		nil, // hostCredentialService
 		false,
 		&config.Config{

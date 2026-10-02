@@ -5,6 +5,19 @@ follows [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+
+- **See and download the personal data an install holds about you.** Settings → Privacy lists
+  every category — account, sessions (revoked ones included), API keys, incident updates you
+  posted, notification channels whose configuration contains your address, report recipient and
+  reports sent — with counts and links to where each is managed, and the categories that are not
+  personal data. **Download my data** returns all of it as one JSON file after re-entering your
+  password (and two-factor code when it is on), every time; a wrong answer leaves you signed in and
+  is rate-limited like sign-in. The file holds no secret in usable form — API keys appear by prefix,
+  channels by the name of the matching field. A channel configuration that cannot be decrypted is
+  reported as "could not be checked", never skipped. Nothing is written: the feature only reads.
+  Erasure is not in this release.
+
 ### Changed
 
 - **The search palette no longer ships a fuzzy-search library.** Real queries have gone to the

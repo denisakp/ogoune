@@ -2,6 +2,7 @@ package fake
 
 import (
 	"context"
+	"github.com/denisakp/ogoune/internal/port"
 	"time"
 
 	"github.com/denisakp/ogoune/internal/domain"
@@ -13,6 +14,8 @@ type NotificationChannelFake struct {
 	channels map[string]*domain.NotificationChannel
 	// resourceChannels maps resource IDs to associated channel IDs
 	resourceChannels map[string][]string
+	// scanFailures: see FailScanFor.
+	scanFailures map[string]error
 }
 
 // NewNotificationChannelFake creates a new fake notification channel repository.
@@ -139,4 +142,31 @@ func (f *NotificationChannelFake) MarkFailure(_ context.Context, channelID strin
 	ch.LastFailureAt = &ts
 	ch.UpdatedAt = at
 	return nil
+}
+
+// FailScanFor marks a channel ID whose configuration the scan should report
+// as undecryptable, to exercise spec 094's "could not be checked" path.
+func (f *NotificationChannelFake) FailScanFor(id string, err error) {
+	if f.scanFailures == nil {
+		f.scanFailures = map[string]error{}
+	}
+	f.scanFailures[id] = err
+}
+
+// ListForScan mirrors the store: one row per channel, DecryptErr set (and no
+// Config) for channels marked with FailScanFor.
+func (f *NotificationChannelFake) ListForScan(ctx context.Context) ([]port.ChannelScanRow, error) {
+	out := make([]port.ChannelScanRow, 0, len(f.channels))
+	for _, ch := range f.channels {
+		if err := f.scanFailures[ch.ID]; err != nil {
+			out = append(out, port.ChannelScanRow{
+				Channel:    &domain.NotificationChannel{Base: domain.Base{ID: ch.ID}, Name: ch.Name, Type: ch.Type},
+				DecryptErr: err,
+			})
+			continue
+		}
+		cp := *ch
+		out = append(out, port.ChannelScanRow{Channel: &cp})
+	}
+	return out, nil
 }

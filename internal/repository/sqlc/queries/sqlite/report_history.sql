@@ -13,3 +13,11 @@ LIMIT sqlc.arg('lim');
 SELECT id, period, sent_at, status, uptime_pct, incident_count, downtime_seconds, recipient_email, resource_breakdown, created_at
 FROM report_history
 WHERE period = sqlc.arg('period');
+
+-- name: ListReportHistoryByRecipient :many
+-- Reports sent to one address, matched case- and space-insensitively
+-- (spec 094). The caller passes the address already normalised.
+SELECT id, period, sent_at, status, uptime_pct, incident_count, downtime_seconds, recipient_email, resource_breakdown, created_at
+FROM report_history
+WHERE LOWER(TRIM(recipient_email)) = sqlc.arg('email')
+ORDER BY period DESC;

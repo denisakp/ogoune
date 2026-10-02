@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"github.com/denisakp/ogoune/internal/port"
 	"testing"
 	"time"
 
@@ -374,4 +375,8 @@ func TestCheckAndNotify_BothSSLAndDomainFire(t *testing.T) {
 	}
 	assert.True(t, types["ssl"])
 	assert.True(t, types["domain"])
+}
+
+func (m *mockChannelRepo) ListForScan(context.Context) ([]port.ChannelScanRow, error) {
+	return nil, nil
 }

@@ -30,6 +30,7 @@ const sections: Section[] = [
     items: [
       { label: 'Two-Factor Auth', to: '/settings/security/2fa', icon: 'i-lucide-shield-check' },
       { label: 'Sessions', to: '/settings/sessions', icon: 'i-lucide-monitor-smartphone' },
+      { label: 'Privacy', to: '/settings/privacy', icon: 'i-lucide-shield-user' },
     ],
   },
   {

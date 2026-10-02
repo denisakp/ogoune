@@ -273,6 +273,31 @@ func (s *AuthService) ChangePassword(ctx context.Context, userID, currentPasswor
 	return s.userRepo.UpdatePassword(ctx, userID, hash)
 }
 
+// Reauthenticate confirms that the person behind a valid session is the
+// account holder, before an action that hands out everything known about them
+// (spec 094, the personal-data export). It checks exactly what sign-in checks
+// -- the password, and the TOTP code when two-factor is on; sign-in accepts no
+// backup code, so neither does this. Every failure is the same error, so the
+// response says nothing about which factor was wrong.
+func (s *AuthService) Reauthenticate(ctx context.Context, userID, password, code string) error {
+	if password == "" {
+		return ErrInvalidCredentials
+	}
+	user, err := s.userRepo.FindByID(ctx, userID)
+	if err != nil {
+		return ErrInvalidCredentials
+	}
+	if err := bcrypt.CompareHashAndPassword([]byte(user.HashedPassword), []byte(password)); err != nil {
+		return ErrInvalidCredentials
+	}
+	if user.TwoFactorEnabled && user.TwoFactorSecret != "" {
+		if !totp.Validate(strings.TrimSpace(code), user.TwoFactorSecret) {
+			return ErrInvalidCredentials
+		}
+	}
+	return nil
+}
+
 // ResetPasswordToDefault resets the password to the default value
 func (s *AuthService) ResetPasswordToDefault(ctx context.Context, userID, currentPassword string) error {
 	user, err := s.userRepo.FindByID(ctx, userID)

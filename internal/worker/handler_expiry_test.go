@@ -265,3 +265,7 @@ func (c *conditionalErrorChecker) ResetLogs(_ context.Context, _ string, _ strin
 	return nil
 }
 func (c *conditionalErrorChecker) CleanupOldLogs(_ context.Context) error { return nil }
+
+func (m *mockExpiryChannelRepo) ListForScan(context.Context) ([]port.ChannelScanRow, error) {
+	return nil, nil
+}

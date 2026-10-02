@@ -196,3 +196,32 @@ func incidentUpdateFromSQLite(row sqlitesqlc.IncidentUpdate) *domain.IncidentUpd
 		PostedAt:   row.PostedAt,
 	}
 }
+
+// ListByPostedBy returns the updates one user authored, newest first (spec
+// 094). posted_by holds the user ID; seeded updates carry an empty one.
+func (r *IncidentUpdateRepositorySQLC) ListByPostedBy(ctx context.Context, userID string) ([]*domain.IncidentUpdate, error) {
+	switch {
+	case r.pgQ != nil:
+		rows, err := r.pgQ.ListIncidentUpdatesByPostedBy(ctx, userID)
+		if err != nil {
+			return nil, fmt.Errorf("sqlc: list incident_updates by poster: %w", err)
+		}
+		out := make([]*domain.IncidentUpdate, 0, len(rows))
+		for _, row := range rows {
+			out = append(out, incidentUpdateFromPG(row))
+		}
+		return out, nil
+	case r.sqliteQ != nil:
+		rows, err := r.sqliteQ.ListIncidentUpdatesByPostedBy(ctx, userID)
+		if err != nil {
+			return nil, fmt.Errorf("sqlc: list incident_updates by poster: %w", err)
+		}
+		out := make([]*domain.IncidentUpdate, 0, len(rows))
+		for _, row := range rows {
+			out = append(out, incidentUpdateFromSQLite(row))
+		}
+		return out, nil
+	default:
+		return nil, r.unconfigured()
+	}
+}

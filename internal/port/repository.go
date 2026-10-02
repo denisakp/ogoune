@@ -245,6 +245,18 @@ type NotificationChannelRepository interface {
 	// Spec 060 follow-up — per-channel dispatch counters.
 	MarkSent(ctx context.Context, channelID string, at time.Time) error
 	MarkFailure(ctx context.Context, channelID string, at time.Time) error
+	// ListForScan returns every channel with its configuration decrypted row
+	// by row (spec 094). A row that cannot be decrypted is returned with
+	// DecryptErr set and no Config, instead of failing the whole list as List
+	// does; an error is returned only when the query itself fails.
+	ListForScan(ctx context.Context) ([]ChannelScanRow, error)
+}
+
+// ChannelScanRow is one channel as seen by a personal-data scan: either its
+// decrypted configuration, or the reason it could not be read.
+type ChannelScanRow struct {
+	Channel    *domain.NotificationChannel
+	DecryptErr error
 }
 
 // MaintenanceRepository manages maintenance windows.
@@ -330,6 +342,8 @@ type ReportSettingsRepository interface {
 type ReportHistoryRepository interface {
 	Create(ctx context.Context, r *domain.ReportHistory) (*domain.ReportHistory, error)
 	ListRecent(ctx context.Context, limit int) ([]*domain.ReportHistory, error)
+	// ListByRecipient returns reports sent to a normalised address (spec 094).
+	ListByRecipient(ctx context.Context, email string) ([]*domain.ReportHistory, error)
 	FindByPeriod(ctx context.Context, period string) (*domain.ReportHistory, error)
 }
 
@@ -362,6 +376,8 @@ type SessionRepository interface {
 	Create(ctx context.Context, s *domain.Session) error
 	FindByID(ctx context.Context, id string) (*domain.Session, error)
 	ListActiveByUser(ctx context.Context, userID string) ([]*domain.Session, error)
+	// ListAllByUser includes revoked sessions (spec 094 inventory).
+	ListAllByUser(ctx context.Context, userID string) ([]*domain.Session, error)
 	UpdateLastActive(ctx context.Context, id string, at time.Time) error
 	Revoke(ctx context.Context, id string, at time.Time) error
 	RevokeAllExcept(ctx context.Context, userID, currentSessionID string, at time.Time) (int64, error)
@@ -409,6 +425,8 @@ type IncidentUpdateRepository interface {
 	Create(ctx context.Context, u *domain.IncidentUpdate) (*domain.IncidentUpdate, error)
 	FindByID(ctx context.Context, id string) (*domain.IncidentUpdate, error)
 	ListByIncident(ctx context.Context, incidentID string) ([]*domain.IncidentUpdate, error)
+	// ListByPostedBy returns the updates one user authored (spec 094).
+	ListByPostedBy(ctx context.Context, userID string) ([]*domain.IncidentUpdate, error)
 	Update(ctx context.Context, u *domain.IncidentUpdate) error
 	Delete(ctx context.Context, id string) error
 }

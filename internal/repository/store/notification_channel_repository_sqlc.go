@@ -440,3 +440,46 @@ func channelsFromSQLite(rows []sqlitesqlc.NotificationChannel) ([]*domain.Notifi
 	}
 	return out, nil
 }
+
+// scanAll is a limit larger than any install's channel count; the scan reads
+// every channel through the existing paginated query.
+const scanAll = 1 << 30
+
+// ListForScan decrypts row by row (spec 094, FR-003): one configuration that
+// cannot be decrypted -- written under another key, or corrupted -- becomes a
+// row carrying DecryptErr and the channel's identity, never a failed scan.
+// List keeps its all-or-nothing behaviour, which every other caller relies on.
+func (r *NotificationChannelRepositorySQLC) ListForScan(ctx context.Context) ([]port.ChannelScanRow, error) {
+	switch {
+	case r.pgQ != nil:
+		rows, err := r.pgQ.ListNotificationChannels(ctx, pgsqlc.ListNotificationChannelsParams{Limit: scanAll, Offset: 0})
+		if err != nil {
+			return nil, fmt.Errorf("sqlc: scan notification channels: %w", err)
+		}
+		out := make([]port.ChannelScanRow, 0, len(rows))
+		for _, row := range rows {
+			ch, err := channelFromPG(row)
+			if err != nil {
+				ch = &domain.NotificationChannel{Base: domain.Base{ID: row.ID}, Name: row.Name, Type: domain.NotificationChannelType(row.Type)}
+			}
+			out = append(out, port.ChannelScanRow{Channel: ch, DecryptErr: err})
+		}
+		return out, nil
+	case r.sqliteQ != nil:
+		rows, err := r.sqliteQ.ListNotificationChannels(ctx, sqlitesqlc.ListNotificationChannelsParams{Limit: scanAll, Offset: 0})
+		if err != nil {
+			return nil, fmt.Errorf("sqlc: scan notification channels: %w", err)
+		}
+		out := make([]port.ChannelScanRow, 0, len(rows))
+		for _, row := range rows {
+			ch, err := channelFromSQLite(row)
+			if err != nil {
+				ch = &domain.NotificationChannel{Base: domain.Base{ID: row.ID}, Name: row.Name, Type: domain.NotificationChannelType(row.Type)}
+			}
+			out = append(out, port.ChannelScanRow{Channel: ch, DecryptErr: err})
+		}
+		return out, nil
+	default:
+		return nil, r.unconfigured()
+	}
+}

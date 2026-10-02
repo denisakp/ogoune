@@ -79,5 +79,25 @@ func TestReportHistoryRepository_Contract(t *testing.T) {
 			assert.Equal(t, "2026-06", rows[0].Period)
 			assert.True(t, rows[0].SentAt.After(rows[1].SentAt) || rows[0].SentAt.Equal(rows[1].SentAt))
 		})
+		// Spec 094: reports sent to one address, matched case- and
+		// space-insensitively on the stored side.
+		t.Run("ListByRecipient_normalised_match_only", func(t *testing.T) {
+			mine := mkReport("2025-01", base.AddDate(-1, 0, 0))
+			mine.RecipientEmail = "  Jane@Example.COM "
+			other := mkReport("2025-02", base.AddDate(-1, 1, 0))
+			other.RecipientEmail = "ops@example.com"
+			for _, r := range []*domain.ReportHistory{mine, other} {
+				_, err := repo.Create(ctx, r)
+				require.NoError(t, err)
+			}
+			got, err := repo.ListByRecipient(ctx, "jane@example.com")
+			require.NoError(t, err)
+			require.Len(t, got, 1)
+			assert.Equal(t, "2025-01", got[0].Period)
+
+			none, err := repo.ListByRecipient(ctx, "nobody@example.com")
+			require.NoError(t, err)
+			assert.Empty(t, none)
+		})
 	})
 }
