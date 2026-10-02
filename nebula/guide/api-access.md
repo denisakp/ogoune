@@ -63,6 +63,9 @@ issuing your session. Lost your device? Use one of the backup codes, or trigger
 an **email-based 2FA reset** from the login screen.
 
 ::: warning
-Backup codes are shown once and each works only once. Disabling 2FA (**Account →
-Security → Disable 2FA**) also requires a valid code.
+Backup codes are shown once and each works only once — at sign-in, or when
+re-entering your password to download your data. Setting up 2FA again replaces the
+whole set; disabling 2FA (**Account → Security → Disable 2FA**, which requires a
+valid authenticator code) deletes it. Codes shown by v1.0.0-beta.8 or earlier were
+never stored and do not work: disable and re-enable 2FA to get a working set.
 :::

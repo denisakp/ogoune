@@ -285,6 +285,13 @@ type UserRepository interface {
 	UpdatePassword(ctx context.Context, userID string, hashedPassword string) error
 	UpdateLastLogin(ctx context.Context, userID string) error
 	UpdateTwoFactorSecret(ctx context.Context, userID string, secret string, enabled bool) error
+	// UpdateTwoFactorBackupCodes replaces the stored (hashed) backup-code set;
+	// nil clears it.
+	UpdateTwoFactorBackupCodes(ctx context.Context, userID string, codes []byte) error
+	// SwapTwoFactorBackupCodes writes next only when the stored set still
+	// equals expected (compare-and-swap) and reports whether it did. It is
+	// how a backup code is consumed exactly once.
+	SwapTwoFactorBackupCodes(ctx context.Context, userID string, expected, next []byte) (bool, error)
 }
 
 // APIKeyRepository manages API key persistence and lookup.

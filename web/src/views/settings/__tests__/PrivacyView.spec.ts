@@ -106,6 +106,23 @@ describe('PrivacyView (spec 094)', () => {
     expect(on.find('[data-test="privacy-code"]').exists()).toBe(true)
   })
 
+  it('accepts a backup code in the two-factor field (not just 6 digits)', async () => {
+    const on = await build(summary({ two_factor_enabled: true }))
+    await on.find('[data-test="privacy-export-open"]').trigger('click')
+    await flushPromises()
+    const input = on.find('[data-test="privacy-code"]')
+    expect(Number(input.attributes('maxlength'))).toBeGreaterThanOrEqual('abcd-efgh-jkmn'.length)
+    expect(input.attributes('inputmode')).not.toBe('numeric')
+
+    exportMock.mockResolvedValue({ blob: new Blob(['{}']), filename: 'x.json' })
+    const vm = on.vm as unknown as { form: { password: string; code: string }; onSubmit: () => Promise<void> }
+    vm.form.password = 'pw'
+    vm.form.code = 'abcd-efgh-jkmn'
+    await vm.onSubmit()
+    await flushPromises()
+    expect(exportMock).toHaveBeenCalledWith({ password: 'pw', code: 'abcd-efgh-jkmn' })
+  })
+
   it('submits the credentials and downloads the file', async () => {
     exportMock.mockResolvedValue({ blob: new Blob(['{}']), filename: 'ogoune-personal-data-2026-10-02.json' })
     const w = await build(summary({ two_factor_enabled: true }))
