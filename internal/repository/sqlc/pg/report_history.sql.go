@@ -120,3 +120,43 @@ func (q *Queries) ListRecentReportHistory(ctx context.Context, lim int32) ([]Rep
 	}
 	return items, nil
 }
+
+const listReportHistoryByRecipient = `-- name: ListReportHistoryByRecipient :many
+SELECT id, period, sent_at, status, uptime_pct, incident_count, downtime_seconds, recipient_email, resource_breakdown, created_at
+FROM report_history
+WHERE LOWER(TRIM(recipient_email)) = $1
+ORDER BY period DESC
+`
+
+// Reports sent to one address, matched case- and space-insensitively
+// (spec 094). The caller passes the address already normalised.
+func (q *Queries) ListReportHistoryByRecipient(ctx context.Context, email string) ([]ReportHistory, error) {
+	rows, err := q.db.Query(ctx, listReportHistoryByRecipient, email)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ReportHistory{}
+	for rows.Next() {
+		var i ReportHistory
+		if err := rows.Scan(
+			&i.ID,
+			&i.Period,
+			&i.SentAt,
+			&i.Status,
+			&i.UptimePct,
+			&i.IncidentCount,
+			&i.DowntimeSeconds,
+			&i.RecipientEmail,
+			&i.ResourceBreakdown,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}

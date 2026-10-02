@@ -3,6 +3,7 @@ package fake
 import (
 	"context"
 	"sort"
+	"strings"
 	"sync"
 	"time"
 
@@ -64,4 +65,19 @@ func (f *ReportHistoryFake) FindByPeriod(_ context.Context, period string) (*dom
 	}
 	cp := *r
 	return &cp, nil
+}
+
+// ListByRecipient mirrors the store's LOWER(TRIM(recipient_email)) = email.
+func (f *ReportHistoryFake) ListByRecipient(_ context.Context, email string) ([]*domain.ReportHistory, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	out := []*domain.ReportHistory{}
+	for _, r := range f.rows {
+		if strings.ToLower(strings.TrimSpace(r.RecipientEmail)) == email {
+			cp := *r
+			out = append(out, &cp)
+		}
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].Period > out[j].Period })
+	return out, nil
 }

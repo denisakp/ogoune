@@ -1059,3 +1059,25 @@ export type {
   HostMetricRange,
   MonitorSummary,
 } from './host'
+
+/** Personal data held about the signed-in user (spec 094) -- the privacy page. */
+export interface PrivacyCategory {
+  key:
+    | 'account'
+    | 'sessions'
+    | 'api_keys'
+    | 'incident_updates'
+    | 'notification_channels'
+    | 'reports'
+  count: number
+  manage_path: string
+}
+
+export interface PrivacySummary {
+  generated_at: string
+  two_factor_enabled: boolean
+  categories: PrivacyCategory[]
+  not_personal_data: string[]
+  /** Channels whose configuration could not be decrypted, so whether they hold the address is unknown. */
+  unchecked_channels: { id: string; name: string; type: string }[]
+}

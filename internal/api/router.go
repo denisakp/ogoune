@@ -65,6 +65,7 @@ func NewRouter(
 	resourceImportV1Handler *v1handler.ResourceImportHandler,
 	hostV1Handler *v1handler.HostHandler,
 	agentStreamV1Handler *v1handler.AgentStreamHandler,
+	privacyV1Handler *v1handler.PrivacyHandler,
 	hostCredentialService *service.HostCredentialService,
 	enableSwagger bool,
 	cfg *config.Config,
@@ -259,6 +260,16 @@ func NewRouter(
 		// Authenticated v1 sub-group
 		r.Group(func(r chi.Router) {
 			r.Use(middleware.AuthMiddleware(authService, apiKeyService, sessionService))
+			// Personal data (spec 094): the signed-in person only, never an API
+			// key. The export re-authenticates and carries the same per-address
+			// limit as sign-in, so it cannot be used to guess a password.
+			if privacyV1Handler != nil {
+				r.Route("/me/privacy", func(r chi.Router) {
+					r.Use(middleware.RequireJWTOnly)
+					r.Get("/", privacyV1Handler.Summary)
+					r.With(httprate.LimitByIP(cfg.RateLimitAuth, cfg.RateLimitAuthWindow)).Post("/export", privacyV1Handler.Export)
+				})
+			}
 			// Monitors
 			r.Route("/monitors", func(r chi.Router) {
 				r.Get("/", monitorV1Handler.List)

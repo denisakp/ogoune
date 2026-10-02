@@ -204,3 +204,41 @@ func reportHistoryFromSQLite(row sqlitesqlc.ReportHistory) (*domain.ReportHistor
 		Breakdown:       bd,
 	}, nil
 }
+
+// ListByRecipient returns the reports sent to one address (spec 094). The
+// match is case- and space-insensitive on the stored side; the caller passes
+// the address already normalised (domain.NormalizeEmail).
+func (r *ReportHistoryRepositorySQLC) ListByRecipient(ctx context.Context, email string) ([]*domain.ReportHistory, error) {
+	switch {
+	case r.pgQ != nil:
+		rows, err := r.pgQ.ListReportHistoryByRecipient(ctx, email)
+		if err != nil {
+			return nil, fmt.Errorf("sqlc: list report history by recipient: %w", err)
+		}
+		out := make([]*domain.ReportHistory, 0, len(rows))
+		for _, row := range rows {
+			h, err := reportHistoryFromPG(row)
+			if err != nil {
+				return nil, err
+			}
+			out = append(out, h)
+		}
+		return out, nil
+	case r.sqliteQ != nil:
+		rows, err := r.sqliteQ.ListReportHistoryByRecipient(ctx, email)
+		if err != nil {
+			return nil, fmt.Errorf("sqlc: list report history by recipient: %w", err)
+		}
+		out := make([]*domain.ReportHistory, 0, len(rows))
+		for _, row := range rows {
+			h, err := reportHistoryFromSQLite(row)
+			if err != nil {
+				return nil, err
+			}
+			out = append(out, h)
+		}
+		return out, nil
+	default:
+		return nil, r.unconfigured()
+	}
+}

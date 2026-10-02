@@ -71,6 +71,7 @@ export default withMermaid(defineConfig({
           text: 'Account & API',
           items: [
             { text: 'API keys & 2FA', link: '/guide/api-access' },
+            { text: 'Privacy & your data', link: '/guide/privacy' },
             { text: 'Bulk import/export', link: '/guide/import-export' },
           ],
         },

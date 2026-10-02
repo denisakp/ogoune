@@ -86,6 +86,11 @@ func InitRouter(app *App) {
 	statusPageV1Handler := v1handler.NewStatusPageV1Handler(app.ComponentRepo)
 	heartbeatV1Handler := v1handler.NewHeartbeatV1Handler(app.ResourceService)
 	twoFactorV1Handler := v1handler.NewTwoFactorHandler(app.TwoFactorService, app.AuthService)
+	// Personal data (spec 094). The version and an explicitly configured base
+	// URL are what the export states about the install that produced it.
+	privacyV1Handler := v1handler.NewPrivacyHandler(
+		service.NewPrivacyService(app.UserRepo, app.SessionRepo, app.APIKeyRepo, app.IncidentUpdateRepo, app.NotificationChannelRepo, app.ReportSettingsRepo, app.ReportHistoryRepo),
+		app.AuthService, appVersion(), os.Getenv("APP_BASE_URL"))
 	escalationV1Handler := v1handler.NewEscalationHandler(app.EscalationService)
 
 	credentialService := service.NewResourceCredentialService(app.ResourceCredentialRepo, app.ResourceRepo)
@@ -117,7 +122,7 @@ func InitRouter(app *App) {
 		return
 	}
 
-	apiHandler := api.NewRouter(pingHandler, activityHandler, statusPageHandler, publicStatusHandler, asCacheRecorder(app.PublicStatusCacheMetr), statusPageSettingsHandler, maintenanceHandler, statsHandler, systemHandler, runtimeConfigHandler, authHandler, accountHandler, app.AuthService, app.APIKeyService, app.SessionService, sessionHandler, twoFactorV1Handler, escalationV1Handler, monitorV1Handler, incidentV1Handler, incidentUpdateV1Handler, searchV1Handler, channelV1Handler, componentV1Handler, tagV1Handler, statusPageV1Handler, heartbeatV1Handler, credentialV1Handler, toolboxV1Handler, notificationFeedV1Handler, dashboardV1Handler, reportV1Handler, announcementV1Handler, integrationsV1Handler, resourceImportV1Handler, hostV1Handler, agentStreamV1Handler, app.HostCredentialService, cfg.EnableSwagger, cfg)
+	apiHandler := api.NewRouter(pingHandler, activityHandler, statusPageHandler, publicStatusHandler, asCacheRecorder(app.PublicStatusCacheMetr), statusPageSettingsHandler, maintenanceHandler, statsHandler, systemHandler, runtimeConfigHandler, authHandler, accountHandler, app.AuthService, app.APIKeyService, app.SessionService, sessionHandler, twoFactorV1Handler, escalationV1Handler, monitorV1Handler, incidentV1Handler, incidentUpdateV1Handler, searchV1Handler, channelV1Handler, componentV1Handler, tagV1Handler, statusPageV1Handler, heartbeatV1Handler, credentialV1Handler, toolboxV1Handler, notificationFeedV1Handler, dashboardV1Handler, reportV1Handler, announcementV1Handler, integrationsV1Handler, resourceImportV1Handler, hostV1Handler, agentStreamV1Handler, privacyV1Handler, app.HostCredentialService, cfg.EnableSwagger, cfg)
 
 	// Root router
 	rootRouter := chi.NewRouter()
@@ -168,4 +173,13 @@ func InitRouter(app *App) {
 		WriteTimeout: 15 * time.Second,
 		IdleTimeout:  60 * time.Second,
 	}
+}
+
+// appVersion is the version the install reports about itself, read the same
+// way the system endpoint reads it.
+func appVersion() string {
+	if v := os.Getenv("APP_VERSION"); v != "" {
+		return v
+	}
+	return "1.0.0-beta"
 }

@@ -259,3 +259,33 @@ func sessionFromSQLite(row sqlitesqlc.Session) *domain.Session {
 	}
 	return out
 }
+
+// ListAllByUser returns every session of a user, revoked included -- what a
+// personal-data inventory must list (spec 094). ListActiveByUser stays the
+// one the sessions screen uses.
+func (r *SessionRepositorySQLC) ListAllByUser(ctx context.Context, userID string) ([]*domain.Session, error) {
+	switch {
+	case r.pgQ != nil:
+		rows, err := r.pgQ.ListSessionsByUser(ctx, userID)
+		if err != nil {
+			return nil, fmt.Errorf("sqlc: list all sessions: %w", err)
+		}
+		out := make([]*domain.Session, len(rows))
+		for i, row := range rows {
+			out[i] = sessionFromPG(row)
+		}
+		return out, nil
+	case r.sqliteQ != nil:
+		rows, err := r.sqliteQ.ListSessionsByUser(ctx, userID)
+		if err != nil {
+			return nil, fmt.Errorf("sqlc: list all sessions: %w", err)
+		}
+		out := make([]*domain.Session, len(rows))
+		for i, row := range rows {
+			out[i] = sessionFromSQLite(row)
+		}
+		return out, nil
+	default:
+		return nil, r.unconfigured()
+	}
+}

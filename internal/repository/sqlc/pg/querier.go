@@ -202,6 +202,8 @@ type Querier interface {
 	ListIncidentDiagnosticsByIncidentIDs(ctx context.Context, dollar_1 []string) ([]IncidentDiagnostic, error)
 	ListIncidentEventSteps(ctx context.Context, arg ListIncidentEventStepsParams) ([]IncidentEventStep, error)
 	ListIncidentUpdates(ctx context.Context, incidentID string) ([]IncidentUpdate, error)
+	// Updates a given user authored (spec 094). posted_by holds the user ID.
+	ListIncidentUpdatesByPostedBy(ctx context.Context, postedBy string) ([]IncidentUpdate, error)
 	ListIncidents(ctx context.Context, arg ListIncidentsParams) ([]Incident, error)
 	ListMaintenanceResourceIDsByMaintenanceID(ctx context.Context, maintenanceID string) ([]string, error)
 	ListMaintenancesAll(ctx context.Context, arg ListMaintenancesAllParams) ([]Maintenance, error)
@@ -211,9 +213,15 @@ type Querier interface {
 	ListNotificationEvents(ctx context.Context, arg ListNotificationEventsParams) ([]NotificationEvent, error)
 	ListNotificationsForUser(ctx context.Context, arg ListNotificationsForUserParams) ([]Notification, error)
 	ListRecentReportHistory(ctx context.Context, lim int32) ([]ReportHistory, error)
+	// Reports sent to one address, matched case- and space-insensitively
+	// (spec 094). The caller passes the address already normalised.
+	ListReportHistoryByRecipient(ctx context.Context, email string) ([]ReportHistory, error)
 	ListResources(ctx context.Context, arg ListResourcesParams) ([]Resource, error)
 	ListResourcesByComponentID(ctx context.Context, componentID pgtype.Text) ([]Resource, error)
 	ListScheduledResources(ctx context.Context) ([]Resource, error)
+	// Every session of a user, revoked included: a personal-data inventory
+	// must list them all (spec 094).
+	ListSessionsByUser(ctx context.Context, userID string) ([]Session, error)
 	ListTagIDsByResourceID(ctx context.Context, resourceID string) ([]string, error)
 	ListTags(ctx context.Context, arg ListTagsParams) ([]Tag, error)
 	ListTagsByResourceIDs(ctx context.Context, dollar_1 []string) ([]ListTagsByResourceIDsRow, error)

@@ -113,6 +113,44 @@ func (q *Queries) ListActiveSessionsByUser(ctx context.Context, userID string) (
 	return items, nil
 }
 
+const listSessionsByUser = `-- name: ListSessionsByUser :many
+SELECT id, user_id, browser, os, ip, location, last_active_at, created_at, revoked_at FROM sessions
+WHERE user_id = $1
+ORDER BY created_at DESC
+`
+
+// Every session of a user, revoked included: a personal-data inventory
+// must list them all (spec 094).
+func (q *Queries) ListSessionsByUser(ctx context.Context, userID string) ([]Session, error) {
+	rows, err := q.db.Query(ctx, listSessionsByUser, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Session{}
+	for rows.Next() {
+		var i Session
+		if err := rows.Scan(
+			&i.ID,
+			&i.UserID,
+			&i.Browser,
+			&i.Os,
+			&i.Ip,
+			&i.Location,
+			&i.LastActiveAt,
+			&i.CreatedAt,
+			&i.RevokedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const revokeAllSessionsExcept = `-- name: RevokeAllSessionsExcept :execrows
 UPDATE sessions
 SET revoked_at = $3

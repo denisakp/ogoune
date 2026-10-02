@@ -87,3 +87,33 @@ func TestSessionRepository_Contract(t *testing.T) {
 		})
 	})
 }
+
+// Spec 094: an inventory lists every session, revoked included, and only the
+// user's own. A separate test so the contract above stays readable.
+func TestSessionRepository_ListAllByUser(t *testing.T) {
+	internaltest.ForEachDialect(t, func(t *testing.T, fx *internaltest.DialectFixture) {
+		repo := store.NewSessionRepositorySQLC(fx.Runtime)
+		ctx := context.Background()
+
+		seedUsers(t, fx, "user-sess-all", "user-sess-other")
+		s1 := &domain.Session{UserID: "user-sess-all", Browser: "Firefox", IP: "203.0.113.4", LastActiveAt: time.Now()}
+		s2 := &domain.Session{UserID: "user-sess-all", Browser: "Safari", LastActiveAt: time.Now()}
+		other := &domain.Session{UserID: "user-sess-other", Browser: "Edge", LastActiveAt: time.Now()}
+		for _, s := range []*domain.Session{s1, s2, other} {
+			require.NoError(t, repo.Create(ctx, s))
+		}
+		require.NoError(t, repo.Revoke(ctx, s1.ID, time.Now()))
+
+		all, err := repo.ListAllByUser(ctx, "user-sess-all")
+		require.NoError(t, err)
+		require.Len(t, all, 2, "revoked sessions are still personal data")
+		ids := []string{all[0].ID, all[1].ID}
+		assert.ElementsMatch(t, []string{s1.ID, s2.ID}, ids)
+		for _, s := range all {
+			if s.ID == s1.ID {
+				assert.NotNil(t, s.RevokedAt)
+				assert.Equal(t, "203.0.113.4", s.IP)
+			}
+		}
+	})
+}

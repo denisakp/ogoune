@@ -99,3 +99,18 @@ func (r *SessionRepository) RevokeAllExcept(ctx context.Context, userID, current
 	}
 	return n, nil
 }
+
+// ListAllByUser returns every session of a user, revoked included (spec 094).
+func (r *SessionRepository) ListAllByUser(ctx context.Context, userID string) ([]*domain.Session, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	out := make([]*domain.Session, 0)
+	for _, s := range r.byID {
+		if s.UserID == userID {
+			cp := *s
+			out = append(out, &cp)
+		}
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].CreatedAt.After(out[j].CreatedAt) })
+	return out, nil
+}
